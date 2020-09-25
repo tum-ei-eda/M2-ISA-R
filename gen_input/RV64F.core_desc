@@ -1,0 +1,44 @@
+import "RV32F.core_desc"
+
+InstructionSet RV64F extends RV32F {
+    instructions {
+        FCVT.L.S { // fp to 64bit signed integer
+            encoding: b1100000 | b00010 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"{name(rd)}, f{rs1}";
+            val res[64] <= fdispatch_fcvt_32_64(fdispatch_unbox_s(F[rs1]), zext(0, 32), rm{8});
+            X[rd]<= sext(res);
+            val flags[32] <= fdispatch_fget_flags();
+            FCSR <= (FCSR & ~FFLAG_MASK) + flags{5};
+        }
+        FCVT.LU.S { // fp to 64bit unsigned integer
+            encoding: b1100000 | b00011 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"{name(rd)}, f{rs1}";
+            val res[64] <= fdispatch_fcvt_32_64(fdispatch_unbox_s(F[rs1]), zext(1, 32), rm{8});
+            X[rd]<= zext(res);
+            val flags[32] <= fdispatch_fget_flags();
+            FCSR <= (FCSR & ~FFLAG_MASK) + flags{5};
+        }
+        FCVT.S.L { // 64bit signed int to to fp 
+            encoding: b1101000 | b00010 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"f{rd}, {name(rs1)}";
+            val res[32] <= fdispatch_fcvt_64_32(X[rs1], zext(2, 32), rm{8});
+            if(FLEN==32)
+                F[rd] <= res;
+            else { // NaN boxing
+                val upper[FLEN] <= -1;
+                F[rd] <= (upper<<32) | zext(res, FLEN);
+            }
+        }
+        FCVT.S.LU { // 64bit unsigned int to to fp 
+            encoding: b1101000 | b00011 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"f{rd}, {name(rs1)}";
+            val res[32] <=fdispatch_fcvt_64_32(X[rs1], zext(3,32), rm{8});
+            if(FLEN==32)
+                F[rd] <= res;
+            else { // NaN boxing
+                val upper[FLEN] <= -1;
+                F[rd] <= (upper<<32) | zext(res, FLEN);
+            }
+        }
+	}
+}

@@ -1,0 +1,90 @@
+import "RV32I.core_desc"
+import "RV64I.core_desc"
+import "RV32M.core_desc"
+import "RV64M.core_desc"
+import "RV32A.core_desc"
+import "RV64A.core_desc"
+import "RV32F.core_desc"
+import "RV64F.core_desc"
+import "RV32D.core_desc"
+import "RV64D.core_desc"
+
+import "RV32IC.core_desc"
+import "RV64IC.core_desc"
+import "RV32FC.core_desc"
+import "RV32DC.core_desc"
+
+import "CSR.core_desc"
+
+
+Core MNRV32 provides RV32I, RV32IC, MCSR32 {
+    constants {
+        XLEN:=32;
+        PCLEN:=32;
+        // definitions for the architecture wrapper
+        //          XL    ZYXWVUTSRQPONMLKJIHGFEDCBA
+        MISA_VAL:=0b01000000000101000001000100000101;
+        PGSIZE := 0x1000; //1 << 12;
+        PGMASK := 0xfff; //PGSIZE-1
+    }
+
+    reg_init {
+        MISA := 0b01000000000101000001000100000101;
+        MVENDORID := 0xDEADBEEF;
+        MARCHID := XLEN;
+    }
+}
+
+Core RV32IMAC provides RV32I, RV32M, RV32A, RV32IC, UCSR32 {
+    constants {
+        XLEN:=32;
+        PCLEN:=32;
+        MUL_LEN:=64;
+        // definitions for the architecture wrapper
+        //          XL    ZYXWVUTSRQPONMLKJIHGFEDCBA
+        MISA_VAL:=0b01000000000101000001000100000101;
+        PGSIZE := 0x1000; //1 << 12;
+        PGMASK := 0xfff; //PGSIZE-1
+    }
+}
+
+Core RV32GC provides RV32I, RV32M, RV32A, RV32F, RV32D, RV32IC, RV32FC, RV32DC, UCSR32, SCSR, MCSR32, HCSR32 {
+    constants {
+        XLEN:=32;
+        FLEN:=64;
+        PCLEN:=32;
+        MUL_LEN:=64;
+        // definitions for the architecture wrapper
+        //          XL    ZYXWVUTSRQPONMLKJIHGFEDCBA
+        MISA_VAL:=0b01000000000101000001000100101101;
+        PGSIZE := 0x1000; //1 << 12;
+        PGMASK := 0xfff; //PGSIZE-1
+    }
+}
+
+Core RV64I provides RV64I, UCSR64 {
+    constants {
+        XLEN:=64;
+        PCLEN:=64;
+        // definitions for the architecture wrapper
+        //          XL    ZYXWVUTSRQPONMLKJIHGFEDCBA
+        MISA_VAL:=0b10000000000001000000000100000000;
+        PGSIZE := 0x1000; //1 << 12;
+        PGMASK := 0xfff; //PGSIZE-1
+    }
+}
+
+Core RV64GC provides RV64I, RV64M, RV64A, RV64F, RV64D, RV32FC, RV32DC, RV64IC, UCSR64, SCSR, MCSR64, HCSR64 {
+    constants {
+        XLEN:=64;
+        FLEN:=64;
+        PCLEN:=64;
+        MUL_LEN:=128;
+        // definitions for the architecture wrapper
+        //          XL    ZYXWVUTSRQPONMLKJIHGFEDCBA
+        MISA_VAL:=0b01000000000101000001000100101101;
+        PGSIZE := 0x1000; //1 << 12;
+        PGMASK := 0xfff; //PGSIZE-1
+    }
+}
+

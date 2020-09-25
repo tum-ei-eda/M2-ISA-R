@@ -1,0 +1,346 @@
+import "RISCVBase.core_desc"
+
+InstructionSet CSRBase extends RISCVBase {
+    registers {
+        [0xfff:0] CSR[XLEN]      
+    }
+
+    instructions {
+        CSRRW {
+            encoding: csr[11:0] | rs1[4:0] | b001 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {name(rs1)}";
+            val rs_val[XLEN] <= X[rs1];
+            if(rd!=0){
+                val csr_val[XLEN] <= CSR[csr];
+                CSR[csr] <= rs_val; 
+                // make sure Xrd is updated once CSR write succeeds
+                X[rd] <= csr_val;
+            } else {
+                CSR[csr] <= rs_val;
+            }
+        }
+        CSRRS {
+            encoding: csr[11:0] | rs1[4:0] | b010 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {name(rs1)}";
+            val xrd[XLEN] <= CSR[csr];
+            val xrs1[XLEN] <= X[rs1];
+            if(rd!=0) X[rd] <= xrd;
+            if(rs1!=0) CSR[csr] <= xrd | xrs1;    
+        }
+        CSRRC {
+            encoding: csr[11:0] | rs1[4:0] | b011 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {name(rs1)}";
+            val xrd[XLEN] <= CSR[csr];
+            val xrs1[XLEN] <= X[rs1];
+            if(rd!=0) X[rd] <= xrd;
+            if(rs1!=0) CSR[csr] <= xrd & ~xrs1;    
+        }
+        CSRRWI {
+            encoding: csr[11:0] | zimm[4:0] | b101 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {zimm:#0x}";
+            if(rd!=0) X[rd] <= CSR[csr];
+            CSR[csr] <= zext(zimm);    
+        }
+        CSRRSI {
+            encoding: csr[11:0] | zimm[4:0] | b110 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {zimm:#0x}";
+            val res[XLEN] <= CSR[csr];
+            if(zimm!=0) CSR[csr] <= res | zext(zimm);
+            // make sure rd is written after csr write succeeds    
+            if(rd!=0) X[rd] <= res;
+        }
+        CSRRCI {
+            encoding: csr[11:0] | zimm[4:0] | b111 | rd[4:0] | b1110011;
+            args_disass:"{name(rd)}, {csr}, {zimm:#0x}";
+            val res[XLEN] <= CSR[csr];
+            if(rd!=0) X[rd] <= res;
+            if(zimm!=0) CSR[csr] <= res & ~zext(zimm, XLEN);    
+        }   
+    }
+}
+
+InstructionSet FCSR extends CSRBase {
+    registers {
+        alias FFLAGS[XLEN] is CSR[0x001],
+        alias FRM[XLEN] is CSR[0x002],
+        alias FCSR[XLEN] is CSR[0x003]
+    }
+}
+
+InstructionSet UCSR64 extends CSRBase {
+    registers {
+        alias USTATUS[XLEN] is CSR[0x000],
+        alias UIE[XLEN] is CSR[0x004],
+        alias UTVEC[XLEN] is CSR[0x005],
+        alias USCRATCH[XLEN] is CSR[0x040],
+        alias UEPC[XLEN] is CSR[0x041],
+        alias UCAUSE[XLEN] is CSR[0x042],
+        alias UTVAL[XLEN] is CSR[0x043],
+        alias UIP[XLEN] is CSR[0x044],
+        alias CYCLE[XLEN] is CSR[0xC00],
+        alias TIME[XLEN] is CSR[0xC01],
+        alias INSTRET[XLEN] is CSR[0xC02],
+        alias HPMCOUNTER3[XLEN] is CSR[0xC03],
+        alias HPMCOUNTER4[XLEN] is CSR[0xC04],
+        alias HPMCOUNTER4[XLEN] is CSR[0xc05],
+        alias HPMCOUNTER5[XLEN] is CSR[0xc06],
+        alias HPMCOUNTER6[XLEN] is CSR[0xc07],
+        alias HPMCOUNTER7[XLEN] is CSR[0xc08],
+        alias HPMCOUNTER8[XLEN] is CSR[0xc09],
+        alias HPMCOUNTER9[XLEN] is CSR[0xc0a],
+        alias HPMCOUNTER10[XLEN] is CSR[0xc0b],
+        alias HPMCOUNTER11[XLEN] is CSR[0xc0c],
+        alias HPMCOUNTER12[XLEN] is CSR[0xc0d],
+        alias HPMCOUNTER13[XLEN] is CSR[0xc0e],
+        alias HPMCOUNTER14[XLEN] is CSR[0xc0f],
+        alias HPMCOUNTER15[XLEN] is CSR[0xc10],
+        alias HPMCOUNTER16[XLEN] is CSR[0xc11],
+        alias HPMCOUNTER17[XLEN] is CSR[0xc12],
+        alias HPMCOUNTER18[XLEN] is CSR[0xc13],
+        alias HPMCOUNTER19[XLEN] is CSR[0xc14],
+        alias HPMCOUNTER20[XLEN] is CSR[0xc15],
+        alias HPMCOUNTER21[XLEN] is CSR[0xc16],
+        alias HPMCOUNTER22[XLEN] is CSR[0xc17],
+        alias HPMCOUNTER23[XLEN] is CSR[0xc18],
+        alias HPMCOUNTER24[XLEN] is CSR[0xc19],
+        alias HPMCOUNTER25[XLEN] is CSR[0xc1a],
+        alias HPMCOUNTER26[XLEN] is CSR[0xc1b],
+        alias HPMCOUNTER27[XLEN] is CSR[0xc1c],
+        alias HPMCOUNTER28[XLEN] is CSR[0xc1d],
+        alias HPMCOUNTER29[XLEN] is CSR[0xc1e],
+        alias HPMCOUNTER31[XLEN] is CSR[0xC1F]
+    }
+}
+
+InstructionSet UCSR32 extends UCSR64 {
+    registers {
+        alias CYCLEH[XLEN] is CSR[0xC80],
+        alias TIMEH[XLEN] is CSR[0xC81],
+        alias INSTRETH[XLEN] is CSR[0xC82],
+        alias HPMCOUNTER3H[XLEN] is CSR[0xC83],
+        alias HPMCOUNTER4H[XLEN] is CSR[0xC84],
+        alias HPMCOUNTER4H[XLEN] is CSR[0xc85],
+        alias HPMCOUNTER5H[XLEN] is CSR[0xc86],
+        alias HPMCOUNTER6H[XLEN] is CSR[0xc87],
+        alias HPMCOUNTER7H[XLEN] is CSR[0xc88],
+        alias HPMCOUNTER8H[XLEN] is CSR[0xc89],
+        alias HPMCOUNTER9H[XLEN] is CSR[0xc8a],
+        alias HPMCOUNTER10H[XLEN] is CSR[0xc8b],
+        alias HPMCOUNTER11H[XLEN] is CSR[0xc8c],
+        alias HPMCOUNTER12H[XLEN] is CSR[0xc8d],
+        alias HPMCOUNTER13H[XLEN] is CSR[0xc8e],
+        alias HPMCOUNTER14H[XLEN] is CSR[0xc8f],
+        alias HPMCOUNTER15H[XLEN] is CSR[0xc90],
+        alias HPMCOUNTER16H[XLEN] is CSR[0xc91],
+        alias HPMCOUNTER17H[XLEN] is CSR[0xc92],
+        alias HPMCOUNTER18H[XLEN] is CSR[0xc93],
+        alias HPMCOUNTER19H[XLEN] is CSR[0xc94],
+        alias HPMCOUNTER20H[XLEN] is CSR[0xc95],
+        alias HPMCOUNTER21H[XLEN] is CSR[0xc96],
+        alias HPMCOUNTER22H[XLEN] is CSR[0xc97],
+        alias HPMCOUNTER23H[XLEN] is CSR[0xc98],
+        alias HPMCOUNTER24H[XLEN] is CSR[0xc99],
+        alias HPMCOUNTER25H[XLEN] is CSR[0xc9a],
+        alias HPMCOUNTER26H[XLEN] is CSR[0xc9b],
+        alias HPMCOUNTER27H[XLEN] is CSR[0xc9c],
+        alias HPMCOUNTER28H[XLEN] is CSR[0xc9d],
+        alias HPMCOUNTER29H[XLEN] is CSR[0xc9e],
+        alias HPMCOUNTER31H[XLEN] is CSR[0xC9F]
+    }
+}
+
+InstructionSet SCSR extends CSRBase {
+    registers {
+        alias SSTATUS[XLEN] is CSR[0x100],
+        alias SEDELEG[XLEN] is CSR[0x102],
+        alias SIDELEG[XLEN] is CSR[0x103],
+        alias SIE[XLEN] is CSR[0x104],
+        alias STVEC[XLEN] is CSR[0x105],
+        alias SCOUNTEREN[XLEN] is CSR[0x106],
+        alias SSCRATCH[XLEN] is CSR[0x140],
+        alias SEPC[XLEN] is CSR[0x141],
+        alias SCAUSE[XLEN] is CSR[0x142],
+        alias STVAL[XLEN] is CSR[0x143],
+        alias SIP[XLEN] is CSR[0x144],
+        alias SATP[XLEN] is CSR[0x180]
+    }
+}
+
+InstructionSet MCSR64 extends CSRBase {
+    registers {
+        alias MVENDORID[XLEN] is CSR[0xF11],
+        alias MARCHID[XLEN] is CSR[0xF12],
+        alias MIMPID[XLEN] is CSR[0xF13],
+        alias MHARTID[XLEN] is CSR[0xF14],
+        alias MSTATUS[XLEN] is CSR[0x300],
+        alias MISA[XLEN] is CSR[0x301],
+        alias MEDELEG[XLEN] is CSR[0x302],
+        alias MIDELEG[XLEN] is CSR[0x303],
+        alias MIE[XLEN] is CSR[0x304],
+        alias MTVEC[XLEN] is CSR[0x305],
+        alias MCOUNTEREN[XLEN] is CSR[0x306],
+        alias MSCRATCH[XLEN] is CSR[0x340],
+        alias MEPC[XLEN] is CSR[0x341],
+        alias MCAUSE[XLEN] is CSR[0x342],
+        alias MTVAL[XLEN] is CSR[0x343],
+        alias MIP[XLEN] is CSR[0x344],
+        alias PMPCFG0[XLEN] is CSR[0x3A0],
+        alias PMPCFG1[XLEN] is CSR[0x3A1],
+        alias PMPCFG2[XLEN] is CSR[0x3A2],
+        alias PMPCFG3[XLEN] is CSR[0x3A3],
+        alias PMPADDR0[XLEN] is CSR[0x3B0],
+        alias PMPADDR1[XLEN] is CSR[0x3B1],
+        alias PMPADDR1[XLEN] is CSR[0x3b2],
+        alias PMPADDR2[XLEN] is CSR[0x3b3],
+        alias PMPADDR3[XLEN] is CSR[0x3b4],
+        alias PMPADDR4[XLEN] is CSR[0x3b5],
+        alias PMPADDR5[XLEN] is CSR[0x3b6],
+        alias PMPADDR6[XLEN] is CSR[0x3b7],
+        alias PMPADDR7[XLEN] is CSR[0x3b8],
+        alias PMPADDR8[XLEN] is CSR[0x3b9],
+        alias PMPADDR9[XLEN] is CSR[0x3ba],
+        alias PMPADDR10[XLEN] is CSR[0x3bb],
+        alias PMPADDR11[XLEN] is CSR[0x3bc],
+        alias PMPADDR12[XLEN] is CSR[0x3bd],
+        alias PMPADDR13[XLEN] is CSR[0x3be],
+        alias PMPADDR15[XLEN] is CSR[0x3BF],
+        alias MCYCLE[XLEN] is CSR[0xB00],
+        alias MINSTRET[XLEN] is CSR[0xB02],
+        alias MHPMCOUNTER3[XLEN] is CSR[0xB03],
+        alias MHPMCOUNTER4[XLEN] is CSR[0xB04],
+        alias MHPMCOUNTER4[XLEN] is CSR[0xb05],
+        alias MHPMCOUNTER5[XLEN] is CSR[0xb06],
+        alias MHPMCOUNTER6[XLEN] is CSR[0xb07],
+        alias MHPMCOUNTER7[XLEN] is CSR[0xb08],
+        alias MHPMCOUNTER8[XLEN] is CSR[0xb09],
+        alias MHPMCOUNTER9[XLEN] is CSR[0xb0a],
+        alias MHPMCOUNTER10[XLEN] is CSR[0xb0b],
+        alias MHPMCOUNTER11[XLEN] is CSR[0xb0c],
+        alias MHPMCOUNTER12[XLEN] is CSR[0xb0d],
+        alias MHPMCOUNTER13[XLEN] is CSR[0xb0e],
+        alias MHPMCOUNTER14[XLEN] is CSR[0xb0f],
+        alias MHPMCOUNTER15[XLEN] is CSR[0xb10],
+        alias MHPMCOUNTER16[XLEN] is CSR[0xb11],
+        alias MHPMCOUNTER17[XLEN] is CSR[0xb12],
+        alias MHPMCOUNTER18[XLEN] is CSR[0xb13],
+        alias MHPMCOUNTER19[XLEN] is CSR[0xb14],
+        alias MHPMCOUNTER20[XLEN] is CSR[0xb15],
+        alias MHPMCOUNTER21[XLEN] is CSR[0xb16],
+        alias MHPMCOUNTER22[XLEN] is CSR[0xb17],
+        alias MHPMCOUNTER23[XLEN] is CSR[0xb18],
+        alias MHPMCOUNTER24[XLEN] is CSR[0xb19],
+        alias MHPMCOUNTER25[XLEN] is CSR[0xb1a],
+        alias MHPMCOUNTER26[XLEN] is CSR[0xb1b],
+        alias MHPMCOUNTER27[XLEN] is CSR[0xb1c],
+        alias MHPMCOUNTER28[XLEN] is CSR[0xb1d],
+        alias MHPMCOUNTER29[XLEN] is CSR[0xb1e],
+        alias MHPMCOUNTER31[XLEN] is CSR[0xB1F],        
+        alias MCOUNTINHIBIT[XLEN] is CSR[0x320],
+        alias MHPMEVENT3[XLEN] is CSR[0x323],
+        alias MHPMEVENT4[XLEN] is CSR[0x324],
+        alias MHPMEVENT4[XLEN] is CSR[0x325],
+        alias MHPMEVENT5[XLEN] is CSR[0x326],
+        alias MHPMEVENT6[XLEN] is CSR[0x327],
+        alias MHPMEVENT7[XLEN] is CSR[0x328],
+        alias MHPMEVENT8[XLEN] is CSR[0x329],
+        alias MHPMEVENT9[XLEN] is CSR[0x32a],
+        alias MHPMEVENT10[XLEN] is CSR[0x32b],
+        alias MHPMEVENT11[XLEN] is CSR[0x32c],
+        alias MHPMEVENT12[XLEN] is CSR[0x32d],
+        alias MHPMEVENT13[XLEN] is CSR[0x32e],
+        alias MHPMEVENT14[XLEN] is CSR[0x32f],
+        alias MHPMEVENT15[XLEN] is CSR[0x330],
+        alias MHPMEVENT16[XLEN] is CSR[0x331],
+        alias MHPMEVENT17[XLEN] is CSR[0x332],
+        alias MHPMEVENT18[XLEN] is CSR[0x333],
+        alias MHPMEVENT19[XLEN] is CSR[0x334],
+        alias MHPMEVENT20[XLEN] is CSR[0x335],
+        alias MHPMEVENT21[XLEN] is CSR[0x336],
+        alias MHPMEVENT22[XLEN] is CSR[0x337],
+        alias MHPMEVENT23[XLEN] is CSR[0x338],
+        alias MHPMEVENT24[XLEN] is CSR[0x339],
+        alias MHPMEVENT25[XLEN] is CSR[0x33a],
+        alias MHPMEVENT26[XLEN] is CSR[0x33b],
+        alias MHPMEVENT27[XLEN] is CSR[0x33c],
+        alias MHPMEVENT28[XLEN] is CSR[0x33d],
+        alias MHPMEVENT29[XLEN] is CSR[0x33e],
+        alias MHPMEVENT31[XLEN] is CSR[0x33F],
+        alias TSELECT[XLEN] is CSR[0x7A0],
+        alias TDATA1[XLEN] is CSR[0x7A1],
+        alias TDATA2[XLEN] is CSR[0x7A2],
+        alias TDATA3[XLEN] is CSR[0x7A3],
+        alias DCSR[XLEN] is CSR[0x7B0],
+        alias DPC[XLEN] is CSR[0x7B1],
+        alias DSCRATCH0[XLEN] is CSR[0x7B2],
+        alias DSCRATCH1[XLEN] is CSR[0x7B3]
+    }
+}
+
+InstructionSet MCSR32 extends MCSR64 {
+    registers {
+        alias MCYCLEH[XLEN] is CSR[0xB80],
+        alias MINSTRETH[XLEN] is CSR[0xB82],
+        alias MHPMCOUNTER3H[XLEN] is CSR[0xB83],
+        alias MHPMCOUNTER4H[XLEN] is CSR[0xB84],
+        alias MHPMCOUNTER4H[XLEN] is CSR[0xb85],
+        alias MHPMCOUNTER5H[XLEN] is CSR[0xb86],
+        alias MHPMCOUNTER6H[XLEN] is CSR[0xb87],
+        alias MHPMCOUNTER7H[XLEN] is CSR[0xb88],
+        alias MHPMCOUNTER8H[XLEN] is CSR[0xb89],
+        alias MHPMCOUNTER9H[XLEN] is CSR[0xb8a],
+        alias MHPMCOUNTER10H[XLEN] is CSR[0xb8b],
+        alias MHPMCOUNTER11H[XLEN] is CSR[0xb8c],
+        alias MHPMCOUNTER12H[XLEN] is CSR[0xb8d],
+        alias MHPMCOUNTER13H[XLEN] is CSR[0xb8e],
+        alias MHPMCOUNTER14H[XLEN] is CSR[0xb8f],
+        alias MHPMCOUNTER15H[XLEN] is CSR[0xb90],
+        alias MHPMCOUNTER16H[XLEN] is CSR[0xb91],
+        alias MHPMCOUNTER17H[XLEN] is CSR[0xb92],
+        alias MHPMCOUNTER18H[XLEN] is CSR[0xb93],
+        alias MHPMCOUNTER19H[XLEN] is CSR[0xb94],
+        alias MHPMCOUNTER20H[XLEN] is CSR[0xb95],
+        alias MHPMCOUNTER21H[XLEN] is CSR[0xb96],
+        alias MHPMCOUNTER22H[XLEN] is CSR[0xb97],
+        alias MHPMCOUNTER23H[XLEN] is CSR[0xb98],
+        alias MHPMCOUNTER24H[XLEN] is CSR[0xb99],
+        alias MHPMCOUNTER25H[XLEN] is CSR[0xb9a],
+        alias MHPMCOUNTER26H[XLEN] is CSR[0xb9b],
+        alias MHPMCOUNTER27H[XLEN] is CSR[0xb9c],
+        alias MHPMCOUNTER28H[XLEN] is CSR[0xb9d],
+        alias MHPMCOUNTER29H[XLEN] is CSR[0xb9e],
+        alias MHPMCOUNTER31H[XLEN] is CSR[0xB9F]
+    }
+}
+
+InstructionSet HCSR64 extends CSRBase {
+    registers {
+        alias HSTATUS[XLEN] is CSR[0x600],
+        alias HEDELEG[XLEN] is CSR[0x602],
+        alias HIDELEG[XLEN] is CSR[0x603],
+        alias HIE[XLEN] is CSR[0x604],
+        alias HCOUNTEREN[XLEN] is CSR[0x606],
+        alias HGEIE[XLEN] is CSR[0x607],
+        alias HTVAL[XLEN] is CSR[0x643],
+        alias HIP[XLEN] is CSR[0x644],
+        alias HVIP[XLEN] is CSR[0x645],
+        alias HTINST[XLEN] is CSR[0x64A],
+        alias HGEIP[XLEN] is CSR[0xE12],
+        alias HGATP[XLEN] is CSR[0x680],
+        alias HTIMEDELTA[XLEN] is CSR[0x605],
+        alias VSSTATUS[XLEN] is CSR[0x200],
+        alias VSIE[XLEN] is CSR[0x204],
+        alias VSTVEC[XLEN] is CSR[0x205],
+        alias VSSCRATCH[XLEN] is CSR[0x240],
+        alias VSEPC[XLEN] is CSR[0x241],
+        alias VSCAUSE[XLEN] is CSR[0x242],
+        alias VSTVAL[XLEN] is CSR[0x243],
+        alias VSIP[XLEN] is CSR[0x244],
+        alias VSATP[XLEN] is CSR[0x280]
+    }
+}
+
+InstructionSet HCSR32 extends HCSR64 {
+    registers {
+        alias HTIMEDELTAH[XLEN] is CSR[0x615]
+    }
+}

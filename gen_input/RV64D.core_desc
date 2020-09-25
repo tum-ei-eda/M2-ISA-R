@@ -1,0 +1,52 @@
+import "RV32D.core_desc"
+
+InstructionSet RV64D extends RV32D{
+    instructions {
+        FCVT.L.D {
+            encoding: b1100001 | b00010 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"{name(rd)}, f{rs1}";
+            X[rd]<= sext(fdispatch_fcvt_d(F[rs1]{64}, zext(0, 32), rm{8}), XLEN);
+            val flags[32] <= fdispatch_fget_flags();
+            FCSR <= (FCSR & ~FFLAG_MASK) + flags{5};
+        }
+        FCVT.LU.D {
+            encoding: b1100001 | b00011 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"{name(rd)}, f{rs1}";
+            X[rd]<= sext(fdispatch_fcvt_d(F[rs1]{64}, zext(1, 32), rm{8}), XLEN);
+            val flags[32] <= fdispatch_fget_flags();
+            FCSR <= (FCSR & ~FFLAG_MASK) + flags{5};
+        }
+        FCVT.D.L {
+            encoding: b1101001 | b00010 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"f{rd}, {name(rs1)}";
+            val res[64] <= fdispatch_fcvt_d(sext(X[rs1],64), zext(2, 32), rm{8});
+            if(FLEN==64)
+                F[rd] <= res;
+            else { // NaN boxing
+                val upper[FLEN] <= -1;
+                F[rd] <= (upper<<64) | res;
+            }
+        }
+        FCVT.D.LU {
+            encoding: b1101001 | b00011 | rs1[4:0] | rm[2:0] | rd[4:0] | b1010011;
+            args_disass:"f{rd}, {name(rs1)}";
+            val res[64] <=fdispatch_fcvt_d(zext(X[rs1],64), zext(3,32), rm{8});
+            if(FLEN==64)
+                F[rd] <= res;
+            else { // NaN boxing
+                val upper[FLEN] <= -1;
+                F[rd] <= (upper<<64) | res;
+            }
+        }
+        FMV.X.D {
+            encoding: b1110001 | b00000 | rs1[4:0] | b000 | rd[4:0] | b1010011;
+            args_disass:"{name(rd)}, f{rs1}";
+            X[rd]<=sext(F[rs1]);
+        }
+        FMV.D.X {
+            encoding: b1111001 | b00000 | rs1[4:0] | b000 | rd[4:0] | b1010011;
+            args_disass:"f{rd}, {name(rs1)}";
+            F[rd] <= zext(X[rs1]);
+        }
+    }
+}
