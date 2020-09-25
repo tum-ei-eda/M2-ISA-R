@@ -71,7 +71,10 @@ class ModelTree(Transformer):
 
     def constant_decl(self, args):
         name, default_value = args
-        #assert name not in self.__constants
+
+        if name in self.__constants:
+            raise ValueError(f'Constant {name} already defined!')
+
         if name in self.__constants: return self.__constants[name]
         c = model_classes.Constant(name, default_value, set())
         self.__constants[name] = c
@@ -91,7 +94,10 @@ class ModelTree(Transformer):
 
     def address_space(self, args):
         name, size, power, length = args
-        #assert name not in self.__address_spaces
+
+        if name in self.__address_spaces:
+            raise ValueError(f'Address space {name} already defined!')
+
         if name in self.__address_spaces: return self.__address_spaces[name]
         
         size = self.get_constant_or_val(size)
@@ -104,7 +110,10 @@ class ModelTree(Transformer):
 
     def register(self, args):
         name, size, attributes = args
-        #assert name not in self.__registers
+
+        if name in self.__registers:
+            raise ValueError(f'Register {name} already defined!')
+
         if name in self.__registers: return self.__registers[name]
 
         size = self.get_constant_or_val(size)
@@ -116,7 +125,10 @@ class ModelTree(Transformer):
     
     def register_file(self, args):
         _range, name, size, attributes = args
-        #assert name not in self.__register_file
+
+        if name in self.__register_file:
+            raise ValueError(f'Register file {name} already defined!')
+
         if name in self.__register_file: return self.__register_file[name]
 
         size = self.get_constant_or_val(size)
@@ -128,7 +140,10 @@ class ModelTree(Transformer):
     
     def register_alias(self, args):
         name, size, actual, index, attributes = args
-        #assert name not in self.__register_alias
+        
+        if name in self.__register_alias:
+            raise ValueError(f'Register alias {name} already defined!')
+
         if name in self.__register_alias: return self.__register_alias[name]
         actual_reg = self.__register_file.get(actual) or self.__registers.get(actual)
         assert actual_reg
