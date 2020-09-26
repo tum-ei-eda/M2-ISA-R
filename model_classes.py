@@ -133,18 +133,33 @@ class BitField(Named):
     def __repr__(self):
         return f'BitField[{self.name}: {self.range} ({self.data_type})]'
 
+class BitFieldDescr(Named):
+    def __init__(self, name, size, data_type):
+        self.size = size
+        self.data_type = data_type
+
+        super().__init__(name)
+
 class Instruction(Named):
     def __init__(self, name, attributes, encoding, disass, operation):
         self.attributes = attributes
         self.encoding = encoding
-        self.fields = defaultdict(list)
+        self.fields = {}
         self.scalars = {}
         self.disass = disass
         self.operation = operation
         
         for e in self.encoding:
             if isinstance(e, BitField):
-                self.fields[e.name].append(e)
+                if e.name in self.fields:
+                    f = self.fields[e.name]
+                    if f.data_type != e.data_type:
+                        raise ValueError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
+                    f.size += e.range.upper - e.range.lower + 1
+                else:
+                    f = BitFieldDescr(e.name, e.range.upper - e.range.lower + 1, e.data_type)
+                    self.fields[e.name] = f
+
         
         super().__init__(name)
 
