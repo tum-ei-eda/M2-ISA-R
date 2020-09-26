@@ -50,7 +50,7 @@ InstructionSet RV32IC extends RV32I {
         }
         // order matters here as C.ADDI16SP overwrites C.LUI vor rd==2
         C.LUI {//(RV32)
-            encoding:b011 | imm[17:17] | rd[4:0] | imm[16:12]s | b01;
+            encoding:b011 | imm[17:17]s | rd[4:0] | imm[16:12]s | b01;
             args_disass: "{name(rd)}, {imm:#05x}";
             if(rd == 0) raise(0, 2);   //TODO: should it be handled as trap?
             if(imm == 0) raise(0, 2);   //TODO: should it be handled as trap?
