@@ -37,7 +37,7 @@ class Constant(Named):
         super().__init__(name)
 
 class SizedRefOrConst(Named):
-    def __init__(self, name, size=None):
+    def __init__(self, name, size):
         self._size = size
         super().__init__(name)
 
@@ -49,12 +49,13 @@ class SizedRefOrConst(Named):
             return self._size
 
 class Scalar(SizedRefOrConst):
-    def __init__(self, name, value=None, size=None):
+    def __init__(self, name, value, size, data_type):
         self.value = value
+        self.data_type = data_type
         super().__init__(name, size)
 
 class AddressSpace(SizedRefOrConst):
-    def __init__(self, name, power, length, size=None):
+    def __init__(self, name, power, length, size):
         self._length = length
         self._power = power
         super().__init__(name, size)

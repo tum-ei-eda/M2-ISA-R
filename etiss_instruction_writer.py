@@ -17,10 +17,12 @@ class CodeString:
         self.signed = signed
 
 class EtissInstructionWriter(Transformer):
-    def __init__(self, constants, spaces, regs, fields, attribs, instr_size, native_size):
+    def __init__(self, constants, spaces, registers, register_files, register_aliases, fields, attribs, instr_size, native_size):
         self.__constants = constants
         self.__spaces = spaces
-        self.__regs = regs
+        self.__registers = registers
+        self.__register_files = register_files
+        self.__register_aliases = register_aliases
         self.__fields = fields
         self.__attribs = attribs if attribs else []
         self.__scalars = {}
@@ -33,7 +35,8 @@ class EtissInstructionWriter(Transformer):
         self.temp_var_count = 0
     
     def operation(self, args):
-        return '\n'.join(args)
+        pass
+        #return '\n'.join(args)
 
     def scalar_definition(self, args):
         name, dtype, size = args
@@ -64,6 +67,11 @@ class EtissInstructionWriter(Transformer):
   
     def named_reference(self, args):
         name, size = args
+        referred_var = self.__registers.get(name) or self.__register_aliases.get(name) or self.__scalars.get(name) or self.__constants.get(name) or self.__fields.get(name)
+        if not referred_var:
+            raise ValueError(f'Named reference {name} does not exist!')
+        
+        return CodeString(name, name in self.__fields, size, False)
     
     def indexed_reference(self, args):
         name, index, size = args

@@ -60,7 +60,7 @@ for core_name, (mt, core) in models.items():
         
         print('\n--- fields:')
         print(fields_code)
-        t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, instr_def.fields, instr_def.attributes, enc_idx, core.constants['XLEN'].value)
+        t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, enc_idx, core.constants['XLEN'].value)
         out_code = t.transform(instr_def.operation)
         print('--- operation')
         print(out_code)
