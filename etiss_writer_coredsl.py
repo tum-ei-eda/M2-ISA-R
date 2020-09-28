@@ -27,7 +27,9 @@ with open(os.path.splitext(abs_top_level)[0] + '_model.pickle', 'rb') as f:
 pass
 
 for core_name, (mt, core) in models.items():
+    core_default_width = core.constants['XLEN'].value
     print(f'INFO: processing model {core_name}')
+
     for instr_name, instr_def in core.instructions.items():
         print(f'INFO: processing instruction {instr_name}\n')
 
@@ -42,7 +44,7 @@ for core_name, (mt, core) in models.items():
             if isinstance(enc, model_classes.BitField):
                 if enc.name not in seen_fields:
                     seen_fields.add(enc.name)
-                    fields_code += f'{data_type_map[enc.data_type]} {enc.name} = 0;\n'
+                    fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
                 
                 lower = enc.range.lower
                 upper = enc.range.upper
@@ -58,9 +60,16 @@ for core_name, (mt, core) in models.items():
 
                 enc_idx += enc.length
         
+        for field_name, field_descr in reversed(instr_def.fields.items()):
+            if field_descr.data_type == model_classes.DataType.S:
+                fields_code += '\n'
+                fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
+                fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
+            
+
         print('\n--- fields:')
         print(fields_code)
-        t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, enc_idx, core.constants['XLEN'].value)
+        t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, enc_idx, core_default_width)
         out_code = t.transform(instr_def.operation)
         print('--- operation')
         print(out_code)
