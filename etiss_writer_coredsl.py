@@ -29,6 +29,9 @@ pass
 for core_name, (mt, core) in models.items():
     core_default_width = core.constants['XLEN'].value
     print(f'INFO: processing model {core_name}')
+    
+    temp_var_count = 0
+    mem_var_count = 0
 
     for instr_name, instr_def in core.instructions.items():
         print(f'INFO: processing instruction {instr_name}\n')
@@ -71,6 +74,13 @@ for core_name, (mt, core) in models.items():
         print(fields_code)
         t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, enc_idx, core_default_width)
         out_code = t.transform(instr_def.operation)
+        
+        if t.temp_var_count > temp_var_count:
+            temp_var_count = t.temp_var_count
+        
+        if t.mem_var_count > mem_var_count:
+            mem_var_count = t.mem_var_count
+
         print('--- operation')
         print(out_code)
         print('\n')
