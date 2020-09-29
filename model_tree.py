@@ -167,6 +167,9 @@ class ModelTree(Transformer):
     def BVAL(self, num):
         return model_classes.BitVal(len(num) - 1, int('0'+num, 2))
     
+    def bit_size_spec(self, args):
+        size, = args
+        return size
     # def scalar_definition(self, args):
     #     name, size = args
 
