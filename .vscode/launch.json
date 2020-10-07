@@ -18,7 +18,7 @@
             "program": "${workspaceFolder}/etiss_writer_coredsl.py",
             "console": "integratedTerminal",
             "args": [
-                "gen_input/minres_rv.core_desc"
+                "${input:inputFile}"
             ],
             "stopOnEntry": true
         },
@@ -29,9 +29,21 @@
             "program": "${workspaceFolder}/parse_coredsl.py",
             "console": "integratedTerminal",
             "args": [
-                "gen_input/minres_rv.core_desc"
+                "${input:inputFile}"
             ],
             "stopOnEntry": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "inputFile",
+            "default": "gen_input/minres_rv.core_desc",
+            "type": "pickString",
+            "options": [
+                "gen_input/minres_rv.core_desc",
+                "gen_input/tum_rv.core_desc"
+            ],
+            "description": ""
         }
     ]
 }

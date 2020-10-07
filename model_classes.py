@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from collections import defaultdict, namedtuple
+from os import stat
 
 RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])
 BitVal = namedtuple('BitVal', ['length', 'value'])
@@ -7,6 +8,9 @@ BitVal = namedtuple('BitVal', ['length', 'value'])
 class RegAttribute(Enum):
     IS_PC = auto()
     DELETE = auto()
+
+class SpaceAttribute(Enum):
+    MAIN_MEM = auto()
 
 class ConstAttribute(Enum):
     IS_REG_WIDTH = auto()
@@ -33,7 +37,7 @@ class Named:
 class Constant(Named):
     def __init__(self, name, value, attributes):
         self.value = value
-        self.attributes = attributes
+        self.attributes = attributes if attributes else []
         super().__init__(name)
 
 class SizedRefOrConst(Named):
@@ -49,24 +53,26 @@ class SizedRefOrConst(Named):
             return self._size
 
 class Scalar(SizedRefOrConst):
-    def __init__(self, name, value, size, data_type):
+    def __init__(self, name, value, static, size, data_type):
         self.value = value
+        self.static = static
         self.data_type = data_type
         super().__init__(name, size)
 
 class AddressSpace(SizedRefOrConst):
-    def __init__(self, name, power, length, size):
+    def __init__(self, name, power, length, size, attributes):
         self._length = length
         self._power = power
+        self.attributes = attributes if attributes else []
         super().__init__(name, size)
-    
+
     @property
     def length(self):
         if isinstance(self._length, Constant):
             temp = self._length.value
         else:
             temp = self._length
-        
+
         if self._power:
             return self._power ** temp
         else:
@@ -84,11 +90,11 @@ class InstructionSet(Named):
 
 class Register(SizedRefOrConst):
     def __init__(self, name, attributes, initval, size):
-        self.attributes = attributes
+        self.attributes = attributes if attributes else []
         self._initval = initval
 
         super().__init__(name, size)
-    
+
     @property
     def initval(self):
         if isinstance(self._initval, Constant):
@@ -99,7 +105,7 @@ class Register(SizedRefOrConst):
 class RegisterFile(SizedRefOrConst):
     def __init__(self, name, _range, attributes, size):
         self.range = _range
-        self.attributes = attributes
+        self.attributes = attributes if attributes else []
 
         super().__init__(name, size)
 
@@ -130,7 +136,7 @@ class BitField(Named):
         if not self.data_type: self.data_type = DataType.U
 
         super().__init__(name)
-    
+
     def __repr__(self):
         return f'BitField[{self.name}: {self.range} ({self.data_type})]'
 
@@ -138,18 +144,19 @@ class BitFieldDescr(Named):
     def __init__(self, name, size, data_type):
         self.size = size
         self.data_type = data_type
+        self.upper = 0
 
         super().__init__(name)
 
 class Instruction(Named):
     def __init__(self, name, attributes, encoding, disass, operation):
-        self.attributes = attributes
+        self.attributes = attributes if attributes else []
         self.encoding = encoding
         self.fields = {}
         self.scalars = {}
         self.disass = disass
         self.operation = operation
-        
+
         for e in self.encoding:
             if isinstance(e, BitField):
                 if e.name in self.fields:
@@ -161,7 +168,7 @@ class Instruction(Named):
                     f = BitFieldDescr(e.name, e.range.upper - e.range.lower + 1, e.data_type)
                     self.fields[e.name] = f
 
-        
+
         super().__init__(name)
 
 class Expression:
