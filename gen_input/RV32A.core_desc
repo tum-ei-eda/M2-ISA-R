@@ -1,6 +1,10 @@
 import "RISCVBase.core_desc"
 
 InstructionSet RV32A extends RISCVBase{    
+    address_spaces {
+        RES[8, 2**XLEN]
+    }
+    
     instructions {
         LR.W {
             encoding: b00010 | aq[0:0] | rl[0:0]  | b00000 | rs1[4:0] | b010 | rd[4:0] | b0101111;

@@ -8,7 +8,8 @@ InstructionSet RISCVBase {
     }
     
     address_spaces { 
-        MEM[8, 2**XLEN], FENCE[XLEN, 4], RES[8, 2**XLEN]
+        MEM[8, 2**XLEN](main_mem),
+        FENCE[XLEN, 4]
     }
                 
     registers { 
