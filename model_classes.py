@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from collections import defaultdict, namedtuple
 from os import stat
+from lark import Tree
 
 RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])
 BitVal = namedtuple('BitVal', ['length', 'value'])
@@ -155,7 +156,7 @@ class Instruction(Named):
         self.fields = {}
         self.scalars = {}
         self.disass = disass
-        self.operation = operation
+        self.operation = operation if operation is not None else Tree('operation', [])
 
         for e in self.encoding:
             if isinstance(e, BitField):

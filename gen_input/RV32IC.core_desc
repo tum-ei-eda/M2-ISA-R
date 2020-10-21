@@ -153,7 +153,7 @@ InstructionSet RV32IC extends RV32I {
             X[1] <= PC+2;
             PC<=X[rs1];
         }
-        C.EBREAK(no_cont) {//(RV32)
+        C.EBREAK {//(RV32)
             encoding:b100 | b1 | b00000 | b00000 | b10;
             raise(0, 3);
         }
@@ -163,7 +163,7 @@ InstructionSet RV32IC extends RV32I {
             val offs[XLEN] <= X[2] + uimm;
             MEM[offs]{32} <= X[rs2];
         }
-        DII(no_cont) { // Defined Illegal Instruction
+        DII { // Defined Illegal Instruction
             encoding:b000 | b0 | b00000 | b00000 | b00;
             raise(0, 2);
         }

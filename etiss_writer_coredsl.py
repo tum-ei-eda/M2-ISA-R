@@ -46,25 +46,26 @@ for core_name, (mt, core) in models.items():
             if instr_def.attributes == None:
                 instr_def.attributes = []
 
-            if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
-                instr_def.operation.children.append(Tree('assignment', [Tree('named_reference', ['PC', None]), Tree('two_op_expr', [Tree('named_reference', ['PC', None]), Token('ADD_OP', '+'), Tree('number_literal', [4])])]))
-
             enc_idx = 0
             mask = 0
             code = 0
-            seen_fields = set()
+            seen_fields = {}
 
             fields_code = ""
+            asm_printer_code = []
 
             for enc in reversed(instr_def.encoding):
                 if isinstance(enc, model_classes.BitField):
                     if enc.name not in seen_fields:
-                        seen_fields.add(enc.name)
+                        seen_fields[enc.name] = 255
                         fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
 
                     lower = enc.range.lower
                     upper = enc.range.upper
                     length = upper - lower + 1
+
+                    if seen_fields[enc.name] > lower:
+                        seen_fields[enc.name] = lower
 
                     fields_code += f'static BitArrayRange R_{enc.name}_{lower}({enc_idx+length-1}, {enc_idx});\n'
                     fields_code += f'{enc.name} += R_{enc.name}_{lower}.read(ba) << {lower};\n'
@@ -80,10 +81,16 @@ for core_name, (mt, core) in models.items():
                     enc_idx += enc.length
 
             for field_name, field_descr in reversed(instr_def.fields.items()):
+                asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
                 if field_descr.data_type == model_classes.DataType.S and field_descr.upper + 1 < core_default_width:
                     fields_code += '\n'
-                    fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
+                    fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.upper+1};}} {field_name}_ext;\n'
                     fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
+
+            asm_printer_code = f'ss << "{instr_name.lower()}" << " # " << ba << (" [' + ' | '.join(asm_printer_code) + ']");'
+
+            if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
+                instr_def.operation.children.append(Tree('assignment', [Tree('named_reference', ['PC', None]), Tree('two_op_expr', [Tree('named_reference', ['PC', None]), Token('ADD_OP', '+'), Tree('number_literal', [int(enc_idx/8)])])]))
 
             code_string = f'{code:#0{int(enc_idx/4)}x}'
             mask_string = f'{mask:#0{int(enc_idx/4)}x}'
@@ -111,6 +118,7 @@ for core_name, (mt, core) in models.items():
                 code_string=code_string,
                 mask_string=mask_string,
                 fields_code=fields_code,
+                asm_printer_code=asm_printer_code,
                 core_default_width=core_default_width,
                 reg_dependencies=t.dependent_regs,
                 reg_affected = t.affected_regs,

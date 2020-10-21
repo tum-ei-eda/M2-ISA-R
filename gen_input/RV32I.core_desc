@@ -1,7 +1,7 @@
 import "RISCVBase.core_desc"
 
-InstructionSet RV32I extends RISCVBase{    
-    instructions { 
+InstructionSet RV32I extends RISCVBase{
+    instructions {
         LUI{
             encoding: imm[31:12]s | rd[4:0] | b0110111;
             args_disass: "{name(rd)}, {imm:#05x}";
@@ -70,7 +70,7 @@ InstructionSet RV32I extends RISCVBase{
             encoding: imm[11:0]s | rs1[4:0] | b001 | rd[4:0] | b0000011;
             args_disass:"{name(rd)}, {imm}({name(rs1)})";
             val offs[XLEN] <= X[rs1]'s+imm;
-            if(rd!=0) X[rd]<=sext(MEM[offs]{16});            
+            if(rd!=0) X[rd]<=sext(MEM[offs]{16});
         }
         LW {
             encoding: imm[11:0]s | rs1[4:0] | b010 | rd[4:0] | b0000011;
@@ -88,7 +88,7 @@ InstructionSet RV32I extends RISCVBase{
             encoding: imm[11:0]s | rs1[4:0] | b101 | rd[4:0] | b0000011;
             args_disass:"{name(rd)}, {imm}({name(rs1)})";
             val offs[XLEN] <= X[rs1]'s+imm;
-            if(rd!=0) X[rd]<=zext(MEM[offs]{16});            
+            if(rd!=0) X[rd]<=zext(MEM[offs]{16});
         }
         SB {
             encoding: imm[11:5]s | rs2[4:0] | rs1[4:0] | b000 | imm[4:0]s | b0100011;
@@ -224,14 +224,15 @@ InstructionSet RV32I extends RISCVBase{
             encoding: imm[11:0] | rs1[4:0] | b001 | rd[4:0] | b0001111 ;
             FENCE[fencei] <= imm;
         }
-        ECALL(no_cont) {
+        ECALL {
             encoding: b000000000000 | b00000 | b000 | b00000 | b1110011;
             raise(0, 11);
         }
-        EBREAK(no_cont) {
+        EBREAK {
             encoding: b000000000001 | b00000 | b000 | b00000 | b1110011;
             raise(0, 3);
         }
+        /*
         URET(no_cont) {
             encoding: b0000000 | b00010 | b00000 | b000 | b00000 | b1110011;
             leave(0);
@@ -253,6 +254,7 @@ InstructionSet RV32I extends RISCVBase{
             FENCE[fencevmal] <= rs1;
             FENCE[fencevmau] <= rs2;
         }
+        */
     }
 }
 
