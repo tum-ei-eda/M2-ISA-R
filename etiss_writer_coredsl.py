@@ -10,7 +10,8 @@ from contextlib import ExitStack
 import time
 
 parser = argparse.ArgumentParser()
-parser.add_argument("top_level")
+parser.add_argument('top_level')
+parser.add_argument('-s', '--separate', action='store_true')
 
 args = parser.parse_args()
 
@@ -31,10 +32,10 @@ with open(os.path.splitext(abs_top_level)[0] + '_model.pickle', 'rb') as f:
 
 pass
 
-instr_set_template = Template(filename='etiss_instruction_set.mako')
-fn_set_template = Template(filename='etiss_function_set.mako')
-instr_template = Template(filename='etiss_instruction.mako')
-fn_template = Template(filename='etiss_function.mako')
+instr_set_template = Template(filename='templates/etiss_instruction_set.mako')
+fn_set_template = Template(filename='templates/etiss_function_set.mako')
+instr_template = Template(filename='templates/etiss_instruction.mako')
+fn_template = Template(filename='templates/etiss_function.mako')
 
 start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
@@ -49,19 +50,22 @@ for core_name, (mt, core) in models.items():
 
     # process functions
     with ExitStack() as stack:
-        outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}_fn.h', 'w')) for ext_name in core.contributing_types}
+        if args.separate:
+            outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Funcs.h', 'w')) for ext_name in core.contributing_types}
+        else:
+            outfiles = {'default': stack.enter_context(open(f'gen_output/{core_name}Funcs.h', 'w'))}
 
         for extension_name, out_f in outfiles.items():
-            instr_set_str = fn_set_template.render(
+            fn_set_str = fn_set_template.render(
                 start_time=start_time,
                 extension_name=extension_name,
                 core_name=core_name
             )
 
-            out_f.write(instr_set_str)
+            out_f.write(fn_set_str)
 
         for fn_name, fn_def in core.functions.items():
-            print(f'INFO: processing function {fn_name}\n')
+            print(f'INFO: processing function {fn_name}')
 
             return_type = data_type_map[fn_def.data_type]
             if fn_def.size:
@@ -79,12 +83,15 @@ for core_name, (mt, core) in models.items():
                 operation=out_code
             )
 
-            outfiles[fn_def.ext_name].write(templ_str)
-
+            outfiles.get(fn_def.ext_name, outfiles['default']).write(templ_str)
 
     # process instructions
     with ExitStack() as stack:
-        outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}_ins.cpp', 'w')) for ext_name in core.contributing_types}
+        if args.separate:
+            outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types}
+        else:
+            outfiles = {'default': stack.enter_context(open(f'gen_output/{core_name}Arch.cpp', 'w'))}
+
         for extension_name, out_f in outfiles.items():
             instr_set_str = instr_set_template.render(
                 start_time=start_time,
@@ -95,7 +102,7 @@ for core_name, (mt, core) in models.items():
             out_f.write(instr_set_str)
 
         for instr_name, instr_def in core.instructions.items():
-            print(f'INFO: processing instruction {instr_name}\n')
+            print(f'INFO: processing instruction {instr_name}')
 
             if instr_def.attributes == None:
                 instr_def.attributes = []
@@ -149,8 +156,9 @@ for core_name, (mt, core) in models.items():
             code_string = f'{code:#0{int(enc_idx/4)}x}'
             mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-            print('\n--- fields:')
-            print(fields_code)
+            #print('\n--- fields:')
+            #print(fields_code)
+
             t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
             out_code = strfmt(t.transform(instr_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
@@ -160,9 +168,9 @@ for core_name, (mt, core) in models.items():
             if t.mem_var_count > mem_var_count:
                 mem_var_count = t.mem_var_count
 
-            print('--- operation')
-            print(out_code)
-            print('\n')
+            #print('--- operation')
+            #print(out_code)
+            #print('\n')
 
             templ_str = instr_template.render(
                 instr_name=instr_name,
@@ -179,8 +187,4 @@ for core_name, (mt, core) in models.items():
                 operation=out_code
             )
 
-            outfiles[instr_def.ext_name].write(templ_str)
-
-            pass
-
-pass
+            outfiles.get(instr_def.ext_name, outfiles['default']).write(templ_str)

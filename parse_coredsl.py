@@ -6,6 +6,9 @@ import pickle
 from transformers import Importer, NaturalConverter, Parent
 from instruction_set_storage import InstructionSetStorage
 from model_tree import ModelTree
+from load_coredsl import load
+
+GRAMMAR_FNAME = 'coredsl.lark'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("top_level")
@@ -15,8 +18,11 @@ args = parser.parse_args()
 abs_top_level = os.path.abspath(args.top_level)
 search_path = os.path.dirname(abs_top_level)
 
+
+
 print('INFO: reading grammar')
-p = Lark.open('coredsl.lark', parser='earley', maybe_placeholders=True, debug=False)
+p = Lark.open(GRAMMAR_FNAME, parser='earley', maybe_placeholders=True, debug=False)
+#p = load(GRAMMAR_FNAME, False, parser='earley', maybe_placeholders=True, debug=False)
 
 print('INFO: parsing top level')
 with open(abs_top_level, 'r') as f:

@@ -192,10 +192,16 @@ class EtissInstructionWriter(Transformer):
             signed = True in [arg.signed for arg in fn_args]
             regs_affected = list(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
-            c = CodeString(f'{name}({arg_str})', StaticType.NONE, max_size, signed, mem_access, regs_affected)
+            c = CodeString(f'{name}(cpu, system, plugin_pointers, {arg_str})', StaticType.NONE, max_size, signed, mem_access, regs_affected)
             c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
             return c
+
+        elif name.startswith('fdispatch'):
+            pass
+
+        else:
+            raise ValueError(f'Function {name} not recognized!')
 
     def conditional(self, args):
         cond, then_stmts, else_stmts = args
