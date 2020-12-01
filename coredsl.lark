@@ -7,7 +7,7 @@ FILENAME: NAME "." NAME
 _isa: instruction_set | core_def
 
 
-instruction_set: "InstructionSet" ID [extension] "{" [constants] [address_spaces] [registers] [instructions] "}"
+instruction_set: "InstructionSet" ID [extension] "{" [constants] [address_spaces] [registers] [functions] [instructions] "}"
 ?extension: "extends" ID
 
 constants: "constants" "{" _separated{constant_decl, ","} "}"
@@ -22,7 +22,7 @@ registers: "registers" "{" _separated{_register_types, ","} "}"
 _register_types : register | register_alias | register_file | register_mapping | register_bit
 register: ID "[" (natural | ID) "]" [reg_attributes]
 register_file: range_spec ID "[" (natural | ID) "]" [reg_attributes]
-register_alias: "alias" ID "[" (natural | ID) "]" "is" ID "[" natural "]" [reg_attributes]
+register_alias: "alias" ID "[" (natural | ID) "]" "is" ID (("[" natural "]") | range_spec) [reg_attributes]
 register_mapping : "map" ID "[" (natural | ID) "]" "to" ID range_spec [reg_attributes]
 register_bit : "bit" ID "is" ID range_spec [reg_attributes]
 reg_attributes: "(" _separated{REG_ATTRIBUTE, ","} ")"
@@ -30,7 +30,7 @@ reg_attributes: "(" _separated{REG_ATTRIBUTE, ","} ")"
 range_spec: "[" natural ":" natural "]"
 
 
-core_def: "Core" ID [contributing_types] "{" [template] [constant_defs] [address_spaces] [registers] [register_defaults] [instructions] "}"
+core_def: "Core" ID [contributing_types] "{" [template] [constant_defs] [address_spaces] [registers] [register_defaults] [functions] [instructions] "}"
 
 contributing_types: "provides" _separated{ID, ","}
 template: "template" ":" ID ";"
@@ -41,18 +41,23 @@ const_attributes: "(" _separated{CONST_ATTRIBUTE, ","} ")"
 register_defaults: "reg_init" "{" register_default+ "}"
 register_default: ID ":=" (natural | ID) ";"
 
+functions: "functions" "{" function_def+ "}"
+function_def: ["[" (natural | ID) "]"] ID "(" fn_args_def ")" ["'"? DATA_TYPE] "{" [operation] "}"
+fn_args_def: _separated{fn_arg_def, ","}
+fn_arg_def: ID ["'"? DATA_TYPE] "[" (natural | ID) "]"
+
 instructions: "instructions" "{" instruction+ "}"
 instruction: ID [instr_attributes] "{" ["encoding" ":" encoding ";"] ["args_disass" ":" TEXT ";"] [operation] "}"
 instr_attributes: "(" _separated{INSTR_ATTRIBUTE, ","} ")"
 encoding: _separated{field, "|"}
 ?field: BVAL | bit_field
 bit_value: BVAL
-bit_field: OP_ID range_spec ["'"? DATA_TYPE]
-
-OP_ID: /[zu]?imm|r[dm]|rs[0-3]|csr|shamt|pred|succ|aq|rl/
+bit_field: ID range_spec ["'"? DATA_TYPE]
 
 operation: statement+
-?statement: assignment | conditional | direct_code | procedure
+?statement: assignment | conditional | direct_code | procedure | return_
+
+return_: "return" expression ";"
 
 ?assignment: (indexed_reference | | named_reference | scalar_definition) "<=" expression ";"
 
@@ -117,8 +122,8 @@ SPACE_ATTRIBUTE: "main_mem"
 CONST_ATTRIBUTE: "is_reg_width" | "is_addr_width"
 INSTR_ATTRIBUTE: "no_cont" | "cond" | "flush"
 
-PROCEDURENAME: "raise" | "leave" | "wait" | /dispatch_([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_|\.)*/
-FUNCTIONNAME: "sext" | "zext" | "choose" | "shll" | "shrl" | "shra" | /fdispatch_([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_|\.)*/
+PROCEDURENAME: ID //"raise" | "leave" | "wait" | /dispatch_([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_|\.)*/
+FUNCTIONNAME: ID //"sext" | "zext" | "choose" | "shll" | "shrl" | "shra" | /fdispatch_([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_|\.)*/
 
 _separated{x, sep}: x (sep x)*
 

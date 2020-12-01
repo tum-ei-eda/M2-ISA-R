@@ -41,7 +41,8 @@
             "type": "pickString",
             "options": [
                 "gen_input/minres_rv.core_desc",
-                "gen_input/tum_rv.core_desc"
+                "gen_input/tum_rv.core_desc",
+                "gen_input/armv6m.core_desc"
             ],
             "description": ""
         }

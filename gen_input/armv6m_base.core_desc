@@ -1,0 +1,50 @@
+InstructionSet ARMv6M_Base {
+	constants {
+		XLEN := 32
+	}
+
+	address_spaces {
+		MEM[8, 2**32]
+	}
+
+	registers {
+		[15:0] R[XLEN],
+		alias PC[XLEN] is R[15],
+		alias LR[XLEN] is R[14],
+		alias SP[XLEN] is R[13],
+
+		[31:0] PSR[1],
+		alias APSR[1] is PSR[31:28],
+		alias N[1] is APSR[3],
+		alias Z[1] is APSR[2],
+		alias C[1] is APSR[1],
+		alias V[1] is APSR[0],
+
+		alias EPSR[1] is PSR[24],
+		alias T[1] is EPSR[0],
+
+		alias IPSR[1] is PSR[5:0]
+	}
+
+	functions {
+		[XLEN] add_with_carry(add_x[XLEN], add_y[XLEN], add_c[XLEN], set_flags[1]) {
+			val unsigned_sum[64] <= add_x{64}'u + add_y{64}'u + add_c{64}'u;
+			val result[32] <= unsigned_sum{32};
+
+			if (set_flags == 1) {
+				val signed_sum's[64] <= add_x{64}'s + add_y{64}'s + add_c{64}'s;
+				N <= result >> 31;
+				Z <= choose(result == 0, 1, 0);
+				C <= choose(result'u == unsigned_sum, 0, 1);
+				V <= choose(result's == signed_sum, 0, 1);
+			}
+
+			return result;
+		}
+
+		test(asdf[XLEN]) {
+			return asdf;
+		}
+	}
+
+}

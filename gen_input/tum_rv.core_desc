@@ -1,24 +1,13 @@
+import "RV32A.core_desc"
 import "RV32I.core_desc"
 import "RV32IC.core_desc"
 import "RV32M.core_desc"
 import "CSR.core_desc"
 
-Core RV32I provides RV32I {
-    constants {
-        XLEN := 32;
-    }
-}
-
-Core RV32IM provides RV32I, RV32M {
+Core RISCV provides RV32I, RV32M, RV32IC, RV32A, CSRBase {
     constants {
         XLEN := 32;
         MUL_LEN := 64;
     }
 }
 
-Core RV32IMC provides RV32I, RV32M, RV32IC {
-    constants {
-        XLEN := 32;
-        MUL_LEN := 64;
-    }
-}

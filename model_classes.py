@@ -53,6 +53,16 @@ class SizedRefOrConst(Named):
         else:
             return self._size
 
+    @property
+    def actual_size(self):
+        temp = 1 << (self.size - 1).bit_length()
+        return temp if temp >= 8 else 8
+
+class FnParam(SizedRefOrConst):
+    def __init__(self, name, size, data_type):
+        self.data_type = data_type
+        super().__init__(name, size)
+
 class Scalar(SizedRefOrConst):
     def __init__(self, name, value, static, size, data_type):
         self.value = value
@@ -118,7 +128,7 @@ class RegisterAlias(Register):
         super().__init__(name, attributes, initval, size)
 
 class CoreDef(Named):
-    def __init__(self, name, contributing_types, template, constants, address_spaces, register_files, registers, register_aliases, instructions):
+    def __init__(self, name, contributing_types, template, constants, address_spaces, register_files, registers, register_aliases, functions, instructions):
         self.contributing_types = contributing_types
         self.template = template
         self.constants = constants
@@ -126,6 +136,7 @@ class CoreDef(Named):
         self.register_files = register_files
         self.registers = registers
         self.register_aliases = register_aliases
+        self.functions = functions
         self.instructions = instructions
 
         super().__init__(name)
@@ -151,6 +162,7 @@ class BitFieldDescr(Named):
 
 class Instruction(Named):
     def __init__(self, name, attributes, encoding, disass, operation):
+        self.ext_name = ""
         self.attributes = attributes if attributes else []
         self.encoding = encoding
         self.fields = {}
@@ -171,6 +183,14 @@ class Instruction(Named):
 
 
         super().__init__(name)
+
+class Function(SizedRefOrConst):
+    def __init__(self, name, return_len, data_type, args, operation):
+        self.data_type = data_type
+        self.args = {arg.name: arg for arg in args}
+        self.operation = operation if operation is not None else Tree('operation', [])
+
+        super().__init__(name, return_len)
 
 class Expression:
     def __init__(self, left, op, right):

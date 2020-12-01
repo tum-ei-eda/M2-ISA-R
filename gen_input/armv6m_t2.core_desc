@@ -1,0 +1,29 @@
+import "armv6m_base.core_desc"
+
+InstructionSet ARMv6M_T2 extends ARMv6M_Base{
+	instructions {
+		ADD_imm_T2 {
+			encoding: b00110 | dn[2:0] | imm8[7:0];
+			args_disass: "{name(dn)}, #imm8";
+			R[dn] <= add_with_carry(R[dn], imm8, 0, 1);
+		}
+
+		ADD_reg_T2 {
+			encoding: b01000100 | dn[3:3] | m[3:0] | dn[2:0];
+			args_disass: "{name(dn)}, {name(m)}";
+			R[dn] <= add_with_carry(R[m], R[dn], 0, 0);
+		}
+
+		ADD_sp_imm_T2 {
+			encoding: b101100000 | imm7[6:0];
+			args_disass: "SP, SP, #imm7";
+			SP <= add_with_carry(SP, imm7 << 2, 0, 0);
+		}
+
+		ADD_sp_reg_T2 {
+			encoding: b010001001 | m[3:0] | b101;
+			args_disass: "SP, {name(m)}";
+			SP <= add_with_carry(SP, R[m], 0, 0);
+		}
+	}
+}

@@ -1,0 +1,41 @@
+import "armv6m_base.core_desc"
+
+InstructionSet ARMv6M_T1 extends ARMv6M_Base{
+	instructions {
+		ADC_T1 {
+			encoding: b0100000101 | m[2:0] | dn[2:0];
+			args_disass: "{name(dn)}, {name(m)}";
+			R[dn] <= add_with_carry(R[dn], R[m], C, 1);
+		}
+
+		ADD_imm_T1 {
+			encoding: b0001110 | imm3[2:0] | n[2:0] | d[2:0];
+			args_disass: "{name(d)}, {name(n)}, #imm3";
+			R[d] <= add_with_carry(R[n], imm3, 0, 1);
+		}
+
+		ADD_reg_T1 {
+			encoding: b0001100 | m[2:0] | n[2:0] | d[2:0];
+			args_disass: "{name(d)}, {name(n)}, {name(m)}";
+			R[d] <= add_with_carry(R[m], R[n], 0, 1);
+		}
+
+		ADD_sp_imm_T1 {
+			encoding: b10101 | d[2:0] | imm8[7:0];
+			args_disass: "{name(d)}, SP, #imm8";
+			R[d] <= add_with_carry(SP, imm8 << 2, 0, 0);
+		}
+
+		ADD_sp_reg_T1 {
+			encoding: b01000100 | dm[3:3] | b1101 | dm[2:0];
+			args_disass: "{name(dm)}, SP, {name(dm)}";
+			R[dm] <= add_with_carry(SP, R[dm], 0, 0);
+		}
+
+		ADR_T1 {
+			encoding: b10100 | d[2:0] | imm8[7:0];
+			args_disass: "{name(d)}, PC, #imm8";
+			R[d] <= (PC & 0xfffffffc) + imm8 << 2;
+		}
+	}
+}

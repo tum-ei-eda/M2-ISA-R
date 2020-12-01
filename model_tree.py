@@ -13,12 +13,14 @@ class ModelTree(Transformer):
         self.__register_file = {}
         self.__register_alias = {}
         self.__instructions = {}
+        self.__functions = {}
         self.__instruction_sets = {}
         self.__read_types = {}
 
         self.__scalars = defaultdict(dict)
         self.__fields = defaultdict(partial(defaultdict, list))
         self.__current_instr_idx = 0
+        self.__current_fn_idx = 0
 
 
     def get_constant_or_val(self, name_or_val):
@@ -41,6 +43,9 @@ class ModelTree(Transformer):
 
     def constant_defs(self, constants):
         return constants
+
+    def functions(self, functions):
+        return functions
 
     def instructions(self, instructions):
         return instructions
@@ -151,7 +156,7 @@ class ModelTree(Transformer):
             raise ValueError(f'Register alias {name} already defined!')
 
         if name in self.__register_alias: return self.__register_alias[name]
-        actual_reg = self.__register_file.get(actual) or self.__registers.get(actual)
+        actual_reg = self.__register_file.get(actual) or self.__registers.get(actual) or self.__register_alias.get(actual)
         assert actual_reg
         size = self.get_constant_or_val(size)
 
@@ -163,7 +168,7 @@ class ModelTree(Transformer):
     def bit_field(self, args):
         name, _range, data_type = args
         if not data_type:
-            data_type = model_classes.DataType.NONE
+            data_type = model_classes.DataType.U
 
         b = model_classes.BitField(name, _range, data_type)
 
@@ -225,14 +230,56 @@ class ModelTree(Transformer):
 
         return i
 
+    def fn_args_def(self, args):
+        return args
+
+    def fn_arg_def(self, args):
+        name, data_type, size = args
+        if not data_type:
+            data_type = model_classes.DataType.U
+
+        size = self.get_constant_or_val(size)
+
+        return model_classes.FnParam(name, size, data_type)
+
+    def function_def(self, args):
+        return_len, name, fn_args, data_type, operation = args
+
+        if not data_type and not return_len:
+            data_type = model_classes.DataType.NONE
+        elif not data_type:
+            data_type = model_classes.DataType.U
+
+        return_len = self.get_constant_or_val(return_len) if return_len else None
+        f = model_classes.Function(name, return_len, data_type, fn_args, operation)
+
+        self.__functions[name] = f
+        self.__current_fn_idx += 1
+
+        return f
+
     def instruction_set(self, args):
-        name, extension, constants, address_spaces, registers, instructions = args
+        name, extension, constants, address_spaces, registers, functions, instructions = args
         constants = {obj.name: obj for obj in constants} if constants else None
         address_spaces = {obj.name: obj for obj in address_spaces} if address_spaces else None
         registers = {obj.name: obj for obj in registers} if registers else None
-        instructions = {obj.name: obj for obj in instructions} if instructions else None
+        #instructions = {obj.name: obj for obj in instructions} if instructions else None
 
-        i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, instructions)
+        instructions_dict = None
+        if instructions:
+            instructions_dict = {}
+            for i in instructions:
+                instructions_dict[i.name] = i
+                i.ext_name = name
+
+        functions_dict = None
+        if functions:
+            functions_dict = {}
+            for f in functions:
+                functions_dict[f.name] = f
+                f.ext_name = name
+
+        i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, instructions_dict)
         self.__instruction_sets[name] = i_s
         self.__read_types[name] = None
 
@@ -252,7 +299,7 @@ class ModelTree(Transformer):
         raise Discard
 
     def core_def(self, args):
-        name, _, template, _, _, _, _, _ = args
+        name, _, template, _, _, _, _, _, _ = args
         merged_registers = {**self.__register_file, **self.__registers, **self.__register_alias}
-        c = model_classes.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__instructions)
+        c = model_classes.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__functions, self.__instructions)
         return c
