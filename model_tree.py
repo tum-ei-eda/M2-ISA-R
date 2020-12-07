@@ -1,8 +1,11 @@
-from lark import Transformer, v_args, Discard
-import model_classes
 from collections import defaultdict
 from functools import partial
 from typing import Set
+
+from lark import Discard, Transformer, v_args
+
+import model_classes
+
 
 #@v_args(inline=True)
 class ModelTree(Transformer):

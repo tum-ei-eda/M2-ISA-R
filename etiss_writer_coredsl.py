@@ -1,13 +1,15 @@
-import os
 import argparse
+import os
 import pickle
-from lark import Tree, Token
-from etiss_instruction_writer import EtissInstructionWriter, data_type_map
-import model_classes
-from string import Template as strfmt
-from mako.template import Template
-from contextlib import ExitStack
 import time
+from contextlib import ExitStack
+from string import Template as strfmt
+
+from lark import Token, Tree
+from mako.template import Template
+
+import model_classes
+from etiss_instruction_writer import EtissInstructionWriter, data_type_map
 
 parser = argparse.ArgumentParser()
 parser.add_argument('top_level')
@@ -51,18 +53,9 @@ for core_name, (mt, core) in models.items():
     # process functions
     with ExitStack() as stack:
         if args.separate:
-            outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Funcs.h', 'w')) for ext_name in core.contributing_types}
+            outfiles = {ext_name: [stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Funcs.h', 'w')), ''] for ext_name in core.contributing_types}
         else:
-            outfiles = {'default': stack.enter_context(open(f'gen_output/{core_name}Funcs.h', 'w'))}
-
-        for extension_name, out_f in outfiles.items():
-            fn_set_str = fn_set_template.render(
-                start_time=start_time,
-                extension_name=extension_name,
-                core_name=core_name
-            )
-
-            out_f.write(fn_set_str)
+            outfiles = {'default': [stack.enter_context(open(f'gen_output/{core_name}Funcs.h', 'w')), '']}
 
         for fn_name, fn_def in core.functions.items():
             print(f'INFO: processing function {fn_name}')
@@ -83,7 +76,17 @@ for core_name, (mt, core) in models.items():
                 operation=out_code
             )
 
-            outfiles.get(fn_def.ext_name, outfiles['default']).write(templ_str)
+            outfiles.get(fn_def.ext_name, outfiles['default'])[1] += templ_str
+
+        for extension_name, (out_f, functions_code) in outfiles.items():
+            fn_set_str = fn_set_template.render(
+                start_time=start_time,
+                extension_name=extension_name,
+                core_name=core_name,
+                functions_code=functions_code
+            )
+
+            out_f.write(fn_set_str)
 
     # process instructions
     with ExitStack() as stack:

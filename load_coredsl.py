@@ -1,7 +1,8 @@
-from lark import Lark
 import hashlib
 import os
 import pickle
+
+from lark import Lark
 
 CHUNK_SIZE = 65535
 HASHER = hashlib.blake2b()

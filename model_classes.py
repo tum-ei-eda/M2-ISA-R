@@ -1,6 +1,7 @@
-from enum import Enum, auto
 from collections import defaultdict, namedtuple
+from enum import Enum, auto
 from os import stat
+
 from lark import Tree
 
 RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])

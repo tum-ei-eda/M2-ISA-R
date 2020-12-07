@@ -1,11 +1,12 @@
 from lark import Tree
 from lark.visitors import Visitor_Recursive
 
+
 class InstructionSetStorage(Visitor_Recursive):
     def __init__(self):
         self.instruction_sets = {}
         self.core_defs = {}
-    
+
     def visit(self, tree):
         for child in tree.children:
             if isinstance(child, Tree):
@@ -13,7 +14,7 @@ class InstructionSetStorage(Visitor_Recursive):
 
     def instruction_set(self, tree):
         name = tree.children[0]
-        
+
         assert name not in self.instruction_sets
         self.instruction_sets[name] = tree
         pass
@@ -24,7 +25,7 @@ class InstructionSetStorage(Visitor_Recursive):
             return self.extend_ins_set(extension) + [ins_set_name]
         else:
             return [ins_set_name]
-    
+
     def core_def(self, tree):
         name, contributing_types = tree.children[0:2]
         ins_set_queue = []

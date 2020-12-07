@@ -3,10 +3,9 @@ import os
 import argparse
 import pickle
 
-from transformers import Importer, NaturalConverter, Parent
+from transformers import Importer, NaturalConverter, Parent, ParallelImporter
 from instruction_set_storage import InstructionSetStorage
 from model_tree import ModelTree
-from load_coredsl import load
 
 GRAMMAR_FNAME = 'coredsl.lark'
 
@@ -18,11 +17,10 @@ args = parser.parse_args()
 abs_top_level = os.path.abspath(args.top_level)
 search_path = os.path.dirname(abs_top_level)
 
-
+parser_args = {'grammar_filename': GRAMMAR_FNAME, 'parser': 'earley', 'maybe_placeholders': True, 'debug': False}
 
 print('INFO: reading grammar')
-p = Lark.open(GRAMMAR_FNAME, parser='earley', maybe_placeholders=True, debug=False)
-#p = load(GRAMMAR_FNAME, False, parser='earley', maybe_placeholders=True, debug=False)
+p = Lark.open(**parser_args)
 
 print('INFO: parsing top level')
 with open(abs_top_level, 'r') as f:
@@ -31,11 +29,11 @@ with open(abs_top_level, 'r') as f:
 print('INFO: recursively importing files')
 imported_tree = tree.copy()
 
-i = Importer(search_path, p)
+#i = Importer(search_path, p)
+i = ParallelImporter(search_path, **parser_args)
 
 while i.got_new:
     imported_tree = i.transform(imported_tree)
-    imported_tree.children = i.new_children + imported_tree.children
 
 print('INFO: cleaning up tree')
 converted_tree = NaturalConverter().transform(imported_tree)

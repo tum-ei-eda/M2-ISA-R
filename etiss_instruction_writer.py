@@ -1,11 +1,12 @@
-from os import stat
-from lark import Transformer
-import model_classes
-import etiss_replacements
-from itertools import chain
 from enum import Flag, auto
+from itertools import chain
+from os import stat
 from string import Template
 
+from lark import Transformer
+
+import etiss_replacements
+import model_classes
 from model_classes import SpaceAttribute
 
 data_type_map = {
@@ -19,6 +20,10 @@ class StaticType(Flag):
     READ = auto()
     WRITE = auto()
     RW = READ | WRITE
+
+def make_static(val):
+    return f'" + std::to_string({val}) + "'
+
 
 MEM_VAL_REPL = 'mem_val_'
 
@@ -135,11 +140,11 @@ class EtissInstructionWriter(Transformer):
             static = StaticType.NONE not in [x.static for x in fn_args]
             if not static:
                 if cond.static:
-                    cond.code = Template(f'" + std::to_string({cond.code}) + "').safe_substitute(etiss_replacements.rename_static)
+                    cond.code = Template(make_static(cond.code)).safe_substitute(etiss_replacements.rename_static)
                 if then_stmts.static:
-                    then_stmts.code = Template(f'" + std::to_string({then_stmts.code}) + "').safe_substitute(etiss_replacements.rename_static)
+                    then_stmts.code = Template(make_static(then_stmts.code)).safe_substitute(etiss_replacements.rename_static)
                 if else_stmts.static:
-                    else_stmts.code = Template(f'" + std::to_string({else_stmts.code}) + "').safe_substitute(etiss_replacements.rename_static)
+                    else_stmts.code = Template(make_static(else_stmts.code)).safe_substitute(etiss_replacements.rename_static)
 
             c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, cond.regs_affected + then_stmts.regs_affected + else_stmts.regs_affected)
             c.mem_ids = cond.mem_ids + then_stmts.mem_ids + else_stmts.mem_ids
@@ -166,25 +171,25 @@ class EtissInstructionWriter(Transformer):
         elif name == 'shll':
             expr, amount = fn_args
             if amount.static:
-                amount.code = f'" + std::to_string({amount.code}) + "'
+                amount.code = make_static(amount.code)
             return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
 
         elif name == 'shrl':
             expr, amount = fn_args
             if amount.static:
-                amount.code = f'" + std::to_string({amount.code}) + "'
+                amount.code = make_static(amount.code)
             return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
 
         elif name == 'shra':
             expr, amount = fn_args
             if amount.static:
-                amount.code = f'" + std::to_string({amount.code}) + "'
+                amount.code = make_static(amount.code)
             return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
 
         elif name in self.__functions:
             for arg in fn_args:
                 if arg.static:
-                    arg.code = f'" + std::to_string({arg.code}) + "'
+                    arg.code = make_static(arg.code)
 
             arg_str = ', '.join([arg.code for arg in fn_args])
             max_size = max([arg.size for arg in fn_args])
@@ -221,7 +226,6 @@ class EtissInstructionWriter(Transformer):
             code_str += '\n}' if cond.static else '\npartInit.code() += "}\\n";'
 
         return code_str
-        #return CodeString(code_str, False, None, None, None)
 
     def then_stmts(self, args):
         return args
@@ -251,7 +255,7 @@ class EtissInstructionWriter(Transformer):
                 expr.code = Template(f'{expr.code}').safe_substitute(**etiss_replacements.rename_static)
 
             else:
-                expr.code = Template(f'" + std::to_string({expr.code}) + "').safe_substitute(**etiss_replacements.rename_static)
+                expr.code = Template(make_static(expr.code)).safe_substitute(**etiss_replacements.rename_static)
 
         if bool(target.static & StaticType.READ):
             target.code = Template(target.code).safe_substitute(etiss_replacements.rename_dynamic)
@@ -296,9 +300,9 @@ class EtissInstructionWriter(Transformer):
         left, op, right = args
 
         if not left.static and right.static:
-            right.code = f'" + std::to_string({right.code}) + "'
+            right.code = make_static(right.code)
         if not right.static and left.static:
-            left.code = f'" + std::to_string({left.code}) + "'
+            left.code = make_static(left.code)
 
         return CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, False, left.regs_affected + right.regs_affected)
 
@@ -360,7 +364,7 @@ class EtissInstructionWriter(Transformer):
 
         index_code = index.code
         if index.static and not self.ignore_static:
-            index.code = f'" + std::to_string({index.code}) + "'
+            index.code = make_static(index.code)
 
         if self.ignore_static:
             static = StaticType.RW
@@ -373,7 +377,7 @@ class EtissInstructionWriter(Transformer):
                 code_str = f'(etiss_uint{size})' + code_str
             c = CodeString(code_str, static, size, False, False)
 
-            if isinstance(referred_var, model_classes.RegisterFile) and referred_var.name == 'X': # TODO: Hack, remove
+            if isinstance(referred_var, model_classes.RegisterFile):# and referred_var.name == 'X': # TODO: Hack, remove
                 c.regs_affected.append(index_code)
 
             return c

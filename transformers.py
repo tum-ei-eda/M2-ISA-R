@@ -1,16 +1,19 @@
-from lark import Transformer, Visitor, Tree, Discard, v_args
-from functools import partial
-from multiprocessing.pool import Pool
 import os
+from functools import partial
+from itertools import chain
+from multiprocessing.pool import Pool
+
+from lark import Discard, Lark, Transformer, Tree, Visitor, v_args
+
 
 @v_args(inline=True)
 class ParallelImporter(Transformer):
-    def __init__(self, search_path, parser):
+    def __init__(self, search_path, **parser_args):
         self.imported = set()
         self.new_children = []
         self.got_new = True
         self.search_path = search_path
-        self.parser = parser
+        self.parser_args = parser_args
         self.current_set = set()
 
     def transform(self, tree):
@@ -20,18 +23,19 @@ class ParallelImporter(Transformer):
         res = super().transform(tree)
 
         with Pool() as pool:
-            a = pool.map(self.do_include, self.current_set)
-            pass
+            imported_children = pool.map(self.do_include, self.current_set)
 
+        res.children = list(chain.from_iterable(imported_children)) + res.children
         return res
 
     def do_include(self, filename):
         print(f'INFO: processing file {filename}')
+        p = Lark.open(**self.parser_args)
         with open(os.path.join(self.search_path, filename), 'r') as f:
-            __t = self.parser.parse(f.read())
-            #self.new_children.extend(__t.children)
+            __t = p.parse(f.read())
+
         print(f'INFO: done with file {filename}')
-        return __t
+        return __t.children
 
     def include(self, filename):
         if filename not in self.imported:
@@ -39,9 +43,6 @@ class ParallelImporter(Transformer):
             self.got_new = True
             self.imported.add(filename)
             self.current_set.add(filename)
-#            with open(os.path.join(self.search_path, filename), 'r') as f:
-#                __t = self.parser.parse(f.read())
-#                self.new_children.extend(__t.children)
 
         raise Discard
 
@@ -57,7 +58,11 @@ class Importer(Transformer):
     def transform(self, tree):
         self.new_children.clear()
         self.got_new = False
-        return super().transform(tree)
+        res = super().transform(tree)
+
+        res.children = self.new_children + res.children
+
+        return res
 
     def include(self, filename):
         if filename not in self.imported:
