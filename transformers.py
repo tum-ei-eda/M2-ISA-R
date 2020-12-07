@@ -8,11 +8,12 @@ from lark import Discard, Lark, Transformer, Tree, Visitor, v_args
 
 @v_args(inline=True)
 class ParallelImporter(Transformer):
-    def __init__(self, search_path, **parser_args):
+    def __init__(self, search_path, parallel, **parser_args):
         self.imported = set()
         self.new_children = []
         self.got_new = True
         self.search_path = search_path
+        self.parallel = parallel if parallel > 1 else None
         self.parser_args = parser_args
         self.current_set = set()
 
@@ -22,7 +23,7 @@ class ParallelImporter(Transformer):
         self.got_new = False
         res = super().transform(tree)
 
-        with Pool() as pool:
+        with Pool(processes=self.parallel) as pool:
             imported_children = pool.map(self.do_include, self.current_set)
 
         res.children = list(chain.from_iterable(imported_children)) + res.children

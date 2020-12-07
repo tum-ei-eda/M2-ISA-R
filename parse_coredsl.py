@@ -11,6 +11,7 @@ GRAMMAR_FNAME = 'coredsl.lark'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("top_level")
+parser.add_argument("-j", default=1, type=int, dest='parallel')
 
 args = parser.parse_args()
 
@@ -29,8 +30,10 @@ with open(abs_top_level, 'r') as f:
 print('INFO: recursively importing files')
 imported_tree = tree.copy()
 
-#i = Importer(search_path, p)
-i = ParallelImporter(search_path, **parser_args)
+if args.parallel == 1:
+    i = Importer(search_path, p)
+else:
+    i = ParallelImporter(search_path, args.parallel, **parser_args)
 
 while i.got_new:
     imported_tree = i.transform(imported_tree)
