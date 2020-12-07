@@ -41,10 +41,6 @@ InstructionSet ARMv6M_Base {
 
 			return result;
 		}
-
-		test(asdf[XLEN]) {
-			return asdf;
-		}
 	}
 
 }
