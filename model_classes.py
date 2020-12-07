@@ -4,8 +4,18 @@ from os import stat
 
 from lark import Tree
 
-RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])
+#RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])
 BitVal = namedtuple('BitVal', ['length', 'value'])
+
+class RangeSpec:
+    def __init__(self, upper, lower):
+        self.upper = upper
+        self.lower = lower
+
+    @property
+    def length(self):
+        return self.upper - self.lower + 1
+
 
 class RegAttribute(Enum):
     IS_PC = auto()
@@ -36,11 +46,20 @@ class Named:
     def __init__(self, name):
         self.name = name
 
+    def __str__(self) -> str:
+        return f'<{type(self).__name__} object>: name={self.name}'
+
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__} object>: name={self.name}'
+
 class Constant(Named):
     def __init__(self, name, value, attributes):
         self.value = value
         self.attributes = attributes if attributes else []
         super().__init__(name)
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}, value={self.value}'
 
 class SizedRefOrConst(Named):
     def __init__(self, name, size):
@@ -59,10 +78,16 @@ class SizedRefOrConst(Named):
         temp = 1 << (self.size - 1).bit_length()
         return temp if temp >= 8 else 8
 
+    def __str__(self) -> str:
+        return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
+
 class FnParam(SizedRefOrConst):
     def __init__(self, name, size, data_type):
         self.data_type = data_type
         super().__init__(name, size)
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}, data_type={self.data_type}'
 
 class Scalar(SizedRefOrConst):
     def __init__(self, name, value, static, size, data_type):
@@ -89,6 +114,9 @@ class AddressSpace(SizedRefOrConst):
             return self._power ** temp
         else:
             return temp
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}, size={self.size}, length={self.length}'
 
 class InstructionSet(Named):
     def __init__(self, name, extension, constants, address_spaces, registers, instructions):
@@ -128,6 +156,9 @@ class RegisterAlias(Register):
 
         super().__init__(name, attributes, initval, size)
 
+    def __str__(self) -> str:
+        return f'{super().__str__()}, actual={self.actual}, index={self.index}'
+
 class CoreDef(Named):
     def __init__(self, name, contributing_types, template, constants, address_spaces, register_files, registers, register_aliases, functions, instructions):
         self.contributing_types = contributing_types
@@ -150,8 +181,11 @@ class BitField(Named):
 
         super().__init__(name)
 
+    def __str__(self) -> str:
+        return f'{super().__repr__()}, range={self.range}, data_type={self.data_type}'
+
     def __repr__(self):
-        return f'BitField[{self.name}: {self.range} ({self.data_type})]'
+        return self.__str__()
 
 class BitFieldDescr(Named):
     def __init__(self, name, size, data_type):
@@ -161,7 +195,7 @@ class BitFieldDescr(Named):
 
         super().__init__(name)
 
-class Instruction(Named):
+class Instruction(SizedRefOrConst):
     def __init__(self, name, attributes, encoding, disass, operation):
         self.ext_name = ""
         self.attributes = attributes if attributes else []
@@ -171,8 +205,15 @@ class Instruction(Named):
         self.disass = disass
         self.operation = operation if operation is not None else Tree('operation', [])
 
-        for e in self.encoding:
+        self.mask = 0
+        self.code = 0
+
+        super().__init__(name, 0)
+
+        for e in reversed(self.encoding):
             if isinstance(e, BitField):
+                self._size += e.range.length
+
                 if e.name in self.fields:
                     f = self.fields[e.name]
                     if f.data_type != e.data_type:
@@ -181,9 +222,15 @@ class Instruction(Named):
                 else:
                     f = BitFieldDescr(e.name, e.range.upper - e.range.lower + 1, e.data_type)
                     self.fields[e.name] = f
+            else:
+                self.mask |= (2**e.length - 1) << self._size
+                self.code |= e.value << self._size
 
+                self._size += e.length
 
-        super().__init__(name)
+    def __str__(self) -> str:
+        code_and_mask = 'code={code:#x{size}}, mask={mask:#x{size}}'.format(code=self.code, mask=self.mask, size=self.size)
+        return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):
     def __init__(self, name, return_len, data_type, args, operation):
@@ -192,6 +239,9 @@ class Function(SizedRefOrConst):
         self.operation = operation if operation is not None else Tree('operation', [])
 
         super().__init__(name, return_len)
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}, data_type={self.data_type}'
 
 class Expression:
     def __init__(self, left, op, right):
