@@ -1,0 +1,14 @@
+import "base.core_desc"
+
+InstructionSet ARMv6M_Hints extends ARMv6M_Base {
+    instructions {
+        NOP_T1 {
+            encoding: b1011111100000000;
+        }
+
+        // YIELD
+        // WFE
+        // WFI
+        // SEV
+    }
+}

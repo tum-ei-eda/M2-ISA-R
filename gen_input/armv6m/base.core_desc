@@ -41,6 +41,16 @@ InstructionSet ARMv6M_Base {
 
 			return result;
 		}
+
+		[XLEN] bit_count(input[XLEN]) {
+			// bit counting hack from https://graphics.stanford.edu/%7Eseander/bithacks.html#CountBitsSetParallel
+
+			val bit_count[32] <= input - ((input >> 1) & 0x55555555);                  // reuse input as temporary
+            bit_count <= (bit_count & 0x33333333) + ((bit_count >> 2) & 0x33333333);     // temp
+            bit_count <= ((bit_count + (bit_count >> 4) & 0xF0F0F0F) * 0x1010101) >> 24; // count
+
+			return bit_count;
+		}
 	}
 
 }

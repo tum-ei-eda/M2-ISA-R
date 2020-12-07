@@ -1,6 +1,0 @@
-import "armv6m_t1.core_desc"
-import "armv6m_t2.core_desc"
-
-Core ARMv6M provides ARMv6M_T1, ARMv6M_T2 {
-
-}

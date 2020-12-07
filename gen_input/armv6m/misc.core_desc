@@ -1,0 +1,46 @@
+import "base.core_desc"
+
+InstructionSet ARMv6M_Misc extends ARMv6M_Base {
+    instructions {
+		ADR_T1 {
+			encoding: b10100 | d[2:0] | imm8[7:0];
+			args_disass: "{name(d)}, PC, #imm8";
+			R[d] <= ((PC + 4) & 0xfffffffc) + imm8 << 2;
+		}
+
+		ADD_sp_imm_T1 {
+			encoding: b10101 | d[2:0] | imm8[7:0];
+			args_disass: "{name(d)}, SP, #imm8";
+			R[d] <= add_with_carry(SP, imm8 << 2, 0, 0);
+		}
+
+		ADD_sp_imm_T2 {
+			encoding: b101100000 | imm7[6:0];
+			args_disass: "SP, SP, #imm7";
+			SP <= add_with_carry(SP, imm7 << 2, 0, 0);
+		}
+
+        // SUB_sp_imm_T1
+
+        SXTH_T1 {
+            encoding: b1011001000 | m[2:0] | d[2:0];
+            args_disass: "{name(d)}, {name(m)}";
+            R[d] <= sext(R[m]{16});
+        }
+
+        // SXTB_T1
+
+        UXTH_T1 {
+            encoding: b1011001010 | m[2:0] | d[2:0];
+            args_disass: "{name(d)}, {name(m)}";
+            R[d] <= zext(R[m]{16});
+        }
+
+        // UXTB_T1
+        // CPS_T1
+        // REV_T1
+        // REV16_T1
+        // REVSH_T1
+        // BKPT
+    }
+}

@@ -1,0 +1,43 @@
+import "base.core_desc"
+
+InstructionSet ARMv6M_Branch extends ARMv6M_Base {
+    instructions {
+		BEQ_T1 (no_cont, cond) {
+			encoding: b1101 | b0000 | imm8[7:0]'s;
+			args_disass: "imm8";
+			PC <= choose(Z == 1, PC + imm8 << 1 + 4, PC + 2);
+		}
+
+        // BNE_T1
+        // BCS_T1
+        // BCC_T1
+        // BMI_T1
+        // BPL_T1
+        // BVS_T1
+        // BVC_T1
+        // BHI_T1
+        // BLS_T1
+        // BGE_T1
+        // BLT_T1
+        // BGT_T1
+        // BLE_T1
+
+		BAL_T1 (no_cont) {
+			encoding: b1101 | b1110 | imm8[7:0]'s;
+			args_disass: "imm8";
+			PC <= PC + imm8 << 1 + 4;
+		}
+
+        UDF_T1 {
+            encoding: b1101 | b1110 | imm8[7:0]'s;
+            args_disass: "#imm8";
+            raise(0, 0);
+        }
+
+        // SVC_T1
+
+        // BL_T1
+        // BLX_T1
+        // BX_T1
+    }
+}
