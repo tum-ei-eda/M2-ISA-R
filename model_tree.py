@@ -225,10 +225,13 @@ class ModelTree(Transformer):
         name, attributes, encoding, disass, operation = args
 
         i = model_classes.Instruction(name, attributes, encoding, disass, operation)
-        if name in self.__instructions:
+
+        instr_id = (i.code, i.mask)
+
+        if instr_id in self.__instructions:
             print(f'WARN: overwriting instruction {name}')
 
-        self.__instructions[name] = i
+        self.__instructions[instr_id] = i
         self.__current_instr_idx += 1
 
         return i
