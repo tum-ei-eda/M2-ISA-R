@@ -39,12 +39,12 @@
     "inputs": [
         {
             "id": "inputFile",
-            "default": "gen_input/minres_rv.core_desc",
+            "default": "../coredsl-models/riscv/tum_rv.core_desc",
             "type": "pickString",
             "options": [
-                "gen_input/riscv/minres_rv.core_desc",
-                "gen_input/riscv/tum_rv.core_desc",
-                "gen_input/armv6m/armv6m.core_desc"
+                "../coredsl-models/riscv/minres_rv.core_desc",
+                "../coredsl-models/riscv/tum_rv.core_desc",
+                "../coredsl-models/armv6m/armv6m.core_desc"
             ],
             "description": ""
         }

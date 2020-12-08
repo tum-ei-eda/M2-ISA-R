@@ -1,5 +1,7 @@
+from os import path
 from lark import Lark, Tree
 import os
+import pathlib
 import argparse
 import pickle
 
@@ -15,8 +17,15 @@ parser.add_argument("-j", default=1, type=int, dest='parallel')
 
 args = parser.parse_args()
 
-abs_top_level = os.path.abspath(args.top_level)
-search_path = os.path.dirname(abs_top_level)
+top_level = pathlib.Path(args.top_level)
+abs_top_level = top_level.resolve()
+search_path = abs_top_level.parent
+model_path = search_path.joinpath('gen_model')
+model_path.mkdir(exist_ok=True)
+
+#abs_top_level = os.path.abspath(args.top_level)
+#search_path = os.path.dirname(abs_top_level)
+#model_path = os.path.join(search_path, 'gen_model')
 
 parser_args = {'grammar_filename': GRAMMAR_FNAME, 'parser': 'earley', 'maybe_placeholders': True, 'debug': False}
 
@@ -47,11 +56,11 @@ iss = InstructionSetStorage()
 iss.visit(converted_tree)
 
 print('INFO: dumping parse tree')
-with open(os.path.splitext(abs_top_level)[0] + '_parsed.pickle', 'wb') as f:
+with open(model_path / (abs_top_level.stem + '_parsed.pickle'), 'wb') as f:
     pickle.dump(converted_tree, f)
 
 print('INFO: dumping instruction set store')
-with open(os.path.splitext(abs_top_level)[0] + '_iss.pickle', 'wb') as f:
+with open(model_path / (abs_top_level.stem + '_iss.pickle'), 'wb') as f:
     pickle.dump(iss, f)
 
 models = {}
@@ -65,7 +74,7 @@ for core_name, instruction_sets in iss.core_defs.items():
 
 
 print('INFO: dumping model')
-with open(os.path.splitext(abs_top_level)[0] + '_model.pickle', 'wb') as f:
+with open(model_path / (abs_top_level.stem + '_model.pickle'), 'wb') as f:
     pickle.dump(models, f)
 
 pass

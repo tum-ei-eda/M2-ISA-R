@@ -1,5 +1,6 @@
 import argparse
 import os
+import pathlib
 import pickle
 import time
 from contextlib import ExitStack
@@ -11,51 +12,20 @@ from mako.template import Template
 import model_classes
 from etiss_instruction_writer import EtissInstructionWriter, data_type_map
 
-parser = argparse.ArgumentParser()
-parser.add_argument('top_level')
-parser.add_argument('-s', '--separate', action='store_true')
-
-args = parser.parse_args()
-
-abs_top_level = os.path.abspath(args.top_level)
-search_path = os.path.dirname(abs_top_level)
-
-print('INFO: loading parse tree')
-with open(os.path.splitext(abs_top_level)[0] + '_parsed.pickle', 'rb') as f:
-    converted_tree = pickle.load(f)
-
-print('INFO: loading instruction set store')
-with open(os.path.splitext(abs_top_level)[0] + '_iss.pickle', 'rb') as f:
-    iss = pickle.load(f)
-
-print('INFO: loading models')
-with open(os.path.splitext(abs_top_level)[0] + '_model.pickle', 'rb') as f:
-    models = pickle.load(f)
-
-pass
-
-instr_set_template = Template(filename='templates/etiss_instruction_set.mako')
-fn_set_template = Template(filename='templates/etiss_function_set.mako')
-instr_template = Template(filename='templates/etiss_instruction.mako')
-fn_template = Template(filename='templates/etiss_function.mako')
-
-start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
-
-for core_name, (mt, core) in models.items():
-    core_default_width = core.constants['XLEN'].value
-    print(f'INFO: processing model {core_name}')
-
-    temp_var_count = 0
-    mem_var_count = 0
+def write_functions(core, start_time, output_path, separate):
+    fn_set_template = Template(filename='templates/etiss_function_set.mako')
+    fn_template = Template(filename='templates/etiss_function.mako')
 
     outfiles = {}
+    core_default_width = core.constants['XLEN'].value
+    core_name = core.name
 
     # process functions
     with ExitStack() as stack:
-        if args.separate:
-            outfiles = {ext_name: [stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Funcs.h', 'w')), ''] for ext_name in core.contributing_types}
+        if separate:
+            outfiles = {ext_name: [stack.enter_context(open(output_path / f'{core_name}_{ext_name}Funcs.h', 'w')), ''] for ext_name in core.contributing_types}
 
-        outfiles['default'] = [stack.enter_context(open(f'gen_output/{core_name}Funcs.h', 'w')), '']
+        outfiles['default'] = [stack.enter_context(open(output_path / f'{core_name}Funcs.h', 'w')), '']
 
         for fn_name, fn_def in core.functions.items():
             print(f'INFO: processing function {fn_name}')
@@ -88,12 +58,69 @@ for core_name, (mt, core) in models.items():
 
             out_f.write(fn_set_str)
 
-    # process instructions
-    with ExitStack() as stack:
-        if args.separate:
-            outfiles = {ext_name: stack.enter_context(open(f'gen_output/{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types}
+def generate_fields(core, instr_def):
+    enc_idx = 0
+    core_default_width = core.constants['XLEN'].value
 
-        outfiles['default'] = stack.enter_context(open(f'gen_output/{core_name}Arch.cpp', 'w'))
+    seen_fields = {}
+
+    fields_code = ""
+    asm_printer_code = []
+
+    for enc in reversed(instr_def.encoding):
+        if isinstance(enc, model_classes.BitField):
+            if enc.name not in seen_fields:
+                seen_fields[enc.name] = 255
+                fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
+
+            lower = enc.range.lower
+            upper = enc.range.upper
+            length = enc.range.length
+
+            if seen_fields[enc.name] > lower:
+                seen_fields[enc.name] = lower
+
+            fields_code += f'static BitArrayRange R_{enc.name}_{lower}({enc_idx+length-1}, {enc_idx});\n'
+            fields_code += f'{enc.name} += R_{enc.name}_{lower}.read(ba) << {lower};\n'
+
+            if instr_def.fields[enc.name].upper < upper:
+                instr_def.fields[enc.name].upper = upper
+
+            enc_idx += length
+        else:
+            enc_idx += enc.length
+
+    for field_name, field_descr in reversed(instr_def.fields.items()):
+        # generate asm_printer code
+        asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
+
+        # generate sign extension if necessary
+        if field_descr.data_type == model_classes.DataType.S and field_descr.upper + 1 < core_default_width:
+            fields_code += '\n'
+            fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.upper+1};}} {field_name}_ext;\n'
+            fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
+
+    asm_printer_code = f'ss << "{instr_def.name.lower()}" << " # " << ba << (" [' + ' | '.join(asm_printer_code) + ']");'
+
+    return (fields_code, asm_printer_code, seen_fields, enc_idx)
+
+def write_instructions(core, start_time, output_path, separate):
+    instr_set_template = Template(filename='templates/etiss_instruction_set.mako')
+    instr_template = Template(filename='templates/etiss_instruction.mako')
+
+    temp_var_count = 0
+    mem_var_count = 0
+
+    outfiles = {}
+
+    core_default_width = core.constants['XLEN'].value
+    core_name = core.name
+
+    with ExitStack() as stack:
+        if separate:
+            outfiles = {ext_name: stack.enter_context(open(output_path / f'{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types}
+
+        outfiles['default'] = stack.enter_context(open(output_path / f'{core_name}Instr.cpp', 'w'))
 
         for extension_name, out_f in outfiles.items():
             instr_set_str = instr_set_template.render(
@@ -111,47 +138,7 @@ for core_name, (mt, core) in models.items():
             if instr_def.attributes == None:
                 instr_def.attributes = []
 
-            enc_idx = 0
-
-            seen_fields = {}
-
-            fields_code = ""
-            asm_printer_code = []
-
-            for enc in reversed(instr_def.encoding):
-                if isinstance(enc, model_classes.BitField):
-                    if enc.name not in seen_fields:
-                        seen_fields[enc.name] = 255
-                        fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
-
-                    lower = enc.range.lower
-                    upper = enc.range.upper
-                    length = enc.range.length
-
-                    if seen_fields[enc.name] > lower:
-                        seen_fields[enc.name] = lower
-
-                    fields_code += f'static BitArrayRange R_{enc.name}_{lower}({enc_idx+length-1}, {enc_idx});\n'
-                    fields_code += f'{enc.name} += R_{enc.name}_{lower}.read(ba) << {lower};\n'
-
-                    if instr_def.fields[enc.name].upper < upper:
-                        instr_def.fields[enc.name].upper = upper
-
-                    enc_idx += length
-                else:
-                    enc_idx += enc.length
-
-            for field_name, field_descr in reversed(instr_def.fields.items()):
-                # generate asm_printer code
-                asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
-
-                # generate sign extension if necessary
-                if field_descr.data_type == model_classes.DataType.S and field_descr.upper + 1 < core_default_width:
-                    fields_code += '\n'
-                    fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.upper+1};}} {field_name}_ext;\n'
-                    fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
-
-            asm_printer_code = f'ss << "{instr_name.lower()}" << " # " << ba << (" [' + ' | '.join(asm_printer_code) + ']");'
+            fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core, instr_def)
 
             # add pc increment to operation tree
             if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
@@ -195,3 +182,39 @@ for core_name, (mt, core) in models.items():
 
             # save instruction code to file
             outfiles.get(instr_def.ext_name, outfiles['default']).write(templ_str)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('top_level')
+    parser.add_argument('-s', '--separate', action='store_true')
+
+    args = parser.parse_args()
+
+    abs_top_level = os.path.abspath(args.top_level)
+    search_path = os.path.dirname(abs_top_level)
+
+    top_level = pathlib.Path(args.top_level)
+    abs_top_level = top_level.resolve()
+    search_path = abs_top_level.parent
+    model_path = search_path.joinpath('gen_model')
+
+    if not model_path.exists():
+        raise FileNotFoundError('Models not generated!')
+
+    output_path = search_path.joinpath('gen_output')
+    output_path.mkdir(exist_ok=True)
+
+    print('INFO: loading models')
+    with open(model_path / (abs_top_level.stem + '_model.pickle'), 'rb') as f:
+        models = pickle.load(f)
+
+    start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
+
+    for core_name, (mt, core) in models.items():
+        print(f'INFO: processing model {core_name}')
+
+        write_functions(core, start_time, output_path, args.separate)
+        write_instructions(core, start_time, output_path, args.separate)
+
+if __name__ == "__main__":
+    main()
