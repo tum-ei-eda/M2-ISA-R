@@ -1,5 +1,4 @@
 import argparse
-import os
 import pathlib
 import pickle
 import time
@@ -11,6 +10,7 @@ from mako.template import Template
 
 import model_classes
 from etiss_instruction_writer import EtissInstructionWriter, data_type_map
+
 
 def write_functions(core, start_time, output_path, separate):
     fn_set_template = Template(filename='templates/etiss_function_set.mako')
@@ -189,9 +189,6 @@ def main():
     parser.add_argument('-s', '--separate', action='store_true')
 
     args = parser.parse_args()
-
-    abs_top_level = os.path.abspath(args.top_level)
-    search_path = os.path.dirname(abs_top_level)
 
     top_level = pathlib.Path(args.top_level)
     abs_top_level = top_level.resolve()

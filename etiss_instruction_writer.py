@@ -1,6 +1,5 @@
 from enum import Flag, auto
 from itertools import chain
-from os import stat
 from string import Template
 
 from lark import Transformer

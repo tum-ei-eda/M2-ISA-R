@@ -1,13 +1,12 @@
-from os import path
-from lark import Lark, Tree
-import os
-import pathlib
 import argparse
+import pathlib
 import pickle
 
-from transformers import Importer, NaturalConverter, Parent, ParallelImporter
+from lark import Lark, Tree
+
 from instruction_set_storage import InstructionSetStorage
 from model_tree import ModelTree
+from transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
 GRAMMAR_FNAME = 'coredsl.lark'
 

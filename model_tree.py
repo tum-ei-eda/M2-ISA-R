@@ -2,12 +2,11 @@ from collections import defaultdict
 from functools import partial
 from typing import Set
 
-from lark import Discard, Transformer, v_args
+from lark import Discard, Transformer
 
 import model_classes
 
 
-#@v_args(inline=True)
 class ModelTree(Transformer):
     def __init__(self):
         self.__constants = {}
