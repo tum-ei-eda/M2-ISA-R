@@ -6,7 +6,7 @@ from lark import Transformer
 
 import etiss_replacements
 import model_classes
-from model_classes import SpaceAttribute
+import model_classes.arch
 
 data_type_map = {
     model_classes.DataType.S: 'etiss_int',
@@ -104,7 +104,7 @@ class EtissInstructionWriter(Transformer):
         if not data_type:
             data_type = model_classes.DataType.U
 
-        s = model_classes.Scalar(name, None, StaticType.WRITE, size_val, data_type)
+        s = model_classes.arch.Scalar(name, None, StaticType.WRITE, size_val, data_type)
 
         self.__scalars[name] = s
         actual_size = 1 << (s.size - 1).bit_length()
@@ -226,13 +226,7 @@ class EtissInstructionWriter(Transformer):
 
         return code_str
 
-    def then_stmts(self, args):
-        return args
-    def then_stmt(self, args):
-        return args
-    def else_stmts(self, args):
-        return args
-    def else_stmt(self, args):
+    def stmt_list(self, args):
         return args
 
     def assignment(self, args):
@@ -321,25 +315,25 @@ class EtissInstructionWriter(Transformer):
             name = f'${{{name}}}'
             static = StaticType.READ
 
-        if isinstance(referred_var, model_classes.Register):
+        if isinstance(referred_var, model_classes.arch.Register):
             if not static:
                 name = etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix) + name
             signed = False
             size = referred_var.size
-        elif isinstance(referred_var, model_classes.BitFieldDescr):
+        elif isinstance(referred_var, model_classes.arch.BitFieldDescr):
             signed = referred_var.data_type == model_classes.DataType.S
             size = referred_var.size
             static = StaticType.READ
-        elif isinstance(referred_var, model_classes.Scalar):
+        elif isinstance(referred_var, model_classes.arch.Scalar):
             signed = referred_var.data_type == model_classes.DataType.S
             size = referred_var.size
             static = referred_var.static
-        elif isinstance(referred_var, model_classes.Constant):
+        elif isinstance(referred_var, model_classes.arch.Constant):
             signed = referred_var.value < 0
             size = self.__native_size
             static = StaticType.READ
             name = f'{referred_var.value}'
-        elif isinstance(referred_var, model_classes.FnParam):
+        elif isinstance(referred_var, model_classes.arch.FnParam):
             signed = referred_var.data_type == model_classes.DataType.S
             size = referred_var.size
             static = StaticType.RW
@@ -370,18 +364,18 @@ class EtissInstructionWriter(Transformer):
         else:
             static = StaticType.NONE
 
-        if isinstance(referred_var, model_classes.RegisterFile) or (isinstance(referred_var, model_classes.AddressSpace) and model_classes.SpaceAttribute.MAIN_MEM not in referred_var.attributes):
+        if isinstance(referred_var, model_classes.arch.RegisterFile) or (isinstance(referred_var, model_classes.arch.AddressSpace) and model_classes.SpaceAttribute.MAIN_MEM not in referred_var.attributes):
             code_str = f'{etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix)}{name}[{index.code}]'
             if size != referred_var.size:
                 code_str = f'(etiss_uint{size})' + code_str
             c = CodeString(code_str, static, size, False, False)
 
-            if isinstance(referred_var, model_classes.RegisterFile):# and referred_var.name == 'X': # TODO: Hack, remove
+            if isinstance(referred_var, model_classes.arch.RegisterFile):# and referred_var.name == 'X': # TODO: Hack, remove
                 c.regs_affected.append(index_code)
 
             return c
 
-        elif isinstance(referred_var, model_classes.AddressSpace):
+        elif isinstance(referred_var, model_classes.arch.AddressSpace):
             c = CodeString(f'{MEM_VAL_REPL}{self.mem_var_count}', static, size, False, True)
             c.mem_ids.append((referred_var, self.mem_var_count, index))
             self.mem_var_count += 1

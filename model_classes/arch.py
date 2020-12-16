@@ -1,46 +1,9 @@
-from collections import defaultdict, namedtuple
-from enum import Enum, auto
-from os import stat
+from collections import namedtuple
 
 from lark import Tree
 
-#RangeSpec = namedtuple('RangeSpec', ['upper', 'lower'])
-BitVal = namedtuple('BitVal', ['length', 'value'])
+from . import DataType
 
-class RangeSpec:
-    def __init__(self, upper, lower):
-        self.upper = upper
-        self.lower = lower
-
-    @property
-    def length(self):
-        return self.upper - self.lower + 1
-
-
-class RegAttribute(Enum):
-    IS_PC = auto()
-    DELETE = auto()
-
-class SpaceAttribute(Enum):
-    MAIN_MEM = auto()
-
-class ConstAttribute(Enum):
-    IS_REG_WIDTH = auto()
-    IS_ADDR_WIDTH = auto()
-
-class InstrAttribute(Enum):
-    NO_CONT = auto()
-    COND = auto()
-    FLUSH = auto()
-
-class DataType(Enum):
-    NONE = auto()
-    U = auto()
-    S = auto()
-    F = auto()
-    D = auto()
-    Q = auto()
-    B = auto()
 
 class Named:
     def __init__(self, name):
@@ -173,6 +136,8 @@ class CoreDef(Named):
 
         super().__init__(name)
 
+BitVal = namedtuple('BitVal', ['length', 'value'])
+
 class BitField(Named):
     def __init__(self, name, _range, data_type):
         self.range = _range
@@ -243,8 +208,3 @@ class Function(SizedRefOrConst):
     def __str__(self) -> str:
         return f'{super().__str__()}, data_type={self.data_type}'
 
-class Expression:
-    def __init__(self, left, op, right):
-        self.left = left
-        self.op = op
-        self.right = right

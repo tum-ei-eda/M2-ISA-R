@@ -68,7 +68,7 @@ def generate_fields(core, instr_def):
     asm_printer_code = []
 
     for enc in reversed(instr_def.encoding):
-        if isinstance(enc, model_classes.BitField):
+        if isinstance(enc, model_classes.arch.BitField):
             if enc.name not in seen_fields:
                 seen_fields[enc.name] = 255
                 fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'

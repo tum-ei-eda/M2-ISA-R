@@ -67,7 +67,7 @@ models = {}
 for core_name, instruction_sets in iss.core_defs.items():
     print(f'INFO: building model for core {core_name}')
     mt_transformer = ModelTree()
-    mt = mt_transformer.transform(Tree('Base', instruction_sets))
+    mt = mt_transformer.transform(Tree('make_list', instruction_sets))
 
     models[core_name] = (mt_transformer, mt[0])
 

@@ -5,6 +5,7 @@ from typing import Set
 from lark import Discard, Transformer
 
 import model_classes
+import model_classes.arch
 
 
 class ModelTree(Transformer):
@@ -33,6 +34,12 @@ class ModelTree(Transformer):
 
     def Base(self, args):
         return args
+
+    def make_list(self, args):
+        return args
+
+    def make_set(self, args):
+        return set(args)
 
     def constants(self, constants):
         return constants
@@ -89,7 +96,7 @@ class ModelTree(Transformer):
             raise ValueError(f'Constant {name} already defined!')
 
         if name in self.__constants: return self.__constants[name]
-        c = model_classes.Constant(name, default_value, set())
+        c = model_classes.arch.Constant(name, default_value, set())
         self.__constants[name] = c
         return c
 
@@ -100,7 +107,7 @@ class ModelTree(Transformer):
             c.value = value
             c.attributes = attributes
         else:
-            c = model_classes.Constant(name, value, attributes)
+            c = model_classes.arch.Constant(name, value, attributes)
             self.__constants[name] = c
 
         return c
@@ -116,7 +123,7 @@ class ModelTree(Transformer):
         size = self.get_constant_or_val(size)
         length = self.get_constant_or_val(length)
 
-        a = model_classes.AddressSpace(name, power, length, size, attribs)
+        a = model_classes.arch.AddressSpace(name, power, length, size, attribs)
 
         self.__address_spaces[name] = a
         return a
@@ -131,7 +138,7 @@ class ModelTree(Transformer):
 
         size = self.get_constant_or_val(size)
 
-        r = model_classes.Register(name, attributes, None, size)
+        r = model_classes.arch.Register(name, attributes, None, size)
 
         self.__registers[name] = r
         return r
@@ -146,7 +153,7 @@ class ModelTree(Transformer):
 
         size = self.get_constant_or_val(size)
 
-        r = model_classes.RegisterFile(name, _range, attributes, size)
+        r = model_classes.arch.RegisterFile(name, _range, attributes, size)
 
         self.__register_file[name] = r
         return r
@@ -162,7 +169,7 @@ class ModelTree(Transformer):
         assert actual_reg
         size = self.get_constant_or_val(size)
 
-        r = model_classes.RegisterAlias(name, actual_reg, index, attributes, None, size)
+        r = model_classes.arch.RegisterAlias(name, actual_reg, index, attributes, None, size)
 
         self.__register_alias[name] = r
         return r
@@ -170,15 +177,15 @@ class ModelTree(Transformer):
     def bit_field(self, args):
         name, _range, data_type = args
         if not data_type:
-            data_type = model_classes.DataType.U
+            data_type = model_classes.arch.DataType.U
 
-        b = model_classes.BitField(name, _range, data_type)
+        b = model_classes.arch.BitField(name, _range, data_type)
 
         self.__fields[self.__current_instr_idx][name].append(b)
         return b
 
     def BVAL(self, num):
-        return model_classes.BitVal(len(num) - 1, int('0'+num, 2))
+        return model_classes.arch.BitVal(len(num) - 1, int('0'+num, 2))
 
     def bit_size_spec(self, args):
         size, = args
@@ -188,10 +195,10 @@ class ModelTree(Transformer):
 
     #     assert name not in self.__scalars[self.__current_instr_idx]
     #     if type(size) == int:
-    #         s = model_classes.Scalar(name, size=size)
+    #         s = model_classes.arch.Scalar(name, size=size)
     #     else:
     #         size_const = self.__constants[size]
-    #         s = model_classes.Scalar(name, size_const=size_const)
+    #         s = model_classes.arch.Scalar(name, size_const=size_const)
 
     #     self.__scalars[self.__current_instr_idx][name] = s
     #     return s
@@ -223,7 +230,7 @@ class ModelTree(Transformer):
     def instruction(self, args):
         name, attributes, encoding, disass, operation = args
 
-        i = model_classes.Instruction(name, attributes, encoding, disass, operation)
+        i = model_classes.arch.Instruction(name, attributes, encoding, disass, operation)
 
         instr_id = (i.code, i.mask)
 
@@ -241,22 +248,22 @@ class ModelTree(Transformer):
     def fn_arg_def(self, args):
         name, data_type, size = args
         if not data_type:
-            data_type = model_classes.DataType.U
+            data_type = model_classes.arch.DataType.U
 
         size = self.get_constant_or_val(size)
 
-        return model_classes.FnParam(name, size, data_type)
+        return model_classes.arch.FnParam(name, size, data_type)
 
     def function_def(self, args):
         return_len, name, fn_args, data_type, operation = args
 
         if not data_type and not return_len:
-            data_type = model_classes.DataType.NONE
+            data_type = model_classes.arch.DataType.NONE
         elif not data_type:
-            data_type = model_classes.DataType.U
+            data_type = model_classes.arch.DataType.U
 
         return_len = self.get_constant_or_val(return_len) if return_len else None
-        f = model_classes.Function(name, return_len, data_type, fn_args, operation)
+        f = model_classes.arch.Function(name, return_len, data_type, fn_args, operation)
 
         self.__functions[name] = f
         self.__current_fn_idx += 1
@@ -284,7 +291,7 @@ class ModelTree(Transformer):
                 functions_dict[f.name] = f
                 f.ext_name = name
 
-        i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, instructions_dict)
+        i_s = model_classes.arch.InstructionSet(name, extension, constants, address_spaces, registers, instructions_dict)
         self.__instruction_sets[name] = i_s
         self.__read_types[name] = None
 
@@ -306,5 +313,5 @@ class ModelTree(Transformer):
     def core_def(self, args):
         name, _, template, _, _, _, _, _, _ = args
         merged_registers = {**self.__register_file, **self.__registers, **self.__register_alias}
-        c = model_classes.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__functions, self.__instructions)
+        c = model_classes.arch.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__functions, self.__instructions)
         return c
