@@ -67,11 +67,12 @@ indexed_reference: ID "[" expression "]" [bit_size_spec]
 named_reference: ID [bit_size_spec]
 scalar_definition: "val" ID ["'"? DATA_TYPE] "[" (natural | ID) "]"
 
-conditional: "if" "(" boolean_or_expr ")" (then_stmt | ("{" then_stmts "}")) ["else" (else_stmt | ("{" else_stmts "}"))]
-then_stmt: statement
-then_stmts: statement+
-else_stmt: statement
-else_stmts: statement+
+conditional: "if" "(" boolean_or_expr ")" stmt_single_or_block ["else" stmt_single_or_block]
+
+?stmt_single_or_block: stmt_list_single | ("{" stmt_list_mult "}")
+
+stmt_list_single: statement -> stmt_list
+stmt_list_mult: statement+ -> stmt_list
 
 direct_code: "C++" "{" TEXT+ "}"
 
@@ -97,7 +98,7 @@ fn_args: _separated{expression, ","}
 ?primary: "(" expression ")" | function | number_literal | indexed_reference | named_reference
 
 number_literal: natural
-function: FUNCTIONNAME "(" fn_args? ")"
+function: FUNCTIONNAME "(" [fn_args] ")"
 
 BOOL_OR_OP: "||"
 BOOL_AND_OP: "&&"
