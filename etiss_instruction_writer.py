@@ -35,7 +35,7 @@ class CodeString:
         self.signed = signed
         self.is_mem_access = is_mem_access
         self.mem_ids = []
-        self.regs_affected = regs_affected if isinstance(regs_affected, list) else list()
+        self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
         self.scalar = None
 
     def __str__(self):
@@ -74,8 +74,8 @@ class EtissInstructionWriter(Transformer):
         self.is_exception = False
         self.temp_var_count = 0
         self.mem_var_count = 0
-        self.affected_regs = []
-        self.dependent_regs = []
+        self.affected_regs = set()
+        self.dependent_regs = set()
 
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
@@ -145,7 +145,7 @@ class EtissInstructionWriter(Transformer):
                 if else_stmts.static:
                     else_stmts.code = Template(make_static(else_stmts.code)).safe_substitute(etiss_replacements.rename_static)
 
-            c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, cond.regs_affected + then_stmts.regs_affected + else_stmts.regs_affected)
+            c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
             c.mem_ids = cond.mem_ids + then_stmts.mem_ids + else_stmts.mem_ids
 
             return c
@@ -171,19 +171,19 @@ class EtissInstructionWriter(Transformer):
             expr, amount = fn_args
             if amount.static:
                 amount.code = make_static(amount.code)
-            return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
+            return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name == 'shrl':
             expr, amount = fn_args
             if amount.static:
                 amount.code = make_static(amount.code)
-            return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
+            return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name == 'shra':
             expr, amount = fn_args
             if amount.static:
                 amount.code = make_static(amount.code)
-            return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, expr.regs_affected + amount.regs_affected)
+            return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name in self.__functions:
             for arg in fn_args:
@@ -194,7 +194,7 @@ class EtissInstructionWriter(Transformer):
             max_size = max([arg.size for arg in fn_args])
             mem_access = True in [arg.is_mem_access for arg in fn_args]
             signed = True in [arg.signed for arg in fn_args]
-            regs_affected = list(chain.from_iterable([arg.regs_affected for arg in fn_args]))
+            regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
             c = CodeString(f'{name}(cpu, system, plugin_pointers, {arg_str})', StaticType.NONE, max_size, signed, mem_access, regs_affected)
             c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
@@ -213,7 +213,7 @@ class EtissInstructionWriter(Transformer):
         code_str = f'if ({cond}) {{'
         if not cond.static:
             code_str = f'partInit.code() += "{code_str}\\n";'
-            self.dependent_regs.extend(cond.regs_affected)
+            self.dependent_regs.update(cond.regs_affected)
 
         code_str += '\n'
         code_str += '\n'.join(then_stmts)
@@ -254,8 +254,8 @@ class EtissInstructionWriter(Transformer):
             target.code = Template(target.code).safe_substitute(etiss_replacements.rename_dynamic)
         code_str = ''
 
-        self.affected_regs.extend(target.regs_affected)
-        self.dependent_regs.extend(expr.regs_affected)
+        self.affected_regs.update(target.regs_affected)
+        self.dependent_regs.update(expr.regs_affected)
 
         if not target.is_mem_access and not expr.is_mem_access:
             code_str = f'{target.code} = {expr.code};'
@@ -297,7 +297,7 @@ class EtissInstructionWriter(Transformer):
         if not right.static and left.static:
             left.code = make_static(left.code)
 
-        return CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, False, left.regs_affected + right.regs_affected)
+        return CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, False, set.union(left.regs_affected, right.regs_affected))
 
     def unitary_expr(self, args):
         op, right = args
@@ -371,7 +371,7 @@ class EtissInstructionWriter(Transformer):
             c = CodeString(code_str, static, size, False, False)
 
             if isinstance(referred_var, model_classes.arch.RegisterFile):# and referred_var.name == 'X': # TODO: Hack, remove
-                c.regs_affected.append(index_code)
+                c.regs_affected.add(index_code)
 
             return c
 
@@ -388,3 +388,11 @@ class EtissInstructionWriter(Transformer):
     def type_conv(self, args):
         expr, data_type = args
         return CodeString(f'({data_type_map[data_type]}{expr.actual_size})({expr.code})', expr.static, expr.size, data_type == model_classes.DataType.S, expr.is_mem_access, expr.regs_affected)
+
+    def parens(self, args):
+        expr, = args
+        if isinstance(expr, CodeString):
+            expr.code = f'({expr.code})'
+        else:
+            expr = f'({expr})'
+        return expr

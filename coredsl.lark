@@ -95,7 +95,8 @@ fn_args: _separated{expression, ","}
 ?mult_expr: unitary_expr | mult_expr MULT_OP unitary_expr -> two_op_expr
 ?unitary_expr: type_conv | UNITARY_OP unitary_expr
 ?type_conv: primary | primary "'"? DATA_TYPE
-?primary: "(" expression ")" | function | number_literal | indexed_reference | named_reference
+?primary: parens | function | number_literal | indexed_reference | named_reference
+parens: "(" expression ")"
 
 number_literal: natural
 function: FUNCTIONNAME "(" [fn_args] ")"
