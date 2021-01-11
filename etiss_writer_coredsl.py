@@ -131,7 +131,7 @@ def write_instructions(core, start_time, output_path, separate):
 
             out_f.write(instr_set_str)
 
-        for (mask, code), instr_def in core.instructions.items():
+        for (code, mask), instr_def in core.instructions.items():
             instr_name = instr_def.name
             print(f'INFO: processing instruction {instr_name}')
 
