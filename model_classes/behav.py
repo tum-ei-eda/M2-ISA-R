@@ -1,4 +1,4 @@
-class Expression:
+class BinaryOperation:
     def __init__(self, left, op, right):
         self.left = left
         self.op = op
@@ -23,7 +23,7 @@ class Return:
     def __init__(self, expr):
         self.expr = expr
 
-class UnaryExpression:
+class UnaryOperation:
     def __init__(self, op, right):
         self.op = op
         self.right = right

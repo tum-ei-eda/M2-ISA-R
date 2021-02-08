@@ -2,6 +2,7 @@ import argparse
 import pathlib
 import pickle
 import time
+from collections import defaultdict
 from contextlib import ExitStack
 from string import Template as strfmt
 
@@ -39,13 +40,10 @@ def write_functions(core, start_time, output_path, separate):
             t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, fn_def.args, [], [], 0, core_default_width, core_name, True)
             out_code = strfmt(t.transform(fn_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
-            fn_def.static = not t.used_arch_data
-
             templ_str = fn_template.render(
                 return_type=return_type,
                 fn_name=fn_name,
                 args_list=fn_args,
-                static = fn_def.static,
                 operation=out_code
             )
 
@@ -114,82 +112,69 @@ def write_instructions(core, start_time, output_path, separate):
     temp_var_count = 0
     mem_var_count = 0
 
-    outfiles = {}
-
     core_default_width = core.constants['XLEN'].value
     core_name = core.name
 
-    with ExitStack() as stack:
-        if separate:
-            outfiles = {ext_name: stack.enter_context(open(output_path / f'{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types}
+    instrs = defaultdict(dict)
 
-        outfiles['default'] = stack.enter_context(open(output_path / f'{core_name}Instr.cpp', 'w'))
+    for (code, mask), instr_def in core.instructions.items():
+        instr_name = instr_def.name
+        print(f'INFO: processing instruction {instr_name}')
+        misc_code = []
 
-        for extension_name, out_f in outfiles.items():
-            instr_set_str = instr_set_template.render(
-                start_time=start_time,
-                extension_name=extension_name,
-                core_name=core_name
-            )
+        if instr_def.attributes == None:
+            instr_def.attributes = []
 
-            out_f.write(instr_set_str)
+        fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core, instr_def)
 
-        for (code, mask), instr_def in core.instructions.items():
-            instr_name = instr_def.name
-            print(f'INFO: processing instruction {instr_name}')
-            misc_code = []
+        # add pc increment to operation tree
+        if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
+            instr_def.operation.children.append(Tree('assignment', [Tree('named_reference', ['PC', None]), Tree('two_op_expr', [Tree('named_reference', ['PC', None]), Token('ADD_OP', '+'), Tree('number_literal', [int(enc_idx/8)])])]))
 
-            if instr_def.attributes == None:
-                instr_def.attributes = []
+        if model_classes.InstrAttribute.NO_CONT in instr_def.attributes and model_classes.InstrAttribute.COND not in instr_def.attributes:
+            misc_code.append('ic.force_block_end_ = true;')
 
-            fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core, instr_def)
+        code_string = f'{code:#0{int(enc_idx/4)}x}'
+        mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-            # add pc increment to operation tree
-            if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
-                instr_def.operation.children.append(Tree('assignment', [Tree('named_reference', ['PC', None]), Tree('two_op_expr', [Tree('named_reference', ['PC', None]), Token('ADD_OP', '+'), Tree('number_literal', [int(enc_idx/8)])])]))
+        #print('\n--- fields:')
+        #print(fields_code)
 
-            if model_classes.InstrAttribute.NO_CONT in instr_def.attributes and model_classes.InstrAttribute.COND not in instr_def.attributes:
-                misc_code.append('ic.force_block_end_ = true;')
+        # generate instruction behavior code
+        t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+        out_code = strfmt(t.transform(instr_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
-            code_string = f'{code:#0{int(enc_idx/4)}x}'
-            mask_string = f'{mask:#0{int(enc_idx/4)}x}'
+        if t.temp_var_count > temp_var_count:
+            temp_var_count = t.temp_var_count
 
-            #print('\n--- fields:')
-            #print(fields_code)
+        if t.mem_var_count > mem_var_count:
+            mem_var_count = t.mem_var_count
 
-            # generate instruction behavior code
-            t = EtissInstructionWriter(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
-            out_code = strfmt(t.transform(instr_def.operation)).safe_substitute(ARCH_NAME=core_name)
+        #print('--- operation')
+        #print(out_code)
+        #print('\n')
 
-            if t.temp_var_count > temp_var_count:
-                temp_var_count = t.temp_var_count
+        # render code for whole instruction
+        templ_str = instr_template.render(
+            instr_name=instr_name,
+            seen_fields=seen_fields,
+            enc_idx=enc_idx,
+            core_name=core_name,
+            code_string=code_string,
+            mask_string=mask_string,
+            misc_code=misc_code,
+            fields_code=fields_code,
+            asm_printer_code=asm_printer_code,
+            core_default_width=core_default_width,
+            reg_dependencies=t.dependent_regs,
+            reg_affected = t.affected_regs,
+            operation=out_code
+        )
 
-            if t.mem_var_count > mem_var_count:
-                mem_var_count = t.mem_var_count
+        instrs[instr_def.ext_name][(code, mask)] = templ_str
 
-            #print('--- operation')
-            #print(out_code)
-            #print('\n')
-
-            # render code for whole instruction
-            templ_str = instr_template.render(
-                instr_name=instr_name,
-                seen_fields=seen_fields,
-                enc_idx=enc_idx,
-                core_name=core_name,
-                code_string=code_string,
-                mask_string=mask_string,
-                misc_code=misc_code,
-                fields_code=fields_code,
-                asm_printer_code=asm_printer_code,
-                core_default_width=core_default_width,
-                reg_dependencies=t.dependent_regs,
-                reg_affected = t.affected_regs,
-                operation=out_code
-            )
-
-            # save instruction code to file
-            outfiles.get(instr_def.ext_name, outfiles['default']).write(templ_str)
+    with open(output_path / f'{core_name}Instr.pickle', 'wb') as f:
+        pickle.dump(instrs, f)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -218,7 +203,7 @@ def main():
     for core_name, (mt, core) in models.items():
         print(f'INFO: processing model {core_name}')
 
-        write_functions(core, start_time, output_path, args.separate)
+        #write_functions(core, start_time, output_path, args.separate)
         write_instructions(core, start_time, output_path, args.separate)
 
 if __name__ == "__main__":

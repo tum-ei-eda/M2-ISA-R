@@ -202,6 +202,7 @@ class Function(SizedRefOrConst):
         self.data_type = data_type
         self.args = {arg.name: arg for arg in args}
         self.operation = operation if operation is not None else Tree('operation', [])
+        self.static = False
 
         super().__init__(name, return_len)
 

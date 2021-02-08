@@ -1,5 +1,6 @@
 from enum import Flag, auto
 from itertools import chain
+from os import stat
 from string import Template
 
 from lark import Transformer
@@ -32,6 +33,8 @@ class CodeString:
         self.static = StaticType(static)
         self.size = size
         self.actual_size = 1 << (size - 1).bit_length()
+        if self.actual_size < 8:
+            self.actual_size = 8
         self.signed = signed
         self.is_mem_access = is_mem_access
         self.mem_ids = []
@@ -76,6 +79,7 @@ class EtissInstructionWriter(Transformer):
         self.mem_var_count = 0
         self.affected_regs = set()
         self.dependent_regs = set()
+        self.used_arch_data = False
 
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
@@ -108,6 +112,8 @@ class EtissInstructionWriter(Transformer):
 
         self.__scalars[name] = s
         actual_size = 1 << (s.size - 1).bit_length()
+        if actual_size < 8:
+            actual_size = 8
         c = CodeString(f'{data_type_map[data_type]}{actual_size} {name}', StaticType.WRITE, s.size, data_type == model_classes.DataType.S, False)
         c.scalar = s
         return c
@@ -152,20 +158,40 @@ class EtissInstructionWriter(Transformer):
 
         elif name == 'sext':
             expr = fn_args[0]
-            if len(fn_args) == 1:
-                size = expr.size
-            else:
-                size = int(fn_args[1].code)
 
-            c = CodeString(f'(etiss_int{size})({expr.code})', expr.static, size, True, expr.is_mem_access, expr.regs_affected)
+            target_size = self.__native_size
+            source_size = expr.size
+
+            if len(fn_args) >= 2:
+                target_size = int(fn_args[1].code)
+            if len(fn_args) >= 3:
+                source_size = int(fn_args[2].code)
+
+            if source_size >= target_size:
+                code_str = f'(etiss_int{target_size})({expr.code})'
+            else:
+                if (source_size & (source_size - 1) == 0): # power of two
+                    code_str = f'(etiss_int{target_size})((etiss_int{source_size})({expr.code}))'
+                else:
+                    code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - source_size})) >> ({target_size - source_size})'
+
+
+            c = CodeString(code_str, expr.static, target_size, True, expr.is_mem_access, expr.regs_affected)
             c.mem_ids = expr.mem_ids
 
             return c
 
         elif name == 'zext':
             expr = fn_args[0]
+            if len(fn_args) == 1:
+                target_size = expr.size
+            else:
+                target_size = int(fn_args[1].code)
 
-            return expr
+            c = CodeString(f'(etiss_uint{target_size})({expr.code})', expr.static, target_size, expr.signed, expr.is_mem_access, expr.regs_affected)
+            c.mem_ids = expr.mem_ids
+
+            return c
 
         elif name == 'shll':
             expr, amount = fn_args
@@ -186,17 +212,24 @@ class EtissInstructionWriter(Transformer):
             return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name in self.__functions:
-            for arg in fn_args:
-                if arg.static:
-                    arg.code = make_static(arg.code)
+            fn = self.__functions[name]
+            static = fn.static
 
-            arg_str = ', '.join([arg.code for arg in fn_args])
+            if not static:
+                for arg in fn_args:
+                    if arg.static:
+                        arg.code = make_static(arg.code)
+
+            arg_str = 'cpu, system, plugin_pointers, ' if not fn.static else ''
+            arg_str += ', '.join([arg.code for arg in fn_args])
             max_size = max([arg.size for arg in fn_args])
             mem_access = True in [arg.is_mem_access for arg in fn_args]
             signed = True in [arg.signed for arg in fn_args]
             regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
-            c = CodeString(f'{name}(cpu, system, plugin_pointers, {arg_str})', StaticType.NONE, max_size, signed, mem_access, regs_affected)
+            static = StaticType.READ if static else StaticType.NONE
+
+            c = CodeString(f'{name}({arg_str})', static, max_size, signed, mem_access, regs_affected)
             c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
             return c
@@ -235,7 +268,7 @@ class EtissInstructionWriter(Transformer):
 
         if target.scalar:
             if expr.static:
-                target.scalar.static = StaticType.READ
+                target.scalar.static |= StaticType.READ
             else:
                 target.scalar.static = StaticType.NONE
                 target.static = StaticType.NONE
@@ -258,16 +291,19 @@ class EtissInstructionWriter(Transformer):
         self.dependent_regs.update(expr.regs_affected)
 
         if not target.is_mem_access and not expr.is_mem_access:
+            if target.actual_size > target.size:
+                expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
+
             code_str = f'{target.code} = {expr.code};'
             if not static:
                 code_str = f'partInit.code() += "{code_str}\\n";'
 
         elif not target.is_mem_access and expr.is_mem_access:
             self.generates_exception = True
-            for mem_space, mem_id, index in expr.mem_ids:
-                code_str += f'partInit.code() += "etiss_uint{expr.actual_size} {MEM_VAL_REPL}{mem_id};\\n";\n'
+            for mem_space, mem_id, index, access_size in expr.mem_ids:
+                code_str += f'partInit.code() += "etiss_uint{access_size} {MEM_VAL_REPL}{mem_id};\\n";\n'
                 #code_str += f'partInit.code() += "exception = read_mem(""{mem_space.name}"", {int(expr.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
-                code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(expr.actual_size / 8)});\\n";\n'
+                code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(access_size / 8)});\\n";\n'
                 #code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
 
             code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
@@ -278,11 +314,11 @@ class EtissInstructionWriter(Transformer):
                 raise ValueError('Only one memory access is allowed as assignment target!')
 
             self.generates_exception = True
-            mem_space, mem_id, index = target.mem_ids[0]
+            mem_space, mem_id, index, access_size = target.mem_ids[0]
 
-            code_str += f'partInit.code() += "etiss_uint{target.actual_size} {MEM_VAL_REPL}{mem_id} = {expr.code};\\n";\n'
+            code_str += f'partInit.code() += "etiss_uint{access_size} {MEM_VAL_REPL}{mem_id} = {expr.code};\\n";\n'
             #code_str += f'partInit.code() += "exception = write_mem(""{mem_space.name}"", {int(target.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
-            code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(target.actual_size / 8)});\\n";\n'
+            code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(access_size / 8)});\\n";\n'
             #code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
             pass
 
@@ -297,11 +333,15 @@ class EtissInstructionWriter(Transformer):
         if not right.static and left.static:
             left.code = make_static(left.code)
 
-        return CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, False, set.union(left.regs_affected, right.regs_affected))
+        c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+        c.mem_ids = left.mem_ids + right.mem_ids
+        return c
 
     def unitary_expr(self, args):
         op, right = args
-        return CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.is_mem_access, right.regs_affected)
+        c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.is_mem_access, right.regs_affected)
+        c.mem_ids = right.mem_ids
+        return c
 
     def named_reference(self, args):
         name, size = args
@@ -320,6 +360,7 @@ class EtissInstructionWriter(Transformer):
                 name = etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix) + name
             signed = False
             size = referred_var.size
+            self.used_arch_data = True
         elif isinstance(referred_var, model_classes.arch.BitFieldDescr):
             signed = referred_var.data_type == model_classes.DataType.S
             size = referred_var.size
@@ -348,6 +389,7 @@ class EtissInstructionWriter(Transformer):
     def indexed_reference(self, args):
         name, index, size = args
 
+        self.used_arch_data = True
         referred_var = self.__register_files.get(name) or self.__spaces.get(name)
         if not referred_var:
             raise ValueError(f'Indexed reference {name} does not exist!')
@@ -377,13 +419,14 @@ class EtissInstructionWriter(Transformer):
 
         elif isinstance(referred_var, model_classes.arch.AddressSpace):
             c = CodeString(f'{MEM_VAL_REPL}{self.mem_var_count}', static, size, False, True)
-            c.mem_ids.append((referred_var, self.mem_var_count, index))
+            c.mem_ids.append((referred_var, self.mem_var_count, index, size))
             self.mem_var_count += 1
             return c
 
     def number_literal(self, args):
         lit, = args
-        return CodeString(str(lit), True, self.__native_size, int(lit) < 0, False)
+        size = int(lit).bit_length()
+        return CodeString(str(lit), True, size, int(lit) < 0, False)
 
     def type_conv(self, args):
         expr, data_type = args

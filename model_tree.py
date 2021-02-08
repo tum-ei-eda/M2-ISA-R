@@ -255,7 +255,7 @@ class ModelTree(Transformer):
         return model_classes.arch.FnParam(name, size, data_type)
 
     def function_def(self, args):
-        return_len, name, fn_args, data_type, operation = args
+        return_len, name, fn_args, data_type, attributes, operation = args
 
         if not data_type and not return_len:
             data_type = model_classes.arch.DataType.NONE
