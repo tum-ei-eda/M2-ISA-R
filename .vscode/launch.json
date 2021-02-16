@@ -24,6 +24,18 @@
             "stopOnEntry": true
         },
         {
+            "name": "Generate Pickle",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/pickle_writer_coredsl.py",
+            "console": "integratedTerminal",
+            "args": [
+                //"--separate",
+                "${input:inputFile}"
+            ],
+            "stopOnEntry": true
+        },
+        {
             "name": "Parse CoreDSL",
             "type": "python",
             "request": "launch",

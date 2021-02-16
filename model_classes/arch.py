@@ -1,12 +1,13 @@
 from collections import namedtuple
+from typing import Iterable, Sequence, Union, Mapping
 
 from lark import Tree
 
-from . import DataType
+from . import *
 
 
 class Named:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
 
     def __str__(self) -> str:
@@ -16,7 +17,7 @@ class Named:
         return f'<{type(self).__name__} object>: name={self.name}'
 
 class Constant(Named):
-    def __init__(self, name, value, attributes):
+    def __init__(self, name, value: int, attributes: Sequence[str]):
         self.value = value
         self.attributes = attributes if attributes else []
         super().__init__(name)
@@ -24,8 +25,10 @@ class Constant(Named):
     def __str__(self) -> str:
         return f'{super().__str__()}, value={self.value}'
 
+val_or_const = Union[int, Constant]
+
 class SizedRefOrConst(Named):
-    def __init__(self, name, size):
+    def __init__(self, name, size: val_or_const):
         self._size = size
         super().__init__(name)
 
@@ -45,7 +48,7 @@ class SizedRefOrConst(Named):
         return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
 
 class FnParam(SizedRefOrConst):
-    def __init__(self, name, size, data_type):
+    def __init__(self, name, size, data_type: DataType):
         self.data_type = data_type
         super().__init__(name, size)
 
@@ -53,14 +56,14 @@ class FnParam(SizedRefOrConst):
         return f'{super().__str__()}, data_type={self.data_type}'
 
 class Scalar(SizedRefOrConst):
-    def __init__(self, name, value, static, size, data_type):
+    def __init__(self, name, value: int, static: bool, size, data_type: DataType):
         self.value = value
         self.static = static
         self.data_type = data_type
         super().__init__(name, size)
 
 class AddressSpace(SizedRefOrConst):
-    def __init__(self, name, power, length, size, attributes):
+    def __init__(self, name, power: int, length: val_or_const, size, attributes: Iterable[SpaceAttribute]):
         self._length = length
         self._power = power
         self.attributes = attributes if attributes else []
@@ -81,18 +84,8 @@ class AddressSpace(SizedRefOrConst):
     def __str__(self) -> str:
         return f'{super().__str__()}, size={self.size}, length={self.length}'
 
-class InstructionSet(Named):
-    def __init__(self, name, extension, constants, address_spaces, registers, instructions):
-        self.extension = extension
-        self.constants = constants
-        self.address_spaces = address_spaces
-        self.registers = registers
-        self.instructions = instructions
-
-        super().__init__(name)
-
 class Register(SizedRefOrConst):
-    def __init__(self, name, attributes, initval, size):
+    def __init__(self, name, attributes: Iterable[RegAttribute], initval: int, size):
         self.attributes = attributes if attributes else []
         self._initval = initval
 
@@ -106,14 +99,14 @@ class Register(SizedRefOrConst):
             return self._initval
 
 class RegisterFile(SizedRefOrConst):
-    def __init__(self, name, _range, attributes, size):
+    def __init__(self, name, _range: RangeSpec, attributes: Iterable[RegAttribute], size):
         self.range = _range
         self.attributes = attributes if attributes else []
 
         super().__init__(name, size)
 
 class RegisterAlias(Register):
-    def __init__(self, name, actual, index, attributes, initval, size):
+    def __init__(self, name, actual: str, index: int, attributes: Iterable[RegAttribute], initval: int, size):
         self.actual = actual
         self.index = index
 
@@ -122,24 +115,12 @@ class RegisterAlias(Register):
     def __str__(self) -> str:
         return f'{super().__str__()}, actual={self.actual}, index={self.index}'
 
-class CoreDef(Named):
-    def __init__(self, name, contributing_types, template, constants, address_spaces, register_files, registers, register_aliases, functions, instructions):
-        self.contributing_types = contributing_types
-        self.template = template
-        self.constants = constants
-        self.address_spaces = address_spaces
-        self.register_files = register_files
-        self.registers = registers
-        self.register_aliases = register_aliases
-        self.functions = functions
-        self.instructions = instructions
 
-        super().__init__(name)
 
 BitVal = namedtuple('BitVal', ['length', 'value'])
 
 class BitField(Named):
-    def __init__(self, name, _range, data_type):
+    def __init__(self, name, _range: RangeSpec, data_type: DataType):
         self.range = _range
         self.data_type = data_type
         if not self.data_type: self.data_type = DataType.U
@@ -153,7 +134,7 @@ class BitField(Named):
         return self.__str__()
 
 class BitFieldDescr(Named):
-    def __init__(self, name, size, data_type):
+    def __init__(self, name, size: val_or_const, data_type: DataType):
         self.size = size
         self.data_type = data_type
         self.upper = 0
@@ -161,7 +142,7 @@ class BitFieldDescr(Named):
         super().__init__(name)
 
 class Instruction(SizedRefOrConst):
-    def __init__(self, name, attributes, encoding, disass, operation):
+    def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: Tree):
         self.ext_name = ""
         self.attributes = attributes if attributes else []
         self.encoding = encoding
@@ -198,7 +179,7 @@ class Instruction(SizedRefOrConst):
         return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):
-    def __init__(self, name, return_len, data_type, args, operation):
+    def __init__(self, name, return_len, data_type: DataType, args: Iterable[FnParam], operation):
         self.data_type = data_type
         self.args = {arg.name: arg for arg in args}
         self.operation = operation if operation is not None else Tree('operation', [])
@@ -209,3 +190,26 @@ class Function(SizedRefOrConst):
     def __str__(self) -> str:
         return f'{super().__str__()}, data_type={self.data_type}'
 
+class InstructionSet(Named):
+    def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], registers: Mapping[str, Register], instructions: Mapping[str, Instruction]):
+        self.extension = extension
+        self.constants = constants
+        self.address_spaces = address_spaces
+        self.registers = registers
+        self.instructions = instructions
+
+        super().__init__(name)
+
+class CoreDef(Named):
+    def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], functions: Mapping[str, Function], instructions: Mapping[str, Instruction]):
+        self.contributing_types = contributing_types
+        self.template = template
+        self.constants = constants
+        self.address_spaces = address_spaces
+        self.register_files = register_files
+        self.registers = registers
+        self.register_aliases = register_aliases
+        self.functions = functions
+        self.instructions = instructions
+
+        super().__init__(name)
