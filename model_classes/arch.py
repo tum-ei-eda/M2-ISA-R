@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Iterable, Sequence, Union, Mapping
+from typing import Iterable, Union, Mapping
 
 from lark import Tree
 
@@ -17,7 +17,7 @@ class Named:
         return f'<{type(self).__name__} object>: name={self.name}'
 
 class Constant(Named):
-    def __init__(self, name, value: int, attributes: Sequence[str]):
+    def __init__(self, name, value: int, attributes: Iterable[str]):
         self.value = value
         self.attributes = attributes if attributes else []
         super().__init__(name)
