@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import partial
-from typing import Set
+from typing import Mapping, Set
 
 from lark import Discard, Transformer
 
@@ -9,6 +9,18 @@ import model_classes.arch
 
 
 class ModelTree(Transformer):
+    __constants: Mapping[str, model_classes.arch.Constant]
+    __address_spaces: Mapping[str, model_classes.arch.AddressSpace]
+    __registers: Mapping[str, model_classes.arch.Register]
+    __register_file: Mapping[str, model_classes.arch.RegisterFile]
+    __register_alias: Mapping[str, model_classes.arch.RegisterAlias]
+    __instructions: Mapping[str, model_classes.arch.Instruction]
+    __functions: Mapping[str, model_classes.arch.Function]
+    __instruction_sets: Mapping[str, model_classes.arch.InstructionSet]
+    __read_types: Mapping[str, str]
+    __memories: Mapping[str, model_classes.arch.Memory]
+    __memories_alias: Mapping[str, model_classes.arch.Memory]
+
     def __init__(self):
         self.__constants = {}
         self.__address_spaces = {}
@@ -19,6 +31,8 @@ class ModelTree(Transformer):
         self.__functions = {}
         self.__instruction_sets = {}
         self.__read_types = {}
+        self.__memories = {}
+        self.__memories_alias = {}
 
         self.__scalars = defaultdict(dict)
         self.__fields = defaultdict(partial(defaultdict, list))
@@ -113,7 +127,7 @@ class ModelTree(Transformer):
         return c
 
     def address_space(self, args):
-        name, size, power, length, attribs = args
+        name, size, length_base, length_power, attribs = args
 
         if name in self.__address_spaces:
             raise ValueError(f'Address space {name} already defined!')
@@ -121,11 +135,15 @@ class ModelTree(Transformer):
         if name in self.__address_spaces: return self.__address_spaces[name]
 
         size = self.get_constant_or_val(size)
-        length = self.get_constant_or_val(length)
+        length_base = self.get_constant_or_val(length_base)
+        length_power = self.get_constant_or_val(length_power) if length_power is not None else 1
 
-        a = model_classes.arch.AddressSpace(name, power, length, size, attribs)
-
+        a = model_classes.arch.AddressSpace(name, length_base, length_power, size, attribs)
         self.__address_spaces[name] = a
+
+        m = model_classes.arch.Memory(name, model_classes.RangeSpec(length_base, 0, length_power), size, attribs)
+        self.__memories[name] = m
+
         return a
 
     def register(self, args):
@@ -139,8 +157,11 @@ class ModelTree(Transformer):
         size = self.get_constant_or_val(size)
 
         r = model_classes.arch.Register(name, attributes, None, size)
-
         self.__registers[name] = r
+
+        m = model_classes.arch.Memory(name, model_classes.RangeSpec(0, 0), size, attributes)
+        self.__memories[name] = m
+
         return r
 
     def register_file(self, args):
@@ -154,8 +175,11 @@ class ModelTree(Transformer):
         size = self.get_constant_or_val(size)
 
         r = model_classes.arch.RegisterFile(name, _range, attributes, size)
-
         self.__register_file[name] = r
+
+        m = model_classes.arch.Memory(name, _range, size, attributes)
+        self.__memories[name] = m
+
         return r
 
     def register_alias(self, args):
@@ -170,8 +194,17 @@ class ModelTree(Transformer):
         size = self.get_constant_or_val(size)
 
         r = model_classes.arch.RegisterAlias(name, actual_reg, index, attributes, None, size)
-
         self.__register_alias[name] = r
+
+        if not isinstance(index, model_classes.RangeSpec):
+            index = model_classes.RangeSpec(index, index)
+
+        parent_mem = self.__memories.get(actual) or self.__memories_alias.get(actual)
+        assert parent_mem
+        m = model_classes.arch.Memory(name, index, size, attributes)
+        parent_mem.children.append(m)
+        self.__memories_alias[name] = m
+
         return r
 
     def bit_field(self, args):

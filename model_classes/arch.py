@@ -1,51 +1,10 @@
 from collections import namedtuple
-from typing import Iterable, Union, Mapping
+from typing import Iterable, Union, Mapping, List
 
 from lark import Tree
 
 from . import *
 
-
-class Named:
-    def __init__(self, name: str):
-        self.name = name
-
-    def __str__(self) -> str:
-        return f'<{type(self).__name__} object>: name={self.name}'
-
-    def __repr__(self) -> str:
-        return f'<{type(self).__name__} object>: name={self.name}'
-
-class Constant(Named):
-    def __init__(self, name, value: int, attributes: Iterable[str]):
-        self.value = value
-        self.attributes = attributes if attributes else []
-        super().__init__(name)
-
-    def __str__(self) -> str:
-        return f'{super().__str__()}, value={self.value}'
-
-val_or_const = Union[int, Constant]
-
-class SizedRefOrConst(Named):
-    def __init__(self, name, size: val_or_const):
-        self._size = size
-        super().__init__(name)
-
-    @property
-    def size(self):
-        if isinstance(self._size, Constant):
-            return self._size.value
-        else:
-            return self._size
-
-    @property
-    def actual_size(self):
-        temp = 1 << (self.size - 1).bit_length()
-        return temp if temp >= 8 else 8
-
-    def __str__(self) -> str:
-        return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
 
 class FnParam(SizedRefOrConst):
     def __init__(self, name, size, data_type: DataType):
@@ -62,30 +21,52 @@ class Scalar(SizedRefOrConst):
         self.data_type = data_type
         super().__init__(name, size)
 
+
+class Memory(SizedRefOrConst):
+    children: List['Memory']
+
+    def __init__(self, name, range: RangeSpec, size, attributes: Iterable[SpaceAttribute]):
+        self.attributes = attributes if attributes else []
+        self.range = range
+        self.children = []
+        super().__init__(name, size)
+
+    @property
+    def data_range(self):
+        return RangeSpec(self.range.upper - self.range.lower, 0)
+
+    def __str__(self) -> str:
+        return f'{super().__str__()}, size={self.size}, length={self.length}'
+
+
 class AddressSpace(SizedRefOrConst):
-    def __init__(self, name, power: int, length: val_or_const, size, attributes: Iterable[SpaceAttribute]):
-        self._length = length
-        self._power = power
+    def __init__(self, name, length_base: val_or_const, length_power: val_or_const, size, attributes: Iterable[SpaceAttribute]):
+        self._length_base = length_base
+        self._length_power = length_power
         self.attributes = attributes if attributes else []
         super().__init__(name, size)
 
     @property
-    def length(self):
-        if isinstance(self._length, Constant):
-            temp = self._length.value
-        else:
-            temp = self._length
+    def length_power(self):
+        if isinstance(self._length_power, Constant):
+            return self._length_power.value
+        return self._length_power
 
-        if self._power:
-            return self._power ** temp
-        else:
-            return temp
+    @property
+    def length_base(self):
+        if isinstance(self._length_base, Constant):
+            return self._length_base.value
+        return self._length_base
+
+    @property
+    def length(self):
+        return self.length_base ** self.length_power
 
     def __str__(self) -> str:
         return f'{super().__str__()}, size={self.size}, length={self.length}'
 
 class Register(SizedRefOrConst):
-    def __init__(self, name, attributes: Iterable[RegAttribute], initval: int, size):
+    def __init__(self, name, attributes: Iterable[RegAttribute], initval: val_or_const, size):
         self.attributes = attributes if attributes else []
         self._initval = initval
 
@@ -106,7 +87,7 @@ class RegisterFile(SizedRefOrConst):
         super().__init__(name, size)
 
 class RegisterAlias(Register):
-    def __init__(self, name, actual: str, index: int, attributes: Iterable[RegAttribute], initval: int, size):
+    def __init__(self, name, actual: str, index: Union[int, RangeSpec], attributes: Iterable[RegAttribute], initval: int, size):
         self.actual = actual
         self.index = index
 

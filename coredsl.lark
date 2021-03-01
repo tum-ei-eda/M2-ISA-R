@@ -14,7 +14,7 @@ constants: "constants" "{" _separated{constant_decl, ","} "}"
 constant_decl: ID [":=" natural]
 
 address_spaces: "address_spaces" "{" _separated{address_space, ","} "}"
-address_space: ID "[" (ID | natural) "," [INT "**"] (ID | natural) "]" [space_attributes]
+address_space: ID "[" (ID | natural) "," (ID | natural) ["**" (ID | natural)] "]" [space_attributes]
 space_attributes: "(" _separated{SPACE_ATTRIBUTE, ","} ")"
 
 
