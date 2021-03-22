@@ -42,7 +42,7 @@ register_defaults: "reg_init" "{" register_default+ "}"
 register_default: ID ":=" (natural | ID) ";"
 
 functions: "functions" "{" function_def+ "}"
-function_def: ["[" (natural | ID) "]"] ID "(" fn_args_def ")" ["'"? DATA_TYPE] [fn_attributes] "{" [operation] "}"
+function_def: ["[" (natural | ID) "]"] ID "(" [fn_args_def] ")" ["'"? DATA_TYPE] [fn_attributes] "{" [operation] "}"
 fn_attributes: "(" _separated{FN_ATTRIBUTE, ","} ")"
 fn_args_def: _separated{fn_arg_def, ","}
 fn_arg_def: ID ["'"? DATA_TYPE] "[" (natural | ID) "]"
@@ -120,8 +120,8 @@ UNITARY_OP: "-" | "+" | "~" | "!"
 BVAL: /b[01]+/
 DATA_TYPE: /[usfdqb]/
 
-REG_ATTRIBUTE: "is_pc" | "delete"
-SPACE_ATTRIBUTE: "main_mem"
+REG_ATTRIBUTE: "is_pc" | "delete" | "is_main_reg"
+SPACE_ATTRIBUTE: "is_main_mem"
 CONST_ATTRIBUTE: "is_reg_width" | "is_addr_width"
 INSTR_ATTRIBUTE: "no_cont" | "cond" | "flush"
 FN_ATTRIBUTE: "static"

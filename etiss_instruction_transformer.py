@@ -51,7 +51,7 @@ class CodeString:
 class EtissInstructionTransformer(Transformer):
     def __init__(self, constants: Mapping[str, model_classes.arch.Constant], spaces: Mapping[str, model_classes.arch.AddressSpace],
             registers: Mapping[str, model_classes.arch.Register], register_files: Mapping[str, model_classes.arch.RegisterFile],
-            register_aliases: Mapping[str, model_classes.arch.RegisterAlias], fields: Mapping[str, model_classes.arch.BitFieldDescr],
+            register_aliases: Mapping[str, model_classes.arch.RegisterAlias], memories: Mapping[str, model_classes.arch.Memory], memory_aliases: Mapping[str, model_classes.arch.Memory], fields: Mapping[str, model_classes.arch.BitFieldDescr],
             attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.arch.Function],
             instr_size: int, native_size: int, arch_name: str, ignore_static=False):
 
@@ -60,6 +60,8 @@ class EtissInstructionTransformer(Transformer):
         self.__registers = registers
         self.__register_files = register_files
         self.__register_aliases = register_aliases
+        self.__memories = memories
+        self.__memory_aliases = memory_aliases
         self.__fields = fields
         self.__attribs = attribs if attribs else []
         self.__scalars = {}
@@ -358,6 +360,7 @@ class EtissInstructionTransformer(Transformer):
 
     def named_reference(self, args):
         name, size = args
+        referred_mem = self.__memory_aliases.get(name) or self.__memories.get(name)
         referred_var = self.__registers.get(name) or self.__register_aliases.get(name) or self.__scalars.get(name) or self.__constants.get(name) or self.__fields.get(name)
         if not referred_var:
             raise ValueError(f'Named reference {name} does not exist!')
@@ -403,6 +406,9 @@ class EtissInstructionTransformer(Transformer):
         name, index, size = args
 
         self.used_arch_data = True
+
+        referred_mem = self.__memory_aliases.get(name) or self.__memories.get(name)
+
         referred_var = self.__register_files.get(name) or self.__spaces.get(name)
         if not referred_var:
             raise ValueError(f'Indexed reference {name} does not exist!')
@@ -419,7 +425,7 @@ class EtissInstructionTransformer(Transformer):
         else:
             static = StaticType.NONE
 
-        if isinstance(referred_var, model_classes.arch.RegisterFile) or (isinstance(referred_var, model_classes.arch.AddressSpace) and model_classes.SpaceAttribute.MAIN_MEM not in referred_var.attributes):
+        if isinstance(referred_var, model_classes.arch.RegisterFile) or (isinstance(referred_var, model_classes.arch.AddressSpace) and model_classes.SpaceAttribute.IS_MAIN_MEM not in referred_var.attributes):
             code_str = f'{etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix)}{name}[{index.code}]'
             if size != referred_var.size:
                 code_str = f'(etiss_uint{size})' + code_str

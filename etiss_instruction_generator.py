@@ -22,7 +22,7 @@ def generate_functions(core: model_classes.arch.CoreDef):
 
         fn_args = ', '.join([f'{data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()])
 
-        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, fn_def.args, [], [], 0, core_default_width, core_name, True)
+        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
         out_code = strfmt(t.transform(fn_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
         fn_def.static = not t.used_arch_data
@@ -115,7 +115,7 @@ def generate_instructions(core: model_classes.arch.CoreDef):
         #print(fields_code)
 
         # generate instruction behavior code
-        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
         out_code = strfmt(t.transform(instr_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
         if t.temp_var_count > temp_var_count:

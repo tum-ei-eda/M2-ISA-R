@@ -91,12 +91,18 @@ class RangeSpec:
     def __str__(self) -> str:
         return f'<RangeSpec object>, len {self.length}: {self.upper_base}:{self.lower_base}'
 
+class MemoryAttribute(Enum):
+    IS_PC = auto()
+    IS_MAIN_MEM = auto()
+    IS_MAIN_REG = auto()
+
 class RegAttribute(Enum):
     IS_PC = auto()
     DELETE = auto()
+    IS_MAIN_REG = auto()
 
 class SpaceAttribute(Enum):
-    MAIN_MEM = auto()
+    IS_MAIN_MEM = auto()
 
 class ConstAttribute(Enum):
     IS_REG_WIDTH = auto()

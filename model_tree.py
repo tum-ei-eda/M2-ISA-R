@@ -19,7 +19,7 @@ class ModelTree(Transformer):
     __instruction_sets: Mapping[str, model_classes.arch.InstructionSet]
     __read_types: Mapping[str, str]
     __memories: Mapping[str, model_classes.arch.Memory]
-    __memories_alias: Mapping[str, model_classes.arch.Memory]
+    __memory_aliases: Mapping[str, model_classes.arch.Memory]
 
     def __init__(self):
         self.__constants = {}
@@ -32,7 +32,7 @@ class ModelTree(Transformer):
         self.__instruction_sets = {}
         self.__read_types = {}
         self.__memories = {}
-        self.__memories_alias = {}
+        self.__memory_aliases = {}
 
         self.__scalars = defaultdict(dict)
         self.__fields = defaultdict(partial(defaultdict, list))
@@ -199,11 +199,11 @@ class ModelTree(Transformer):
         if not isinstance(index, model_classes.RangeSpec):
             index = model_classes.RangeSpec(index, index)
 
-        parent_mem = self.__memories.get(actual) or self.__memories_alias.get(actual)
+        parent_mem = self.__memories.get(actual) or self.__memory_aliases.get(actual)
         assert parent_mem
         m = model_classes.arch.Memory(name, index, size, attributes)
         parent_mem.children.append(m)
-        self.__memories_alias[name] = m
+        self.__memory_aliases[name] = m
 
         return r
 
@@ -268,7 +268,7 @@ class ModelTree(Transformer):
         instr_id = (i.code, i.mask)
 
         if instr_id in self.__instructions:
-            print(f'WARN: overwriting instruction {name}')
+            print(f'WARN: overwriting instruction {self.__instructions[instr_id].name} with {name}')
 
         self.__instructions[instr_id] = i
         self.__current_instr_idx += 1
@@ -346,5 +346,5 @@ class ModelTree(Transformer):
     def core_def(self, args):
         name, _, template, _, _, _, _, _, _ = args
         merged_registers = {**self.__register_file, **self.__registers, **self.__register_alias}
-        c = model_classes.arch.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__functions, self.__instructions)
+        c = model_classes.arch.CoreDef(name, list(self.__read_types.keys()), template, self.__constants, self.__address_spaces, self.__register_file, self.__registers, self.__register_alias, self.__memories, self.__memory_aliases, self.__functions, self.__instructions)
         return c
