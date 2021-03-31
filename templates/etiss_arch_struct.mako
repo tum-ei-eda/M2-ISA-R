@@ -1,0 +1,27 @@
+/**
+ * Generated on ${start_time}.
+ *
+ * This file contains the instruction behavior models of the ${extension_name}
+ * instruction set for the ${core_name} core architecture.
+ */
+
+#ifndef ETISS_${core_name}Arch_${core_name}_H_
+#define ETISS_${core_name}Arch_${core_name}_H_
+#include <stdio.h>
+#include "etiss/jit/CPU.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#pragma pack(push, 1) 
+struct ${core_name} {
+	ETISS_CPU cpu; // original cpu struct must be defined as the first field of the new structure. this allows to cast X * to ETISS_CPU * and vice vers
+    ${regs}
+};
+
+#pragma pack(pop) // undo changes
+typedef struct ${core_name} ${core_name}; // convenient use of X instead of struct X in generated C code
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
