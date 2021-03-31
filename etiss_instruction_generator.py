@@ -20,18 +20,21 @@ def generate_functions(core: model_classes.arch.CoreDef):
         if fn_def.size:
             return_type += f'{fn_def.actual_size}'
 
-        fn_args = ', '.join([f'{data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()])
-
         t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
         out_code = strfmt(t.transform(fn_def.operation)).safe_substitute(ARCH_NAME=core_name)
 
         fn_def.static = not t.used_arch_data
 
+        args_list = [f'{data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
+        if not fn_def.static:
+            args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
+
+        fn_args = ', '.join(args_list)
+
         templ_str = fn_template.render(
             return_type=return_type,
             fn_name=fn_name,
             args_list=fn_args,
-            static = fn_def.static,
             operation=out_code
         )
 

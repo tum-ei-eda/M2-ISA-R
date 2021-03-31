@@ -22,8 +22,7 @@ class StaticType(Flag):
     WRITE = auto()
     RW = READ | WRITE
 
-def make_static(val):
-    return f'" + std::to_string({val}) + "'
+
 
 
 MEM_VAL_REPL = 'mem_val_'
@@ -89,6 +88,11 @@ class EtissInstructionTransformer(Transformer):
         self.dependent_regs = set()
         self.used_arch_data = False
 
+    def make_static(self, val):
+        if self.ignore_static:
+            return val
+        return Template(f'" + std::to_string({val}) + "').safe_substitute(**etiss_replacements.rename_static)
+
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
             return name_or_val
@@ -147,17 +151,19 @@ class EtissInstructionTransformer(Transformer):
 
     def function(self, args):
         name, fn_args = args
+        if fn_args is None:
+            fn_args = []
 
         if name == 'choose':
             cond, then_stmts, else_stmts = fn_args
             static = StaticType.NONE not in [x.static for x in fn_args]
             if not static:
                 if cond.static:
-                    cond.code = Template(make_static(cond.code)).safe_substitute(etiss_replacements.rename_static)
+                    cond.code = self.make_static(cond.code)
                 if then_stmts.static:
-                    then_stmts.code = Template(make_static(then_stmts.code)).safe_substitute(etiss_replacements.rename_static)
+                    then_stmts.code = self.make_static(then_stmts.code)
                 if else_stmts.static:
-                    else_stmts.code = Template(make_static(else_stmts.code)).safe_substitute(etiss_replacements.rename_static)
+                    else_stmts.code = self.make_static(else_stmts.code)
 
             c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
             c.mem_ids = cond.mem_ids + then_stmts.mem_ids + else_stmts.mem_ids
@@ -204,19 +210,19 @@ class EtissInstructionTransformer(Transformer):
         elif name == 'shll':
             expr, amount = fn_args
             if amount.static:
-                amount.code = make_static(amount.code)
+                amount.code = self.make_static(amount.code)
             return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name == 'shrl':
             expr, amount = fn_args
             if amount.static:
-                amount.code = make_static(amount.code)
+                amount.code = self.make_static(amount.code)
             return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name == 'shra':
             expr, amount = fn_args
             if amount.static:
-                amount.code = make_static(amount.code)
+                amount.code = self.make_static(amount.code)
             return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
         elif name in self.__functions:
@@ -224,20 +230,21 @@ class EtissInstructionTransformer(Transformer):
             static = fn.static
 
             if not static:
+                self.used_arch_data = True
                 for arg in fn_args:
                     if arg.static:
-                        arg.code = make_static(arg.code)
+                        arg.code = self.make_static(arg.code)
 
-            arg_str = 'cpu, system, plugin_pointers, ' if not fn.static else ''
-            arg_str += ', '.join([arg.code for arg in fn_args])
-            max_size = max([arg.size for arg in fn_args])
+            arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
+            arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
+            #max_size = max([arg.size for arg in fn_args])
             mem_access = True in [arg.is_mem_access for arg in fn_args]
             signed = True in [arg.signed for arg in fn_args]
             regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
             static = StaticType.READ if static else StaticType.NONE
 
-            c = CodeString(f'{name}({arg_str})', static, max_size, signed, mem_access, regs_affected)
+            c = CodeString(f'{name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
             c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
             return c
@@ -288,7 +295,7 @@ class EtissInstructionTransformer(Transformer):
                 target.scalar.static = StaticType.NONE
                 target.static = StaticType.NONE
 
-        if not expr.static and bool(target.static & StaticType.WRITE):
+        if not expr.static and bool(target.static & StaticType.WRITE) and not self.ignore_static:
             raise ValueError('Static target cannot be assigned to non-static expression!')
 
         if expr.static:
@@ -296,7 +303,7 @@ class EtissInstructionTransformer(Transformer):
                 expr.code = Template(f'{expr.code}').safe_substitute(**etiss_replacements.rename_static)
 
             else:
-                expr.code = Template(make_static(expr.code)).safe_substitute(**etiss_replacements.rename_static)
+                expr.code = self.make_static(expr.code)
 
         if bool(target.static & StaticType.READ):
             target.code = Template(target.code).safe_substitute(etiss_replacements.rename_dynamic)
@@ -310,7 +317,7 @@ class EtissInstructionTransformer(Transformer):
                 expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
             code_str = f'{target.code} = {expr.code};'
-            if not static:
+            if not static and not self.ignore_static:
                 code_str = f'partInit.code() += "{code_str}\\n";'
 
         elif not target.is_mem_access and expr.is_mem_access:
@@ -344,9 +351,9 @@ class EtissInstructionTransformer(Transformer):
         left, op, right = args
 
         if not left.static and right.static:
-            right.code = make_static(right.code)
+            right.code = self.make_static(right.code)
         if not right.static and left.static:
-            left.code = make_static(left.code)
+            left.code = self.make_static(left.code)
 
         c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
         c.mem_ids = left.mem_ids + right.mem_ids
@@ -418,7 +425,7 @@ class EtissInstructionTransformer(Transformer):
 
         index_code = index.code
         if index.static and not self.ignore_static:
-            index.code = make_static(index.code)
+            index.code = self.make_static(index.code)
 
         if self.ignore_static:
             static = StaticType.RW

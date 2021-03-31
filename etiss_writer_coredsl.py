@@ -3,6 +3,7 @@ import pathlib
 import pickle
 import time
 
+from etiss_architecture_writer import write_arch_struct
 from etiss_instruction_writer import write_functions, write_instructions
 
 
@@ -33,6 +34,7 @@ def main():
     for core_name, (mt, core) in models.items():
         print(f'INFO: processing model {core_name}')
 
+        write_arch_struct(core, start_time, output_path)
         write_functions(core, start_time, output_path)
         write_instructions(core, start_time, output_path, args.separate)
 
