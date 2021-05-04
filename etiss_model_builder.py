@@ -1,16 +1,15 @@
-from itertools import chain
-from typing import Iterable, Mapping
+from typing import Mapping
 
 from lark import Transformer
 
 import model_classes
 import model_classes.arch
+from etiss_instruction_utils import StaticType
 from model_classes.behav import (Assignment, BinaryOperation, Conditional,
                                  FunctionCall, Group, IndexedReference,
                                  NamedReference, NumberLiteral, Operation,
                                  Operator, Return, ScalarDefinition, TypeConv,
                                  UnaryOperation)
-from model_classes.etiss.support import StaticType
 
 
 class EtissModelBuilder(Transformer):

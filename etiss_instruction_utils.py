@@ -1,12 +1,12 @@
+from dataclasses import dataclass
 from enum import Flag, auto
 from itertools import chain
-from model_classes.arch import Memory
 from string import Template
-from typing import Iterable, List, Mapping, Union
-from dataclasses import dataclass
+from typing import Iterable, List, Mapping
 
 import etiss_replacements
 import model_classes
+from model_classes.arch import Memory
 
 data_type_map = {
     model_classes.DataType.S: 'etiss_int',

@@ -5,7 +5,7 @@ import etiss_replacements
 import model_classes
 import model_classes.arch
 import model_classes.behav as model
-from model_classes.etiss.support import (MEM_VAL_REPL, CodeString, MemID,
+from etiss_instruction_utils import (MEM_VAL_REPL, CodeString, MemID,
                                          StaticType, TransformerContext,
                                          data_type_map)
 

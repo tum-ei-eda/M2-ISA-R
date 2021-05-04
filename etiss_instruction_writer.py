@@ -3,7 +3,7 @@ from contextlib import ExitStack
 
 from mako.template import Template
 
-from etiss_instruction_generator_model import generate_functions, generate_instructions
+from etiss_instruction_generator import generate_functions, generate_instructions
 import model_classes
 import model_classes.arch
 

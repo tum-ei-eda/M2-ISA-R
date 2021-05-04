@@ -1,31 +1,54 @@
+import inspect
 from string import Template as strfmt
 
-from lark import Token, Tree
 from mako.template import Template
 
+import etiss_instruction_transform
+import etiss_instruction_utils
 import model_classes
 import model_classes.arch
-from etiss_instruction_transformer import (EtissInstructionTransformer,
-                                           data_type_map)
+import model_classes.behav
 
+
+def patch_model():
+    """Monkey patch transformation functions inside etiss_instruction_transform
+    into model_classes.behav classes
+    """
+
+    for name, fn in inspect.getmembers(etiss_instruction_transform, inspect.isfunction):
+        sig = inspect.signature(fn)
+        param = sig.parameters.get("self")
+        if not param:
+            print(f"no \"self\" parameter found in {name}")
+            continue
+        if not param.annotation:
+            print(f"\"self\" parameter not annotated")
+            continue
+        param.annotation.generate = fn
 
 def generate_functions(core: model_classes.arch.CoreDef):
+    """Return a generator object to generate function behavior code. Uses function
+    definitions in the core object.
+    """
+
     fn_template = Template(filename='templates/etiss_function.mako')
 
     core_default_width = core.constants['XLEN'].value
     core_name = core.name
 
     for fn_name, fn_def in core.functions.items():
-        return_type = data_type_map[fn_def.data_type]
+        return_type = etiss_instruction_utils.data_type_map[fn_def.data_type]
         if fn_def.size:
             return_type += f'{fn_def.actual_size}'
 
-        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
-        out_code = strfmt(t.transform(fn_def.operation)).safe_substitute(ARCH_NAME=core_name)
+        context = etiss_instruction_utils.TransformerContext(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
 
-        fn_def.static = not t.used_arch_data
+        out_code = fn_def.operation.generate(context)
+        out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
 
-        args_list = [f'{data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
+        fn_def.static = not context.used_arch_data
+
+        args_list = [f'{etiss_instruction_utils.data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
         if not fn_def.static:
             args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
@@ -41,6 +64,8 @@ def generate_functions(core: model_classes.arch.CoreDef):
         yield (fn_name, templ_str)
 
 def generate_fields(core_default_width, instr_def: model_classes.arch.Instruction):
+    """Generate the extraction code for all fields of an instr_def"""
+
     enc_idx = 0
 
     seen_fields = {}
@@ -52,7 +77,7 @@ def generate_fields(core_default_width, instr_def: model_classes.arch.Instructio
         if isinstance(enc, model_classes.arch.BitField):
             if enc.name not in seen_fields:
                 seen_fields[enc.name] = 255
-                fields_code += f'{data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
+                fields_code += f'{etiss_instruction_utils.data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
 
             lower = enc.range.lower
             upper = enc.range.upper
@@ -85,8 +110,11 @@ def generate_fields(core_default_width, instr_def: model_classes.arch.Instructio
 
     return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-
 def generate_instructions(core: model_classes.arch.CoreDef):
+    """Return a generator object to generate instruction behavior code. Uses instruction
+    definitions in the core object.
+    """
+
     instr_template = Template(filename='templates/etiss_instruction.mako')
 
     temp_var_count = 0
@@ -104,9 +132,20 @@ def generate_instructions(core: model_classes.arch.CoreDef):
 
         fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
+        context = etiss_instruction_utils.TransformerContext(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+
         # add pc increment to operation tree
         if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
-            instr_def.operation.children.append(Tree('assignment', [Tree('named_reference', ['PC', None]), Tree('two_op_expr', [Tree('named_reference', ['PC', None]), Token('ADD_OP', '+'), Tree('number_literal', [int(enc_idx/8)])])]))
+            instr_def.operation.statements.append(
+                model_classes.behav.Assignment(
+                    model_classes.behav.NamedReference(context.pc_mem),
+                    model_classes.behav.BinaryOperation(
+                        model_classes.behav.NamedReference(context.pc_mem),
+                        model_classes.behav.Operator("+"),
+                        model_classes.behav.NumberLiteral(int(enc_idx/8))
+                    )
+                )
+            )
 
         if model_classes.InstrAttribute.NO_CONT in instr_def.attributes and model_classes.InstrAttribute.COND not in instr_def.attributes:
             misc_code.append('ic.force_block_end_ = true;')
@@ -114,22 +153,15 @@ def generate_instructions(core: model_classes.arch.CoreDef):
         code_string = f'{code:#0{int(enc_idx/4)}x}'
         mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-        #print('\n--- fields:')
-        #print(fields_code)
-
         # generate instruction behavior code
-        t = EtissInstructionTransformer(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
-        out_code = strfmt(t.transform(instr_def.operation)).safe_substitute(ARCH_NAME=core_name)
+        out_code = instr_def.operation.generate(context)
+        out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
 
-        if t.temp_var_count > temp_var_count:
-            temp_var_count = t.temp_var_count
+        if context.temp_var_count > temp_var_count:
+            temp_var_count = context.temp_var_count
 
-        if t.mem_var_count > mem_var_count:
-            mem_var_count = t.mem_var_count
-
-        #print('--- operation')
-        #print(out_code)
-        #print('\n')
+        if context.mem_var_count > mem_var_count:
+            mem_var_count = context.mem_var_count
 
         # render code for whole instruction
         templ_str = instr_template.render(
@@ -143,10 +175,9 @@ def generate_instructions(core: model_classes.arch.CoreDef):
             fields_code=fields_code,
             asm_printer_code=asm_printer_code,
             core_default_width=core_default_width,
-            reg_dependencies=t.dependent_regs,
-            reg_affected = t.affected_regs,
+            reg_dependencies=context.dependent_regs,
+            reg_affected=context.affected_regs,
             operation=out_code
         )
 
-        # save instruction code to file
         yield (instr_name, (code, mask), instr_def.ext_name, templ_str)
