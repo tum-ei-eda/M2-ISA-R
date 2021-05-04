@@ -1,10 +1,10 @@
+from dataclasses import dataclass
 from enum import Flag, auto
 from itertools import chain
-from os import stat
 from string import Template
+from typing import Iterable, Mapping, Tuple
 
-from lark import Transformer
-from typing import Iterable, Sequence, Union, Mapping
+from lark import Token, Transformer
 
 import etiss_replacements
 import model_classes
@@ -21,9 +21,6 @@ class StaticType(Flag):
     READ = auto()
     WRITE = auto()
     RW = READ | WRITE
-
-
-
 
 MEM_VAL_REPL = 'mem_val_'
 
@@ -46,6 +43,66 @@ class CodeString:
 
     def __format__(self, format_spec):
         return self.code
+
+
+class TransformerContext:
+    def __init__(self, constants: Mapping[str, model_classes.arch.Constant], spaces: Mapping[str, model_classes.arch.AddressSpace],
+            registers: Mapping[str, model_classes.arch.Register], register_files: Mapping[str, model_classes.arch.RegisterFile],
+            register_aliases: Mapping[str, model_classes.arch.RegisterAlias], memories: Mapping[str, model_classes.arch.Memory], memory_aliases: Mapping[str, model_classes.arch.Memory], fields: Mapping[str, model_classes.arch.BitFieldDescr],
+            attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.arch.Function],
+            instr_size: int, native_size: int, arch_name: str, ignore_static=False):
+
+        self.constants = constants
+        self.spaces = spaces
+        self.registers = registers
+        self.register_files = register_files
+        self.register_aliases = register_aliases
+        self.memories = memories
+        self.memory_aliases = memory_aliases
+        self.fields = fields
+        self.attribs = attribs if attribs else []
+        self.scalars = {}
+        self.functions = functions
+        self.instr_size = instr_size
+        self.native_size = native_size
+        self.arch_name = arch_name
+
+        self.ignore_static = ignore_static
+
+        self.code_lines = []
+
+        self.pc_reg = None
+        self.pc_mem = None
+
+        for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
+            if model_classes.RegAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
+                self.pc_mem = mem_descr
+                break
+
+        for _, reg_descr in chain(self.registers.items(), self.register_aliases.items()):
+            if model_classes.RegAttribute.IS_PC in reg_descr.attributes:
+                self.pc_reg = reg_descr
+                break
+
+        self.generates_exception = False
+        self.is_exception = False
+        self.temp_var_count = 0
+        self.mem_var_count = 0
+        self.affected_regs = set()
+        self.dependent_regs = set()
+        self.used_arch_data = False
+
+    def make_static(self, val):
+        if self.ignore_static:
+            return val
+        return Template(f'" + std::to_string({val}) + "').safe_substitute(**etiss_replacements.rename_static)
+
+    def get_constant_or_val(self, name_or_val):
+        if type(name_or_val) == int:
+            return name_or_val
+        else:
+            return self.constants[name_or_val]
+
 
 class EtissInstructionTransformer(Transformer):
     def __init__(self, constants: Mapping[str, model_classes.arch.Constant], spaces: Mapping[str, model_classes.arch.AddressSpace],
@@ -347,7 +404,7 @@ class EtissInstructionTransformer(Transformer):
         return code_str
 
 
-    def two_op_expr(self, args):
+    def two_op_expr(self, args: Tuple[CodeString, Token, CodeString]):
         left, op, right = args
 
         if not left.static and right.static:
@@ -359,7 +416,7 @@ class EtissInstructionTransformer(Transformer):
         c.mem_ids = left.mem_ids + right.mem_ids
         return c
 
-    def unitary_expr(self, args):
+    def unitary_expr(self, args: Tuple[Token, CodeString]):
         op, right = args
         c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.is_mem_access, right.regs_affected)
         c.mem_ids = right.mem_ids
@@ -431,6 +488,20 @@ class EtissInstructionTransformer(Transformer):
             static = StaticType.RW
         else:
             static = StaticType.NONE
+
+        if model_classes.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+            c = CodeString(f'{MEM_VAL_REPL}{self.mem_var_count}', static, size, False, True)
+            c.mem_ids.append((referred_var, self.mem_var_count, index, size))
+            self.mem_var_count += 1
+            return c
+        else:
+            code_str = f'{etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix)}{name}[{index.code}]'
+            if size != referred_mem.size:
+                code_str = f'(etiss_uint{size})' + code_str
+            c = CodeString(code_str, static, size, False, False)
+            if model_classes.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+                c.regs_affected.add(index_code)
+            return c
 
         if isinstance(referred_var, model_classes.arch.RegisterFile) or (isinstance(referred_var, model_classes.arch.AddressSpace) and model_classes.SpaceAttribute.IS_MAIN_MEM not in referred_var.attributes):
             code_str = f'{etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix)}{name}[{index.code}]'

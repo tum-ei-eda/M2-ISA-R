@@ -12,12 +12,13 @@ repl_re = r'''InstructionDefinition (?P<instr_def_name>\S*)\s*\(
 \);
 '''
 
-with open('/home/wysiwyng/work/coredsl/coredsl-models/armv6m/gen_output/ARMv6MInstr.pickle', 'rb') as f:
+with open('/home/wysiwyng/work/coredsl/coredsl-models/riscv/gen_output/RISCV.pickle', 'rb') as f:
+    functions = pickle.load(f)
     instrs = pickle.load(f)
 
-new_opcodes = sorted(list(instrs.keys()))
+new_opcodes = sorted(list(instrs["RISCV"].keys()))
 
-with open('/home/wysiwyng/work/etiss-arm/ArchImpl/ARMv6M/ARMv6MArch.cpp', 'r+') as f:
+with open('/home/wysiwyng/work/etiss-mine/ArchImpl/RISCV/RISCVArch.cpp', 'r+') as f:
     text = f.read()
 
 matches = list(re.finditer(repl_re, text, re.DOTALL))
@@ -25,9 +26,5 @@ old_opcodes = sorted([(int(m.group('code'), 16), int(m.group('mask'), 16)) for m
 
 not_in_new = set(old_opcodes).difference(new_opcodes)
 not_in_old = set(new_opcodes).difference(old_opcodes)
-
-    #instr = instrs[(int(m1.group('code'), 16), int(m1.group('mask'), 16))]
-
-
 
 pass
