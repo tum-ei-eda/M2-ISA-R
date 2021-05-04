@@ -5,12 +5,12 @@ from lark import Transformer
 
 import model_classes
 import model_classes.arch
-from etiss_instruction_transformer import StaticType
 from model_classes.behav import (Assignment, BinaryOperation, Conditional,
                                  FunctionCall, Group, IndexedReference,
-                                 NamedReference, NumberLiteral, Operation, Operator,
-                                 Return, ScalarDefinition, TypeConv,
+                                 NamedReference, NumberLiteral, Operation,
+                                 Operator, Return, ScalarDefinition, TypeConv,
                                  UnaryOperation)
+from model_classes.etiss.support import StaticType
 
 
 class EtissModelBuilder(Transformer):
@@ -45,6 +45,9 @@ class EtissModelBuilder(Transformer):
     SHIFT_OP = ADD_OP
     MULT_OP = ADD_OP
     UNITARY_OP = ADD_OP
+
+    def stmt_list(self, args):
+        return args
 
     def operation(self, args):
         return Operation(args)

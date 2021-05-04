@@ -3,7 +3,7 @@ from contextlib import ExitStack
 
 from mako.template import Template
 
-import etiss_instruction_generator
+from etiss_instruction_generator_model import generate_functions, generate_instructions
 import model_classes
 import model_classes.arch
 
@@ -22,7 +22,7 @@ def write_functions(core: model_classes.arch.CoreDef, start_time: str, output_pa
 
         funcs_f.write(fn_set_str)
 
-        for fn_name, templ_str in etiss_instruction_generator.generate_functions(core):
+        for fn_name, templ_str in generate_functions(core):
             print(f'INFO: processing function {fn_name}')
             funcs_f.write(templ_str)
 
@@ -51,7 +51,7 @@ def write_instructions(core: model_classes.arch.CoreDef, start_time: str, output
 
             out_f.write(instr_set_str)
 
-        for instr_name, (code, mask), ext_name, templ_str in etiss_instruction_generator.generate_instructions(core):
+        for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core):
             print(f'INFO: processing instruction {instr_name}')
             # save instruction code to file
             outfiles.get(ext_name, outfiles['default']).write(templ_str)

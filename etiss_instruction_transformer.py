@@ -489,7 +489,7 @@ class EtissInstructionTransformer(Transformer):
         else:
             static = StaticType.NONE
 
-        if model_classes.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+        if model_classes.SpaceAttribute.IS_MAIN_MEM in referred_mem.attributes:
             c = CodeString(f'{MEM_VAL_REPL}{self.mem_var_count}', static, size, False, True)
             c.mem_ids.append((referred_var, self.mem_var_count, index, size))
             self.mem_var_count += 1
@@ -499,7 +499,7 @@ class EtissInstructionTransformer(Transformer):
             if size != referred_mem.size:
                 code_str = f'(etiss_uint{size})' + code_str
             c = CodeString(code_str, static, size, False, False)
-            if model_classes.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+            if model_classes.RegAttribute.IS_MAIN_REG in referred_mem.attributes:
                 c.regs_affected.add(index_code)
             return c
 

@@ -18,7 +18,7 @@
             "program": "${workspaceFolder}/etiss_writer_coredsl.py",
             "console": "integratedTerminal",
             "args": [
-                //"--separate",
+                "--separate",
                 "${input:inputFile}"
             ],
             "stopOnEntry": true

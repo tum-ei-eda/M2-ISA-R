@@ -5,10 +5,10 @@ import etiss_replacements
 import model_classes
 import model_classes.arch
 import model_classes.behav as model
-from etiss_instruction_transformer import (CodeString, StaticType,
-                                           TransformerContext, data_type_map)
+from model_classes.etiss.support import (MEM_VAL_REPL, CodeString, MemID,
+                                         StaticType, TransformerContext,
+                                         data_type_map)
 
-MEM_VAL_REPL = 'mem_val_'
 
 def operation(self: model.Operation, context: TransformerContext):
     args = [stmt.generate(context) for stmt in self.statements]
@@ -39,7 +39,31 @@ def scalar_definition(self: model.ScalarDefinition, context: TransformerContext)
 def function_call(self: model.FunctionCall, context: TransformerContext):
     fn_args = [arg.generate(context) for arg in self.args]
 
-    if self.ref_or_name == 'wait':
+    if isinstance(self.ref_or_name, model_classes.arch.Function):
+        fn = self.ref_or_name
+        static = fn.static
+
+        if not static:
+            context.used_arch_data = True
+            for arg in fn_args:
+                if arg.static:
+                    arg.code = context.make_static(arg.code)
+
+        arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
+        arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
+        #max_size = max([arg.size for arg in fn_args])
+        mem_access = True in [arg.is_mem_access for arg in fn_args]
+        signed = True in [arg.signed for arg in fn_args]
+        regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
+
+        static = StaticType.READ if static else StaticType.NONE
+
+        c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
+        c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
+
+        return c
+
+    elif self.ref_or_name == 'wait':
         context.generates_exception = True
         return 'partInit.code() += "exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
 
@@ -133,30 +157,6 @@ def function_call(self: model.FunctionCall, context: TransformerContext):
         c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
         return c
 
-    elif isinstance(self.ref_or_name, model_classes.arch.Function):
-        fn = self.ref_or_name
-        static = fn.static
-
-        if not static:
-            context.used_arch_data = True
-            for arg in fn_args:
-                if arg.static:
-                    arg.code = context.make_static(arg.code)
-
-        arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
-        arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
-        #max_size = max([arg.size for arg in fn_args])
-        mem_access = True in [arg.is_mem_access for arg in fn_args]
-        signed = True in [arg.signed for arg in fn_args]
-        regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-
-        static = StaticType.READ if static else StaticType.NONE
-
-        c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
-        c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
-
-        return c
-
     else:
         raise ValueError(f'Function {self.ref_or_name} not recognized!')
 
@@ -221,10 +221,10 @@ def assignment(self: model.Assignment, context: TransformerContext):
 
     elif not target.is_mem_access and expr.is_mem_access:
         context.generates_exception = True
-        for mem_space, mem_id, index, access_size in expr.mem_ids:
-            code_str += f'partInit.code() += "etiss_uint{access_size} {MEM_VAL_REPL}{mem_id};\\n";\n'
+        for m_id in expr.mem_ids:
+            code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
             #code_str += f'partInit.code() += "exception = read_mem(""{mem_space.name}"", {int(expr.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
-            code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(access_size / 8)});\\n";\n'
+            code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
             #code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
 
         code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
@@ -235,11 +235,11 @@ def assignment(self: model.Assignment, context: TransformerContext):
             raise ValueError('Only one memory access is allowed as assignment target!')
 
         context.generates_exception = True
-        mem_space, mem_id, index, access_size = target.mem_ids[0]
+        m_id = target.mem_ids[0]
 
-        code_str += f'partInit.code() += "etiss_uint{access_size} {MEM_VAL_REPL}{mem_id} = {expr.code};\\n";\n'
+        code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};\\n";\n'
         #code_str += f'partInit.code() += "exception = write_mem(""{mem_space.name}"", {int(target.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
-        code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{mem_id}, {int(access_size / 8)});\\n";\n'
+        code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
         #code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
         pass
 
@@ -325,9 +325,9 @@ def indexed_reference(self: model.IndexedReference, context: TransformerContext)
     else:
         static = StaticType.NONE
 
-    if model_classes.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+    if model_classes.SpaceAttribute.IS_MAIN_MEM in referred_mem.attributes:
         c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, True)
-        c.mem_ids.append((referred_mem, context.mem_var_count, index, size))
+        c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
         context.mem_var_count += 1
         return c
     else:
@@ -335,13 +335,33 @@ def indexed_reference(self: model.IndexedReference, context: TransformerContext)
         if size != referred_mem.size:
             code_str = f'(etiss_uint{size})' + code_str
         c = CodeString(code_str, static, size, False, False)
-        if model_classes.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+        if model_classes.RegAttribute.IS_MAIN_REG in referred_mem.attributes:
             c.regs_affected.add(index_code)
         return c
 
 def type_conv(self: model.TypeConv, context: TransformerContext):
     expr = self.expr.generate(context)
-    return expr
+
+    if self.data_type is None:
+        self.data_type = model_classes.DataType.S if expr.signed else model_classes.DataType.U
+
+    if self.size is None:
+        self.size = expr.actual_size
+
+    if expr.is_mem_access:
+        if not expr.mem_corrected and expr.mem_ids[-1].access_size != self.size:
+            expr.mem_ids[-1].access_size = self.size
+            expr.size = self.size
+            expr.mem_corrected = True
+            return expr
+        elif expr.mem_ids[-1].access_size == self.size:
+            expr.mem_corrected = True
+
+        return expr
+
+    c = CodeString(f'({data_type_map[self.data_type]}{self.size})({expr.code})', expr.static, self.size, self.data_type == model_classes.DataType.S, expr.is_mem_access, expr.regs_affected)
+    c.mem_ids = expr.mem_ids
+    return c
 
 def number_literal(self: model.NumberLiteral, context: TransformerContext):
     lit = self.value

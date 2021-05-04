@@ -1,5 +1,5 @@
 import argparse
-from model_classes.behav import Assignment, BinaryOperation, NamedReference, NumberLiteral
+from model_classes.behav import Assignment, BinaryOperation, NamedReference, NumberLiteral, Operator
 from etiss_instruction_transformer import TransformerContext
 from etiss_instruction_generator import generate_fields
 import model_classes
@@ -62,17 +62,11 @@ for core_name, (mt, core) in models.items():
         if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
             instr_def.operation.statements.append(
                 Assignment(
-                    NamedReference(
-                        context.pc_mem
-                    ),
+                    NamedReference(context.pc_mem),
                     BinaryOperation(
-                        NamedReference(
-                            context.pc_mem
-                        ),
-                        "+",
-                        NumberLiteral(
-                            int(enc_idx/8)
-                        )
+                        NamedReference(context.pc_mem),
+                        Operator("+"),
+                        NumberLiteral(int(enc_idx/8))
                     )
                 )
             )

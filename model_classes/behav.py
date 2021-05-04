@@ -1,18 +1,22 @@
-from os import stat
 from typing import List, Union
-from etiss_instruction_transformer import CodeString
+
 import model_classes.arch
 
+
 class BaseNode:
-    def generate(self, context) -> Union[str, CodeString]:
+    def generate(self, context):
         raise NotImplementedError()
+
+class Operator(BaseNode):
+    def __init__(self, op):
+        self.value = op
 
 class Operation(BaseNode):
     def __init__(self, statements: List[BaseNode]) -> None:
         self.statements = statements
 
 class BinaryOperation(BaseNode):
-    def __init__(self, left, op, right):
+    def __init__(self, left: BaseNode, op: Operator, right: BaseNode):
         self.left = left
         self.op = op
         self.right = right
@@ -29,8 +33,8 @@ class Assignment(BaseNode):
 class Conditional(BaseNode):
     def __init__(self, cond, then_stmts, else_stmts):
         self.cond = cond
-        self.then_stmts = then_stmts
-        self.else_stmts = else_stmts
+        self.then_stmts = then_stmts if then_stmts is not None else []
+        self.else_stmts = else_stmts if else_stmts is not None else []
 
 class ScalarDefinition(BaseNode):
     def __init__(self, scalar: model_classes.arch.Scalar):
@@ -55,7 +59,7 @@ class IndexedReference(BaseNode):
         self.index = index
 
 class TypeConv(BaseNode):
-    def __init__(self, data_type, size, expr):
+    def __init__(self, data_type, size, expr: BaseNode):
         self.data_type = data_type
         self.size = size
         self.expr = expr
@@ -69,6 +73,3 @@ class Group(BaseNode):
     def __init__(self, expr):
         self.expr = expr
 
-class Operator(BaseNode):
-    def __init__(self, op):
-        self.value = op
