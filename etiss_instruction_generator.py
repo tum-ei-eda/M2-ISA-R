@@ -6,8 +6,6 @@ from mako.template import Template
 import etiss_instruction_transform
 import etiss_instruction_utils
 import model_classes
-import model_classes.arch
-import model_classes.behav
 
 
 def patch_model():
@@ -26,7 +24,9 @@ def patch_model():
             continue
         param.annotation.generate = fn
 
-def generate_functions(core: model_classes.arch.CoreDef):
+patch_model()
+
+def generate_functions(core: model_classes.CoreDef):
     """Return a generator object to generate function behavior code. Uses function
     definitions in the core object.
     """
@@ -63,7 +63,7 @@ def generate_functions(core: model_classes.arch.CoreDef):
 
         yield (fn_name, templ_str)
 
-def generate_fields(core_default_width, instr_def: model_classes.arch.Instruction):
+def generate_fields(core_default_width, instr_def: model_classes.Instruction):
     """Generate the extraction code for all fields of an instr_def"""
 
     enc_idx = 0
@@ -74,7 +74,7 @@ def generate_fields(core_default_width, instr_def: model_classes.arch.Instructio
     asm_printer_code = []
 
     for enc in reversed(instr_def.encoding):
-        if isinstance(enc, model_classes.arch.BitField):
+        if isinstance(enc, model_classes.BitField):
             if enc.name not in seen_fields:
                 seen_fields[enc.name] = 255
                 fields_code += f'{etiss_instruction_utils.data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
@@ -110,7 +110,7 @@ def generate_fields(core_default_width, instr_def: model_classes.arch.Instructio
 
     return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-def generate_instructions(core: model_classes.arch.CoreDef):
+def generate_instructions(core: model_classes.CoreDef):
     """Return a generator object to generate instruction behavior code. Uses instruction
     definitions in the core object.
     """
@@ -137,12 +137,12 @@ def generate_instructions(core: model_classes.arch.CoreDef):
         # add pc increment to operation tree
         if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
             instr_def.operation.statements.append(
-                model_classes.behav.Assignment(
-                    model_classes.behav.NamedReference(context.pc_mem),
-                    model_classes.behav.BinaryOperation(
-                        model_classes.behav.NamedReference(context.pc_mem),
-                        model_classes.behav.Operator("+"),
-                        model_classes.behav.NumberLiteral(int(enc_idx/8))
+                model_classes.Assignment(
+                    model_classes.NamedReference(context.pc_mem),
+                    model_classes.BinaryOperation(
+                        model_classes.NamedReference(context.pc_mem),
+                        model_classes.Operator("+"),
+                        model_classes.NumberLiteral(int(enc_idx/8))
                     )
                 )
             )

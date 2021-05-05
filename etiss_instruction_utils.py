@@ -6,7 +6,6 @@ from typing import Iterable, List, Mapping
 
 import etiss_replacements
 import model_classes
-from model_classes.arch import Memory
 
 data_type_map = {
     model_classes.DataType.S: 'etiss_int',
@@ -46,16 +45,16 @@ class CodeString:
 
 @dataclass
 class MemID:
-    mem_space: Memory
+    mem_space: model_classes.Memory
     mem_id: int
     index: CodeString
     access_size: int
 
 class TransformerContext:
-    def __init__(self, constants: Mapping[str, model_classes.arch.Constant], spaces: Mapping[str, model_classes.arch.AddressSpace],
-            registers: Mapping[str, model_classes.arch.Register], register_files: Mapping[str, model_classes.arch.RegisterFile],
-            register_aliases: Mapping[str, model_classes.arch.RegisterAlias], memories: Mapping[str, model_classes.arch.Memory], memory_aliases: Mapping[str, model_classes.arch.Memory], fields: Mapping[str, model_classes.arch.BitFieldDescr],
-            attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.arch.Function],
+    def __init__(self, constants: Mapping[str, model_classes.Constant], spaces: Mapping[str, model_classes.AddressSpace],
+            registers: Mapping[str, model_classes.Register], register_files: Mapping[str, model_classes.RegisterFile],
+            register_aliases: Mapping[str, model_classes.RegisterAlias], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory], fields: Mapping[str, model_classes.BitFieldDescr],
+            attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.Function],
             instr_size: int, native_size: int, arch_name: str, ignore_static=False):
 
         self.constants = constants

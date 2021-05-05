@@ -22,8 +22,8 @@ def main():
     if not model_path.exists():
         raise FileNotFoundError('Models not generated!')
 
-    output_path = search_path.joinpath('gen_output')
-    output_path.mkdir(exist_ok=True)
+    output_base_path = search_path.joinpath('gen_output')
+    output_base_path.mkdir(exist_ok=True)
 
     print('INFO: loading models')
     with open(model_path / (abs_top_level.stem + '_model_new.pickle'), 'rb') as f:
@@ -31,8 +31,10 @@ def main():
 
     start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
-    for core_name, (mt, core) in models.items():
+    for core_name, core in models.items():
         print(f'INFO: processing model {core_name}')
+        output_path = output_base_path / core_name
+        output_path.mkdir(exist_ok=True)
 
         write_arch_struct(core, start_time, output_path)
         write_functions(core, start_time, output_path)

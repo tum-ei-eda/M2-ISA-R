@@ -1,11 +1,14 @@
 import argparse
-from model_classes.behav import Assignment, BinaryOperation, NamedReference, NumberLiteral, Operator
-from etiss_instruction_transformer import TransformerContext
-from etiss_instruction_generator import generate_fields
-import model_classes
 import inspect
 import pathlib
 import pickle
+
+from etiss_instruction_transformer import TransformerContext
+
+import model_classes
+from etiss_instruction_generator import generate_fields
+from model_classes.behav import (Assignment, BinaryOperation, NamedReference,
+                                 NumberLiteral, Operator)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('top_level')

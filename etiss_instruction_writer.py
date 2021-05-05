@@ -3,12 +3,12 @@ from contextlib import ExitStack
 
 from mako.template import Template
 
-from etiss_instruction_generator import generate_functions, generate_instructions
 import model_classes
-import model_classes.arch
+from etiss_instruction_generator import (generate_functions,
+                                         generate_instructions)
 
 
-def write_functions(core: model_classes.arch.CoreDef, start_time: str, output_path: pathlib.Path):
+def write_functions(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
     fn_set_header_template = Template(filename='templates/etiss_function_set_header.mako')
     fn_set_footer_template = Template(filename='templates/etiss_function_set_footer.mako')
 
@@ -30,7 +30,7 @@ def write_functions(core: model_classes.arch.CoreDef, start_time: str, output_pa
 
         funcs_f.write(fn_set_str)
 
-def write_instructions(core: model_classes.arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
+def write_instructions(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
     instr_set_template = Template(filename='templates/etiss_instruction_set.mako')
 
     outfiles = {}

@@ -3,14 +3,12 @@ from string import Template
 
 import etiss_replacements
 import model_classes
-import model_classes.arch
-import model_classes.behav as model
 from etiss_instruction_utils import (MEM_VAL_REPL, CodeString, MemID,
-                                         StaticType, TransformerContext,
-                                         data_type_map)
+                                     StaticType, TransformerContext,
+                                     data_type_map)
 
 
-def operation(self: model.Operation, context: TransformerContext):
+def operation(self: model_classes.Operation, context: TransformerContext):
     args = [stmt.generate(context) for stmt in self.statements]
 
     code_str = '\n'.join(args)
@@ -24,10 +22,10 @@ def operation(self: model.Operation, context: TransformerContext):
 
     return code_str
 
-def return_(self: model.Return, context: TransformerContext):
+def return_(self: model_classes.Return, context: TransformerContext):
     return f'return {self.expr.generate(context).code};'
 
-def scalar_definition(self: model.ScalarDefinition, context: TransformerContext):
+def scalar_definition(self: model_classes.ScalarDefinition, context: TransformerContext):
     context.scalars[self.scalar.name] = self.scalar
     actual_size = 1 << (self.scalar.size - 1).bit_length()
     if actual_size < 8:
@@ -36,10 +34,10 @@ def scalar_definition(self: model.ScalarDefinition, context: TransformerContext)
     c.scalar = self.scalar
     return c
 
-def function_call(self: model.FunctionCall, context: TransformerContext):
+def function_call(self: model_classes.FunctionCall, context: TransformerContext):
     fn_args = [arg.generate(context) for arg in self.args]
 
-    if isinstance(self.ref_or_name, model_classes.arch.Function):
+    if isinstance(self.ref_or_name, model_classes.Function):
         fn = self.ref_or_name
         static = fn.static
 
@@ -151,7 +149,7 @@ def function_call(self: model.FunctionCall, context: TransformerContext):
         if fn_args is None: fn_args = []
         mem_access = True in [arg.is_mem_access for arg in fn_args]
         regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-        name = fn_args.removeprefix('fdispatch_')
+        name = self.ref_or_name.removeprefix('fdispatch_')
         arg_str = ', '.join([arg.code for arg in fn_args])
 
         c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
@@ -160,7 +158,7 @@ def function_call(self: model.FunctionCall, context: TransformerContext):
     else:
         raise ValueError(f'Function {self.ref_or_name} not recognized!')
 
-def conditional(self: model.Conditional, context: TransformerContext):
+def conditional(self: model_classes.Conditional, context: TransformerContext):
     cond = self.cond.generate(context)
     then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
     else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
@@ -181,7 +179,7 @@ def conditional(self: model.Conditional, context: TransformerContext):
 
     return code_str
 
-def assignment(self: model.Assignment, context: TransformerContext):
+def assignment(self: model_classes.Assignment, context: TransformerContext):
     target = self.target.generate(context)
     expr = self.expr.generate(context)
 
@@ -245,7 +243,7 @@ def assignment(self: model.Assignment, context: TransformerContext):
 
     return code_str
 
-def binary_operation(self: model.BinaryOperation, context: TransformerContext):
+def binary_operation(self: model_classes.BinaryOperation, context: TransformerContext):
     left = self.left.generate(context)
     op = self.op
     right = self.right.generate(context)
@@ -259,7 +257,7 @@ def binary_operation(self: model.BinaryOperation, context: TransformerContext):
     c.mem_ids = left.mem_ids + right.mem_ids
     return c
 
-def unary_operation(self: model.UnaryOperation, context: TransformerContext):
+def unary_operation(self: model_classes.UnaryOperation, context: TransformerContext):
     op = self.op
     right = self.right.generate(context)
 
@@ -267,7 +265,7 @@ def unary_operation(self: model.UnaryOperation, context: TransformerContext):
     c.mem_ids = right.mem_ids
     return c
 
-def named_reference(self: model.NamedReference, context: TransformerContext):
+def named_reference(self: model_classes.NamedReference, context: TransformerContext):
     referred_var = self.reference
 
     static = StaticType.NONE
@@ -277,26 +275,26 @@ def named_reference(self: model.NamedReference, context: TransformerContext):
         name = f'${{{name}}}'
         static = StaticType.READ
 
-    if isinstance(referred_var, model_classes.arch.Memory):
+    if isinstance(referred_var, model_classes.Memory):
         if not static:
             name = etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix) + name
         signed = False
         size = referred_var.size
         context.used_arch_data = True
-    elif isinstance(referred_var, model_classes.arch.BitFieldDescr):
+    elif isinstance(referred_var, model_classes.BitFieldDescr):
         signed = referred_var.data_type == model_classes.DataType.S
         size = referred_var.size
         static = StaticType.READ
-    elif isinstance(referred_var, model_classes.arch.Scalar):
+    elif isinstance(referred_var, model_classes.Scalar):
         signed = referred_var.data_type == model_classes.DataType.S
         size = referred_var.size
         static = referred_var.static
-    elif isinstance(referred_var, model_classes.arch.Constant):
+    elif isinstance(referred_var, model_classes.Constant):
         signed = referred_var.value < 0
         size = context.native_size
         static = StaticType.READ
         name = f'{referred_var.value}'
-    elif isinstance(referred_var, model_classes.arch.FnParam):
+    elif isinstance(referred_var, model_classes.FnParam):
         signed = referred_var.data_type == model_classes.DataType.S
         size = referred_var.size
         static = StaticType.RW
@@ -308,7 +306,7 @@ def named_reference(self: model.NamedReference, context: TransformerContext):
 
     return CodeString(name, static, size, signed, False)
 
-def indexed_reference(self: model.IndexedReference, context: TransformerContext):
+def indexed_reference(self: model_classes.IndexedReference, context: TransformerContext):
     name = self.reference.name
     index = self.index.generate(context)
 
@@ -339,7 +337,7 @@ def indexed_reference(self: model.IndexedReference, context: TransformerContext)
             c.regs_affected.add(index_code)
         return c
 
-def type_conv(self: model.TypeConv, context: TransformerContext):
+def type_conv(self: model_classes.TypeConv, context: TransformerContext):
     expr = self.expr.generate(context)
 
     if self.data_type is None:
@@ -363,12 +361,12 @@ def type_conv(self: model.TypeConv, context: TransformerContext):
     c.mem_ids = expr.mem_ids
     return c
 
-def number_literal(self: model.NumberLiteral, context: TransformerContext):
+def number_literal(self: model_classes.NumberLiteral, context: TransformerContext):
     lit = self.value
     size = int(lit).bit_length()
     return CodeString(str(lit), True, size, int(lit) < 0, False)
 
-def group(self: model.Group, context: TransformerContext):
+def group(self: model_classes.Group, context: TransformerContext):
     expr = self.expr.generate(context)
     if isinstance(expr, CodeString):
         expr.code = f'({expr.code})'
@@ -376,5 +374,5 @@ def group(self: model.Group, context: TransformerContext):
         expr = f'({expr})'
     return expr
 
-def operator(self: model.Operator, context: TransformerContext):
+def operator(self: model_classes.Operator, context: TransformerContext):
     return self.op

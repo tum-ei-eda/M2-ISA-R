@@ -5,9 +5,9 @@ from typing import List
 
 from lark import Lark, Tree
 
+import model_classes
 from etiss_model_builder import EtissModelBuilder
 from instruction_set_storage import InstructionSetStorage
-from model_classes.arch import CoreDef
 from model_tree import ModelTree
 from transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
@@ -70,23 +70,26 @@ models = {}
 for core_name, instruction_sets in iss.core_defs.items():
     print(f'INFO: building model for core {core_name}')
     mt_transformer = ModelTree()
-    mt : List[CoreDef] = mt_transformer.transform(Tree('make_list', instruction_sets))
+    mt : List[model_classes.CoreDef] = mt_transformer.transform(Tree('make_list', instruction_sets))
 
-    models[core_name] = (mt_transformer, mt[0])
+    models[core_name] = mt[0]
 
 print('INFO: dumping model')
 with open(model_path / (abs_top_level.stem + '_model.pickle'), 'wb') as f:
     pickle.dump(models, f)
 
-for core_name, (mt, core) in models.items():
+for core_name, core_def in models.items():
     # functions
-    for fn_name, fn_def in core.functions.items():
-        b = EtissModelBuilder(core.constants, core.memories, core.memory_aliases, fn_def.args, core.functions)
-        fn_def.operation = b.transform(fn_def.operation)
+    for fn_name, fn_def in core_def.functions.items():
+        b = EtissModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, fn_def.args, core_def.functions)
+        if isinstance(fn_def.operation, Tree):
+            fn_def.operation = b.transform(fn_def.operation)
+
     # instructions
-    for (code, mask), instr_def in core.instructions.items():
-        b = EtissModelBuilder(core.constants, core.memories, core.memory_aliases, instr_def.fields, core.functions)
-        instr_def.operation = b.transform(instr_def.operation)
+    for (code, mask), instr_def in core_def.instructions.items():
+        b = EtissModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions)
+        if isinstance(instr_def.operation, Tree):
+            instr_def.operation = b.transform(instr_def.operation)
 
 print('INFO: dumping model')
 with open(model_path / (abs_top_level.stem + '_model_new.pickle'), 'wb') as f:

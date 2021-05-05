@@ -3,18 +3,12 @@ from typing import Mapping
 from lark import Transformer
 
 import model_classes
-import model_classes.arch
 from etiss_instruction_utils import StaticType
-from model_classes.behav import (Assignment, BinaryOperation, Conditional,
-                                 FunctionCall, Group, IndexedReference,
-                                 NamedReference, NumberLiteral, Operation,
-                                 Operator, Return, ScalarDefinition, TypeConv,
-                                 UnaryOperation)
 
 
 class EtissModelBuilder(Transformer):
-    def __init__(self, constants: Mapping[str, model_classes.arch.Constant], memories: Mapping[str, model_classes.arch.Memory], memory_aliases: Mapping[str, model_classes.arch.Memory],
-        fields: Mapping[str, model_classes.arch.BitFieldDescr], functions: Mapping[str, model_classes.arch.Function]):
+    def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory],
+        fields: Mapping[str, model_classes.BitFieldDescr], functions: Mapping[str, model_classes.Function]):
 
         self.__constants = constants
         self.__memories = memories
@@ -29,8 +23,13 @@ class EtissModelBuilder(Transformer):
         else:
             return self.__constants[name_or_val]
 
+    def FUNCTIONNAME(self, args):
+        return args.value
+
+    PROCEDURENAME = FUNCTIONNAME
+
     def ADD_OP(self, args):
-        return Operator(args.value)
+        return model_classes.Operator(args.value)
 
     BOOL_OR_OP = ADD_OP
     BOOL_AND_OP = ADD_OP
@@ -49,7 +48,7 @@ class EtissModelBuilder(Transformer):
         return args
 
     def operation(self, args):
-        return Operation(args)
+        return model_classes.Operation(args)
 
     def scalar_definition(self, args):
         name, data_type, size = args
@@ -62,18 +61,18 @@ class EtissModelBuilder(Transformer):
         if not data_type:
             data_type = model_classes.DataType.U
 
-        s = model_classes.arch.Scalar(name, None, StaticType.WRITE, size_val, data_type)
+        s = model_classes.Scalar(name, None, StaticType.WRITE, size_val, data_type)
 
         self.__scalars[name] = s
-        return ScalarDefinition(s)
+        return model_classes.ScalarDefinition(s)
 
     def return_(self, args):
-        return Return(args[0])
+        return model_classes.Return(args[0])
 
     def assignment(self, args):
         target, expr = args
 
-        return Assignment(target, expr)
+        return model_classes.Assignment(target, expr)
 
     def indexed_reference(self, args):
         name, index_expr, size = args
@@ -82,11 +81,11 @@ class EtissModelBuilder(Transformer):
         if referred_mem is None:
             raise ValueError(f"Indexed reference {name} does not exist!")
 
-        ref = IndexedReference(referred_mem, index_expr)
+        ref = model_classes.IndexedReference(referred_mem, index_expr)
         if size is None:
             return ref
         else:
-            return TypeConv(None, size, ref)
+            return model_classes.TypeConv(None, size, ref)
 
     def named_reference(self, args):
         name, size = args
@@ -99,35 +98,35 @@ class EtissModelBuilder(Transformer):
         if var is None:
             raise ValueError(f"Named reference {name} does not exist!")
 
-        ref = NamedReference(var)
+        ref = model_classes.NamedReference(var)
         if size is None:
             return ref
         else:
-            return TypeConv(None, size, ref)
+            return model_classes.TypeConv(None, size, ref)
 
     def two_op_expr(self, args):
         left, op, right = args
 
-        return BinaryOperation(left, op, right)
+        return model_classes.BinaryOperation(left, op, right)
 
     def unitary_expr(self, args):
         op, right = args
 
-        return UnaryOperation(op, right)
+        return model_classes.UnaryOperation(op, right)
 
     def number_literal(self, args):
         lit, = args
-        return NumberLiteral(int(lit))
+        return model_classes.NumberLiteral(int(lit))
 
     def type_conv(self, args):
         expr, data_type = args
 
-        return TypeConv(data_type, None, expr)
+        return model_classes.TypeConv(data_type, None, expr)
 
     def conditional(self, args):
         cond, then_stmts, else_stmts = args
 
-        return Conditional(cond, then_stmts, else_stmts)
+        return model_classes.Conditional(cond, then_stmts, else_stmts)
 
     def procedure(self, args):
         return self.function(args)
@@ -140,11 +139,11 @@ class EtissModelBuilder(Transformer):
         else:
             name = self.__functions[name]
 
-        return FunctionCall(name, fn_args)
+        return model_classes.FunctionCall(name, fn_args)
 
     def fn_args(self, args):
         return args
 
     def parens(self, args):
         expr, = args
-        return Group(expr)
+        return model_classes.Group(expr)
