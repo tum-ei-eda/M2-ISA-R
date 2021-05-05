@@ -28,7 +28,7 @@ output_path = search_path.joinpath('gen_output')
 output_path.mkdir(exist_ok=True)
 
 print('INFO: loading models')
-with open(model_path / (abs_top_level.stem + '_model_new.pickle'), 'rb') as f:
+with open(model_path / (abs_top_level.stem + '_model.pickle'), 'rb') as f:
     models = pickle.load(f)
 
 

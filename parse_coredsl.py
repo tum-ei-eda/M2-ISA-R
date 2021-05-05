@@ -6,9 +6,9 @@ from typing import List
 from lark import Lark, Tree
 
 import model_classes
-from etiss_model_builder import EtissModelBuilder
+from architecture_model_builder import ArchitectureModelBuilder
+from behavior_model_builder import BehaviorModelBuilder
 from instruction_set_storage import InstructionSetStorage
-from model_tree import ModelTree
 from transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
 GRAMMAR_FNAME = 'coredsl.lark'
@@ -22,12 +22,6 @@ args = parser.parse_args()
 top_level = pathlib.Path(args.top_level)
 abs_top_level = top_level.resolve()
 search_path = abs_top_level.parent
-model_path = search_path.joinpath('gen_model')
-model_path.mkdir(exist_ok=True)
-
-#abs_top_level = os.path.abspath(args.top_level)
-#search_path = os.path.dirname(abs_top_level)
-#model_path = os.path.join(search_path, 'gen_model')
 
 parser_args = {'grammar_filename': GRAMMAR_FNAME, 'parser': 'earley', 'maybe_placeholders': True, 'debug': False}
 
@@ -57,42 +51,49 @@ print('INFO: reading instruction load order')
 iss = InstructionSetStorage()
 iss.visit(converted_tree)
 
-print('INFO: dumping parse tree')
-with open(model_path / (abs_top_level.stem + '_parsed.pickle'), 'wb') as f:
-    pickle.dump(converted_tree, f)
+model_path = search_path.joinpath('gen_model')
+model_path.mkdir(exist_ok=True)
 
-print('INFO: dumping instruction set store')
-with open(model_path / (abs_top_level.stem + '_iss.pickle'), 'wb') as f:
-    pickle.dump(iss, f)
+if False:
+    print('INFO: dumping parse tree')
+    with open(model_path / (abs_top_level.stem + '_parsed.pickle'), 'wb') as f:
+        pickle.dump(converted_tree, f)
+
+    print('INFO: dumping instruction set store')
+    with open(model_path / (abs_top_level.stem + '_iss.pickle'), 'wb') as f:
+        pickle.dump(iss, f)
 
 models = {}
 
 for core_name, instruction_sets in iss.core_defs.items():
-    print(f'INFO: building model for core {core_name}')
-    mt_transformer = ModelTree()
-    mt : List[model_classes.CoreDef] = mt_transformer.transform(Tree('make_list', instruction_sets))
+    print(f'INFO: building architecture model for core {core_name}')
+    print("")
+
+    arch_builder = ArchitectureModelBuilder()
+    mt : List[model_classes.CoreDef] = arch_builder.transform(Tree('make_list', instruction_sets))
 
     models[core_name] = mt[0]
 
-print('INFO: dumping model')
-with open(model_path / (abs_top_level.stem + '_model.pickle'), 'wb') as f:
-    pickle.dump(models, f)
-
 for core_name, core_def in models.items():
+    print(f'INFO: building behavior model for core {core_name}')
+    print("")
+
+    warned_fns = set()
+
     # functions
     for fn_name, fn_def in core_def.functions.items():
-        b = EtissModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, fn_def.args, core_def.functions)
+        behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, fn_def.args, core_def.functions, warned_fns)
         if isinstance(fn_def.operation, Tree):
-            fn_def.operation = b.transform(fn_def.operation)
+            fn_def.operation = behav_builder.transform(fn_def.operation)
 
     # instructions
     for (code, mask), instr_def in core_def.instructions.items():
-        b = EtissModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions)
+        behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
         if isinstance(instr_def.operation, Tree):
-            instr_def.operation = b.transform(instr_def.operation)
+            instr_def.operation = behav_builder.transform(instr_def.operation)
 
 print('INFO: dumping model')
-with open(model_path / (abs_top_level.stem + '_model_new.pickle'), 'wb') as f:
+with open(model_path / (abs_top_level.stem + '_model.pickle'), 'wb') as f:
     pickle.dump(models, f)
 
 pass

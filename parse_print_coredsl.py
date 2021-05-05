@@ -3,8 +3,8 @@ import pathlib
 
 from lark import Lark, Tree
 
+from architecture_model_builder import ArchitectureModelBuilder
 from instruction_set_storage import InstructionSetStorage
-from model_tree import ModelTree
 from transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
 GRAMMAR_FNAME = 'coredsl.lark'
@@ -65,7 +65,7 @@ models = {}
 
 for core_name, instruction_sets in iss.core_defs.items():
     print(f'INFO: building model for core {core_name}')
-    mt_transformer = ModelTree()
+    mt_transformer = ArchitectureModelBuilder()
     mt = mt_transformer.transform(Tree('Base', instruction_sets))
 
     models[core_name] = (mt_transformer, mt[0])

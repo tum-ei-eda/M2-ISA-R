@@ -7,7 +7,7 @@ from lark import Discard, Transformer
 import model_classes
 
 
-class ModelTree(Transformer):
+class ArchitectureModelBuilder(Transformer):
     __constants: Mapping[str, model_classes.Constant]
     __address_spaces: Mapping[str, model_classes.AddressSpace]
     __registers: Mapping[str, model_classes.Register]

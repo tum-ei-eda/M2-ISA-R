@@ -1,4 +1,4 @@
-from typing import Mapping
+from typing import Mapping, Set
 
 from lark import Transformer
 
@@ -6,9 +6,9 @@ import model_classes
 from etiss_instruction_utils import StaticType
 
 
-class EtissModelBuilder(Transformer):
+class BehaviorModelBuilder(Transformer):
     def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory],
-        fields: Mapping[str, model_classes.BitFieldDescr], functions: Mapping[str, model_classes.Function]):
+        fields: Mapping[str, model_classes.BitFieldDescr], functions: Mapping[str, model_classes.Function], warned_fns: Set[str]):
 
         self.__constants = constants
         self.__memories = memories
@@ -16,6 +16,7 @@ class EtissModelBuilder(Transformer):
         self.__fields = fields
         self.__scalars = {}
         self.__functions = functions
+        self.warned_fns = warned_fns if warned_fns is not None else set()
 
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
@@ -135,7 +136,9 @@ class EtissModelBuilder(Transformer):
         name, fn_args = args
 
         if name not in self.__functions:
-            print(f"WARN: Function {name} not defined in instruction set, generator must add it later!")
+            if name not in self.warned_fns and not name.startswith("fdispatch") and not name.startswith("dispatch"):
+                print(f"WARN: Function {name} not defined in instruction set, generator must add it later!")
+                self.warned_fns.add(name)
         else:
             name = self.__functions[name]
 
