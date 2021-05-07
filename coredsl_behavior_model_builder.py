@@ -1,28 +1,30 @@
 from typing import Mapping, Set
-
+import logging
 from lark import Transformer
 
 import model_classes
 from etiss_instruction_utils import StaticType
 
 
+logger = logging.getLogger("behavior")
+
 class BehaviorModelBuilder(Transformer):
     def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory],
         fields: Mapping[str, model_classes.BitFieldDescr], functions: Mapping[str, model_classes.Function], warned_fns: Set[str]):
 
-        self.__constants = constants
-        self.__memories = memories
-        self.__memory_aliases = memory_aliases
-        self.__fields = fields
-        self.__scalars = {}
-        self.__functions = functions
+        self._constants = constants
+        self._memories = memories
+        self._memory_aliases = memory_aliases
+        self._fields = fields
+        self._scalars = {}
+        self._functions = functions
         self.warned_fns = warned_fns if warned_fns is not None else set()
 
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
             return name_or_val
         else:
-            return self.__constants[name_or_val]
+            return self._constants[name_or_val]
 
     def FUNCTIONNAME(self, args):
         return args.value
@@ -30,7 +32,9 @@ class BehaviorModelBuilder(Transformer):
     PROCEDURENAME = FUNCTIONNAME
 
     def ADD_OP(self, args):
-        return model_classes.Operator(args.value)
+        op = model_classes.Operator(args.value)
+        logger.debug(f'operator {str(op)}')
+        return op
 
     BOOL_OR_OP = ADD_OP
     BOOL_AND_OP = ADD_OP
@@ -49,12 +53,14 @@ class BehaviorModelBuilder(Transformer):
         return args
 
     def operation(self, args):
-        return model_classes.Operation(args)
+        op = model_classes.Operation(args)
+        logger.debug(f'operation {str(op)}')
+        return op
 
     def scalar_definition(self, args):
         name, data_type, size = args
 
-        if name in self.__scalars:
+        if name in self._scalars:
             raise ValueError(f"Scalar {name} already defined!")
 
         size_val = self.get_constant_or_val(size)
@@ -64,8 +70,11 @@ class BehaviorModelBuilder(Transformer):
 
         s = model_classes.Scalar(name, None, StaticType.WRITE, size_val, data_type)
 
-        self.__scalars[name] = s
-        return model_classes.ScalarDefinition(s)
+        self._scalars[name] = s
+
+        sd = model_classes.ScalarDefinition(s)
+        logger.debug(f'scalar_definition {str(sd)}')
+        return
 
     def return_(self, args):
         return model_classes.Return(args[0])
@@ -77,7 +86,7 @@ class BehaviorModelBuilder(Transformer):
 
     def indexed_reference(self, args):
         name, index_expr, size = args
-        referred_mem = self.__memory_aliases.get(name) or self.__memories.get(name)
+        referred_mem = self._memory_aliases.get(name) or self._memories.get(name)
 
         if referred_mem is None:
             raise ValueError(f"Indexed reference {name} does not exist!")
@@ -90,11 +99,11 @@ class BehaviorModelBuilder(Transformer):
 
     def named_reference(self, args):
         name, size = args
-        var = self.__scalars.get(name) or \
-            self.__fields.get(name) or \
-            self.__constants.get(name) or \
-            self.__memory_aliases.get(name) or \
-            self.__memories.get(name)
+        var = self._scalars.get(name) or \
+            self._fields.get(name) or \
+            self._constants.get(name) or \
+            self._memory_aliases.get(name) or \
+            self._memories.get(name)
 
         if var is None:
             raise ValueError(f"Named reference {name} does not exist!")
@@ -135,12 +144,12 @@ class BehaviorModelBuilder(Transformer):
     def function(self, args):
         name, fn_args = args
 
-        if name not in self.__functions:
+        if name not in self._functions:
             if name not in self.warned_fns and not name.startswith("fdispatch") and not name.startswith("dispatch"):
-                print(f"WARN: Function {name} not defined in instruction set, generator must add it later!")
+                logger.warning(f"Function {name} not defined in instruction set, generator must add it later!")
                 self.warned_fns.add(name)
         else:
-            name = self.__functions[name]
+            name = self._functions[name]
 
         return model_classes.FunctionCall(name, fn_args)
 

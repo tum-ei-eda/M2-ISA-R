@@ -38,6 +38,8 @@ class SizedRefOrConst(Named):
 
     @property
     def actual_size(self):
+        if self.size is None: return None
+
         temp = 1 << (self.size - 1).bit_length()
         return temp if temp >= 8 else 8
 
@@ -79,14 +81,19 @@ class RangeSpec:
 
     @property
     def upper(self):
+        if self.upper_base is None or self.upper_power is None: return None
+
         return self.upper_base ** self.upper_power
 
     @property
     def lower(self):
+        if self.lower_base is None or self.lower_power is None: return None
+
         return self.lower_base ** self.lower_power
 
     @property
     def length(self):
+        if self.upper is None or self.lower is None: return None
         return self.upper - self.lower + 1
 
     def __str__(self) -> str:
@@ -151,10 +158,12 @@ class Memory(SizedRefOrConst):
 
     @property
     def data_range(self):
+        if self.range.upper is None or self.range.lower is None: return None
+
         return RangeSpec(self.range.upper - self.range.lower, 0)
 
     def __str__(self) -> str:
-        return f'{super().__str__()}, size={self.size}, length={self.length}'
+        return f'{super().__str__()}, size={self.size}'
 
 
 class AddressSpace(SizedRefOrConst):
@@ -178,6 +187,7 @@ class AddressSpace(SizedRefOrConst):
 
     @property
     def length(self):
+        if self.length_base is None or self.length_power is None: return None
         return self.length_base ** self.length_power
 
     def __str__(self) -> str:
@@ -274,7 +284,7 @@ class Instruction(SizedRefOrConst):
                 self._size += e.length
 
     def __str__(self) -> str:
-        code_and_mask = 'code={code:#x{size}}, mask={mask:#x{size}}'.format(code=self.code, mask=self.mask, size=self.size)
+        code_and_mask = f'code={self.code:#0{self.size+2}x}, mask={self.mask:#0{self.size+2}x}'
         return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):

@@ -1,3 +1,4 @@
+import logging
 import os
 from functools import partial
 from itertools import chain
@@ -16,6 +17,7 @@ class ParallelImporter(Transformer):
         self.parallel = parallel if parallel > 1 else None
         self.parser_args = parser_args
         self.current_set = set()
+        self.logger = logging.getLogger("parallel_importer")
 
     def transform(self, tree):
         self.new_children.clear()
@@ -30,17 +32,17 @@ class ParallelImporter(Transformer):
         return res
 
     def do_include(self, filename):
-        print(f'INFO: processing file {filename}')
+        self.logger.info(f'processing file {filename}')
         p = Lark.open(**self.parser_args)
         with open(os.path.join(self.search_path, filename), 'r') as f:
             __t = p.parse(f.read())
 
-        print(f'INFO: done with file {filename}')
+        self.logger.info(f'done with file {filename}')
         return __t.children
 
     def include(self, filename):
         if filename not in self.imported:
-            print(f'INFO: queuing file {filename}')
+            self.logger.info(f'queuing file {filename}')
             self.got_new = True
             self.imported.add(filename)
             self.current_set.add(filename)
@@ -55,6 +57,7 @@ class Importer(Transformer):
         self.got_new = True
         self.search_path = search_path
         self.parser = parser
+        self.logger = logging.getLogger("importer")
 
     def transform(self, tree):
         self.new_children.clear()
@@ -67,7 +70,7 @@ class Importer(Transformer):
 
     def include(self, filename):
         if filename not in self.imported:
-            print(f'INFO: importing file {filename}')
+            self.logger.info(f'importing file {filename}')
             self.got_new = True
             self.imported.add(filename)
             with open(os.path.join(self.search_path, filename), 'r') as f:

@@ -15,7 +15,7 @@
             "name": "Generate ETISS",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/etiss_writer_coredsl.py",
+            "program": "${workspaceFolder}/etiss_writer.py",
             "console": "integratedTerminal",
             "args": [
                 "--separate",
@@ -39,7 +39,7 @@
             "name": "Generate Pickle",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/pickle_writer_coredsl.py",
+            "program": "${workspaceFolder}/pickle_writer.py",
             "console": "integratedTerminal",
             "args": [
                 //"--separate",
@@ -51,22 +51,10 @@
             "name": "Parse CoreDSL",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/parse_coredsl.py",
+            "program": "${workspaceFolder}/coredsl_parser.py",
             "console": "integratedTerminal",
             "args": [
                 "-j1",
-                "${input:inputFile}"
-            ],
-            "stopOnEntry": true
-        },
-        {
-            "name": "Print CoreDSL",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/parse_print_coredsl.py",
-            "console": "integratedTerminal",
-            "args": [
-                "-j0",
                 "${input:inputFile}"
             ],
             "stopOnEntry": true

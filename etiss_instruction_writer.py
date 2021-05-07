@@ -6,7 +6,9 @@ from mako.template import Template
 import model_classes
 from etiss_instruction_generator import (generate_functions,
                                          generate_instructions)
+import logging
 
+logger = logging.getLogger("instruction_writer")
 
 def write_functions(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
     fn_set_header_template = Template(filename='templates/etiss_function_set_header.mako')
@@ -23,7 +25,7 @@ def write_functions(core: model_classes.CoreDef, start_time: str, output_path: p
         funcs_f.write(fn_set_str)
 
         for fn_name, templ_str in generate_functions(core):
-            print(f'INFO: processing function {fn_name}')
+            logger.info("processing function %s", fn_name)
             funcs_f.write(templ_str)
 
         fn_set_str = fn_set_footer_template.render()
@@ -52,6 +54,6 @@ def write_instructions(core: model_classes.CoreDef, start_time: str, output_path
             out_f.write(instr_set_str)
 
         for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core):
-            print(f'INFO: processing instruction {instr_name}')
+            logger.info("processing instruction %s", instr_name)
             # save instruction code to file
             outfiles.get(ext_name, outfiles['default']).write(templ_str)
