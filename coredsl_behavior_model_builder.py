@@ -74,7 +74,7 @@ class BehaviorModelBuilder(Transformer):
 
         sd = model_classes.ScalarDefinition(s)
         logger.debug(f'scalar_definition {str(sd)}')
-        return
+        return sd
 
     def return_(self, args):
         return model_classes.Return(args[0])

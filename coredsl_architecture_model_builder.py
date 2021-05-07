@@ -1,7 +1,7 @@
 import logging
-from typing import Mapping, Set
+from typing import List, Mapping, Set, Tuple
 
-from lark import Discard, Transformer
+from lark import Discard, Transformer, Tree
 
 import model_classes
 
@@ -19,6 +19,7 @@ class ArchitectureModelBuilder(Transformer):
     _read_types: Mapping[str, str]
     _memories: Mapping[str, model_classes.Memory]
     _memory_aliases: Mapping[str, model_classes.Memory]
+    _overwritten_instrs: List[Tuple[model_classes.Instruction, model_classes.Instruction]]
 
     def __init__(self):
         self._constants = {}
@@ -32,6 +33,15 @@ class ArchitectureModelBuilder(Transformer):
         self._read_types = {}
         self._memories = {}
         self._memory_aliases = {}
+
+        self._overwritten_instrs = []
+
+    def transform(self, tree: Tree):
+        ret = super().transform(tree)
+        for orig, overwritten in self._overwritten_instrs:
+            logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
+
+        return ret
 
     def get_constant_or_val(self, name_or_val):
         if type(name_or_val) == int:
@@ -241,7 +251,7 @@ class ArchitectureModelBuilder(Transformer):
         instr_id = (i.code, i.mask)
 
         if instr_id in self._instructions:
-            logger.warning(f'overwriting instruction {self._instructions[instr_id].name} with {name}')
+            self._overwritten_instrs.append((self._instructions[instr_id], i))
 
         self._instructions[instr_id] = i
 
@@ -288,7 +298,8 @@ class ArchitectureModelBuilder(Transformer):
         if instructions:
             instructions_dict = {}
             for i in instructions:
-                instructions_dict[i.name] = i
+                instr_id = (i.code, i.mask)
+                instructions_dict[instr_id] = i
                 i.ext_name = name
 
         functions_dict = None
@@ -298,7 +309,7 @@ class ArchitectureModelBuilder(Transformer):
                 functions_dict[f.name] = f
                 f.ext_name = name
 
-        i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, instructions_dict)
+        i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, functions_dict, instructions_dict)
         self._instruction_sets[name] = i_s
         self._read_types[name] = None
 

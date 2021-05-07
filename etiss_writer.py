@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import logging
 import pathlib
@@ -22,6 +24,7 @@ def setup():
     abs_top_level = top_level.resolve()
     search_path = abs_top_level.parent
     model_path = search_path.joinpath('gen_model')
+    spec_name = abs_top_level.stem
 
     if not model_path.exists():
         raise FileNotFoundError('Models not generated!')
@@ -35,15 +38,15 @@ def setup():
 
     start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
-    return (models, logger, output_base_path, start_time, args)
+    return (models, logger, output_base_path, spec_name, start_time, args)
 
 def main():
-    models, logger, output_base_path, start_time, args = setup()
+    models, logger, output_base_path, spec_name, start_time, args = setup()
 
     for core_name, core in models.items():
         logger.info("processing model %s", core_name)
-        output_path = output_base_path / core_name
-        output_path.mkdir(exist_ok=True)
+        output_path = output_base_path / spec_name / core_name
+        output_path.mkdir(exist_ok=True, parents=True)
 
         write_arch_struct(core, start_time, output_path)
         write_functions(core, start_time, output_path)

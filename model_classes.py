@@ -302,17 +302,18 @@ class Function(SizedRefOrConst):
         return f'{super().__str__()}, data_type={self.data_type}'
 
 class InstructionSet(Named):
-    def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], registers: Mapping[str, Register], instructions: Mapping[str, Instruction]):
+    def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], registers: Mapping[str, Register], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
         self.extension = extension
         self.constants = constants
         self.address_spaces = address_spaces
         self.registers = registers
+        self.functions = functions
         self.instructions = instructions
 
         super().__init__(name)
 
 class CoreDef(Named):
-    def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory],functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
+    def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
         self.contributing_types = contributing_types
         self.template = template
         self.constants = constants

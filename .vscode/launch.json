@@ -68,9 +68,7 @@
             "options": [
                 "../coredsl-models/riscv/minres_rv.core_desc",
                 "../coredsl-models/riscv/tum_rv.core_desc",
-                "../coredsl-models/test/test.core_desc",
                 "../coredsl-models/armv6m/top.core_desc",
-                "../coredsl-models/armv6m-2/armv6m.core_desc",
                 "../coredsl-models/armv7m/top.core_desc"
             ],
             "description": ""
