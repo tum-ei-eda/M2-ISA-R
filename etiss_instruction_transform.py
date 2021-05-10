@@ -149,7 +149,7 @@ def function_call(self: model_classes.FunctionCall, context: TransformerContext)
         if fn_args is None: fn_args = []
         mem_access = True in [arg.is_mem_access for arg in fn_args]
         regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-        name = self.ref_or_name.removeprefix('fdispatch_')
+        name = self.ref_or_name[len("fdispatch_"):] #.removeprefix('fdispatch_')
         arg_str = ', '.join([arg.code for arg in fn_args])
 
         c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
