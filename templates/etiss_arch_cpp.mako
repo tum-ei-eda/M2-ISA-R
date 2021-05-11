@@ -9,26 +9,26 @@
 * Modification guidelines:
 
 	 1. The initial value of SP register should be initialized by ctr0.S/board.S. If not, it could be initialized
-	 	through utility class etiss::VirtualStruct::Field.
+		 through utility class etiss::VirtualStruct::Field.
 
 	 2. Debug mode print out all assignment results. GDB in 8 is prefered.
 
 	 3. Manually copy the content in bracket ["return ETISS_RETURNCODE_CPUFINISHED; \n"] to terminating instruction,
-	 	otherwise the emulation can not be ended.
+		 otherwise the emulation can not be ended.
 
 	 4. If subset of encoding error occurs, it means the format of the encoding in the input model was not appropriate
 
 	 5. If the PC register points to wrong address, please notice that some assembly may cause branch operation
-	 	implicitly such as "MOV Rd Rn" in ARMv6-M
+		 implicitly such as "MOV Rd Rn" in ARMv6-M
 
 	 6. If a variable is the result of dynamic slicing such as, var_1 = var_2<Hshift-1..Lshift-2>, the size would be
-	 	calculated during process (if possible), otherwise it is assumed to be the register size. Problems may occur when
-	 	var_1 encounters bit manipulation such as "~" due to bit expansion. To change the nml model with explicit slicing
-	 	e.g var_1 = val_2<3..0> or avoid bit manipulation for dynamic sliced variable. Otherwise, you have to manually
-	 	correct it.
+		 calculated during process (if possible), otherwise it is assumed to be the register size. Problems may occur when
+		 var_1 encounters bit manipulation such as "~" due to bit expansion. To change the nml model with explicit slicing
+		 e.g var_1 = val_2<3..0> or avoid bit manipulation for dynamic sliced variable. Otherwise, you have to manually
+		 correct it.
 
 	 7. Implementation dependent functionalities such as exception handling should be manully added. Corresponding interfaces
-	 	are provided in ${core_name}ArchSpecificImp.h
+		 are provided in ${core_name}ArchSpecificImp.h
 
 	 8. ${core_name}GDBCore.h provides the GDBCore class to support gdb flavor debugging feature, modify iy if in need.
 
@@ -156,7 +156,7 @@ etiss::plugin::gdb::GDBCore & ${core_name}Arch::getGDBCore()
 const char * const reg_name[] =
 {
 	% for n in reg_names:
-    "${n}",
+	"${n}",
 	% endfor
 };
 

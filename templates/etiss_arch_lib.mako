@@ -12,37 +12,37 @@
 #include "${core_name}Arch.h"
 extern "C" {
 
-    ETISS_LIBRARYIF_VERSION_FUNC_IMPL
+	ETISS_LIBRARYIF_VERSION_FUNC_IMPL
 
-    ETISS_PLUGIN_EXPORT unsigned ${core_name}_countCPUArch()
-    {
+	ETISS_PLUGIN_EXPORT unsigned ${core_name}_countCPUArch()
+	{
 //TODO
-        return 1; // number of cpu architectures provided
-    }
-    ETISS_PLUGIN_EXPORT const char * ${core_name}_nameCPUArch(unsigned index)
-    {
+		return 1; // number of cpu architectures provided
+	}
+	ETISS_PLUGIN_EXPORT const char * ${core_name}_nameCPUArch(unsigned index)
+	{
 //TODO
-        switch (index)
-        {
-        case 0:
-            return "${core_name}";
-        default:
-            return "";
-        }
-    }
-    ETISS_PLUGIN_EXPORT etiss::CPUArch* ${core_name}_createCPUArch(unsigned index,std::map<std::string,std::string> options)
-    {
+		switch (index)
+		{
+		case 0:
+			return "${core_name}";
+		default:
+			return "";
+		}
+	}
+	ETISS_PLUGIN_EXPORT etiss::CPUArch* ${core_name}_createCPUArch(unsigned index,std::map<std::string,std::string> options)
+	{
 //TODO
-        switch (index)
-        {
-        case 0:
-            return new ${core_name}Arch();
-        default:
-            return 0;
-        }
-    }
-    ETISS_PLUGIN_EXPORT void ${core_name}_deleteCPUArch(etiss::CPUArch* arch)
-    {
-        delete arch;
-    }
+		switch (index)
+		{
+		case 0:
+			return new ${core_name}Arch();
+		default:
+			return 0;
+		}
+	}
+	ETISS_PLUGIN_EXPORT void ${core_name}_deleteCPUArch(etiss::CPUArch* arch)
+	{
+		delete arch;
+	}
 }

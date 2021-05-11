@@ -60,7 +60,7 @@ public:
 
 	/**
 		@brief This function will be called automatically in order to handling architecure dependent exceptions such
-		       as interrupt, system call, illegal instructions
+			   as interrupt, system call, illegal instructions
 
 		@see ${core_name}ArchSpecificImp.h
 	*/

@@ -14,10 +14,10 @@ extern "C" {
 #endif
 #pragma pack(push, 1)
 struct ${core_name} {
-    ETISS_CPU cpu; // original cpu struct must be defined as the first field of the new structure. this allows to cast X * to ETISS_CPU * and vice vers
-    % for reg in regs:
-    ${reg};
-    % endfor
+	ETISS_CPU cpu; // original cpu struct must be defined as the first field of the new structure. this allows to cast X * to ETISS_CPU * and vice vers
+	% for reg in regs:
+	${reg};
+	% endfor
 };
 
 #pragma pack(pop) // undo changes
