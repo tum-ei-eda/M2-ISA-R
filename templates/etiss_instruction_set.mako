@@ -6,7 +6,6 @@
  */
 
 #include "${core_name}Arch.h"
-#include "${core_name}ArchSpecificImp.h"
 
 using namespace etiss;
 using namespace etiss::instr;

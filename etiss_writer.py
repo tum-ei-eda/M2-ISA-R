@@ -6,7 +6,7 @@ import pathlib
 import pickle
 import time
 
-from etiss_architecture_writer import write_arch_cpp, write_arch_header, write_arch_struct
+from etiss_architecture_writer import write_arch_cmake, write_arch_cpp, write_arch_gdbcore, write_arch_header, write_arch_lib, write_arch_specific_cpp, write_arch_specific_header, write_arch_struct
 from etiss_instruction_writer import write_functions, write_instructions
 
 
@@ -51,6 +51,11 @@ def main():
         write_arch_struct(core, start_time, output_path)
         write_arch_header(core, start_time, output_path)
         write_arch_cpp(core, start_time, output_path, False)
+        write_arch_specific_header(core, start_time, output_path)
+        write_arch_specific_cpp(core, start_time, output_path)
+        write_arch_lib(core, start_time, output_path)
+        write_arch_cmake(core, start_time, output_path, args.separate)
+        write_arch_gdbcore(core, start_time, output_path)
         write_functions(core, start_time, output_path)
         write_instructions(core, start_time, output_path, args.separate)
 

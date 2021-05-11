@@ -109,3 +109,81 @@ def write_arch_cpp(core: model_classes.CoreDef, start_time: str, output_path: pa
     logger.info("writing architecture class file")
     with open(output_path / f"{core.name}Arch.cpp", "w") as f:
         f.write(txt)
+
+def write_arch_lib(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
+    logger.info("generating architecture lib")
+
+    arch_header_template = Template(filename='templates/etiss_arch_lib.mako')
+
+    txt = arch_header_template.render(
+        start_time=start_time,
+        core_name=core.name
+    )
+
+    logger.info("writing architecture lib")
+    with open(output_path / f"{core.name}ArchLib.cpp", "w") as f:
+        f.write(txt)
+
+def write_arch_specific_header(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
+    logger.info("generating architecture specific header")
+
+    arch_header_template = Template(filename='templates/etiss_arch_specific_h.mako')
+
+    txt = arch_header_template.render(
+        start_time=start_time,
+        core_name=core.name,
+        main_reg=core.main_reg_file
+    )
+
+    logger.info("writing architecture specific header")
+    with open(output_path / f"{core.name}ArchSpecificImp.h", "w") as f:
+        f.write(txt)
+
+def write_arch_specific_cpp(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
+    logger.info("generating architecture specific file")
+
+    arch_header_template = Template(filename='templates/etiss_arch_specific_cpp.mako')
+
+    txt = arch_header_template.render(
+        start_time=start_time,
+        core_name=core.name,
+        main_reg=core.main_reg_file
+    )
+
+    logger.info("writing architecture specific file")
+    with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w") as f:
+        f.write(txt)
+
+def write_arch_gdbcore(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
+    logger.info("generating gdbcore")
+
+    arch_header_template = Template(filename='templates/etiss_arch_gdbcore.mako')
+
+    txt = arch_header_template.render(
+        start_time=start_time,
+        core_name=core.name,
+        main_reg=core.main_reg_file
+    )
+
+    logger.info("writing gdbcore")
+    with open(output_path / f"{core.name}GDBCore.h", "w") as f:
+        f.write(txt)
+
+def write_arch_cmake(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
+    logger.info("generating CMakeLists")
+
+    arch_header_template = Template(filename='templates/etiss_arch_cmake.mako')
+
+    arch_files = [f'{core.name}Instr.cpp']
+    if separate:
+        arch_files += [f'{core.name}_{ext_name}Instr.cpp' for ext_name in core.contributing_types]
+
+    txt = arch_header_template.render(
+        start_time=start_time,
+        core_name=core.name,
+        arch_files=arch_files
+    )
+
+    logger.info("writing CMakeLists")
+    with open(output_path / "CMakeLists.txt", "w") as f:
+        f.write(txt)
