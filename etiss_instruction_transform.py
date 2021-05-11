@@ -277,7 +277,8 @@ def named_reference(self: model_classes.NamedReference, context: TransformerCont
 
     if isinstance(referred_var, model_classes.Memory):
         if not static:
-            name = etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix) + name
+            ref = "*" if len(referred_var.children) > 0 else ""
+            name = f"{ref}{etiss_replacements.default_prefix}{name}"
         signed = False
         size = referred_var.size
         context.used_arch_data = True

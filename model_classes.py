@@ -1,6 +1,6 @@
 from collections import namedtuple
 from enum import Enum, auto
-from typing import Iterable, List, Mapping, Tuple, Union
+from typing import Iterable, List, Mapping, Set, Tuple, Union
 
 
 class Named:
@@ -149,11 +149,13 @@ class Scalar(SizedRefOrConst):
 
 class Memory(SizedRefOrConst):
     children: List['Memory']
+    parent: Union['Memory', None]
 
-    def __init__(self, name, range: RangeSpec, size, attributes: Iterable[SpaceAttribute]):
+    def __init__(self, name, range: RangeSpec, size, attributes: List[Union[SpaceAttribute, MemoryAttribute, RegAttribute]]):
         self.attributes = attributes if attributes else []
         self.range = range
         self.children = []
+        self.parent = None
         super().__init__(name, size)
 
     @property
@@ -161,6 +163,14 @@ class Memory(SizedRefOrConst):
         if self.range.upper is None or self.range.lower is None: return None
 
         return RangeSpec(self.range.upper - self.range.lower, 0)
+
+    @property
+    def is_pc(self):
+        return RegAttribute.IS_PC in self.attributes
+
+    @property
+    def is_main_mem(self):
+        return SpaceAttribute.IS_MAIN_MEM in self.attributes
 
     def __str__(self) -> str:
         return f'{super().__str__()}, size={self.size}'
@@ -313,7 +323,7 @@ class InstructionSet(Named):
         super().__init__(name)
 
 class CoreDef(Named):
-    def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
+    def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int], main_reg_file: Memory):
         self.contributing_types = contributing_types
         self.template = template
         self.constants = constants
@@ -325,6 +335,8 @@ class CoreDef(Named):
         self.memory_aliases = memory_aliases
         self.functions = functions
         self.instructions = instructions
+        self.instr_classes = instr_classes
+        self.main_reg_file = main_reg_file
 
         super().__init__(name)
 

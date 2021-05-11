@@ -1,5 +1,5 @@
 import logging
-from typing import List, Mapping, Set, Tuple
+from typing import List, Mapping, Set, Tuple, Union
 
 from lark import Discard, Transformer, Tree
 
@@ -20,6 +20,8 @@ class ArchitectureModelBuilder(Transformer):
     _memories: Mapping[str, model_classes.Memory]
     _memory_aliases: Mapping[str, model_classes.Memory]
     _overwritten_instrs: List[Tuple[model_classes.Instruction, model_classes.Instruction]]
+    _instr_classes: Set[int]
+    _main_reg_file: Union[model_classes.Memory, None]
 
     def __init__(self):
         self._constants = {}
@@ -35,6 +37,8 @@ class ArchitectureModelBuilder(Transformer):
         self._memory_aliases = {}
 
         self._overwritten_instrs = []
+        self._instr_classes = set()
+        self._main_reg_file = None
 
     def transform(self, tree: Tree):
         ret = super().transform(tree)
@@ -191,6 +195,9 @@ class ArchitectureModelBuilder(Transformer):
         m = model_classes.Memory(name, _range, size, attributes)
         self._memories[name] = m
 
+        if attributes is not None and model_classes.RegAttribute.IS_MAIN_REG in attributes:
+            self._main_reg_file = m
+
         logger.debug(f'register_file {str(m)}')
         return r
 
@@ -217,6 +224,7 @@ class ArchitectureModelBuilder(Transformer):
             raise ValueError(f'Parent register {actual} for alias {name} not defined!')
 
         m = model_classes.Memory(name, index, size, attributes)
+        m.parent = parent_mem
         parent_mem.children.append(m)
         self._memory_aliases[name] = m
 
@@ -247,6 +255,7 @@ class ArchitectureModelBuilder(Transformer):
         name, attributes, encoding, disass, operation = args
 
         i = model_classes.Instruction(name, attributes, encoding, disass, operation)
+        self._instr_classes.add(i.size)
 
         instr_id = (i.code, i.mask)
 
@@ -331,7 +340,7 @@ class ArchitectureModelBuilder(Transformer):
     def core_def(self, args):
         name, _, template, _, _, _, _, _, _ = args
         merged_registers = {**self._register_files, **self._registers, **self._register_alias}
-        c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._address_spaces, self._register_files, self._registers, self._register_alias, self._memories, self._memory_aliases, self._functions, self._instructions)
+        c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._address_spaces, self._register_files, self._registers, self._register_alias, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
 
         logger.debug(f'core_def {str(c)}')
         return c

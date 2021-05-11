@@ -6,7 +6,7 @@ import pathlib
 import pickle
 import time
 
-from etiss_architecture_writer import write_arch_struct
+from etiss_architecture_writer import write_arch_cpp, write_arch_header, write_arch_struct
 from etiss_instruction_writer import write_functions, write_instructions
 
 
@@ -49,6 +49,8 @@ def main():
         output_path.mkdir(exist_ok=True, parents=True)
 
         write_arch_struct(core, start_time, output_path)
+        write_arch_header(core, start_time, output_path)
+        write_arch_cpp(core, start_time, output_path, False)
         write_functions(core, start_time, output_path)
         write_instructions(core, start_time, output_path, args.separate)
 
