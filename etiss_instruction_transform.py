@@ -49,7 +49,7 @@ def function_call(self: model_classes.FunctionCall, context: TransformerContext)
 
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
-		#max_size = max([arg.size for arg in fn_args])
+
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		signed = True in [arg.signed for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
@@ -149,7 +149,7 @@ def function_call(self: model_classes.FunctionCall, context: TransformerContext)
 		if fn_args is None: fn_args = []
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-		name = self.ref_or_name[len("fdispatch_"):] #.removeprefix('fdispatch_')
+		name = self.ref_or_name[len("fdispatch_"):]
 		arg_str = ', '.join([arg.code for arg in fn_args])
 
 		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
@@ -221,9 +221,7 @@ def assignment(self: model_classes.Assignment, context: TransformerContext):
 		context.generates_exception = True
 		for m_id in expr.mem_ids:
 			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-			#code_str += f'partInit.code() += "exception = read_mem(""{mem_space.name}"", {int(expr.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
 			code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
-			#code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
 
 		code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
 
@@ -236,10 +234,7 @@ def assignment(self: model_classes.Assignment, context: TransformerContext):
 		m_id = target.mem_ids[0]
 
 		code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};\\n";\n'
-		#code_str += f'partInit.code() += "exception = write_mem(""{mem_space.name}"", {int(target.size / 8)}, &{MEM_VAL_REPL}{mem_id}, {index.code});\\n";\n'
 		code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
-		#code_str += 'partInit.code() += "if (exception) return exception;\\n";\n'
-		pass
 
 	return code_str
 

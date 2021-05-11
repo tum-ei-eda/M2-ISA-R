@@ -51,17 +51,11 @@ class MemID:
 	access_size: int
 
 class TransformerContext:
-	def __init__(self, constants: Mapping[str, model_classes.Constant], spaces: Mapping[str, model_classes.AddressSpace],
-			registers: Mapping[str, model_classes.Register], register_files: Mapping[str, model_classes.RegisterFile],
-			register_aliases: Mapping[str, model_classes.RegisterAlias], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory], fields: Mapping[str, model_classes.BitFieldDescr],
+	def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory], fields: Mapping[str, model_classes.BitFieldDescr],
 			attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.Function],
 			instr_size: int, native_size: int, arch_name: str, ignore_static=False):
 
 		self.constants = constants
-		self.spaces = spaces
-		self.registers = registers
-		self.register_files = register_files
-		self.register_aliases = register_aliases
 		self.memories = memories
 		self.memory_aliases = memory_aliases
 		self.fields = fields
@@ -82,11 +76,6 @@ class TransformerContext:
 		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
 			if model_classes.RegAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
 				self.pc_mem = mem_descr
-				break
-
-		for _, reg_descr in chain(self.registers.items(), self.register_aliases.items()):
-			if model_classes.RegAttribute.IS_PC in reg_descr.attributes:
-				self.pc_reg = reg_descr
 				break
 
 		self.generates_exception = False

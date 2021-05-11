@@ -36,6 +36,6 @@ class InstructionSetStorage(Visitor_Recursive):
 				if new_set not in known_sets:
 					known_sets.add(new_set)
 					ins_set_queue.append(self.instruction_sets[new_set])
-			#ins_set_queue.update({x: None for x in self.extend_ins_set(ct)})
+
 		ins_set_queue.append(tree)
 		self.core_defs[name] = ins_set_queue

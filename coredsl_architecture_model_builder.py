@@ -9,10 +9,6 @@ logger = logging.getLogger("architecture")
 
 class ArchitectureModelBuilder(Transformer):
 	_constants: Mapping[str, model_classes.Constant]
-	_address_spaces: Mapping[str, model_classes.AddressSpace]
-	_registers: Mapping[str, model_classes.Register]
-	_register_files: Mapping[str, model_classes.RegisterFile]
-	_register_alias: Mapping[str, model_classes.RegisterAlias]
 	_instructions: Mapping[str, model_classes.Instruction]
 	_functions: Mapping[str, model_classes.Function]
 	_instruction_sets: Mapping[str, model_classes.InstructionSet]
@@ -25,10 +21,6 @@ class ArchitectureModelBuilder(Transformer):
 
 	def __init__(self):
 		self._constants = {}
-		self._address_spaces = {}
-		self._registers = {}
-		self._register_files = {}
-		self._register_alias = {}
 		self._instructions = {}
 		self._functions = {}
 		self._instruction_sets = {}
@@ -144,53 +136,40 @@ class ArchitectureModelBuilder(Transformer):
 	def address_space(self, args):
 		name, size, length_base, length_power, attribs = args
 
-		if name in self._address_spaces:
+		if name in self._memories:
 			raise ValueError(f'Address space {name} already defined!')
-
-		if name in self._address_spaces: return self._address_spaces[name]
 
 		size = self.get_constant_or_val(size)
 		length_base = self.get_constant_or_val(length_base)
 		length_power = self.get_constant_or_val(length_power) if length_power is not None else 1
 
-		a = model_classes.AddressSpace(name, length_base, length_power, size, attribs)
-		self._address_spaces[name] = a
-
 		m = model_classes.Memory(name, model_classes.RangeSpec(length_base, 0, length_power), size, attribs)
 		self._memories[name] = m
 
 		logger.debug(f'address_space {str(m)}')
-		return a
+		return m
 
 	def register(self, args):
 		name, size, attributes = args
 
-		if name in self._registers:
+		if name in self._memories:
 			raise ValueError(f'Register {name} already defined!')
 
 		size = self.get_constant_or_val(size)
-
-		r = model_classes.Register(name, attributes, None, size)
-		self._registers[name] = r
 
 		m = model_classes.Memory(name, model_classes.RangeSpec(0, 0), size, attributes)
 		self._memories[name] = m
 
 		logger.debug(f'register {str(m)}')
-		return r
+		return m
 
 	def register_file(self, args):
 		_range, name, size, attributes = args
 
-		if name in self._register_files:
+		if name in self._memories:
 			raise ValueError(f'Register file {name} already defined!')
 
-		if name in self._register_files: return self._register_files[name]
-
 		size = self.get_constant_or_val(size)
-
-		r = model_classes.RegisterFile(name, _range, attributes, size)
-		self._register_files[name] = r
 
 		m = model_classes.Memory(name, _range, size, attributes)
 		self._memories[name] = m
@@ -199,22 +178,15 @@ class ArchitectureModelBuilder(Transformer):
 			self._main_reg_file = m
 
 		logger.debug(f'register_file {str(m)}')
-		return r
+		return m
 
 	def register_alias(self, args):
 		name, size, actual, index, attributes = args
 
-		if name in self._register_alias:
+		if name in self._memory_aliases:
 			raise ValueError(f'Register alias {name} already defined!')
 
-		actual_reg = self._register_files.get(actual) or self._registers.get(actual) or self._register_alias.get(actual)
-		if actual_reg is None:
-			raise ValueError(f'Parent register {actual} for alias {name} not defined!')
-
 		size = self.get_constant_or_val(size)
-
-		r = model_classes.RegisterAlias(name, actual_reg, index, attributes, None, size)
-		self._register_alias[name] = r
 
 		if not isinstance(index, model_classes.RangeSpec):
 			index = model_classes.RangeSpec(index, index)
@@ -229,7 +201,7 @@ class ArchitectureModelBuilder(Transformer):
 		self._memory_aliases[name] = m
 
 		logger.debug(f'register_alias {str(m)}, parent {str(parent_mem)}')
-		return r
+		return m
 
 	def bit_field(self, args):
 		name, _range, data_type = args
@@ -328,7 +300,7 @@ class ArchitectureModelBuilder(Transformer):
 	def register_default(self, args):
 		name, value_or_ref = args
 
-		reg = self._register_alias.get(name) or self._registers.get(name)
+		reg = self._memories.get(name) or self._memory_aliases.get(name)
 		assert reg
 
 		val = self.get_constant_or_val(value_or_ref)
@@ -339,8 +311,7 @@ class ArchitectureModelBuilder(Transformer):
 
 	def core_def(self, args):
 		name, _, template, _, _, _, _, _, _ = args
-		merged_registers = {**self._register_files, **self._registers, **self._register_alias}
-		c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._address_spaces, self._register_files, self._registers, self._register_alias, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
+		c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
 
 		logger.debug(f'core_def {str(c)}')
 		return c

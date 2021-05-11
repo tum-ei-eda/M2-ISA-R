@@ -176,67 +176,6 @@ class Memory(SizedRefOrConst):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, size={self.size}'
 
-
-class AddressSpace(SizedRefOrConst):
-	def __init__(self, name, length_base: val_or_const, length_power: val_or_const, size, attributes: Iterable[SpaceAttribute]):
-		self._length_base = length_base
-		self._length_power = length_power
-		self.attributes = attributes if attributes else []
-		super().__init__(name, size)
-
-	@property
-	def length_power(self):
-		if isinstance(self._length_power, Constant):
-			return self._length_power.value
-		return self._length_power
-
-	@property
-	def length_base(self):
-		if isinstance(self._length_base, Constant):
-			return self._length_base.value
-		return self._length_base
-
-	@property
-	def length(self):
-		if self.length_base is None or self.length_power is None: return None
-		return self.length_base ** self.length_power
-
-	def __str__(self) -> str:
-		return f'{super().__str__()}, size={self.size}, length={self.length}'
-
-class Register(SizedRefOrConst):
-	def __init__(self, name, attributes: Iterable[RegAttribute], initval: val_or_const, size):
-		self.attributes = attributes if attributes else []
-		self._initval = initval
-
-		super().__init__(name, size)
-
-	@property
-	def initval(self):
-		if isinstance(self._initval, Constant):
-			return self._initval.value
-		else:
-			return self._initval
-
-class RegisterFile(SizedRefOrConst):
-	def __init__(self, name, _range: RangeSpec, attributes: Iterable[RegAttribute], size):
-		self.range = _range
-		self.attributes = attributes if attributes else []
-
-		super().__init__(name, size)
-
-class RegisterAlias(Register):
-	def __init__(self, name, actual: str, index: Union[int, RangeSpec], attributes: Iterable[RegAttribute], initval: int, size):
-		self.actual = actual
-		self.index = index
-
-		super().__init__(name, attributes, initval, size)
-
-	def __str__(self) -> str:
-		return f'{super().__str__()}, actual={self.actual}, index={self.index}'
-
-
-
 BitVal = namedtuple('BitVal', ['length', 'value'])
 
 class BitField(Named):
@@ -313,7 +252,7 @@ class Function(SizedRefOrConst):
 		return f'{super().__str__()}, data_type={self.data_type}'
 
 class InstructionSet(Named):
-	def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], registers: Mapping[str, Register], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
+	def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, Memory], registers: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
 		self.extension = extension
 		self.constants = constants
 		self.address_spaces = address_spaces
@@ -324,14 +263,10 @@ class InstructionSet(Named):
 		super().__init__(name)
 
 class CoreDef(Named):
-	def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], address_spaces: Mapping[str, AddressSpace], register_files: Mapping[str, RegisterFile], registers: Mapping[str, Register], register_aliases: Mapping[str, RegisterAlias], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int], main_reg_file: Memory):
+	def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int], main_reg_file: Memory):
 		self.contributing_types = contributing_types
 		self.template = template
 		self.constants = constants
-		self.address_spaces = address_spaces
-		self.register_files = register_files
-		self.registers = registers
-		self.register_aliases = register_aliases
 		self.memories = memories
 		self.memory_aliases = memory_aliases
 		self.functions = functions

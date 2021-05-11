@@ -47,7 +47,7 @@ def generate_functions(core: model_classes.CoreDef):
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
 
-		context = etiss_instruction_utils.TransformerContext(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
+		context = etiss_instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -151,7 +151,7 @@ def generate_instructions(core: model_classes.CoreDef):
 
 		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
-		context = etiss_instruction_utils.TransformerContext(core.constants, core.address_spaces, core.registers, core.register_files, core.register_aliases, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+		context = etiss_instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
 
 		# add pc increment to operation tree
 		if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
