@@ -123,7 +123,7 @@ DATA_TYPE: /[usfdqb]/
 REG_ATTRIBUTE: "is_pc" | "delete" | "is_main_reg"
 SPACE_ATTRIBUTE: "is_main_mem"
 CONST_ATTRIBUTE: "is_reg_width" | "is_addr_width"
-INSTR_ATTRIBUTE: "no_cont" | "cond" | "flush"
+INSTR_ATTRIBUTE: "no_cont" | "cond" | "flush" | "sim_exit"
 FN_ATTRIBUTE: "static"
 
 PROCEDURENAME: ID //"raise" | "leave" | "wait" | /dispatch_([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_|\.)*/

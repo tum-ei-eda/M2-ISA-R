@@ -120,6 +120,7 @@ class InstrAttribute(Enum):
     NO_CONT = auto()
     COND = auto()
     FLUSH = auto()
+    SIM_EXIT = auto()
 
 class DataType(Enum):
     NONE = auto()
