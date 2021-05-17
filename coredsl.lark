@@ -39,7 +39,7 @@ constant_def: ID ":=" natural [const_attributes] ";"
 const_attributes: "(" _separated{CONST_ATTRIBUTE, ","} ")"
 
 register_defaults: "reg_init" "{" register_default+ "}"
-register_default: ID ":=" (natural | ID) ";"
+register_default: ID["[" (natural | ID) "]"] ":=" (natural | ID) ";"
 
 functions: "functions" "{" function_def+ "}"
 function_def: ["[" (natural | ID) "]"] ID "(" [fn_args_def] ")" ["'"? DATA_TYPE] [fn_attributes] "{" [operation] "}"
