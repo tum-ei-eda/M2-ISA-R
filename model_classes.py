@@ -2,6 +2,10 @@ from collections import namedtuple
 from enum import Enum, auto
 from typing import Iterable, List, Mapping, Set, Tuple, Union
 
+def get_const_or_val(arg):
+	if isinstance(arg, Constant):
+		return arg.value
+	return arg
 
 class Named:
 	def __init__(self, name: str):
@@ -31,14 +35,12 @@ class SizedRefOrConst(Named):
 
 	@property
 	def size(self):
-		if isinstance(self._size, Constant):
-			return self._size.value
-		else:
-			return self._size
+		return get_const_or_val(self._size)
 
 	@property
 	def actual_size(self):
-		if self.size is None: return None
+		if self.size is None:
+			return None
 
 		temp = 1 << (self.size - 1).bit_length()
 		return temp if temp >= 8 else 8
@@ -57,43 +59,36 @@ class RangeSpec:
 
 	@property
 	def upper_power(self):
-		if isinstance(self._upper_power, Constant):
-			return self._upper_power.value
-		return self._upper_power
+		return get_const_or_val(self._upper_power)
 
 	@property
 	def lower_power(self):
-		if isinstance(self._lower_power, Constant):
-			return self._lower_power.value
-		return self._lower_power
+		return get_const_or_val(self._lower_power)
 
 	@property
 	def upper_base(self):
-		if isinstance(self._upper_base, Constant):
-			return self._upper_base.value
-		return self._upper_base
+		return get_const_or_val(self._upper_base)
 
 	@property
 	def lower_base(self):
-		if isinstance(self._lower_base, Constant):
-			return self._lower_base.value
-		return self._lower_base
+		return get_const_or_val(self._lower_base)
 
 	@property
 	def upper(self):
-		if self.upper_base is None or self.upper_power is None: return None
-
+		if self.upper_base is None or self.upper_power is None:
+			return None
 		return self.upper_base ** self.upper_power
 
 	@property
 	def lower(self):
-		if self.lower_base is None or self.lower_power is None: return None
-
+		if self.lower_base is None or self.lower_power is None:
+			return None
 		return self.lower_base ** self.lower_power
 
 	@property
 	def length(self):
-		if self.upper is None or self.lower is None: return None
+		if self.upper is None or self.lower is None:
+			return None
 		return self.upper - self.lower + 1
 
 	def __str__(self) -> str:
@@ -147,7 +142,6 @@ class Scalar(SizedRefOrConst):
 		self.data_type = data_type
 		super().__init__(name, size)
 
-
 class Memory(SizedRefOrConst):
 	children: List['Memory']
 	parent: Union['Memory', None]
@@ -157,7 +151,11 @@ class Memory(SizedRefOrConst):
 		self.range = range
 		self.children = []
 		self.parent = None
+		self._initval = {}
 		super().__init__(name, size)
+
+	def initval(self, idx=None):
+		return get_const_or_val(self._initval[idx])
 
 	@property
 	def data_range(self):
