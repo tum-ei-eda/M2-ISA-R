@@ -8,6 +8,8 @@ import model_classes
 logger = logging.getLogger("architecture")
 
 class ArchitectureModelBuilder(Transformer):
+	"""Builds the architecture model of a Core from a lark parse tree"""
+
 	_constants: Mapping[str, model_classes.Constant]
 	_instructions: Mapping[str, model_classes.Instruction]
 	_functions: Mapping[str, model_classes.Function]
@@ -40,6 +42,10 @@ class ArchitectureModelBuilder(Transformer):
 		return ret
 
 	def get_constant_or_val(self, name_or_val):
+		"""Helper method to either return an int value or look
+		up the named constant.
+		"""
+
 		if type(name_or_val) == int:
 			return name_or_val
 		else:
@@ -73,6 +79,8 @@ class ArchitectureModelBuilder(Transformer):
 		return instructions
 
 	def range_spec(self, args) -> model_classes.RangeSpec:
+		"""Build a rangespec."""
+
 		return model_classes.RangeSpec(*args)
 
 	def CONST_ATTRIBUTE(self, args) -> model_classes.ConstAttribute:
@@ -106,6 +114,8 @@ class ArchitectureModelBuilder(Transformer):
 		return args.value
 
 	def constant_decl(self, args):
+		"""Constant declaration, optionally with default value."""
+
 		name, default_value = args
 
 		if name in self._constants:
@@ -118,6 +128,10 @@ class ArchitectureModelBuilder(Transformer):
 		return c
 
 	def constant_def(self, args):
+		"""Constant definition, sets default value. Optionally creates constant, although this behavior
+		is deprecated.
+		"""
+
 		name, value, attributes = args
 		if name in self._constants:
 			c = self._constants[name]
@@ -134,6 +148,10 @@ class ArchitectureModelBuilder(Transformer):
 		return c
 
 	def address_space(self, args):
+		"""Creates an address space. Internally builds a Memory object with range and size. Use attribute
+		IS_MAIN_MEM to specify this address space should be treated as main memory.
+		"""
+
 		name, size, length_base, length_power, attribs = args
 
 		if name in self._memories:
@@ -150,6 +168,10 @@ class ArchitectureModelBuilder(Transformer):
 		return m
 
 	def register(self, args):
+		"""Creates a register. Internally builds a Memory object with range 1 and given size. Use attribute
+		IS_PC to specify the program counter register.
+		"""
+
 		name, size, attributes = args
 
 		if name in self._memories:
@@ -164,6 +186,10 @@ class ArchitectureModelBuilder(Transformer):
 		return m
 
 	def register_file(self, args):
+		"""Creates a register file. Internally builds a Memory object with range and size. Use attribute
+		IS_MAIN_REG to specify this register file is the main CPU register bank.
+		"""
+
 		_range, name, size, attributes = args
 
 		if name in self._memories:
@@ -181,6 +207,10 @@ class ArchitectureModelBuilder(Transformer):
 		return m
 
 	def register_alias(self, args):
+		"""Define a register alias to a register or register file. Has uses index as range, size should be
+		equal to parent size. Internally builds a Memory object and assigns parent and child accordingly.
+		"""
+
 		name, size, actual, index, attributes = args
 
 		if name in self._memory_aliases:
@@ -224,6 +254,11 @@ class ArchitectureModelBuilder(Transformer):
 		return args
 
 	def instruction(self, args):
+		"""Define an instruction. Add attributes NO_CONT if program flow continues non-linearly
+		after this instruction. Add attribute COND and NO_CONT if non-linear flow is conditional.
+		Disass field is currently optional.
+		"""
+
 		name, attributes, encoding, disass, operation = args
 
 		i = model_classes.Instruction(name, attributes, encoding, disass, operation)
@@ -243,6 +278,10 @@ class ArchitectureModelBuilder(Transformer):
 		return args
 
 	def fn_arg_def(self, args):
+		"""Define a function argument. Has name, data type and size. If data type is omitted, unsigned
+		is assumed. Size can be an integer value or a constant name.
+		"""
+
 		name, data_type, size = args
 		if not data_type:
 			data_type = model_classes.DataType.U
@@ -254,6 +293,11 @@ class ArchitectureModelBuilder(Transformer):
 		return fp
 
 	def function_def(self, args):
+		"""Define a function or procedure. Add name, return type and return size. If type is omitted,
+		unsigned is assumed. If both type and size is omitted, a procedure is assumed. Size can be an
+		integer value or constant name.
+		"""
+
 		return_len, name, fn_args, data_type, attributes, operation = args
 
 		if not data_type and not return_len:
@@ -298,18 +342,26 @@ class ArchitectureModelBuilder(Transformer):
 		raise Discard
 
 	def register_default(self, args):
-		name, value_or_ref = args
+		name, index, value_or_ref = args
 
 		reg = self._memories.get(name) or self._memory_aliases.get(name)
 		assert reg
 
 		val = self.get_constant_or_val(value_or_ref)
 
-		reg._initval = val
+		if index is not None:
+			idx = self.get_constant_or_val(index)
+			if reg._initval is None:
+				reg._initval = {}
+			reg._initval[idx] = val
+		else:
+			reg._initval = val
 
 		raise Discard
 
 	def core_def(self, args):
+		"""Define a Core. Collects all seen constants, memories, functions and instructions."""
+
 		name, _, template, _, _, _, _, _, _ = args
 		c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
 
