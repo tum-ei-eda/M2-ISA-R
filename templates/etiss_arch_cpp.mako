@@ -100,13 +100,17 @@ void ${core_name}Arch::resetCPU(ETISS_CPU * cpu,etiss::uint64 * startpointer)
 <% ref = "" if len(reg.children) > 0 else "&" %> \
 	% if reg.range.length > 1:
 	for (int i = 0; i < ${reg.range.length}; ++i) {
-		${core_name.lower()}cpu->${parent.name}[${reg.range.lower} + i] = ${core_name.lower()}cpu->${ref}${reg.name}[i];
+		${core_name.lower()}cpu->${parent.name}[${reg.range.lower} + i] = ${ref}${core_name.lower()}cpu->${reg.name}[i];
 	}
 	% else:
 	% if reg.is_pc:
 	${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = (etiss_uint${reg.size}*)&(cpu->instructionPointer);
 	% else:
-	${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = ${core_name.lower()}cpu->${ref}${reg.name};
+	% if parent.range.length > 1:
+	${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = ${ref}${core_name.lower()}cpu->${reg.name};
+	% else:
+	${core_name.lower()}cpu->${parent.name} = ${ref}${core_name.lower()}cpu->${reg.name};
+	% endif
 	% endif
 	% endif
 	% endfor
