@@ -190,13 +190,12 @@ class BitField(Named):
 	def __repr__(self):
 		return self.__str__()
 
-class BitFieldDescr(Named):
+class BitFieldDescr(SizedRefOrConst):
 	def __init__(self, name, size: val_or_const, data_type: DataType):
-		self.size = size
 		self.data_type = data_type
 		self.upper = 0
 
-		super().__init__(name)
+		super().__init__(name, size)
 
 class Instruction(SizedRefOrConst):
 	def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: "Operation"):
@@ -221,7 +220,7 @@ class Instruction(SizedRefOrConst):
 					f = self.fields[e.name]
 					if f.data_type != e.data_type:
 						raise ValueError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
-					f.size += e.range.upper - e.range.lower + 1
+					f._size += e.range.upper - e.range.lower + 1
 				else:
 					f = BitFieldDescr(e.name, e.range.upper - e.range.lower + 1, e.data_type)
 					self.fields[e.name] = f
