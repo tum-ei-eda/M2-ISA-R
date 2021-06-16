@@ -8,7 +8,7 @@ _isa: instruction_set | core_def
 
 
 instruction_set: "InstructionSet" ID [extension] "{" [constants] [address_spaces] [registers] [functions] [instructions] "}"
-?extension: "extends" ID
+extension: "extends" _separated{ID, ","}
 
 constants: "constants" "{" _separated{constant_decl, ","} "}"
 constant_decl: ID [":=" natural]

@@ -20,9 +20,12 @@ class InstructionSetStorage(Visitor_Recursive):
 		pass
 
 	def extend_ins_set(self, ins_set_name):
-		extension = self.instruction_sets[ins_set_name].children[1]
-		if extension:
-			return self.extend_ins_set(extension) + [ins_set_name]
+		extensions = self.instruction_sets[ins_set_name].children[1]
+		if extensions:
+			ret = [ins_set_name]
+			for extension in extensions.children:
+				ret = self.extend_ins_set(extension) + ret
+			return ret
 		else:
 			return [ins_set_name]
 

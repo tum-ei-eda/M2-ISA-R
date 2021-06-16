@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-
 import argparse
 import logging
 import pathlib
 import pickle
+import sys
 from typing import List
 
 from lark import Lark, Tree
@@ -73,6 +73,15 @@ def main():
 
 	for core_name, core_def in models.items():
 		logger.info(f'building behavior model for core {core_name}')
+
+		unassigned_const = False
+		for const in core_def.constants.values():
+			if const.value is None:
+				logger.critical("constant %s in core %s has no value assigned!", const.name, core_name)
+				unassigned_const = True
+				#sys.exit(-1)
+		if unassigned_const:
+			sys.exit(-1)
 
 		warned_fns = set()
 
