@@ -17,10 +17,10 @@ def main():
 		functions[core_name] = dict(etiss_instruction_generator.generate_functions(core))
 		instructions[core_name] = {(code, mask): (instr_name, ext_name, templ_str) for instr_name, (code, mask), ext_name, templ_str in etiss_instruction_generator.generate_instructions(core)}
 
-	output_path = output_base_path / spec_name / core_name
+	output_path = output_base_path / spec_name
 	output_path.mkdir(exist_ok=True, parents=True)
 
-	with open(output_path / f'{core_name}.pickle', 'wb') as f:
+	with open(output_path / f'{spec_name}.pickle', 'wb') as f:
 		pickle.dump(functions, f)
 		pickle.dump(instructions, f)
 
