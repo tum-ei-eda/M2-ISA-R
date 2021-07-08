@@ -30,9 +30,84 @@ def scalar_definition(self: model_classes.ScalarDefinition, context: Transformer
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE, self.scalar.size, self.scalar.data_type == model_classes.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.NONE, self.scalar.size, self.scalar.data_type == model_classes.DataType.S, False)
 	c.scalar = self.scalar
 	return c
+
+def procedure_call(self: model_classes.ProcedureCall, context: TransformerContext):
+	fn_args = [arg.generate(context) for arg in self.args]
+
+	if isinstance(self.ref_or_name, model_classes.Function):
+		fn = self.ref_or_name
+		static = fn.static
+
+		if not static:
+			context.used_arch_data = True
+			for arg in fn_args:
+				if arg.static:
+					arg.code = context.make_static(arg.code)
+
+		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
+		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
+
+		mem_access = True in [arg.is_mem_access for arg in fn_args]
+		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
+		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
+		context.dependent_regs.update(regs_affected)
+
+		code_str = ''
+		if mem_access:
+			context.generates_exception = True
+			for m_id in mem_ids:
+				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
+				code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+
+		code_str += f'partInit.code() += "{fn.name}({arg_str});"'
+
+		return code_str
+
+	elif self.ref_or_name == 'wait':
+		context.generates_exception = True
+		return 'partInit.code() += "exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
+
+	elif self.ref_or_name == 'raise':
+		sender, code = fn_args
+		exc_id = (int(sender.code), int(code.code))
+		if exc_id not in etiss_replacements.exception_mapping:
+			raise ValueError(f'Exception {exc_id} not defined!')
+
+		#context.generates_exception = True
+		return f'partInit.code() += "return {etiss_replacements.exception_mapping[exc_id]};\\n";'
+
+	elif self.ref_or_name.startswith('dispatch_'):
+		if fn_args is None: fn_args = []
+
+		context.used_arch_data = True
+		for arg in fn_args:
+			if arg.static:
+				arg.code = context.make_static(arg.code)
+
+		name = self.ref_or_name[len("dispatch_"):]
+		arg_str = ', '.join([arg.code for arg in fn_args])
+
+		mem_access = True in [arg.is_mem_access for arg in fn_args]
+		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
+		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
+		context.dependent_regs.update(regs_affected)
+
+		code_str = ''
+		if mem_access:
+			context.generates_exception = True
+			for m_id in mem_ids:
+				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
+				code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+
+		code_str += f'partInit.code() += "{name}({arg_str});"'
+		return code_str
+
+	else:
+		raise ValueError(f'Function {self.ref_or_name} not recognized!')
+
 
 def function_call(self: model_classes.FunctionCall, context: TransformerContext):
 	fn_args = [arg.generate(context) for arg in self.args]
@@ -264,6 +339,7 @@ def named_reference(self: model_classes.NamedReference, context: TransformerCont
 	referred_var = self.reference
 
 	static = StaticType.NONE
+	scalar = None
 
 	name = referred_var.name
 	if name in etiss_replacements.rename_static:
@@ -284,7 +360,8 @@ def named_reference(self: model_classes.NamedReference, context: TransformerCont
 	elif isinstance(referred_var, model_classes.Scalar):
 		signed = referred_var.data_type == model_classes.DataType.S
 		size = referred_var.size
-		static = referred_var.static
+		#static = referred_var.static
+		scalar = referred_var
 	elif isinstance(referred_var, model_classes.Constant):
 		signed = referred_var.value < 0
 		size = context.native_size
@@ -300,7 +377,9 @@ def named_reference(self: model_classes.NamedReference, context: TransformerCont
 	if context.ignore_static:
 		static = StaticType.RW
 
-	return CodeString(name, static, size, signed, False)
+	c = CodeString(name, static, size, signed, False)
+	c.scalar = scalar
+	return c
 
 def indexed_reference(self: model_classes.IndexedReference, context: TransformerContext):
 	name = self.reference.name

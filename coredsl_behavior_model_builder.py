@@ -138,10 +138,7 @@ class BehaviorModelBuilder(Transformer):
 
 		return model_classes.Conditional(cond, then_stmts, else_stmts)
 
-	def procedure(self, args):
-		return self.function(args)
-
-	def function(self, args):
+	def _callable(self, args, type: model_classes.Callable):
 		name, fn_args = args
 
 		if name not in self._functions:
@@ -151,7 +148,13 @@ class BehaviorModelBuilder(Transformer):
 		else:
 			name = self._functions[name]
 
-		return model_classes.FunctionCall(name, fn_args)
+		return type(name, fn_args)
+
+	def procedure(self, args):
+		return self._callable(args, model_classes.ProcedureCall)
+
+	def function(self, args):
+		return self._callable(args, model_classes.FunctionCall)
 
 	def fn_args(self, args):
 		return args

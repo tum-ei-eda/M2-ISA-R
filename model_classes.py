@@ -334,10 +334,16 @@ class TypeConv(BaseNode):
 		self.size = size
 		self.expr = expr
 
-class FunctionCall(BaseNode):
+class Callable(BaseNode):
 	def __init__(self, ref_or_name: Union[str, Function], args: List[BaseNode]) -> None:
 		self.ref_or_name = ref_or_name
 		self.args = args if args is not None else []
+
+class FunctionCall(Callable):
+	pass
+
+class ProcedureCall(Callable):
+	pass
 
 class Group(BaseNode):
 	def __init__(self, expr: BaseNode):
