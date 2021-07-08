@@ -4,13 +4,14 @@ from typing import Dict, List
 
 from mako.template import Template
 
-import model_classes
+from ...metamodel import arch
+from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
 
-def write_child_reg_def(reg: model_classes.Memory, regs: List[str]):
+def write_child_reg_def(reg: arch.Memory, regs: List[str]):
 	logger.debug("processing register %s", reg)
-	if model_classes.RegAttribute.IS_PC in reg.attributes or model_classes.SpaceAttribute.IS_MAIN_MEM in reg.attributes:
+	if arch.RegAttribute.IS_PC in reg.attributes or arch.SpaceAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
 		return
 
@@ -26,8 +27,8 @@ def write_child_reg_def(reg: model_classes.Memory, regs: List[str]):
 	else:
 		regs.append(f"etiss_uint{reg.actual_size} {reg.name}{array_txt}")
 
-def write_arch_struct(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_struct_template = Template(filename='templates/etiss_arch_struct.mako')
+def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))
 	regs = []
 
 	for mem_name, mem_desc in core.memories.items():
@@ -43,8 +44,8 @@ def write_arch_struct(core: model_classes.CoreDef, start_time: str, output_path:
 	with open(output_path / f"{core.name}.h", "w") as f:
 		f.write(txt)
 
-def write_arch_header(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename='templates/etiss_arch_h.mako')
+def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_h.mako'))
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -56,7 +57,7 @@ def write_arch_header(core: model_classes.CoreDef, start_time: str, output_path:
 	with open(output_path / f"{core.name}Arch.h", "w") as f:
 		f.write(txt)
 
-def build_reg_hierarchy(reg: model_classes.Memory, ptr_regs: List[model_classes.Memory], actual_regs: List[model_classes.Memory], alias_regs: Dict[model_classes.Memory, model_classes.Memory]):
+def build_reg_hierarchy(reg: arch.Memory, ptr_regs: List[arch.Memory], actual_regs: List[arch.Memory], alias_regs: Dict[arch.Memory, arch.Memory]):
 	if len(reg.children) > 0:
 		for child in reg.children:
 			if child.is_main_mem:
@@ -68,8 +69,8 @@ def build_reg_hierarchy(reg: model_classes.Memory, ptr_regs: List[model_classes.
 	else:
 		actual_regs.append(reg)
 
-def write_arch_cpp(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
-	arch_header_template = Template(filename='templates/etiss_arch_cpp.mako')
+def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
 
 	ptr_regs = []
 	actual_regs = []
@@ -101,8 +102,8 @@ def write_arch_cpp(core: model_classes.CoreDef, start_time: str, output_path: pa
 	with open(output_path / f"{core.name}Arch.cpp", "w") as f:
 		f.write(txt)
 
-def write_arch_lib(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename='templates/etiss_arch_lib.mako')
+def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_lib.mako'))
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -113,8 +114,8 @@ def write_arch_lib(core: model_classes.CoreDef, start_time: str, output_path: pa
 	with open(output_path / f"{core.name}ArchLib.cpp", "w") as f:
 		f.write(txt)
 
-def write_arch_specific_header(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename='templates/etiss_arch_specific_h.mako')
+def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_h.mako'))
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -126,8 +127,8 @@ def write_arch_specific_header(core: model_classes.CoreDef, start_time: str, out
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w") as f:
 		f.write(txt)
 
-def write_arch_specific_cpp(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename='templates/etiss_arch_specific_cpp.mako')
+def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -139,8 +140,8 @@ def write_arch_specific_cpp(core: model_classes.CoreDef, start_time: str, output
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w") as f:
 		f.write(txt)
 
-def write_arch_gdbcore(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename='templates/etiss_arch_gdbcore.mako')
+def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_gdbcore.mako'))
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -152,8 +153,8 @@ def write_arch_gdbcore(core: model_classes.CoreDef, start_time: str, output_path
 	with open(output_path / f"{core.name}GDBCore.h", "w") as f:
 		f.write(txt)
 
-def write_arch_cmake(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
-	arch_header_template = Template(filename='templates/etiss_arch_cmake.mako')
+def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
+	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cmake.mako'))
 
 	arch_files = [f'{core.name}Instr.cpp']
 	if separate:

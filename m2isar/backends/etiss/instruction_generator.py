@@ -4,18 +4,18 @@ from string import Template as strfmt
 
 from mako.template import Template
 
-import etiss_instruction_transform
-import etiss_instruction_utils
-import model_classes
+from ...metamodel import arch, behav
+from . import instruction_transform, instruction_utils
+from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
 
 def patch_model():
-	"""Monkey patch transformation functions inside etiss_instruction_transform
+	"""Monkey patch transformation functions inside instruction_transform
 	into model_classes.behav classes
 	"""
 
-	for name, fn in inspect.getmembers(etiss_instruction_transform, inspect.isfunction):
+	for name, fn in inspect.getmembers(instruction_transform, inspect.isfunction):
 		sig = inspect.signature(fn)
 		param = sig.parameters.get("self")
 		if not param:
@@ -30,12 +30,12 @@ def patch_model():
 
 patch_model()
 
-def generate_functions(core: model_classes.CoreDef):
+def generate_functions(core: arch.CoreDef):
 	"""Return a generator object to generate function behavior code. Uses function
 	definitions in the core object.
 	"""
 
-	fn_template = Template(filename='templates/etiss_function.mako')
+	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
 
 	core_default_width = core.constants['XLEN'].value
 	core_name = core.name
@@ -43,11 +43,11 @@ def generate_functions(core: model_classes.CoreDef):
 	for fn_name, fn_def in core.functions.items():
 		logger.debug("setting up function generator for %s", fn_name)
 
-		return_type = etiss_instruction_utils.data_type_map[fn_def.data_type]
+		return_type = instruction_utils.data_type_map[fn_def.data_type]
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
 
-		context = etiss_instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -58,7 +58,7 @@ def generate_functions(core: model_classes.CoreDef):
 
 		logger.debug("generating header for %s", fn_name)
 
-		args_list = [f'{etiss_instruction_utils.data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
+		args_list = [f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
 		if not fn_def.static:
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
@@ -75,7 +75,7 @@ def generate_functions(core: model_classes.CoreDef):
 
 		yield (fn_name, templ_str)
 
-def generate_fields(core_default_width, instr_def: model_classes.Instruction):
+def generate_fields(core_default_width, instr_def: arch.Instruction):
 	"""Generate the extraction code for all fields of an instr_def"""
 
 	enc_idx = 0
@@ -88,11 +88,11 @@ def generate_fields(core_default_width, instr_def: model_classes.Instruction):
 	logger.debug("generating instruction parameters for %s", instr_def.name)
 
 	for enc in reversed(instr_def.encoding):
-		if isinstance(enc, model_classes.BitField):
+		if isinstance(enc, arch.BitField):
 			logger.debug("adding parameter %s", enc.name)
 			if enc.name not in seen_fields:
 				seen_fields[enc.name] = 255
-				fields_code += f'{etiss_instruction_utils.data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
+				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
 			upper = enc.range.upper
@@ -118,7 +118,7 @@ def generate_fields(core_default_width, instr_def: model_classes.Instruction):
 		asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
 
 		# generate sign extension if necessary
-		if field_descr.data_type == model_classes.DataType.S and field_descr.upper + 1 < core_default_width:
+		if field_descr.data_type == arch.DataType.S and field_descr.upper + 1 < core_default_width:
 			fields_code += '\n'
 			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.upper+1};}} {field_name}_ext;\n'
 			fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
@@ -127,12 +127,12 @@ def generate_fields(core_default_width, instr_def: model_classes.Instruction):
 
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-def generate_instructions(core: model_classes.CoreDef):
+def generate_instructions(core: arch.CoreDef):
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
 
-	instr_template = Template(filename='templates/etiss_instruction.mako')
+	instr_template = Template(filename=str(template_dir/'etiss_instruction.mako'))
 
 	temp_var_count = 0
 	mem_var_count = 0
@@ -151,23 +151,23 @@ def generate_instructions(core: model_classes.CoreDef):
 
 		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
-		context = etiss_instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
 
 		# add pc increment to operation tree
-		if model_classes.InstrAttribute.NO_CONT not in instr_def.attributes:
+		if arch.InstrAttribute.NO_CONT not in instr_def.attributes:
 			logger.debug("appending PC increment to operation tree")
 			instr_def.operation.statements.append(
-				model_classes.Assignment(
-					model_classes.NamedReference(context.pc_mem),
-					model_classes.BinaryOperation(
-						model_classes.NamedReference(context.pc_mem),
-						model_classes.Operator("+"),
-						model_classes.NumberLiteral(int(enc_idx/8))
+				behav.Assignment(
+					behav.NamedReference(context.pc_mem),
+					behav.BinaryOperation(
+						behav.NamedReference(context.pc_mem),
+						behav.Operator("+"),
+						behav.NumberLiteral(int(enc_idx/8))
 					)
 				)
 			)
 
-		if model_classes.InstrAttribute.NO_CONT in instr_def.attributes and model_classes.InstrAttribute.COND not in instr_def.attributes:
+		if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes:
 			logger.debug("adding forced block end")
 			misc_code.append('ic.force_block_end_ = true;')
 

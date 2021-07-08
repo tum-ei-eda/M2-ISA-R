@@ -8,11 +8,11 @@ from typing import List
 
 from lark import Lark, Tree
 
-import model_classes
-from coredsl_architecture_model_builder import ArchitectureModelBuilder
-from coredsl_behavior_model_builder import BehaviorModelBuilder
-from instruction_set_storage import InstructionSetStorage
-from transformers import Importer, NaturalConverter, ParallelImporter, Parent
+from ...metamodel import arch
+from .architecture_model_builder import ArchitectureModelBuilder
+from .behavior_model_builder import BehaviorModelBuilder
+from .instruction_set_storage import InstructionSetStorage
+from .transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
 GRAMMAR_FNAME = 'coredsl.lark'
 def main():
@@ -23,6 +23,8 @@ def main():
 
 	args = parser.parse_args()
 
+	app_dir = pathlib.Path(__file__).parent.resolve()
+
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("parser")
 
@@ -30,7 +32,7 @@ def main():
 	abs_top_level = top_level.resolve()
 	search_path = abs_top_level.parent
 
-	parser_args = {'grammar_filename': GRAMMAR_FNAME, 'parser': 'earley', 'maybe_placeholders': True, 'debug': False}
+	parser_args = {'grammar_filename': app_dir/GRAMMAR_FNAME, 'parser': 'earley', 'maybe_placeholders': True, 'debug': False}
 
 	logger.info('reading grammar')
 	p = Lark.open(**parser_args)
@@ -67,7 +69,7 @@ def main():
 		logger.info(f'building architecture model for core {core_name}')
 
 		arch_builder = ArchitectureModelBuilder()
-		mt : List[model_classes.CoreDef] = arch_builder.transform(Tree('make_list', instruction_sets))
+		mt : List[arch.CoreDef] = arch_builder.transform(Tree('make_list', instruction_sets))
 
 		models[core_name] = mt[0]
 

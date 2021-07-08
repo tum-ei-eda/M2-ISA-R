@@ -1,23 +1,17 @@
 from dataclasses import dataclass
-from enum import Flag, auto
 from itertools import chain
 from string import Template
 from typing import Iterable, List, Mapping
 
-import etiss_replacements
-import model_classes
+from ...metamodel import arch
+from .. import StaticType
+from . import replacements
 
 data_type_map = {
-	model_classes.DataType.S: 'etiss_int',
-	model_classes.DataType.U: 'etiss_uint',
-	model_classes.DataType.NONE: 'void'
+	arch.DataType.S: 'etiss_int',
+	arch.DataType.U: 'etiss_uint',
+	arch.DataType.NONE: 'void'
 }
-
-class StaticType(Flag):
-	NONE = 0
-	READ = auto()
-	WRITE = auto()
-	RW = READ | WRITE
 
 MEM_VAL_REPL = 'mem_val_'
 
@@ -45,14 +39,14 @@ class CodeString:
 
 @dataclass
 class MemID:
-	mem_space: model_classes.Memory
+	mem_space: arch.Memory
 	mem_id: int
 	index: CodeString
 	access_size: int
 
 class TransformerContext:
-	def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory], fields: Mapping[str, model_classes.BitFieldDescr],
-			attribs: Iterable[model_classes.InstrAttribute], functions: Mapping[str, model_classes.Function],
+	def __init__(self, constants: Mapping[str, arch.Constant], memories: Mapping[str, arch.Memory], memory_aliases: Mapping[str, arch.Memory], fields: Mapping[str, arch.BitFieldDescr],
+			attribs: Iterable[arch.InstrAttribute], functions: Mapping[str, arch.Function],
 			instr_size: int, native_size: int, arch_name: str, ignore_static=False):
 
 		self.constants = constants
@@ -74,7 +68,7 @@ class TransformerContext:
 		self.pc_mem = None
 
 		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if model_classes.RegAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
+			if arch.RegAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
 				self.pc_mem = mem_descr
 				break
 
@@ -89,7 +83,7 @@ class TransformerContext:
 	def make_static(self, val):
 		if self.ignore_static:
 			return val
-		return Template(f'" + std::to_string({val}) + "').safe_substitute(**etiss_replacements.rename_static)
+		return Template(f'" + std::to_string({val}) + "').safe_substitute(**replacements.rename_static)
 
 	def get_constant_or_val(self, name_or_val):
 		if type(name_or_val) == int:

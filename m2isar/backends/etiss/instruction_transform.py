@@ -1,14 +1,13 @@
 from itertools import chain
 from string import Template
 
-import etiss_replacements
-import model_classes
-from etiss_instruction_utils import (MEM_VAL_REPL, CodeString, MemID,
-                                     StaticType, TransformerContext,
-                                     data_type_map)
+from ...metamodel import arch, behav
+from . import replacements
+from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
+                                TransformerContext, data_type_map)
 
 
-def operation(self: model_classes.Operation, context: TransformerContext):
+def operation(self: behav.Operation, context: TransformerContext):
 	args = [stmt.generate(context) for stmt in self.statements]
 
 	code_str = '\n'.join(args)
@@ -17,27 +16,27 @@ def operation(self: model_classes.Operation, context: TransformerContext):
 		code_str += '\npartInit.code() += "return exception;\\n";'
 	elif context.generates_exception:
 		code_str += '\npartInit.code() += "if (exception) return exception;\\n";'
-	elif model_classes.InstrAttribute.NO_CONT in context.attribs:
+	elif arch.InstrAttribute.NO_CONT in context.attribs:
 		code_str += '\npartInit.code() += "return 0;\\n";'
 
 	return code_str
 
-def return_(self: model_classes.Return, context: TransformerContext):
+def return_(self: behav.Return, context: TransformerContext):
 	return f'return {self.expr.generate(context).code};'
 
-def scalar_definition(self: model_classes.ScalarDefinition, context: TransformerContext):
+def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext):
 	context.scalars[self.scalar.name] = self.scalar
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.NONE, self.scalar.size, self.scalar.data_type == model_classes.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	c.scalar = self.scalar
 	return c
 
-def procedure_call(self: model_classes.ProcedureCall, context: TransformerContext):
+def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 	fn_args = [arg.generate(context) for arg in self.args]
 
-	if isinstance(self.ref_or_name, model_classes.Function):
+	if isinstance(self.ref_or_name, arch.Function):
 		fn = self.ref_or_name
 		static = fn.static
 
@@ -73,11 +72,11 @@ def procedure_call(self: model_classes.ProcedureCall, context: TransformerContex
 	elif self.ref_or_name == 'raise':
 		sender, code = fn_args
 		exc_id = (int(sender.code), int(code.code))
-		if exc_id not in etiss_replacements.exception_mapping:
+		if exc_id not in replacements.exception_mapping:
 			raise ValueError(f'Exception {exc_id} not defined!')
 
 		#context.generates_exception = True
-		return f'partInit.code() += "return {etiss_replacements.exception_mapping[exc_id]};\\n";'
+		return f'partInit.code() += "return {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif self.ref_or_name.startswith('dispatch_'):
 		if fn_args is None: fn_args = []
@@ -109,10 +108,10 @@ def procedure_call(self: model_classes.ProcedureCall, context: TransformerContex
 		raise ValueError(f'Function {self.ref_or_name} not recognized!')
 
 
-def function_call(self: model_classes.FunctionCall, context: TransformerContext):
+def function_call(self: behav.FunctionCall, context: TransformerContext):
 	fn_args = [arg.generate(context) for arg in self.args]
 
-	if isinstance(self.ref_or_name, model_classes.Function):
+	if isinstance(self.ref_or_name, arch.Function):
 		fn = self.ref_or_name
 		static = fn.static
 
@@ -143,11 +142,11 @@ def function_call(self: model_classes.FunctionCall, context: TransformerContext)
 	elif self.ref_or_name == 'raise':
 		sender, code = fn_args
 		exc_id = (int(sender.code), int(code.code))
-		if exc_id not in etiss_replacements.exception_mapping:
+		if exc_id not in replacements.exception_mapping:
 			raise ValueError(f'Exception {exc_id} not defined!')
 
 		context.generates_exception = True
-		return f'partInit.code() += "exception = {etiss_replacements.exception_mapping[exc_id]};\\n";'
+		return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif self.ref_or_name == 'choose':
 		cond, then_stmts, else_stmts = fn_args
@@ -233,7 +232,7 @@ def function_call(self: model_classes.FunctionCall, context: TransformerContext)
 	else:
 		raise ValueError(f'Function {self.ref_or_name} not recognized!')
 
-def conditional(self: model_classes.Conditional, context: TransformerContext):
+def conditional(self: behav.Conditional, context: TransformerContext):
 	cond = self.cond.generate(context)
 	then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
 	else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
@@ -254,7 +253,7 @@ def conditional(self: model_classes.Conditional, context: TransformerContext):
 
 	return code_str
 
-def assignment(self: model_classes.Assignment, context: TransformerContext):
+def assignment(self: behav.Assignment, context: TransformerContext):
 	target = self.target.generate(context)
 	expr = self.expr.generate(context)
 
@@ -272,13 +271,13 @@ def assignment(self: model_classes.Assignment, context: TransformerContext):
 
 	if expr.static:
 		if bool(target.static & StaticType.WRITE):
-			expr.code = Template(f'{expr.code}').safe_substitute(**etiss_replacements.rename_static)
+			expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
 
 		else:
 			expr.code = context.make_static(expr.code)
 
 	if bool(target.static & StaticType.READ):
-		target.code = Template(target.code).safe_substitute(etiss_replacements.rename_dynamic)
+		target.code = Template(target.code).safe_substitute(replacements.rename_dynamic)
 	code_str = ''
 
 	context.affected_regs.update(target.regs_affected)
@@ -313,7 +312,7 @@ def assignment(self: model_classes.Assignment, context: TransformerContext):
 
 	return code_str
 
-def binary_operation(self: model_classes.BinaryOperation, context: TransformerContext):
+def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	left = self.left.generate(context)
 	op = self.op
 	right = self.right.generate(context)
@@ -327,7 +326,7 @@ def binary_operation(self: model_classes.BinaryOperation, context: TransformerCo
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
-def unary_operation(self: model_classes.UnaryOperation, context: TransformerContext):
+def unary_operation(self: behav.UnaryOperation, context: TransformerContext):
 	op = self.op
 	right = self.right.generate(context)
 
@@ -335,40 +334,40 @@ def unary_operation(self: model_classes.UnaryOperation, context: TransformerCont
 	c.mem_ids = right.mem_ids
 	return c
 
-def named_reference(self: model_classes.NamedReference, context: TransformerContext):
+def named_reference(self: behav.NamedReference, context: TransformerContext):
 	referred_var = self.reference
 
 	static = StaticType.NONE
 	scalar = None
 
 	name = referred_var.name
-	if name in etiss_replacements.rename_static:
+	if name in replacements.rename_static:
 		name = f'${{{name}}}'
 		static = StaticType.READ
 
-	if isinstance(referred_var, model_classes.Memory):
+	if isinstance(referred_var, arch.Memory):
 		if not static:
 			ref = "*" if len(referred_var.children) > 0 else ""
-			name = f"{ref}{etiss_replacements.default_prefix}{name}"
+			name = f"{ref}{replacements.default_prefix}{name}"
 		signed = False
 		size = referred_var.size
 		context.used_arch_data = True
-	elif isinstance(referred_var, model_classes.BitFieldDescr):
-		signed = referred_var.data_type == model_classes.DataType.S
+	elif isinstance(referred_var, arch.BitFieldDescr):
+		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
 		static = StaticType.READ
-	elif isinstance(referred_var, model_classes.Scalar):
-		signed = referred_var.data_type == model_classes.DataType.S
+	elif isinstance(referred_var, arch.Scalar):
+		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
 		#static = referred_var.static
 		scalar = referred_var
-	elif isinstance(referred_var, model_classes.Constant):
+	elif isinstance(referred_var, arch.Constant):
 		signed = referred_var.value < 0
 		size = context.native_size
 		static = StaticType.READ
 		name = f'{referred_var.value}'
-	elif isinstance(referred_var, model_classes.FnParam):
-		signed = referred_var.data_type == model_classes.DataType.S
+	elif isinstance(referred_var, arch.FnParam):
+		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
 		static = StaticType.RW
 	else:
@@ -381,7 +380,7 @@ def named_reference(self: model_classes.NamedReference, context: TransformerCont
 	c.scalar = scalar
 	return c
 
-def indexed_reference(self: model_classes.IndexedReference, context: TransformerContext):
+def indexed_reference(self: behav.IndexedReference, context: TransformerContext):
 	name = self.reference.name
 	index = self.index.generate(context)
 
@@ -398,25 +397,25 @@ def indexed_reference(self: model_classes.IndexedReference, context: Transformer
 	else:
 		static = StaticType.NONE
 
-	if model_classes.SpaceAttribute.IS_MAIN_MEM in referred_mem.attributes:
+	if arch.SpaceAttribute.IS_MAIN_MEM in referred_mem.attributes:
 		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, True)
 		c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 		context.mem_var_count += 1
 		return c
 	else:
-		code_str = f'{etiss_replacements.prefixes.get(name, etiss_replacements.default_prefix)}{name}[{index.code}]'
+		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
 		if size != referred_mem.size:
 			code_str = f'(etiss_uint{size})' + code_str
 		c = CodeString(code_str, static, size, False, False)
-		if model_classes.RegAttribute.IS_MAIN_REG in referred_mem.attributes:
+		if arch.RegAttribute.IS_MAIN_REG in referred_mem.attributes:
 			c.regs_affected.add(index_code)
 		return c
 
-def type_conv(self: model_classes.TypeConv, context: TransformerContext):
+def type_conv(self: behav.TypeConv, context: TransformerContext):
 	expr = self.expr.generate(context)
 
 	if self.data_type is None:
-		self.data_type = model_classes.DataType.S if expr.signed else model_classes.DataType.U
+		self.data_type = arch.DataType.S if expr.signed else arch.DataType.U
 
 	if self.size is None:
 		self.size = expr.actual_size
@@ -432,16 +431,16 @@ def type_conv(self: model_classes.TypeConv, context: TransformerContext):
 
 		return expr
 
-	c = CodeString(f'({data_type_map[self.data_type]}{self.size})({expr.code})', expr.static, self.size, self.data_type == model_classes.DataType.S, expr.is_mem_access, expr.regs_affected)
+	c = CodeString(f'({data_type_map[self.data_type]}{self.size})({expr.code})', expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
 	c.mem_ids = expr.mem_ids
 	return c
 
-def number_literal(self: model_classes.NumberLiteral, context: TransformerContext):
+def number_literal(self: behav.NumberLiteral, context: TransformerContext):
 	lit = self.value
 	size = int(lit).bit_length()
 	return CodeString(str(lit), True, size, int(lit) < 0, False)
 
-def group(self: model_classes.Group, context: TransformerContext):
+def group(self: behav.Group, context: TransformerContext):
 	expr = self.expr.generate(context)
 	if isinstance(expr, CodeString):
 		expr.code = f'({expr.code})'
@@ -449,5 +448,5 @@ def group(self: model_classes.Group, context: TransformerContext):
 		expr = f'({expr})'
 	return expr
 
-def operator(self: model_classes.Operator, context: TransformerContext):
+def operator(self: behav.Operator, context: TransformerContext):
 	return self.op

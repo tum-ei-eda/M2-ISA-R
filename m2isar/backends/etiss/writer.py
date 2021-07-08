@@ -6,13 +6,14 @@ import pathlib
 import pickle
 import time
 
-from etiss_architecture_writer import (write_arch_cmake, write_arch_cpp,
-                                       write_arch_gdbcore, write_arch_header,
-                                       write_arch_lib, write_arch_specific_cpp,
-                                       write_arch_specific_header,
-                                       write_arch_struct)
-from etiss_instruction_writer import write_functions, write_instructions
+from .architecture_writer import (write_arch_cmake, write_arch_cpp,
+                                  write_arch_gdbcore, write_arch_header,
+                                  write_arch_lib, write_arch_specific_cpp,
+                                  write_arch_specific_header,
+                                  write_arch_struct)
+from .instruction_writer import write_functions, write_instructions
 
+app_dir = pathlib.Path(__file__).parent.resolve()
 
 def setup():
 	parser = argparse.ArgumentParser()

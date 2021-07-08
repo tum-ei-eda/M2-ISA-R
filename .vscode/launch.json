@@ -5,18 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Parse CoreDSL",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
+            "module": "m2isar.frontends.coredsl.parser",
+            "args": [
+                "-j1",
+                "${input:inputFile}"
+            ],
+            "stopOnEntry": true
         },
         {
             "name": "Generate ETISS",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/etiss_writer.py",
-            "console": "integratedTerminal",
+            "module": "m2isar.backends.etiss.writer",
             "args": [
                 "--separate",
                 "${input:inputFile}"
@@ -24,40 +27,11 @@
             "stopOnEntry": true
         },
         {
-            "name": "Generate Test",
+            "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/test.py",
-            "console": "integratedTerminal",
-            "args": [
-                //"--separate",
-                "${input:inputFile}"
-            ],
-            "stopOnEntry": true
-        },
-        {
-            "name": "Generate Pickle",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/pickle_writer.py",
-            "console": "integratedTerminal",
-            "args": [
-                //"--separate",
-                "${input:inputFile}"
-            ],
-            "stopOnEntry": true
-        },
-        {
-            "name": "Parse CoreDSL",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/coredsl_parser.py",
-            "console": "integratedTerminal",
-            "args": [
-                "-j1",
-                "${input:inputFile}"
-            ],
-            "stopOnEntry": true
+            "program": "${file}",
+            "console": "integratedTerminal"
         }
     ],
     "inputs": [

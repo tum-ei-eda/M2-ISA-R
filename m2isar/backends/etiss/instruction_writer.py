@@ -4,15 +4,15 @@ from contextlib import ExitStack
 
 from mako.template import Template
 
-import model_classes
-from etiss_instruction_generator import (generate_functions,
-                                         generate_instructions)
+from ...metamodel import arch
+from .instruction_generator import generate_functions, generate_instructions
+from .templates import template_dir
 
 logger = logging.getLogger("instruction_writer")
 
-def write_functions(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path):
-	fn_set_header_template = Template(filename='templates/etiss_function_set_header.mako')
-	fn_set_footer_template = Template(filename='templates/etiss_function_set_footer.mako')
+def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+	fn_set_header_template = Template(filename=str(template_dir/'etiss_function_set_header.mako'))
+	fn_set_footer_template = Template(filename=str(template_dir/'etiss_function_set_footer.mako'))
 
 	core_name = core.name
 
@@ -32,8 +32,8 @@ def write_functions(core: model_classes.CoreDef, start_time: str, output_path: p
 
 		funcs_f.write(fn_set_str)
 
-def write_instructions(core: model_classes.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
-	instr_set_template = Template(filename='templates/etiss_instruction_set.mako')
+def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
+	instr_set_template = Template(filename=str(template_dir/'etiss_instruction_set.mako'))
 
 	outfiles = {}
 	core_name = core.name

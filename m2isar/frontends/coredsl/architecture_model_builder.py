@@ -3,23 +3,23 @@ from typing import List, Mapping, Set, Tuple, Union
 
 from lark import Discard, Transformer, Tree
 
-import model_classes
+from ...metamodel import arch
 
 logger = logging.getLogger("architecture")
 
 class ArchitectureModelBuilder(Transformer):
 	"""Builds the architecture model of a Core from a lark parse tree"""
 
-	_constants: Mapping[str, model_classes.Constant]
-	_instructions: Mapping[str, model_classes.Instruction]
-	_functions: Mapping[str, model_classes.Function]
-	_instruction_sets: Mapping[str, model_classes.InstructionSet]
+	_constants: Mapping[str, arch.Constant]
+	_instructions: Mapping[str, arch.Instruction]
+	_functions: Mapping[str, arch.Function]
+	_instruction_sets: Mapping[str, arch.InstructionSet]
 	_read_types: Mapping[str, str]
-	_memories: Mapping[str, model_classes.Memory]
-	_memory_aliases: Mapping[str, model_classes.Memory]
-	_overwritten_instrs: List[Tuple[model_classes.Instruction, model_classes.Instruction]]
+	_memories: Mapping[str, arch.Memory]
+	_memory_aliases: Mapping[str, arch.Memory]
+	_overwritten_instrs: List[Tuple[arch.Instruction, arch.Instruction]]
 	_instr_classes: Set[int]
-	_main_reg_file: Union[model_classes.Memory, None]
+	_main_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
 		self._constants = {}
@@ -78,37 +78,37 @@ class ArchitectureModelBuilder(Transformer):
 	def instructions(self, instructions):
 		return instructions
 
-	def range_spec(self, args) -> model_classes.RangeSpec:
+	def range_spec(self, args) -> arch.RangeSpec:
 		"""Build a rangespec."""
 
-		return model_classes.RangeSpec(*args)
+		return arch.RangeSpec(*args)
 
-	def CONST_ATTRIBUTE(self, args) -> model_classes.ConstAttribute:
-		return model_classes.ConstAttribute[args.value.upper()]
+	def CONST_ATTRIBUTE(self, args) -> arch.ConstAttribute:
+		return arch.ConstAttribute[args.value.upper()]
 
-	def const_attributes(self, args) -> Set[model_classes.ConstAttribute]:
+	def const_attributes(self, args) -> Set[arch.ConstAttribute]:
 		return set(args)
 
 	def REG_ATTRIBUTE(self, args):
-		return model_classes.RegAttribute[args.value.upper()]
+		return arch.RegAttribute[args.value.upper()]
 
 	def reg_attributes(self, args):
 		return set(args)
 
 	def SPACE_ATTRIBUTE(self, args):
-		return model_classes.SpaceAttribute[args.value.upper()]
+		return arch.SpaceAttribute[args.value.upper()]
 
 	def space_attributes(self, args):
 		return set(args)
 
 	def INSTR_ATTRIBUTE(self, args):
-		return model_classes.InstrAttribute[args.value.upper()]
+		return arch.InstrAttribute[args.value.upper()]
 
 	def instr_attributes(self, args):
 		return set(args)
 
 	def DATA_TYPE(self, args):
-		return model_classes.DataType[args.value.upper()]
+		return arch.DataType[args.value.upper()]
 
 	def TEXT(self, args):
 		return args.value
@@ -122,7 +122,7 @@ class ArchitectureModelBuilder(Transformer):
 			raise ValueError(f'Constant {name} already defined!')
 
 		if name in self._constants: return self._constants[name]
-		c = model_classes.Constant(name, default_value, set())
+		c = arch.Constant(name, default_value, set())
 		self._constants[name] = c
 		logger.debug(f'constant_decl {str(c)}')
 		return c
@@ -140,7 +140,7 @@ class ArchitectureModelBuilder(Transformer):
 
 			logger.debug(f'constant_def {str(c)}, used existing')
 		else:
-			c = model_classes.Constant(name, value, attributes)
+			c = arch.Constant(name, value, attributes)
 			self._constants[name] = c
 
 			logger.debug(f'constant_def {str(c)}')
@@ -161,7 +161,7 @@ class ArchitectureModelBuilder(Transformer):
 		length_base = self.get_constant_or_val(length_base)
 		length_power = self.get_constant_or_val(length_power) if length_power is not None else 1
 
-		m = model_classes.Memory(name, model_classes.RangeSpec(length_base, 0, length_power), size, attribs)
+		m = arch.Memory(name, arch.RangeSpec(length_base, 0, length_power), size, attribs)
 		self._memories[name] = m
 
 		logger.debug(f'address_space {str(m)}')
@@ -179,7 +179,7 @@ class ArchitectureModelBuilder(Transformer):
 
 		size = self.get_constant_or_val(size)
 
-		m = model_classes.Memory(name, model_classes.RangeSpec(0, 0), size, attributes)
+		m = arch.Memory(name, arch.RangeSpec(0, 0), size, attributes)
 		self._memories[name] = m
 
 		logger.debug(f'register {str(m)}')
@@ -197,10 +197,10 @@ class ArchitectureModelBuilder(Transformer):
 
 		size = self.get_constant_or_val(size)
 
-		m = model_classes.Memory(name, _range, size, attributes)
+		m = arch.Memory(name, _range, size, attributes)
 		self._memories[name] = m
 
-		if attributes is not None and model_classes.RegAttribute.IS_MAIN_REG in attributes:
+		if attributes is not None and arch.RegAttribute.IS_MAIN_REG in attributes:
 			self._main_reg_file = m
 
 		logger.debug(f'register_file {str(m)}')
@@ -218,14 +218,14 @@ class ArchitectureModelBuilder(Transformer):
 
 		size = self.get_constant_or_val(size)
 
-		if not isinstance(index, model_classes.RangeSpec):
-			index = model_classes.RangeSpec(index, index)
+		if not isinstance(index, arch.RangeSpec):
+			index = arch.RangeSpec(index, index)
 
 		parent_mem = self._memories.get(actual) or self._memory_aliases.get(actual)
 		if parent_mem is None:
 			raise ValueError(f'Parent register {actual} for alias {name} not defined!')
 
-		m = model_classes.Memory(name, index, size, attributes)
+		m = arch.Memory(name, index, size, attributes)
 		m.parent = parent_mem
 		parent_mem.children.append(m)
 		self._memory_aliases[name] = m
@@ -236,15 +236,15 @@ class ArchitectureModelBuilder(Transformer):
 	def bit_field(self, args):
 		name, _range, data_type = args
 		if not data_type:
-			data_type = model_classes.DataType.U
+			data_type = arch.DataType.U
 
-		b = model_classes.BitField(name, _range, data_type)
+		b = arch.BitField(name, _range, data_type)
 
 		logger.debug(f'bit_field {str(b)}')
 		return b
 
 	def BVAL(self, num):
-		return model_classes.BitVal(len(num) - 1, int('0'+num, 2))
+		return arch.BitVal(len(num) - 1, int('0'+num, 2))
 
 	def bit_size_spec(self, args):
 		size, = args
@@ -261,7 +261,7 @@ class ArchitectureModelBuilder(Transformer):
 
 		name, attributes, encoding, disass, operation = args
 
-		i = model_classes.Instruction(name, attributes, encoding, disass, operation)
+		i = arch.Instruction(name, attributes, encoding, disass, operation)
 		self._instr_classes.add(i.size)
 
 		instr_id = (i.code, i.mask)
@@ -284,11 +284,11 @@ class ArchitectureModelBuilder(Transformer):
 
 		name, data_type, size = args
 		if not data_type:
-			data_type = model_classes.DataType.U
+			data_type = arch.DataType.U
 
 		size = self.get_constant_or_val(size)
 
-		fp = model_classes.FnParam(name, size, data_type)
+		fp = arch.FnParam(name, size, data_type)
 		logger.debug(f'fn_param {str(fp)}')
 		return fp
 
@@ -301,12 +301,12 @@ class ArchitectureModelBuilder(Transformer):
 		return_len, name, fn_args, data_type, attributes, operation = args
 
 		if not data_type and not return_len:
-			data_type = model_classes.DataType.NONE
+			data_type = arch.DataType.NONE
 		elif not data_type:
-			data_type = model_classes.DataType.U
+			data_type = arch.DataType.U
 
 		return_len = self.get_constant_or_val(return_len) if return_len else None
-		f = model_classes.Function(name, return_len, data_type, fn_args, operation)
+		f = arch.Function(name, return_len, data_type, fn_args, operation)
 
 		self._functions[name] = f
 
@@ -334,7 +334,7 @@ class ArchitectureModelBuilder(Transformer):
 				functions_dict[f.name] = f
 				f.ext_name = name
 
-		i_s = model_classes.InstructionSet(name, extension, constants, address_spaces, registers, functions_dict, instructions_dict)
+		i_s = arch.InstructionSet(name, extension, constants, address_spaces, registers, functions_dict, instructions_dict)
 		self._instruction_sets[name] = i_s
 		self._read_types[name] = None
 
@@ -363,7 +363,7 @@ class ArchitectureModelBuilder(Transformer):
 		"""Define a Core. Collects all seen constants, memories, functions and instructions."""
 
 		name, _, template, _, _, _, _, _, _ = args
-		c = model_classes.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
+		c = arch.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
 
 		logger.debug(f'core_def {str(c)}')
 		return c

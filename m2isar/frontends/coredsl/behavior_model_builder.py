@@ -3,14 +3,14 @@ from typing import Mapping, Set
 
 from lark import Transformer
 
-import model_classes
-from etiss_instruction_utils import StaticType
+from ...backends import StaticType
+from ...metamodel import arch, behav
 
 logger = logging.getLogger("behavior")
 
 class BehaviorModelBuilder(Transformer):
-	def __init__(self, constants: Mapping[str, model_classes.Constant], memories: Mapping[str, model_classes.Memory], memory_aliases: Mapping[str, model_classes.Memory],
-		fields: Mapping[str, model_classes.BitFieldDescr], functions: Mapping[str, model_classes.Function], warned_fns: Set[str]):
+	def __init__(self, constants: Mapping[str, arch.Constant], memories: Mapping[str, arch.Memory], memory_aliases: Mapping[str, arch.Memory],
+		fields: Mapping[str, arch.BitFieldDescr], functions: Mapping[str, arch.Function], warned_fns: Set[str]):
 
 		self._constants = constants
 		self._memories = memories
@@ -32,7 +32,7 @@ class BehaviorModelBuilder(Transformer):
 	PROCEDURENAME = FUNCTIONNAME
 
 	def ADD_OP(self, args):
-		op = model_classes.Operator(args.value)
+		op = behav.Operator(args.value)
 		logger.debug(f'operator {str(op)}')
 		return op
 
@@ -53,7 +53,7 @@ class BehaviorModelBuilder(Transformer):
 		return args
 
 	def operation(self, args):
-		op = model_classes.Operation(args)
+		op = behav.Operation(args)
 		logger.debug(f'operation {str(op)}')
 		return op
 
@@ -66,23 +66,23 @@ class BehaviorModelBuilder(Transformer):
 		size_val = self.get_constant_or_val(size)
 
 		if not data_type:
-			data_type = model_classes.DataType.U
+			data_type = arch.DataType.U
 
-		s = model_classes.Scalar(name, None, StaticType.WRITE, size_val, data_type)
+		s = arch.Scalar(name, None, StaticType.WRITE, size_val, data_type)
 
 		self._scalars[name] = s
 
-		sd = model_classes.ScalarDefinition(s)
+		sd = behav.ScalarDefinition(s)
 		logger.debug(f'scalar_definition {str(sd)}')
 		return sd
 
 	def return_(self, args):
-		return model_classes.Return(args[0])
+		return behav.Return(args[0])
 
 	def assignment(self, args):
 		target, expr = args
 
-		return model_classes.Assignment(target, expr)
+		return behav.Assignment(target, expr)
 
 	def indexed_reference(self, args):
 		name, index_expr, size = args
@@ -91,11 +91,11 @@ class BehaviorModelBuilder(Transformer):
 		if referred_mem is None:
 			raise ValueError(f"Indexed reference {name} does not exist!")
 
-		ref = model_classes.IndexedReference(referred_mem, index_expr)
+		ref = behav.IndexedReference(referred_mem, index_expr)
 		if size is None:
 			return ref
 		else:
-			return model_classes.TypeConv(None, size, ref)
+			return behav.TypeConv(None, size, ref)
 
 	def named_reference(self, args):
 		name, size = args
@@ -108,37 +108,37 @@ class BehaviorModelBuilder(Transformer):
 		if var is None:
 			raise ValueError(f"Named reference {name} does not exist!")
 
-		ref = model_classes.NamedReference(var)
+		ref = behav.NamedReference(var)
 		if size is None:
 			return ref
 		else:
-			return model_classes.TypeConv(None, size, ref)
+			return behav.TypeConv(None, size, ref)
 
 	def two_op_expr(self, args):
 		left, op, right = args
 
-		return model_classes.BinaryOperation(left, op, right)
+		return behav.BinaryOperation(left, op, right)
 
 	def unitary_expr(self, args):
 		op, right = args
 
-		return model_classes.UnaryOperation(op, right)
+		return behav.UnaryOperation(op, right)
 
 	def number_literal(self, args):
 		lit, = args
-		return model_classes.NumberLiteral(int(lit))
+		return behav.NumberLiteral(int(lit))
 
 	def type_conv(self, args):
 		expr, data_type = args
 
-		return model_classes.TypeConv(data_type, None, expr)
+		return behav.TypeConv(data_type, None, expr)
 
 	def conditional(self, args):
 		cond, then_stmts, else_stmts = args
 
-		return model_classes.Conditional(cond, then_stmts, else_stmts)
+		return behav.Conditional(cond, then_stmts, else_stmts)
 
-	def _callable(self, args, type: model_classes.Callable):
+	def _callable(self, args, type: behav.Callable):
 		name, fn_args = args
 
 		if name not in self._functions:
@@ -151,14 +151,14 @@ class BehaviorModelBuilder(Transformer):
 		return type(name, fn_args)
 
 	def procedure(self, args):
-		return self._callable(args, model_classes.ProcedureCall)
+		return self._callable(args, behav.ProcedureCall)
 
 	def function(self, args):
-		return self._callable(args, model_classes.FunctionCall)
+		return self._callable(args, behav.FunctionCall)
 
 	def fn_args(self, args):
 		return args
 
 	def parens(self, args):
 		expr, = args
-		return model_classes.Group(expr)
+		return behav.Group(expr)
