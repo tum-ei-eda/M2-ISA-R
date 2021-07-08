@@ -31,7 +31,33 @@ Notes:
 ### Parser:
 Currently, a CoreDSL parser is provided. This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces.
 
-The parser can be called by `python -m m2isar.frontends.coredsl.parser`. Use `--help` to get usage information.
+The parser can be called by `python -m m2isar.frontends.coredsl.parser`. Usage:
+
+```
+$ python -m m2isar.frontends.coredsl.parser --help
+usage: parser.py [-h] [-j PARALLEL] [--log {critical,error,warning,info,debug}] top_level
+
+positional arguments:
+  top_level             The top-level CoreDSL file.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j PARALLEL           Use PARALLEL threads while parsing.
+  --log {critical,error,warning,info,debug}
+```
 
 ### Writer:
-A writer backend for ETISS is provided. Call it like this: `python -m m2isar.backends.etiss.writer`. Again, use `--help` to get usage information.
+A writer backend for ETISS is provided. Call it like this: `python -m m2isar.backends.etiss.writer`. Usage:
+
+```
+$ python -m m2isar.backends.etiss.writer --help
+usage: writer.py [-h] [-s] [--log {critical,error,warning,info,debug}] top_level
+
+positional arguments:
+  top_level             A .m2isarmodel file containing the models to generate.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s, --separate        Generate separate .cpp files for each instruction set.
+  --log {critical,error,warning,info,debug}
+```

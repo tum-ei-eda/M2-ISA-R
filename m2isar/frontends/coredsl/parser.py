@@ -18,8 +18,8 @@ GRAMMAR_FNAME = 'coredsl.lark'
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("top_level")
-	parser.add_argument("-j", default=1, type=int, dest='parallel')
+	parser.add_argument("top_level", help="The top-level CoreDSL file.")
+	parser.add_argument("-j", default=1, type=int, dest='parallel', help="Use PARALLEL threads while parsing.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 
 	args = parser.parse_args()
@@ -101,7 +101,7 @@ def main():
 				instr_def.operation = behav_builder.transform(instr_def.operation)
 
 	logger.info('dumping model')
-	with open(model_path / (abs_top_level.stem + '_model.pickle'), 'wb') as f:
+	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
 		pickle.dump(models, f)
 
 if __name__ == "__main__":

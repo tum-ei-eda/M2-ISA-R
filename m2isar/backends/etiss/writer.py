@@ -14,8 +14,8 @@ from .instruction_writer import write_functions, write_instructions
 
 def setup():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('top_level')
-	parser.add_argument('-s', '--separate', action='store_true')
+	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
+	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -24,18 +24,25 @@ def setup():
 
 	top_level = pathlib.Path(args.top_level)
 	abs_top_level = top_level.resolve()
-	search_path = abs_top_level.parent
-	model_path = search_path.joinpath('gen_model')
+	search_path = abs_top_level.parent.parent
+	model_fname = abs_top_level
+
+	if abs_top_level.suffix == ".core_desc":
+		print("WARN: .core_desc file passed as input. This is deprecated behavior, please change your scripts!")
+		search_path = abs_top_level.parent
+		model_path = search_path.joinpath('gen_model')
+
+		if not model_path.exists():
+			raise FileNotFoundError('Models not generated!')
+		model_fname = model_path / (abs_top_level.stem + '.m2isarmodel')
+
 	spec_name = abs_top_level.stem
-
-	if not model_path.exists():
-		raise FileNotFoundError('Models not generated!')
-
 	output_base_path = search_path.joinpath('gen_output')
 	output_base_path.mkdir(exist_ok=True)
 
 	logger.info("loading models")
-	with open(model_path / (abs_top_level.stem + '_model.pickle'), 'rb') as f:
+
+	with open(model_fname, 'rb') as f:
 		models = pickle.load(f)
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
