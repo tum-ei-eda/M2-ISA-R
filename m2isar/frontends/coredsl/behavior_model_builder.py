@@ -6,6 +6,7 @@ from lark import Transformer
 from ...backends import StaticType
 from ...metamodel import arch, behav
 
+
 logger = logging.getLogger("behavior")
 
 class BehaviorModelBuilder(Transformer):

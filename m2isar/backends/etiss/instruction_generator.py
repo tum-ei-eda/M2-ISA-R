@@ -8,6 +8,7 @@ from ...metamodel import arch, behav
 from . import instruction_transform, instruction_utils
 from .templates import template_dir
 
+
 logger = logging.getLogger("instruction_generator")
 
 def patch_model():

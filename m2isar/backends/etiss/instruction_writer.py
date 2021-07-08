@@ -8,6 +8,7 @@ from ...metamodel import arch
 from .instruction_generator import generate_functions, generate_instructions
 from .templates import template_dir
 
+
 logger = logging.getLogger("instruction_writer")
 
 def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):

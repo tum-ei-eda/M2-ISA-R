@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-
 import pickle
 
 from . import instruction_generator
-from .etiss_writer import setup
+from .writer import setup
 
 
 def main():

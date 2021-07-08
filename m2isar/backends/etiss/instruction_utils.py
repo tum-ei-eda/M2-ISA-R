@@ -13,6 +13,7 @@ data_type_map = {
 	arch.DataType.NONE: 'void'
 }
 
+
 MEM_VAL_REPL = 'mem_val_'
 
 class CodeString:

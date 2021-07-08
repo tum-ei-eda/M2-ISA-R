@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import logging
 import pathlib
@@ -13,7 +11,6 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
 
-app_dir = pathlib.Path(__file__).parent.resolve()
 
 def setup():
 	parser = argparse.ArgumentParser()

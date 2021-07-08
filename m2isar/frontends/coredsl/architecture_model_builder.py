@@ -5,6 +5,7 @@ from lark import Discard, Transformer, Tree
 
 from ...metamodel import arch
 
+
 logger = logging.getLogger("architecture")
 
 class ArchitectureModelBuilder(Transformer):

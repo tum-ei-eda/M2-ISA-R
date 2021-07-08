@@ -2,6 +2,9 @@ from collections import namedtuple
 from enum import Enum, auto
 from typing import Iterable, List, Mapping, Set, Tuple, Union
 
+from .behav import Operation
+
+
 def get_const_or_val(arg):
 	if isinstance(arg, Constant):
 		return arg.value
@@ -199,7 +202,6 @@ class BitFieldDescr(SizedRefOrConst):
 
 class Instruction(SizedRefOrConst):
 	def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: "Operation"):
-		from .behav import Operation
 		self.ext_name = ""
 		self.attributes = attributes if attributes else []
 		self.encoding = encoding
@@ -237,7 +239,6 @@ class Instruction(SizedRefOrConst):
 
 class Function(SizedRefOrConst):
 	def __init__(self, name, return_len, data_type: DataType, args: Iterable[FnParam], operation: "Operation"):
-		from .behav import Operation
 		self.data_type = data_type
 		if args is None:
 			args = []

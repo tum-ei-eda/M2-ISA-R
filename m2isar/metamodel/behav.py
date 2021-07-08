@@ -1,4 +1,8 @@
-from typing import List, Union
+from typing import List, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from .arch import Scalar, Function
+
 
 class BaseNode:
 	def generate(self, context):
@@ -34,7 +38,6 @@ class Conditional(BaseNode):
 		self.else_stmts = else_stmts if else_stmts is not None else []
 
 class ScalarDefinition(BaseNode):
-	from .arch import Scalar
 	def __init__(self, scalar: "Scalar"):
 		self.scalar = scalar
 
@@ -63,7 +66,6 @@ class TypeConv(BaseNode):
 		self.expr = expr
 
 class Callable(BaseNode):
-	from .arch import Function
 	def __init__(self, ref_or_name: Union[str, "Function"], args: List[BaseNode]) -> None:
 		self.ref_or_name = ref_or_name
 		self.args = args if args is not None else []

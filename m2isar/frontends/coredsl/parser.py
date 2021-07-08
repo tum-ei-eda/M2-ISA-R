@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import logging
 import pathlib
@@ -14,7 +13,9 @@ from .behavior_model_builder import BehaviorModelBuilder
 from .instruction_set_storage import InstructionSetStorage
 from .transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
+
 GRAMMAR_FNAME = 'coredsl.lark'
+
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level")

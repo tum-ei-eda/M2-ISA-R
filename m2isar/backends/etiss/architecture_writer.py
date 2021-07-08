@@ -7,6 +7,7 @@ from mako.template import Template
 from ...metamodel import arch
 from .templates import template_dir
 
+
 logger = logging.getLogger("arch_writer")
 
 def write_child_reg_def(reg: arch.Memory, regs: List[str]):
