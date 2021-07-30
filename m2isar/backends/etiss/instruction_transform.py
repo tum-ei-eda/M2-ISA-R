@@ -29,7 +29,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	c.scalar = self.scalar
 	return c
 
@@ -263,6 +263,9 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 		if expr.static:
 			target.scalar.static |= StaticType.READ
 		else:
+			if target.scalar.static == StaticType.RW:
+				target.code = f'{data_type_map[target.scalar.data_type]}{target.scalar.actual_size} {target.code}'
+
 			target.scalar.static = StaticType.NONE
 			target.static = StaticType.NONE
 
@@ -359,7 +362,7 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	elif isinstance(referred_var, arch.Scalar):
 		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
-		#static = referred_var.static
+		static = referred_var.static
 		scalar = referred_var
 	elif isinstance(referred_var, arch.Constant):
 		signed = referred_var.value < 0
