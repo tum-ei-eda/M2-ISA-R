@@ -2,8 +2,8 @@ import argparse
 import logging
 import pathlib
 import pickle
-import time
 import shutil
+import time
 
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
@@ -61,7 +61,6 @@ def main():
 		except FileExistsError:
 			shutil.rmtree(output_path)
 			output_path.mkdir(parents=True)
-
 
 		write_arch_struct(core, start_time, output_path)
 		write_arch_header(core, start_time, output_path)
