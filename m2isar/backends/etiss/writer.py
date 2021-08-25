@@ -29,7 +29,7 @@ def setup():
 	model_fname = abs_top_level
 
 	if abs_top_level.suffix == ".core_desc":
-		print("WARN: .core_desc file passed as input. This is deprecated behavior, please change your scripts!")
+		logger.warning(".core_desc file passed as input. This is deprecated behavior, please change your scripts!")
 		search_path = abs_top_level.parent
 		model_path = search_path.joinpath('gen_model')
 
