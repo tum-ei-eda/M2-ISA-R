@@ -173,16 +173,21 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		if len(fn_args) >= 2:
 			target_size = int(fn_args[1].code)
 		if len(fn_args) >= 3:
-			source_size = int(fn_args[2].code)
+			try:
+				source_size = int(fn_args[2].code)
+			except ValueError:
+				source_size = context.make_static(fn_args[2].code)
 
-		if source_size >= target_size:
-			code_str = f'(etiss_int{target_size})({expr.code})'
-		else:
-			if (source_size & (source_size - 1) == 0): # power of two
-				code_str = f'(etiss_int{target_size})((etiss_int{source_size})({expr.code}))'
+		if isinstance(source_size, int):
+			if source_size >= target_size:
+				code_str = f'(etiss_int{target_size})({expr.code})'
 			else:
-				code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - source_size})) >> ({target_size - source_size})'
-
+				if (source_size & (source_size - 1) == 0): # power of two
+					code_str = f'(etiss_int{target_size})((etiss_int{source_size})({expr.code}))'
+				else:
+					code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - source_size})) >> ({target_size - source_size})'
+		else:
+			code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size} - {source_size})) >> ({target_size} - {source_size})'
 
 		c = CodeString(code_str, expr.static, target_size, True, expr.is_mem_access, expr.regs_affected)
 		c.mem_ids = expr.mem_ids
@@ -259,7 +264,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
 
-	if target.scalar:
+	if target.scalar and not context.ignore_static:
 		if expr.static:
 			target.scalar.static |= StaticType.READ
 		else:
