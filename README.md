@@ -3,7 +3,7 @@
 This tool generates architecture models for [ETISS](https://github.com/tum-ei-eda/etiss) from CoreDSL source files or abstract model trees. It is the 2nd version of the M2-ISA-R tool (not to be confused with the CoreDSL language versions, of which this tool is only compatible with version 1, see [below](##CoreDSL)).
 
 ## CoreDSL
-CoreDSL is a domain-specific language that models processor cores at the level of their instruction set architecture (ISA) by describing each instruction and its effects on the machine state using `.core_desc` files. For more information on CoreDSL, see the official [documentation](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual). (**IMPORTANT: The documentation describes the newer CoreDSL v2 language. This tool however, uses CoreDSL v1. While both versions are similar, they are generally incompatible.**)
+CoreDSL is a domain-specific language that models processor cores at the level of their instruction set architecture (ISA) by describing each instruction and its effects on the machine state using `.core_desc` files. For more information on CoreDSL, see the official [documentation](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual). **IMPORTANT: The documentation describes the newer CoreDSL v2 language. This tool, however, uses CoreDSL v1. While both versions are similar, they are generally incompatible.** (Technically, this tool is only compatible with its own dialect of CoreDSL, unofficially called CoreDSL v1.5)
 
 ## Prerequisites
 - Python 3.7+ with at least `pip` and `venv`
