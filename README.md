@@ -31,7 +31,7 @@ Notes:
 - The intermediate and output files are put into `path/to/input/gen_model` and `path/to/input/gen_output`, respectively
 
 ### Parser:
-Currently, a CoreDSL parser is provided. This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces. As stated above, this parser will become obsolete in the near future, new developments based on it should be avoided. For support please contact the project maintainers.
+Currently, a CoreDSL parser is provided. This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces. As stated above, this parser will become obsolete in the near future, new developments based on it should be avoided. For support please contact the project maintainers. The grammar of the currently used CoreDSL dialect can be seen in [coredsl.lark](m2isar/frontends/coredsl/coredsl.lark). See [here](https://lark-parser.readthedocs.io/en/latest/grammar.html) for the lark grammar reference which this grammar description uses.
 
 The parser outputs the metamodel as a pickled python objects at `path/to/input/gen_model/<top_level>.m2isarmodel`.
 
