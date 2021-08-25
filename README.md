@@ -21,14 +21,10 @@ Frontend -> Metamodel -> Backend
 The frontend transforms a model specification into M2-ISA-R's internal architecture model. This model can then be transformed again to an output format, e.g. models for an ISS. This repo provides a CoreDSL frontend and an ETISS backend.
 
 ## Usage
-M2-ISA-R v2 is divided into two separate tools: Parser and Writer. These are described below, TL;DR version:
+M2-ISA-R v2 currently ships two usable tools: A parser (for transforming CoreDSL to a M2-ISA-R metamodel) and a writer (for generating ETISS architecture plugins). These are described below, TL;DR version:
 
-- To parse a CoreDSL description: `python -m m2isar.frontends.coredsl.parser [-j threads] path/to/input/<top_level>.core_desc`
-- To generate ETISS Architecture: `python -m m2isar.backends.etiss.writer -s path/to/input/gen_model/<top_level>.m2isarmodel`
-
-Notes:
-- `path/to/input` stays the same for both calls if the same model is compiled, and should point to the top-level CoreDSL file
-- The intermediate and output files are put into `path/to/input/gen_model` and `path/to/input/gen_output`, respectively
+- To parse a CoreDSL description: `coredsl_parser [-j threads] path/to/input/<top_level>.core_desc`
+- To generate ETISS Architecture: `etiss_writer -s path/to/input/gen_model/<top_level>.m2isarmodel`
 
 ### Parser:
 Currently, a CoreDSL parser is provided. This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces. As stated above, this parser will become obsolete in the near future, new developments based on it should be avoided. For support please contact the project maintainers. The grammar of the currently used CoreDSL dialect can be seen in [coredsl.lark](m2isar/frontends/coredsl/coredsl.lark). See [here](https://lark-parser.readthedocs.io/en/latest/grammar.html) for the lark grammar reference which this grammar description uses.
@@ -40,7 +36,7 @@ The parser can be called by `python -m m2isar.frontends.coredsl.parser`.
 Usage:
 
 ```
-$ python -m m2isar.frontends.coredsl.parser --help
+$ coredsl_parser --help
 usage: parser.py [-h] [-j PARALLEL] [--log {critical,error,warning,info,debug}] top_level
 
 positional arguments:
@@ -63,7 +59,7 @@ These functionalities must be implemented manually in the file `<core_name>ArchS
 Usage:
 
 ```
-$ python -m m2isar.backends.etiss.writer --help
+$ etiss_writer --help
 usage: writer.py [-h] [-s] [--log {critical,error,warning,info,debug}] top_level
 
 positional arguments:
