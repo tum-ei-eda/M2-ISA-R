@@ -12,11 +12,11 @@ This tool generates architecture models for ETISS from CoreDSL source files or a
 - Install Python dependencies: `pip install -r requirements.txt`
 
 ## Architecture
-M2-ISA-R consists of 3 components, two of which are exchangable for different needs:
+M2-ISA-R consists of 3 components, two of which are exchangeable for different needs:
 
 Frontend -> Metamodel -> Backend
 
-The frontend transforms a model specification into M2-ISA-R's iternal architecture model. This model can then be transformed again to a output format, e.g. models for an ISS. This repo provides a CoreDSL frontend and an ETISS backend.
+The frontend transforms a model specification into M2-ISA-R's internal architecture model. This model can then be transformed again to an output format, e.g. models for an ISS. This repo provides a CoreDSL frontend and an ETISS backend.
 
 ## Usage
 M2-ISA-R v2 is divided into two separate tools: Parser and Writer. These are described below, TL;DR version:
@@ -25,7 +25,7 @@ M2-ISA-R v2 is divided into two separate tools: Parser and Writer. These are des
 - To generate ETISS Architecture: `python -m m2isar.backends.etiss.writer -s path/to/input`
 
 Notes:
-- `path/to/input` stays the same for both calls if the same model is compiled, and should point to the top-level CoreDSL file
+- `path/to/input` stays the same for both calls if the same model is compiled and should point to the top-level CoreDSL file
 - The intermediate and output files are put into `path/to/input/gen_model` and `path/to/input/gen_output`, respectively
 
 ### Parser:
