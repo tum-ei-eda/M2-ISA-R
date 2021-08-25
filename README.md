@@ -1,6 +1,8 @@
 # M2-ISA-R v2
 
-This tool serves as a general-purpose instruction set architecture metamodel. A parser for [CoreDSL](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual)(note: CoreDSL Version 2 support is currently in development and not ready. The current parser will be obsoleted by this new version, and should not be used for new developments) and an architecture generator for the instruction set simulator [ETISS](https://github.com/tum-ei-eda/etiss) are currently also provided.
+This tool serves as a general-purpose instruction set architecture metamodel. A parser for [CoreDSL](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual) and an architecture generator for the instruction set simulator [ETISS](https://github.com/tum-ei-eda/etiss) are currently also provided. 
+
+**Please note:** CoreDSL Version 2 support is currently in development and not ready yet. The current parser will be obsoleted by this new version, and should not be used for the development of new models.
 
 ## Prerequisites
 - Python 3.7+ with at least `pip` and `venv`
