@@ -3,6 +3,7 @@ import logging
 import pathlib
 import pickle
 import time
+import shutil
 
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
@@ -55,7 +56,13 @@ def main():
 	for core_name, core in models.items():
 		logger.info("processing model %s", core_name)
 		output_path = output_base_path / spec_name / core_name
-		output_path.mkdir(exist_ok=True, parents=True)
+		try:
+			output_path.mkdir(parents=True)
+		except FileExistsError:
+			logger.warning("deleting existing ETISS architecture %s files and creating new ones", core_name)
+			shutil.rmtree(output_path)
+			output_path.mkdir(parents=True)
+
 
 		write_arch_struct(core, start_time, output_path)
 		write_arch_header(core, start_time, output_path)
