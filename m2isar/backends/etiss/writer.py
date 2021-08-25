@@ -59,7 +59,6 @@ def main():
 		try:
 			output_path.mkdir(parents=True)
 		except FileExistsError:
-			logger.warning("deleting existing ETISS architecture %s files and creating new ones", core_name)
 			shutil.rmtree(output_path)
 			output_path.mkdir(parents=True)
 
