@@ -29,9 +29,9 @@ M2-ISA-R v2 currently ships two usable tools: A parser (for transforming CoreDSL
 ### Parser:
 Currently, a CoreDSL parser is provided. This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces. As stated above, this parser will become obsolete in the near future, new developments based on it should be avoided. For support please contact the project maintainers. The grammar of the currently used CoreDSL dialect can be seen in [coredsl.lark](m2isar/frontends/coredsl/coredsl.lark). See [here](https://lark-parser.readthedocs.io/en/latest/grammar.html) for the lark grammar reference which this grammar description uses.
 
-The parser outputs the metamodel as a pickled python objects at `path/to/input/gen_model/<top_level>.m2isarmodel`.
+The parser outputs the metamodel as a pickled python object at `path/to/input/gen_model/<top_level>.m2isarmodel`.
 
-The parser can be called by `python -m m2isar.frontends.coredsl.parser`. 
+The parser can be called by its full python module path `python -m m2isar.frontends.coredsl.parser` or if installed as above, simply by `coredsl_parser`
 
 Usage:
 
@@ -49,7 +49,7 @@ optional arguments:
 ```
 
 ### Writer:
-A writer backend for ETISS is provided. Call it like this: `python -m m2isar.backends.etiss.writer`. Generator outputs (ETISS architecture plugins) are saved at `path/to/input/gen_output/<top_level>/<core_name>`. These architecture plugins possess all required functionality to run arbitrary target programs on them, except:
+A writer backend for ETISS is provided. Call it like this: `python -m m2isar.backends.etiss.writer` or `etiss_writer`, if installed as above. Generator outputs (ETISS architecture plugins) are saved at `path/to/input/gen_output/<top_level>/<core_name>`. These architecture plugins possess all required functionality to run arbitrary target programs on them, except:
 - Exception behavior
 - Endianness conversion
 - Variable-length instruction handling
@@ -70,3 +70,7 @@ optional arguments:
   -s, --separate        Generate separate .cpp files for each instruction set.
   --log {critical,error,warning,info,debug}
 ```
+
+## Roadmap
+[ ] CoreDSL 2 support
+[ ] Formal metamodel description
