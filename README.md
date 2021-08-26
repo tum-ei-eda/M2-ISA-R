@@ -72,5 +72,5 @@ optional arguments:
 ```
 
 ## Roadmap
-[ ] CoreDSL 2 support
-[ ] Formal metamodel description
+- [ ] CoreDSL 2 support
+- [ ] Formal metamodel description
