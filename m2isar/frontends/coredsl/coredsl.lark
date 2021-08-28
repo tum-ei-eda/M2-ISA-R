@@ -60,7 +60,7 @@ operation: statement+
 
 return_: "return" expression ";"
 
-?assignment: (indexed_reference | | named_reference | scalar_definition) "<=" expression ";"
+?assignment: (indexed_reference | named_reference | scalar_definition) "<=" expression ";"
 
 bit_size_spec: "{" (natural | ID) "}"
 
