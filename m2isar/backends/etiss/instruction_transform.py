@@ -87,7 +87,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 				arg.code = context.make_static(arg.code)
 
 		name = self.ref_or_name[len("dispatch_"):]
-		arg_str = ', '.join([arg.code for arg in fn_args])
+		arg_str = ', '.join([context.make_static(arg.code) if arg.static else arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
@@ -229,7 +229,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 		name = self.ref_or_name[len("fdispatch_"):]
-		arg_str = ', '.join([arg.code for arg in fn_args])
+		arg_str = ', '.join([context.make_static(arg.code) if arg.static else arg.code for arg in fn_args])
 
 		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
 		return c
