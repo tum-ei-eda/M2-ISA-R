@@ -1,0 +1,38 @@
+start: (include)* _isa+
+
+include: "import" "\"" FILENAME "\""
+
+FILENAME: NAME "." NAME
+
+_isa: instruction_set
+
+instruction_set: "InstructionSet" ID [extension] "{" instr_set_sections+ "}"
+extension: "extends" _separated{ID, ","}
+?instr_set_sections: section_arch_state | section_functions | section_instructions
+
+section_arch_state: "architectural_state" "{" dummy+ "}"
+section_functions: "functions" "{" dummy+ "}"
+section_instructions: "instructions" "{" dummy+ "}"
+
+dummy: ID ";"
+
+_separated{x, sep}: x (sep x)*
+
+BINARY: /(0b|0B)[01](_?[01])*/
+HEX: /(0x|0X)([0-9]|[a-f]|[A-F])(_?([0-9]|[a-f]|[A-F]))*/
+OCT: /0[0-7](_?[0-7])*/
+
+COMMENT: /\/\/.*/
+ML_COMMENT: "/*" /(.|\n)+/ "*/"
+TEXT: /"[^";]+"/
+
+ID: "^"? ("a".."z"|"A".."Z"|"_") ("a".."z"|"A".."Z"|"_"|"0".."9"|".")*
+
+%import common.CNAME -> NAME
+%import common.NUMBER
+%import common.INT
+%import common.WS
+
+%ignore WS
+%ignore COMMENT
+%ignore ML_COMMENT
