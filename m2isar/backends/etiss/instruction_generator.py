@@ -71,6 +71,7 @@ def generate_functions(core: arch.CoreDef):
 			return_type=return_type,
 			fn_name=fn_name,
 			args_list=fn_args,
+			static=fn_def.static,
 			operation=out_code
 		)
 

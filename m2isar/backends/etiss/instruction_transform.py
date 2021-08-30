@@ -82,9 +82,6 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		if fn_args is None: fn_args = []
 
 		context.used_arch_data = True
-		for arg in fn_args:
-			if arg.static:
-				arg.code = context.make_static(arg.code)
 
 		name = self.ref_or_name[len("dispatch_"):]
 		arg_str = ', '.join([context.make_static(arg.code) if arg.static else arg.code for arg in fn_args])
@@ -128,7 +125,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		signed = True in [arg.signed for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
-		static = StaticType.READ if static else StaticType.NONE
+		static = StaticType.READ if static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
 		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
 		c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
