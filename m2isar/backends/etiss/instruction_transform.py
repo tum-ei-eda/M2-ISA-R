@@ -206,18 +206,24 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif self.ref_or_name == 'shll':
 		expr, amount = fn_args
+		if expr.static:
+			expr.code = context.make_static(expr.code)
 		if amount.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif self.ref_or_name == 'shrl':
 		expr, amount = fn_args
+		if expr.static:
+			expr.code = context.make_static(expr.code)
 		if amount.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif self.ref_or_name == 'shra':
 		expr, amount = fn_args
+		if expr.static:
+			expr.code = context.make_static(expr.code)
 		if amount.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
