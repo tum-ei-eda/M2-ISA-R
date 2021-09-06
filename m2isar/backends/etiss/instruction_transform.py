@@ -6,6 +6,7 @@ from . import replacements
 from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
                                 TransformerContext, data_type_map)
 
+USE_STATIC_SCALARS = False
 
 def operation(self: behav.Operation, context: TransformerContext):
 	args = [stmt.generate(context) for stmt in self.statements]
@@ -15,7 +16,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 	if context.is_exception:
 		code_str += '\npartInit.code() += "return exception;\\n";'
 	elif context.generates_exception:
-		code_str += '\npartInit.code() += "if (exception) return exception;\\n";'
+		code_str = f'partInit.code() += "exception = 0;\\n"\n{code_str}\npartInit.code() += "if (exception) return exception;\\n";'
 	elif arch.InstrAttribute.NO_CONT in context.attribs:
 		code_str += '\npartInit.code() += "return 0;\\n";'
 
@@ -29,7 +30,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE if USE_STATIC_SCALARS else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	c.scalar = self.scalar
 	return c
 
@@ -205,19 +206,25 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif self.ref_or_name == 'shll':
 		expr, amount = fn_args
-		if amount.static:
+		if expr.static and not amount.static:
+			expr.code = context.make_static(expr.code)
+		if amount.static and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif self.ref_or_name == 'shrl':
 		expr, amount = fn_args
-		if amount.static:
+		if expr.static and not amount.static:
+			expr.code = context.make_static(expr.code)
+		if amount.static and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif self.ref_or_name == 'shra':
 		expr, amount = fn_args
-		if amount.static:
+		if expr.static and not amount.static:
+			expr.code = context.make_static(expr.code)
+		if amount.static and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
@@ -261,12 +268,16 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
 
+	code_str = ''
+
 	if target.scalar and not context.ignore_static:
 		if expr.static:
+			if target.scalar.static == StaticType.WRITE and USE_STATIC_SCALARS:
+				code_str += f'partInit.code() += "{target.code};\\n";\n'
 			target.scalar.static |= StaticType.READ
 		else:
-			if target.scalar.static == StaticType.RW:
-				target.code = f'{data_type_map[target.scalar.data_type]}{target.scalar.actual_size} {target.code}'
+			#if target.scalar.static == StaticType.RW:
+			#	target.code = f'{data_type_map[target.scalar.data_type]}{target.scalar.actual_size} {target.code}'
 
 			target.scalar.static = StaticType.NONE
 			target.static = StaticType.NONE
@@ -283,7 +294,6 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	if bool(target.static & StaticType.READ):
 		target.code = Template(target.code).safe_substitute(replacements.rename_dynamic)
-	code_str = ''
 
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
@@ -292,28 +302,26 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 		if target.actual_size > target.size:
 			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
-		code_str = f'{target.code} = {expr.code};'
+		code_str += f'{target.code} = {expr.code};'
 		if not static and not context.ignore_static:
 			code_str = f'partInit.code() += "{code_str}\\n";'
 
-	elif not target.is_mem_access and expr.is_mem_access:
+	else:
 		context.generates_exception = True
 		for m_id in expr.mem_ids:
 			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-			code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+			code_str += f'partInit.code() += "exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
 
-		code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
+		if target.is_mem_access:
+			if len(target.mem_ids) != 1:
+				raise ValueError('Only one memory access is allowed as assignment target!')
 
-	elif target.is_mem_access and not expr.is_mem_access:
-		code_str = ''
-		if len(target.mem_ids) != 1:
-			raise ValueError('Only one memory access is allowed as assignment target!')
+			m_id = target.mem_ids[0]
 
-		context.generates_exception = True
-		m_id = target.mem_ids[0]
-
-		code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};\\n";\n'
-		code_str += f'partInit.code() += "exception = (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};\\n";\n'
+			code_str += f'partInit.code() += "exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+		else:
+			code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
 
 	return code_str
 
@@ -364,7 +372,8 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	elif isinstance(referred_var, arch.Scalar):
 		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
-		static = referred_var.static
+		if USE_STATIC_SCALARS:
+			static = referred_var.static
 		scalar = referred_var
 	elif isinstance(referred_var, arch.Constant):
 		signed = referred_var.value < 0
