@@ -16,7 +16,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 	if context.is_exception:
 		code_str += '\npartInit.code() += "return exception;\\n";'
 	elif context.generates_exception:
-		code_str = f'partInit.code() += "exception = 0;\\n"\n{code_str}\npartInit.code() += "if (exception) return exception;\\n";'
+		code_str = f'partInit.code() += "exception = 0;\\n";\n{code_str}\npartInit.code() += "if (exception) return exception;\\n";'
 	elif arch.InstrAttribute.NO_CONT in context.attribs:
 		code_str += '\npartInit.code() += "return 0;\\n";'
 
@@ -164,7 +164,6 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif self.ref_or_name == 'sext':
 		expr = fn_args[0]
-
 		target_size = context.native_size
 		source_size = expr.size
 
@@ -194,9 +193,9 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif self.ref_or_name == 'zext':
 		expr = fn_args[0]
-		if len(fn_args) == 1:
-			target_size = expr.size
-		else:
+		target_size = context.native_size
+
+		if len(fn_args) >= 2:
 			target_size = int(fn_args[1].code)
 
 		c = CodeString(f'(etiss_uint{target_size})({expr.code})', expr.static, target_size, expr.signed, expr.is_mem_access, expr.regs_affected)
