@@ -282,9 +282,9 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	if expr.static:
 		if bool(target.static & StaticType.WRITE):
 			expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
+
 		else:
-			if "std::to_string" not in expr.code:
-				expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code)
 
 	if bool(target.static & StaticType.READ):
 		target.code = Template(target.code).safe_substitute(replacements.rename_dynamic)
