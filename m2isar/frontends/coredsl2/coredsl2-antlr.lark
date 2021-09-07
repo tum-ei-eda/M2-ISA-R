@@ -1,0 +1,286 @@
+// Rule DescriptionContent
+description_content: import* isa+
+
+// Rule Import
+import: "import" RULE_STRING
+
+// Rule ISA
+isa: (instruction_set | core_def)
+
+// Rule InstructionSet
+instruction_set: "InstructionSet" RULE_ID ( "extends" RULE_ID)? "{" ( section_arch_state (section_functions section_instructions? | section_instructions)? | section_functions (section_arch_state section_instructions? | section_instructions )? | section_instructions ( section_arch_state section_functions? | section_functions)?) "}"
+
+// Rule CoreDef
+core_def: "Core" RULE_ID ( "provides" RULE_ID ( "," RULE_ID )*)? "{" ( section_arch_state (section_functions section_instructions? | section_instructions)? | section_functions (section_arch_state section_instructions? | section_instructions )? | section_instructions ( section_arch_state section_functions? | section_functions)?) "}"
+ 
+// Rule SectionArchState
+section_arch_state: "architectural_state" "{" ( declaration | expression_statement )+ "}"
+
+// Rule SectionFunctions
+section_functions: "functions" "{" function_definition+ "}"
+
+// Rule SectionInstructions
+section_instructions: "instructions" attribute* "{" instruction+ "}"
+
+// Rule Instruction
+instruction: RULE_ID attribute* "{" "encoding" ":" encoding ";" ("args_disass" ":" RULE_STRING ";")? "behavior" ":" statement "}"
+
+// Rule Encoding
+encoding: field ("::" field)*
+
+// Rule Field
+field: (bit_value | bit_field)
+
+// Rule BitValue
+bit_value: RULE_INTEGER
+
+// Rule BitField
+bit_field: RULE_ID RULE_LEFT_BR integer_constant ":" integer_constant RULE_RIGHT_BR
+
+// Rule FunctionDefinition
+function_definition: ("extern" type_specifier RULE_ID "(" parameter_list? ")" ";" | type_specifier RULE_ID "(" parameter_list? ")" attribute* compound_statement)
+
+// Rule ParameterList
+parameter_list: parameter_declaration ("," parameter_declaration)*
+
+// Rule ParameterDeclaration
+parameter_declaration: type_specifier (direct_declarator | abstract_declarator)?
+
+// Rule Statement
+statement: (compound_statement | expression_statement | selection_statement | iteration_statement | jump_statement | spawn_statement)
+
+// Rule LabeledStatement
+labeled_statement: ("case" constant_expression ":" statement* | "default" ":" statement*)
+
+// Rule CompoundStatement
+compound_statement: "{" block_item* "}"
+
+// Rule BlockItem
+block_item: (statement | declaration)
+
+// Rule ExpressionStatement
+expression_statement: expression_list? ";"
+
+// Rule SelectionStatement
+selection_statement: (if_statement | switch_statement)
+
+// Rule IfStatement
+if_statement: "if" "(" conditional_expression ")" statement ("else" statement)?
+
+// Rule SwitchStatement
+switch_statement: "switch" "(" conditional_expression ")" "{" labeled_statement+ "}"
+
+// Rule IterationStatement
+iteration_statement: ( "while" "(" conditional_expression ")" statement | "do" statement "while" "(" conditional_expression ")" ";" | "for" "(" for_condition ")" statement)
+
+// Rule ForCondition
+for_condition: (declaration | assignment_expression? ";") conditional_expression? ";" (assignment_expression("," assignment_expression)*)?
+
+// Rule JumpStatement
+jump_statement: ("continue" ";" | "break" ";" | "return" conditional_expression? ";")
+
+// Rule SpawnStatement
+spawn_statement: "spawn" statement
+
+// Rule Declaration
+declaration: declaration_specifier* type_specifier ("*" | "&")? (init_declarator("," init_declarator)*)? ";"
+
+// Rule DeclarationSpecifier
+declaration_specifier: (storage_class_specifier | type_qualifier | attribute)
+
+// Rule Attribute
+attribute: double_left_bracket attribute_name ( "=" conditional_expression)? double_right_bracket
+
+// Rule TypeSpecifier
+type_specifier: (primitive_type | composite_type | enum_type)
+
+// Rule PrimitiveType
+primitive_type: data_types+ bit_size_specifier?
+
+// Rule BitSizeSpecifier
+bit_size_specifier: "<" primary_expression ("," primary_expression "," primary_expression "," primary_expression)? ">"
+
+// Rule EnumType
+enum_type: ("enum" RULE_ID? "{" enumerator_list ","? "}" | "enum" RULE_ID)
+
+// Rule EnumeratorList
+enumerator_list: enumerator ("," enumerator)*
+
+// Rule Enumerator
+enumerator: (RULE_ID | RULE_ID "=" constant_expression)
+
+// Rule CompositeType
+composite_type: (struct_or_union RULE_ID? "{" struct_declaration* "}" | struct_or_union RULE_ID)
+
+// Rule StructDeclaration
+struct_declaration: struct_declaration_specifier direct_declarator ("," direct_declarator)* ";"
+
+// Rule StructDeclarationSpecifier
+struct_declaration_specifier: (type_specifier | type_qualifier)
+
+// Rule InitDeclarator
+init_declarator: direct_declarator attribute* ("=" initializer)?
+
+// Rule DirectDeclarator
+direct_declarator: RULE_ID ( ":" integer_constant)? ((RULE_LEFT_BR conditional_expression RULE_RIGHT_BR)+ | "(" parameter_list ")")?
+
+// Rule Initializer
+initializer: (conditional_expression | "{" initializer_list ","? "}")
+
+// Rule InitializerList
+initializer_list: (designated_initializer | initializer) ("," (designated_initializer | initializer))*
+
+// Rule DesignatedInitializer
+designated_initializer: designator+ "=" initializer
+
+// Rule Designator
+designator: (RULE_LEFT_BR constant_expression RULE_RIGHT_BR | "." RULE_ID)
+
+// Rule AbstractDeclarator
+abstract_declarator: direct_abstract_declarator
+
+// Rule DirectAbstractDeclarator
+direct_abstract_declarator: ("(" (abstract_declarator? | parameter_list) ")" | RULE_LEFT_BR constant_expression? RULE_RIGHT_BR)
+
+// Rule ExpressionList
+expression_list: assignment_expression ("," assignment_expression)*
+
+// Rule AssignmentExpression
+assignment_expression: prefix_expression (assignment)*
+
+// Rule Assignment
+assignment: ("=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|=") conditional_expression
+
+// Rule ConditionalExpression
+conditional_expression: concatenation_expression ("?" conditional_expression ":" conditional_expression)?
+
+// Rule ConcatenationExpression
+concatenation_expression: logical_or_expression ("::" concatenation_expression)?
+
+// Rule LogicalOrExpression
+logical_or_expression: logical_and_expression ("||" logical_or_expression)?
+
+// Rule LogicalAndExpression
+logical_and_expression: inclusive_or_expression ("&&" logical_and_expression)?
+
+// Rule InclusiveOrExpression
+inclusive_or_expression: exclusive_or_expression ("|" inclusive_or_expression)?
+
+// Rule ExclusiveOrExpression
+exclusive_or_expression: and_expression ("^" exclusive_or_expression)?
+
+// Rule AndExpression
+and_expression: equality_expression ("&" and_expression)?
+
+// Rule EqualityExpression
+equality_expression: relational_expression (("==" | "!=") equality_expression)?
+
+// Rule RelationalExpression
+relational_expression: shift_expression (("<" | ">" | "<=" | ">=") relational_expression)?
+
+// Rule ShiftExpression
+shift_expression: additive_expression (("<<" | ">>") shift_expression)?
+
+// Rule AdditiveExpression
+additive_expression: multiplicative_expression (("+" | "-") additive_expression)?
+
+// Rule MultiplicativeExpression
+multiplicative_expression: cast_expression (("*" | "/" | "%") multiplicative_expression)?
+
+// Rule CastExpression
+cast_expression: (prefix_expression | "(" type_specifier ")" cast_expression)
+
+// Rule PrefixExpression
+prefix_expression: (postfix_expression | "++" prefix_expression | "--" prefix_expression | unary_operator cast_expression | "sizeof" "(" (postfix_expression | type_specifier) ")")
+
+// Rule UnaryOperator
+unary_operator: ("&" | "*" | "+" | "-" | "~" | "!")
+
+// Rule PostfixExpression
+postfix_expression: primary_expression (postfix)?
+
+// Rule Postfix
+postfix: (RULE_LEFT_BR conditional_expression (":" conditional_expression)? RULE_RIGHT_BR | "(" (conditional_expression ("," conditional_expression)*)? ")" | "." RULE_ID | "->" RULE_ID | "++" | "--") postfix?
+
+// Rule PrimaryExpression
+primary_expression: (RULE_ID | constant | string_literal+ | "(" conditional_expression ")")
+
+// Rule StringLiteral
+string_literal: (RULE_ENCSTRINGCONST | RULE_STRING)
+
+// Rule ConstantExpression
+constant_expression: conditional_expression
+
+// Rule Constant
+constant: (integer_constant | floating_constant | character_constant | bool_constant)
+
+// Rule IntegerConstant
+integer_constant: RULE_INTEGER
+
+// Rule FloatingConstant
+floating_constant: RULE_FLOAT
+
+// Rule BoolConstant
+bool_constant: RULE_BOOLEAN
+
+// Rule CharacterConstant
+character_constant: RULE_CHARCONST
+
+// Rule DoubleLeftBracket
+double_left_bracket: RULE_LEFT_BR RULE_LEFT_BR
+
+// Rule DoubleRightBracket
+double_right_bracket: RULE_RIGHT_BR RULE_RIGHT_BR
+
+// Rule DataTypes
+data_types: ("bool" | "char" | "short" | "int" | "long" | "signed" | "unsigned" | "float" | "double" | "void" | "alias")
+
+// Rule TypeQualifier
+type_qualifier: ("const" | "volatile")
+
+// Rule StorageClassSpecifier
+storage_class_specifier: ("extern" | "static" | "register")
+
+// Rule AttributeName
+attribute_name: ("NONE" | "is_pc" | "is_interlock_for" | "do_not_synthesize" | "enable" | "no_cont" | "cond" | "flush")
+
+// Rule StructOrUnion
+struct_or_union: ("struct" | "union")
+
+RULE_LEFT_BR : "["
+
+RULE_RIGHT_BR : "]"
+
+RULE_BOOLEAN : ("true"|"false")
+
+RULE_FLOAT : ("0".."9")+ "." ("0".."9")* (("e"|"E") ("+"|"-")? ("0".."9")+)? ("f"|"F"|"l"|"L")?
+
+RULE_INTEGER : (RULE_BINARYINT|RULE_HEXADECIMALINT|RULE_OCTALINT|RULE_DECIMALINT|RULE_VLOGINT) ("u"|"U")? (("l"|"L") ("l"|"L")?)?
+
+RULE_BINARYINT : ("0b"|"0B") "0".."1" ("_"? "0".."1")*
+
+RULE_OCTALINT : "0" "_"? "0".."7" ("_"? "0".."7")*
+
+RULE_DECIMALINT : ("0"|"1".."9" ("_"? "0".."9")*)
+
+RULE_HEXADECIMALINT : ("0x"|"0X") ("0".."9"|"a".."f"|"A".."F") ("_"? ("0".."9"|"a".."f"|"A".."F"))*
+
+RULE_VLOGINT : ("0".."9")+ "\"" ("b" ("0".."1")+|"o" ("0".."7")+|"d" ("0".."9")+|"h" ("0".."9"|"a".."f"|"A".."F")+)
+
+RULE_CHARCONST : ("u"|"U"|"L")? "\"" ("\\" .|~(("\\"|"\"")))* "\""
+
+RULE_ID : "^"? ("a".."z"|"A".."Z"|"_") ("a".."z"|"A".."Z"|"_"|"0".."9")*
+
+RULE_ENCSTRINGCONST : ("u8"|"u"|"U"|"L") "\"" ("\\" . | ~(("\\"|"\"")))* "\""
+
+RULE_STRING : ("\"" ("\\" . | ~(("\\" | "\"")))* "\"" | "\"" ("\\" . | ~(("\\" | "\"")))* "\"")
+
+COMMENT: /\/\/.*/
+ML_COMMENT: "/*" /(.|\n)+/ "*/"
+
+%import common.WS
+
+%ignore WS
+%ignore COMMENT
+%ignore ML_COMMENT
+
