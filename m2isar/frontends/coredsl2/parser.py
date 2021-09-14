@@ -6,15 +6,16 @@ import sys
 from typing import List
 
 from lark import Lark, Tree
+from transformers import Importer
 
-from ...metamodel import arch
+#from ...metamodel import arch
 #from .architecture_model_builder import ArchitectureModelBuilder
 #from .behavior_model_builder import BehaviorModelBuilder
 #from .instruction_set_storage import InstructionSetStorage
 #from .transformers import Importer, NaturalConverter, ParallelImporter, Parent
 
 
-GRAMMAR_FNAME = 'coredsl2.lark'
+GRAMMAR_FNAME = 'coredsl2-antlr.lark'
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -44,6 +45,12 @@ def main():
 	print(tree.pretty("\t"))
 	logger.info('recursively importing files')
 	imported_tree = tree.copy()
+	i = Importer(search_path, p)
+
+	while i.got_new:
+		imported_tree = i.transform(imported_tree)
+
+	pass
 
 if __name__ == "__main__":
 	main()
