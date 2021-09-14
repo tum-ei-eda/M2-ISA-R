@@ -19,9 +19,8 @@
             "name": "Parse CoreDSL2",
             "type": "python",
             "request": "launch",
-            "module": "m2isar.frontends.coredsl2.parser",
+            "module": "m2isar.frontends.coredsl2.parser2",
             "args": [
-                "-j1",
                 "${input:inputFile}"
             ],
             "stopOnEntry": true
@@ -55,7 +54,8 @@
                 "../coredsl-models/riscv/tum_rv.core_desc",
                 "../coredsl-models/armv6m/top.core_desc",
                 "../coredsl-models/armv7m/top.core_desc",
-                "../coredsl2-models/test/top.core_desc"
+                "../coredsl2-models/test/top.core_desc",
+                "../coredsl2-models/riscv/top.core_desc"
             ],
             "description": ""
         }
