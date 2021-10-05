@@ -2,12 +2,20 @@ import pathlib
 import sys
 
 import antlr4
+import antlr4.error.ErrorListener
+import antlr4.error.ErrorStrategy
 
 from .CoreDSL2Lexer import CoreDSL2Lexer
 from .CoreDSL2Listener import CoreDSL2Listener
 from .CoreDSL2Parser import CoreDSL2Parser
 from .CoreDSL2Visitor import CoreDSL2Visitor
 
+class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
+	def __init__(self) -> None:
+		super().__init__()
+
+	def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+		raise ValueError(f"Syntax error in line {line}, column {column}: {msg}")
 
 class Visitor2(CoreDSL2Visitor):
 	pass
@@ -40,7 +48,7 @@ class Visitor(CoreDSL2Visitor):
 
 class Listener(CoreDSL2Listener):
 	def enterInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
-		id = ctx.RULE_ID()
+		id = ctx.IDENTIFIER()
 		id2 = ctx.name
 		ext = ctx.extension
 		print("ISA: " + ctx.name.text)
@@ -85,6 +93,8 @@ def main(argv):
 	lexer = CoreDSL2Lexer(input_stream)
 	stream = antlr4.CommonTokenStream(lexer)
 	parser = CoreDSL2Parser(stream)
+	#parser._errHandler = antlr4.error.ErrorStrategy.BailErrorStrategy()
+	parser.addErrorListener(MyErrorListener())
 	tree = parser.description_content()
 	print(tree.toStringTree(recog=parser))
 
@@ -103,8 +113,8 @@ def main(argv):
 	listener = Listener()
 	walker.walk(listener, tree)
 
-	#visitor = Visitor2()
-	#a = visitor.visit(tree)
+	visitor = Visitor2()
+	a = visitor.visit(tree)
 
 	visitor = Visitor()
 	a = visitor.visit(tree)
