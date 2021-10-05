@@ -53,6 +53,15 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#sections.
+    def enterSections(self, ctx:CoreDSL2Parser.SectionsContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#sections.
+    def exitSections(self, ctx:CoreDSL2Parser.SectionsContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#section_arch_state.
     def enterSection_arch_state(self, ctx:CoreDSL2Parser.Section_arch_stateContext):
         pass
@@ -188,21 +197,30 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#labeled_statement.
-    def enterLabeled_statement(self, ctx:CoreDSL2Parser.Labeled_statementContext):
+    # Enter a parse tree produced by CoreDSL2Parser#switch_block_statement_group.
+    def enterSwitch_block_statement_group(self, ctx:CoreDSL2Parser.Switch_block_statement_groupContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#labeled_statement.
-    def exitLabeled_statement(self, ctx:CoreDSL2Parser.Labeled_statementContext):
+    # Exit a parse tree produced by CoreDSL2Parser#switch_block_statement_group.
+    def exitSwitch_block_statement_group(self, ctx:CoreDSL2Parser.Switch_block_statement_groupContext):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#compound_statement.
-    def enterCompound_statement(self, ctx:CoreDSL2Parser.Compound_statementContext):
+    # Enter a parse tree produced by CoreDSL2Parser#switch_label.
+    def enterSwitch_label(self, ctx:CoreDSL2Parser.Switch_labelContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#compound_statement.
-    def exitCompound_statement(self, ctx:CoreDSL2Parser.Compound_statementContext):
+    # Exit a parse tree produced by CoreDSL2Parser#switch_label.
+    def exitSwitch_label(self, ctx:CoreDSL2Parser.Switch_labelContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#block.
+    def enterBlock(self, ctx:CoreDSL2Parser.BlockContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#block.
+    def exitBlock(self, ctx:CoreDSL2Parser.BlockContext):
         pass
 
 
@@ -221,42 +239,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#expression_statement.
     def exitExpression_statement(self, ctx:CoreDSL2Parser.Expression_statementContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#selection_statement.
-    def enterSelection_statement(self, ctx:CoreDSL2Parser.Selection_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#selection_statement.
-    def exitSelection_statement(self, ctx:CoreDSL2Parser.Selection_statementContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#if_statement.
-    def enterIf_statement(self, ctx:CoreDSL2Parser.If_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#if_statement.
-    def exitIf_statement(self, ctx:CoreDSL2Parser.If_statementContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#switch_statement.
-    def enterSwitch_statement(self, ctx:CoreDSL2Parser.Switch_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#switch_statement.
-    def exitSwitch_statement(self, ctx:CoreDSL2Parser.Switch_statementContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#iteration_statement.
-    def enterIteration_statement(self, ctx:CoreDSL2Parser.Iteration_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#iteration_statement.
-    def exitIteration_statement(self, ctx:CoreDSL2Parser.Iteration_statementContext):
         pass
 
 
@@ -485,21 +467,21 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#assignment_expression.
-    def enterAssignment_expression(self, ctx:CoreDSL2Parser.Assignment_expressionContext):
+    # Enter a parse tree produced by CoreDSL2Parser#cast_expression.
+    def enterCast_expression(self, ctx:CoreDSL2Parser.Cast_expressionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#assignment_expression.
-    def exitAssignment_expression(self, ctx:CoreDSL2Parser.Assignment_expressionContext):
+    # Exit a parse tree produced by CoreDSL2Parser#cast_expression.
+    def exitCast_expression(self, ctx:CoreDSL2Parser.Cast_expressionContext):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#assignment.
-    def enterAssignment(self, ctx:CoreDSL2Parser.AssignmentContext):
+    # Enter a parse tree produced by CoreDSL2Parser#binary_expression.
+    def enterBinary_expression(self, ctx:CoreDSL2Parser.Binary_expressionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#assignment.
-    def exitAssignment(self, ctx:CoreDSL2Parser.AssignmentContext):
+    # Exit a parse tree produced by CoreDSL2Parser#binary_expression.
+    def exitBinary_expression(self, ctx:CoreDSL2Parser.Binary_expressionContext):
         pass
 
 
@@ -512,111 +494,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#concatenation_expression.
-    def enterConcatenation_expression(self, ctx:CoreDSL2Parser.Concatenation_expressionContext):
+    # Enter a parse tree produced by CoreDSL2Parser#deref_expression.
+    def enterDeref_expression(self, ctx:CoreDSL2Parser.Deref_expressionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#concatenation_expression.
-    def exitConcatenation_expression(self, ctx:CoreDSL2Parser.Concatenation_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#logical_or_expression.
-    def enterLogical_or_expression(self, ctx:CoreDSL2Parser.Logical_or_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#logical_or_expression.
-    def exitLogical_or_expression(self, ctx:CoreDSL2Parser.Logical_or_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#logical_and_expression.
-    def enterLogical_and_expression(self, ctx:CoreDSL2Parser.Logical_and_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#logical_and_expression.
-    def exitLogical_and_expression(self, ctx:CoreDSL2Parser.Logical_and_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#inclusive_or_expression.
-    def enterInclusive_or_expression(self, ctx:CoreDSL2Parser.Inclusive_or_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#inclusive_or_expression.
-    def exitInclusive_or_expression(self, ctx:CoreDSL2Parser.Inclusive_or_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#exclusive_or_expression.
-    def enterExclusive_or_expression(self, ctx:CoreDSL2Parser.Exclusive_or_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#exclusive_or_expression.
-    def exitExclusive_or_expression(self, ctx:CoreDSL2Parser.Exclusive_or_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#and_expression.
-    def enterAnd_expression(self, ctx:CoreDSL2Parser.And_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#and_expression.
-    def exitAnd_expression(self, ctx:CoreDSL2Parser.And_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#equality_expression.
-    def enterEquality_expression(self, ctx:CoreDSL2Parser.Equality_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#equality_expression.
-    def exitEquality_expression(self, ctx:CoreDSL2Parser.Equality_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#relational_expression.
-    def enterRelational_expression(self, ctx:CoreDSL2Parser.Relational_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#relational_expression.
-    def exitRelational_expression(self, ctx:CoreDSL2Parser.Relational_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#shift_expression.
-    def enterShift_expression(self, ctx:CoreDSL2Parser.Shift_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#shift_expression.
-    def exitShift_expression(self, ctx:CoreDSL2Parser.Shift_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#additive_expression.
-    def enterAdditive_expression(self, ctx:CoreDSL2Parser.Additive_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#additive_expression.
-    def exitAdditive_expression(self, ctx:CoreDSL2Parser.Additive_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#multiplicative_expression.
-    def enterMultiplicative_expression(self, ctx:CoreDSL2Parser.Multiplicative_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#multiplicative_expression.
-    def exitMultiplicative_expression(self, ctx:CoreDSL2Parser.Multiplicative_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#cast_expression.
-    def enterCast_expression(self, ctx:CoreDSL2Parser.Cast_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#cast_expression.
-    def exitCast_expression(self, ctx:CoreDSL2Parser.Cast_expressionContext):
+    # Exit a parse tree produced by CoreDSL2Parser#deref_expression.
+    def exitDeref_expression(self, ctx:CoreDSL2Parser.Deref_expressionContext):
         pass
 
 
@@ -629,12 +512,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#unary_operator.
-    def enterUnary_operator(self, ctx:CoreDSL2Parser.Unary_operatorContext):
+    # Enter a parse tree produced by CoreDSL2Parser#assignment_expression.
+    def enterAssignment_expression(self, ctx:CoreDSL2Parser.Assignment_expressionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#unary_operator.
-    def exitUnary_operator(self, ctx:CoreDSL2Parser.Unary_operatorContext):
+    # Exit a parse tree produced by CoreDSL2Parser#assignment_expression.
+    def exitAssignment_expression(self, ctx:CoreDSL2Parser.Assignment_expressionContext):
         pass
 
 
@@ -647,12 +530,30 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#postfix.
-    def enterPostfix(self, ctx:CoreDSL2Parser.PostfixContext):
+    # Enter a parse tree produced by CoreDSL2Parser#method_call.
+    def enterMethod_call(self, ctx:CoreDSL2Parser.Method_callContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#postfix.
-    def exitPostfix(self, ctx:CoreDSL2Parser.PostfixContext):
+    # Exit a parse tree produced by CoreDSL2Parser#method_call.
+    def exitMethod_call(self, ctx:CoreDSL2Parser.Method_callContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#primary.
+    def enterPrimary(self, ctx:CoreDSL2Parser.PrimaryContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#primary.
+    def exitPrimary(self, ctx:CoreDSL2Parser.PrimaryContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#slice_expression.
+    def enterSlice_expression(self, ctx:CoreDSL2Parser.Slice_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#slice_expression.
+    def exitSlice_expression(self, ctx:CoreDSL2Parser.Slice_expressionContext):
         pass
 
 
@@ -671,15 +572,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#string_literal.
     def exitString_literal(self, ctx:CoreDSL2Parser.String_literalContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#constant_expression.
-    def enterConstant_expression(self, ctx:CoreDSL2Parser.Constant_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#constant_expression.
-    def exitConstant_expression(self, ctx:CoreDSL2Parser.Constant_expressionContext):
         pass
 
 
