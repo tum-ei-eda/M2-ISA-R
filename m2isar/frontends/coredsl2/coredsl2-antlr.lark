@@ -4,8 +4,10 @@ include: "import" RULE_STRING
 
 _isa: (instruction_set | core_def)
 
-instruction_set: "InstructionSet" RULE_ID ("extends" RULE_ID)? "{" (section_arch_state (section_functions section_instructions? | section_instructions)? | section_functions (section_arch_state section_instructions? | section_instructions )? | section_instructions (section_arch_state section_functions? | section_functions)?) "}"
-core_def: "Core" RULE_ID ("provides" RULE_ID ("," RULE_ID )*)? "{" (section_arch_state (section_functions section_instructions? | section_instructions)? | section_functions (section_arch_state section_instructions? | section_instructions )? | section_instructions (section_arch_state section_functions? | section_functions)?) "}"
+instruction_set: "InstructionSet" RULE_ID ["extends" RULE_ID] "{" sections+ "}"
+core_def: "Core" RULE_ID ["provides" _separated{RULE_ID, ","}] "{" sections* "}"
+
+?sections: section_arch_state | section_functions | section_instructions
 
 section_arch_state: "architectural_state" "{" (declaration | expression_statement)+ "}"
 section_functions: "functions" "{" function_definition+ "}"
@@ -167,6 +169,8 @@ RULE_STRING : /(?:"(?:(?:\\.)|[^\\"])*")|(?:'(?:(?:\\.)|[^\\'])*')/
 
 COMMENT: /\/\/.*/
 ML_COMMENT: "/*" /(.|\n)+/ "*/"
+
+_separated{x, sep}: x (sep x)*
 
 %import common.WS
 

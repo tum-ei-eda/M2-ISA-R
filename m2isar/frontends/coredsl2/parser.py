@@ -6,7 +6,7 @@ import sys
 from typing import List
 
 from lark import Lark, Tree
-from transformers import Importer
+from .transformers import Importer
 
 #from ...metamodel import arch
 #from .architecture_model_builder import ArchitectureModelBuilder
@@ -49,6 +49,9 @@ def main():
 
 	while i.got_new:
 		imported_tree = i.transform(imported_tree)
+
+	with open("out.txt", "w") as f:
+		f.write(imported_tree.pretty("    "))
 
 	pass
 

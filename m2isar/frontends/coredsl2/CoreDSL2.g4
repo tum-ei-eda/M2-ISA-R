@@ -43,14 +43,14 @@ section_instructions: 'instructions' attributes+=attribute* '{' instructions+=in
 
 // Rule Instruction
 instruction: name=RULE_ID attributes+=attribute* '{'
-	'encoding' ':' encoding';'
+	'encoding' ':' encoding=rule_encoding';'
 	('args_disass' ':' disass=RULE_STRING ';')?
 	'behavior' ':' behavior=statement
 	'}'
 ;
 
 // Rule Encoding
-encoding: fields+=field ('::' fields+=field)*;
+rule_encoding: fields+=field ('::' fields+=field)*;
 
 // Rule Field
 field: bit_value | bit_field;
@@ -128,7 +128,7 @@ jump_statement:
 spawn_statement: 'spawn' stmt=statement;
 
 // Rule Declaration
-declaration: declarationSpecifier* type_=type_specifier ptr=('*' | '&')? (init+=init_declarator (',' init+=init_declarator)*)? ';';
+declaration: (storage+=storage_class_specifier | qualifiers+=type_qualifier | attributes+=attribute)* type_=type_specifier ptr=('*' | '&')? (init+=init_declarator (',' init+=init_declarator)*)? ';';
 
 // Rule DeclarationSpecifier
 declarationSpecifier: storage_class_specifier | type_qualifier | attribute;
@@ -140,7 +140,7 @@ attribute: double_left_bracket type_=attribute_name ('=' value=conditional_expre
 type_specifier: primitive_type | composite_type | enum_type;
 
 // Rule PrimitiveType
-primitive_type: data_type=data_types+ bit_size_specifier?;
+primitive_type: data_type=data_types+ bit_size=bit_size_specifier?;
 
 // Rule BitSizeSpecifier
 bit_size_specifier: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>';
@@ -162,8 +162,8 @@ enumerator:
 
 // Rule CompositeType
 composite_type:
-	struct_or_union	name=RULE_ID? '{' declarations+=struct_declaration* '}'
-	| struct_or_union name=RULE_ID
+	type_=struct_or_union name=RULE_ID? '{' declarations+=struct_declaration* '}'
+	| type_=struct_or_union name=RULE_ID
 ;
 
 // Rule StructDeclaration
@@ -177,8 +177,8 @@ init_declarator: declarator=direct_declarator attributes=attribute* ('=' init=in
 
 // Rule DirectDeclarator
 direct_declarator:
-	name=RULE_ID (':' integer_constant)?
-		((RULE_LEFT_BR conditional_expression RULE_RIGHT_BR)+
+	name=RULE_ID (':' index=integer_constant)?
+		((RULE_LEFT_BR size+=conditional_expression RULE_RIGHT_BR)+
 		| '(' parameter_list ')')?
 ;
 
@@ -208,14 +208,20 @@ direct_abstract_declarator:
 ;
 
 // Rule ExpressionList
-expression_list: assignment_expression (',' assignment_expression)*;
+expression_list: expressions+=assignment_expression (',' expressions+=assignment_expression)*;
 
 // Rule AssignmentExpression
-assignment_expression: prefix_expression (assignment)*;
+assignment_expression: prefix_expression (assignments+=assignment)*;
 
 // Rule Assignment
 assignment: type_=('=' | '*=' | '/=' | '%=' | '+=' | '-=' | '<<=' | '>>=' | '&=' | '^=' | '|=') right=conditional_expression;
 
+/*
+expression
+	: primary_expression
+	| expression postfix=('++' | '--')
+	;
+*/
 // Rule ConditionalExpression
 conditional_expression: concatenation_expression (op='?' conditional_expression ':' conditional_expression)?;
 
@@ -269,7 +275,7 @@ prefix_expression:
 unary_operator: '&' | '*' | '+' | '-' | '~' | '!';
 
 // Rule PostfixExpression
-postfix_expression: primary_expression postfix?;
+postfix_expression: left=primary_expression post_op=postfix?;
 
 // Rule Postfix
 postfix:

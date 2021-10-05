@@ -59,8 +59,8 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#encoding.
-    def visitEncoding(self, ctx:CoreDSL2Parser.EncodingContext):
+    # Visit a parse tree produced by CoreDSL2Parser#rule_encoding.
+    def visitRule_encoding(self, ctx:CoreDSL2Parser.Rule_encodingContext):
         return self.visitChildren(ctx)
 
 
@@ -79,8 +79,13 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#function_definition.
-    def visitFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
+    # Visit a parse tree produced by CoreDSL2Parser#extern_function_definition.
+    def visitExtern_function_definition(self, ctx:CoreDSL2Parser.Extern_function_definitionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#intern_function_definition.
+    def visitIntern_function_definition(self, ctx:CoreDSL2Parser.Intern_function_definitionContext):
         return self.visitChildren(ctx)
 
 
@@ -91,6 +96,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#parameter_declaration.
     def visitParameter_declaration(self, ctx:CoreDSL2Parser.Parameter_declarationContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#direct_or_abstract_declarator.
+    def visitDirect_or_abstract_declarator(self, ctx:CoreDSL2Parser.Direct_or_abstract_declaratorContext):
         return self.visitChildren(ctx)
 
 
@@ -209,8 +219,8 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#struct_declarationSpecifier.
-    def visitStruct_declarationSpecifier(self, ctx:CoreDSL2Parser.Struct_declarationSpecifierContext):
+    # Visit a parse tree produced by CoreDSL2Parser#struct_declaration_specifier.
+    def visitStruct_declaration_specifier(self, ctx:CoreDSL2Parser.Struct_declaration_specifierContext):
         return self.visitChildren(ctx)
 
 
@@ -231,6 +241,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#initializerList.
     def visitInitializerList(self, ctx:CoreDSL2Parser.InitializerListContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#designated_or_not.
+    def visitDesignated_or_not(self, ctx:CoreDSL2Parser.Designated_or_notContext):
         return self.visitChildren(ctx)
 
 
@@ -419,8 +434,8 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#attributeName.
-    def visitAttributeName(self, ctx:CoreDSL2Parser.AttributeNameContext):
+    # Visit a parse tree produced by CoreDSL2Parser#attribute_name.
+    def visitAttribute_name(self, ctx:CoreDSL2Parser.Attribute_nameContext):
         return self.visitChildren(ctx)
 
 

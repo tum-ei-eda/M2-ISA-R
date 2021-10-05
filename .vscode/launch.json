@@ -16,10 +16,20 @@
             "stopOnEntry": true
         },
         {
-            "name": "Parse CoreDSL2",
+            "name": "Parse CoreDSL2 (antlr)",
             "type": "python",
             "request": "launch",
             "module": "m2isar.frontends.coredsl2.parser2",
+            "args": [
+                "${input:inputFile}"
+            ],
+            "stopOnEntry": true
+        },
+        {
+            "name": "Parse CoreDSL2 (lark)",
+            "type": "python",
+            "request": "launch",
+            "module": "m2isar.frontends.coredsl2.parser",
             "args": [
                 "${input:inputFile}"
             ],

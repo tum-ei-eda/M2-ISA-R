@@ -3,23 +3,39 @@ import sys
 
 import antlr4
 
-from CoreDSL2Lexer import CoreDSL2Lexer
-from CoreDSL2Listener import CoreDSL2Listener
-from CoreDSL2Parser import CoreDSL2Parser
-from CoreDSL2Visitor import CoreDSL2Visitor
+from .CoreDSL2Lexer import CoreDSL2Lexer
+from .CoreDSL2Listener import CoreDSL2Listener
+from .CoreDSL2Parser import CoreDSL2Parser
+from .CoreDSL2Visitor import CoreDSL2Visitor
 
+
+class Visitor2(CoreDSL2Visitor):
+	pass
 
 class Visitor(CoreDSL2Visitor):
+	def visitTerminal(self, node):
+		return None
+	def defaultResult(self):
+		return []
+	def aggregateResult(self, aggregate, nextResult):
+		if nextResult is None:
+			return None
+		return aggregate + [nextResult]
+
 	def visitDescription_content(self, ctx: CoreDSL2Parser.Description_contentContext):
-		imports = [self.visit(i) for i in ctx.imports]
-		definitions = [self.visit(i) for i in ctx.definitions]
+		a = self.visitChildren(ctx)
+		#imports = [self.visit(i) for i in ctx.imports]
+		#definitions = [self.visit(i) for i in ctx.definitions]
 		pass
 
 	def visitImport_file(self, ctx: CoreDSL2Parser.Import_fileContext):
+		a = self.visitChildren(ctx)
 		return ctx.RULE_STRING().getText().replace('"', '')
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
+		a = self.visitChildren(ctx)
 		return (ctx.name, ctx.extension)
 	def visitCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
+		a = self.visitChildren(ctx)
 		return (ctx.name, ctx.contributing_types)
 
 class Listener(CoreDSL2Listener):
@@ -70,7 +86,7 @@ def main(argv):
 	stream = antlr4.CommonTokenStream(lexer)
 	parser = CoreDSL2Parser(stream)
 	tree = parser.description_content()
-	#print(tree.toStringTree(recog=parser))
+	print(tree.toStringTree(recog=parser))
 
 	importer = Importer(search_path)
 	walker = antlr4.ParseTreeWalker()
@@ -87,10 +103,13 @@ def main(argv):
 	listener = Listener()
 	walker.walk(listener, tree)
 
+	#visitor = Visitor2()
+	#a = visitor.visit(tree)
+
 	visitor = Visitor()
 	a = visitor.visit(tree)
 
 	pass
 
 if __name__ == '__main__':
-    main(sys.argv)
+	main(sys.argv)

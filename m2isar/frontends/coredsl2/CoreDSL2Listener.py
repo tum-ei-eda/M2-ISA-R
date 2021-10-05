@@ -98,12 +98,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#encoding.
-    def enterEncoding(self, ctx:CoreDSL2Parser.EncodingContext):
+    # Enter a parse tree produced by CoreDSL2Parser#rule_encoding.
+    def enterRule_encoding(self, ctx:CoreDSL2Parser.Rule_encodingContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#encoding.
-    def exitEncoding(self, ctx:CoreDSL2Parser.EncodingContext):
+    # Exit a parse tree produced by CoreDSL2Parser#rule_encoding.
+    def exitRule_encoding(self, ctx:CoreDSL2Parser.Rule_encodingContext):
         pass
 
 
@@ -134,12 +134,21 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#function_definition.
-    def enterFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
+    # Enter a parse tree produced by CoreDSL2Parser#extern_function_definition.
+    def enterExtern_function_definition(self, ctx:CoreDSL2Parser.Extern_function_definitionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#function_definition.
-    def exitFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
+    # Exit a parse tree produced by CoreDSL2Parser#extern_function_definition.
+    def exitExtern_function_definition(self, ctx:CoreDSL2Parser.Extern_function_definitionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#intern_function_definition.
+    def enterIntern_function_definition(self, ctx:CoreDSL2Parser.Intern_function_definitionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#intern_function_definition.
+    def exitIntern_function_definition(self, ctx:CoreDSL2Parser.Intern_function_definitionContext):
         pass
 
 
@@ -158,6 +167,15 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#parameter_declaration.
     def exitParameter_declaration(self, ctx:CoreDSL2Parser.Parameter_declarationContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#direct_or_abstract_declarator.
+    def enterDirect_or_abstract_declarator(self, ctx:CoreDSL2Parser.Direct_or_abstract_declaratorContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#direct_or_abstract_declarator.
+    def exitDirect_or_abstract_declarator(self, ctx:CoreDSL2Parser.Direct_or_abstract_declaratorContext):
         pass
 
 
@@ -368,12 +386,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#struct_declarationSpecifier.
-    def enterStruct_declarationSpecifier(self, ctx:CoreDSL2Parser.Struct_declarationSpecifierContext):
+    # Enter a parse tree produced by CoreDSL2Parser#struct_declaration_specifier.
+    def enterStruct_declaration_specifier(self, ctx:CoreDSL2Parser.Struct_declaration_specifierContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#struct_declarationSpecifier.
-    def exitStruct_declarationSpecifier(self, ctx:CoreDSL2Parser.Struct_declarationSpecifierContext):
+    # Exit a parse tree produced by CoreDSL2Parser#struct_declaration_specifier.
+    def exitStruct_declaration_specifier(self, ctx:CoreDSL2Parser.Struct_declaration_specifierContext):
         pass
 
 
@@ -410,6 +428,15 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#initializerList.
     def exitInitializerList(self, ctx:CoreDSL2Parser.InitializerListContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#designated_or_not.
+    def enterDesignated_or_not(self, ctx:CoreDSL2Parser.Designated_or_notContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#designated_or_not.
+    def exitDesignated_or_not(self, ctx:CoreDSL2Parser.Designated_or_notContext):
         pass
 
 
@@ -746,12 +773,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#attributeName.
-    def enterAttributeName(self, ctx:CoreDSL2Parser.AttributeNameContext):
+    # Enter a parse tree produced by CoreDSL2Parser#attribute_name.
+    def enterAttribute_name(self, ctx:CoreDSL2Parser.Attribute_nameContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#attributeName.
-    def exitAttributeName(self, ctx:CoreDSL2Parser.AttributeNameContext):
+    # Exit a parse tree produced by CoreDSL2Parser#attribute_name.
+    def exitAttribute_name(self, ctx:CoreDSL2Parser.Attribute_nameContext):
         pass
 
 
