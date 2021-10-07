@@ -110,7 +110,6 @@ switch_label
 	| 'default' ':'
 	;
 
-
 block
 	: '{' items+=block_item* '}'
 	;
@@ -120,18 +119,17 @@ block_item
 	| declaration
 	;
 
-// Rule ExpressionStatement
-expression_statement: expr=expression_list? ';';
+for_condition
+	: (start_decl=declaration | start_expr=expression? ';')
+	  end_expr=expression? ';'
+	  (loop_exprs+=expression (',' loop_exprs+=expression)*)?
+	;
 
-// Rule ForCondition
-for_condition: (start_decl=declaration | start_expr=expression? ';') end_expr=expression? ';' (loop_exprs+=expression (',' loop_exprs+=expression)*)?;
-
-// Rule JumpStatement
-jump_statement:
-	type_='continue' ';'
+jump_statement
+	: type_='continue' ';'
 	| type_='break' ';'
 	| type_='return' expr=expression? ';'
-;
+	;
 
 // Rule SpawnStatement
 spawn_statement: 'spawn' stmt=statement;

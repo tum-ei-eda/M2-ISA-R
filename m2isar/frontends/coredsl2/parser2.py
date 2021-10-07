@@ -3,19 +3,20 @@ import sys
 
 import antlr4
 import antlr4.error.ErrorListener
-import antlr4.error.ErrorStrategy
 
 from .CoreDSL2Lexer import CoreDSL2Lexer
 from .CoreDSL2Listener import CoreDSL2Listener
 from .CoreDSL2Parser import CoreDSL2Parser
 from .CoreDSL2Visitor import CoreDSL2Visitor
 
+
 class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
-	def __init__(self) -> None:
+	def __init__(self, filename=None) -> None:
+		self.filename = filename
 		super().__init__()
 
 	def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-		raise ValueError(f"Syntax error in line {line}, column {column}: {msg}")
+		raise ValueError(f"Syntax error in file {self.filename}, line {line}, column {column}: {msg}")
 
 class Visitor2(CoreDSL2Visitor):
 	pass
@@ -55,6 +56,15 @@ class Listener(CoreDSL2Listener):
 	def enterCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
 		print("Core: " + ctx.name.text)
 
+def make_parser(filename):
+	input_stream = antlr4.FileStream(filename)
+	lexer = CoreDSL2Lexer(input_stream)
+	stream = antlr4.CommonTokenStream(lexer)
+	parser = CoreDSL2Parser(stream)
+	error_handler = MyErrorListener(filename)
+	parser.removeErrorListeners()
+	parser.addErrorListener(error_handler)
+	return parser
 
 class Importer(CoreDSL2Listener):
 	def __init__(self, search_path) -> None:
@@ -72,10 +82,7 @@ class Importer(CoreDSL2Listener):
 			self.got_new = True
 			self.imported.add(filename)
 
-			input_stream = antlr4.FileStream(self.search_path/filename)
-			lexer = CoreDSL2Lexer(input_stream)
-			stream = antlr4.CommonTokenStream(lexer)
-			parser = CoreDSL2Parser(stream)
+			parser = make_parser(self.search_path/filename)
 
 			tree = parser.description_content()
 
@@ -89,14 +96,9 @@ def main(argv):
 	abs_top_level = top_level.resolve()
 	search_path = abs_top_level.parent
 
-	input_stream = antlr4.FileStream(top_level)
-	lexer = CoreDSL2Lexer(input_stream)
-	stream = antlr4.CommonTokenStream(lexer)
-	parser = CoreDSL2Parser(stream)
-	#parser._errHandler = antlr4.error.ErrorStrategy.BailErrorStrategy()
-	parser.addErrorListener(MyErrorListener())
+	parser = make_parser(abs_top_level)
+
 	tree = parser.description_content()
-	print(tree.toStringTree(recog=parser))
 
 	importer = Importer(search_path)
 	walker = antlr4.ParseTreeWalker()
