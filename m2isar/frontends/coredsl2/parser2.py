@@ -4,10 +4,8 @@ import sys
 import antlr4
 import antlr4.error.ErrorListener
 
-from .CoreDSL2Lexer import CoreDSL2Lexer
-from .CoreDSL2Listener import CoreDSL2Listener
-from .CoreDSL2Parser import CoreDSL2Parser
-from .CoreDSL2Visitor import CoreDSL2Visitor
+from .parser_gen import (CoreDSL2Lexer, CoreDSL2Listener, CoreDSL2Parser,
+                         CoreDSL2Visitor)
 
 
 class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
