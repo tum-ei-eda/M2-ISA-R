@@ -134,11 +134,6 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#expression_statement.
-    def visitExpression_statement(self, ctx:CoreDSL2Parser.Expression_statementContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CoreDSL2Parser#for_condition.
     def visitFor_condition(self, ctx:CoreDSL2Parser.For_conditionContext):
         return self.visitChildren(ctx)

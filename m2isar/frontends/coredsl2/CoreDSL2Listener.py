@@ -233,15 +233,6 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#expression_statement.
-    def enterExpression_statement(self, ctx:CoreDSL2Parser.Expression_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#expression_statement.
-    def exitExpression_statement(self, ctx:CoreDSL2Parser.Expression_statementContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#for_condition.
     def enterFor_condition(self, ctx:CoreDSL2Parser.For_conditionContext):
         pass
