@@ -5,7 +5,7 @@ description_content
 	;
 
 import_file
-	: 'import' uri=RULE_STRING
+	: 'import' uri=STRING
 	;
 
 isa
@@ -14,7 +14,7 @@ isa
 	;
 
 instruction_set
-	: 'InstructionSet' name=IDENTIFIER ('extends' extension=IDENTIFIER)? '{' sections+ '}'
+	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+ '}'
 	;
 
 core_def
@@ -47,7 +47,7 @@ section_instructions
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'
 	'encoding' ':' encoding=rule_encoding';'
-	('args_disass' ':' disass=RULE_STRING ';')?
+	('args_disass' ':' disass=STRING ';')?
 	'behavior' ':' behavior=statement
 	'}'
 	;
@@ -62,11 +62,11 @@ field
 	;
 
 bit_value
-	: value=RULE_INTEGER
+	: value=INTEGER
 	;
 
 bit_field
-	: name=IDENTIFIER RULE_LEFT_BR left=integer_constant ':' right=integer_constant RULE_RIGHT_BR
+	: name=IDENTIFIER LEFT_BR left=integer_constant ':' right=integer_constant RIGHT_BR
 	;
 
 function_definition
@@ -84,7 +84,7 @@ parameter_declaration
 
 direct_or_abstract_declarator
 	: direct_declarator
-	| abstract_declarator
+	| direct_abstract_declarator
 	;
 
 statement
@@ -125,97 +125,104 @@ for_condition
 	  (loop_exprs+=expression (',' loop_exprs+=expression)*)?
 	;
 
-jump_statement
-	: type_='continue' ';'
-	| type_='break' ';'
-	| type_='return' expr=expression? ';'
+declaration
+	: (storage+=storage_class_specifier | qualifiers+=type_qualifier | attributes+=attribute)*
+	  type_=type_specifier ptr=('*' | '&')?
+	  (init+=init_declarator (',' init+=init_declarator)*)? ';'
 	;
 
-// Rule SpawnStatement
-spawn_statement: 'spawn' stmt=statement;
+declarationSpecifier
+	: storage_class_specifier
+	| type_qualifier
+	| attribute
+	;
 
-// Rule Declaration
-declaration: (storage+=storage_class_specifier | qualifiers+=type_qualifier | attributes+=attribute)* type_=type_specifier ptr=('*' | '&')? (init+=init_declarator (',' init+=init_declarator)*)? ';';
+attribute
+	: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket
+	;
 
-// Rule DeclarationSpecifier
-declarationSpecifier: storage_class_specifier | type_qualifier | attribute;
+type_specifier
+	: primitive_type
+	| composite_type
+	| enum_type
+	;
 
-// Rule Attribute
-attribute: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket;
+primitive_type
+	: data_type=data_types+ bit_size=bit_size_specifier?
+	;
 
-// Rule TypeSpecifier
-type_specifier: primitive_type | composite_type | enum_type;
+bit_size_specifier
+	: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>'
+	;
 
-// Rule PrimitiveType
-primitive_type: data_type=data_types+ bit_size=bit_size_specifier?;
-
-// Rule BitSizeSpecifier
-bit_size_specifier: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>';
-
-// Rule EnumType
-enum_type:
-	'enum' name=IDENTIFIER? '{' enumerator_list ','? '}'
+enum_type
+	: 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}'
 	| 'enum' name=IDENTIFIER
-;
+	;
 
-// Rule EnumeratorList
-enumerator_list: enumerators+=enumerator (',' enumerators+=enumerator)*;
+enumerator_list
+	: enumerators+=enumerator (',' enumerators+=enumerator)*
+	;
 
-// Rule Enumerator
-enumerator:
-	name=IDENTIFIER
+enumerator
+	: name=IDENTIFIER
 	| name=IDENTIFIER '=' expression
-;
+	;
 
-// Rule CompositeType
-composite_type:
-	type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}'
+composite_type
+	: type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}'
 	| type_=struct_or_union name=IDENTIFIER
-;
+	;
 
-// Rule StructDeclaration
-struct_declaration: specifier=struct_declaration_specifier declarators+=direct_declarator(',' declarators+=direct_declarator)* ';';
+struct_declaration
+	: specifier=struct_declaration_specifier declarators+=direct_declarator(',' declarators+=direct_declarator)* ';'
+	;
 
-// Rule StructDeclarationSpecifier
-struct_declaration_specifier: type_=type_specifier | qualifiers+=type_qualifier;
+struct_declaration_specifier
+	: type_=type_specifier
+	| qualifiers+=type_qualifier
+	;
 
-// Rule InitDeclarator
-init_declarator: declarator=direct_declarator attributes=attribute* ('=' init=initializer)?;
+init_declarator
+	: declarator=direct_declarator attributes=attribute* ('=' init=initializer)?
+	;
 
-// Rule DirectDeclarator
-direct_declarator:
-	name=IDENTIFIER (':' index=integer_constant)?
-		((RULE_LEFT_BR size+=expression RULE_RIGHT_BR)+
-		| '(' parameter_list ')')?
-;
+direct_declarator
+	: name=IDENTIFIER (':' index=integer_constant)?
+	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' parameter_list ')')?
+	;
 
-// Rule Initializer
-initializer:
-	expr=expression
+initializer
+	: expr=expression
 	| '{' initializerList ','? '}'
-;
+	;
 
-// Rule InitializerList
-initializerList: init+=designated_or_not (',' init+=designated_or_not)*;
-designated_or_not: designated_initializer | initializer;
+initializerList
+	: init+=designated_or_not (',' init+=designated_or_not)*
+	;
 
-// Rule DesignatedInitializer
-designated_initializer: designators+=designator+ '=' init=initializer;
+designated_or_not
+	: designated_initializer
+	| initializer
+	;
 
-// Rule Designator
-designator: RULE_LEFT_BR idx=expression RULE_RIGHT_BR | '.' prop=IDENTIFIER;
+designated_initializer
+	: designators+=designator+ '=' init=initializer
+	;
 
-// Rule AbstractDeclarator
-abstract_declarator: direct_abstract_declarator;
+designator
+	: LEFT_BR idx=expression RIGHT_BR
+	| '.' prop=IDENTIFIER
+	;
 
-// Rule DirectAbstractDeclarator
-direct_abstract_declarator:
-	'(' (decl=abstract_declarator? | parameter_list) ')'
-	| RULE_LEFT_BR expr=expression? RULE_RIGHT_BR
-;
+direct_abstract_declarator
+	: '(' (decl=direct_abstract_declarator? | parameter_list) ')'
+	| LEFT_BR expr=expression? RIGHT_BR
+	;
 
-// Rule ExpressionList
-expression_list: expressions+=expression (',' expressions+=expression)*;
+expression_list
+	: expressions+=expression (',' expressions+=expression)*
+	;
 
 expression
 	: primary_expression #primary
@@ -242,60 +249,51 @@ expression
 	;
 
 
-// Rule PrimaryExpression
-primary_expression:
-	ref=IDENTIFIER
+primary_expression
+	: ref=IDENTIFIER
 	| const_expr=constant
 	| literal+=string_literal+
 	| '(' expression ')'
-;
+	;
 
-// Rule StringLiteral
-string_literal: RULE_ENCSTRINGCONST | RULE_STRING;
+string_literal
+	: ENCSTRINGCONST
+	| STRING
+	;
 
-// Rule Constant
-constant:
-	integer_constant
+constant
+	: integer_constant
 	| floating_constant
 	| character_constant
 	| bool_constant
-;
+	;
 
-// Rule IntegerConstant
-integer_constant:
-	value=RULE_INTEGER
-;
+integer_constant
+	: value=INTEGER
+	;
 
-// Rule FloatingConstant
-floating_constant:
-	value=RULE_FLOAT
-;
+floating_constant
+	: value=FLOAT
+	;
 
-// Rule BoolConstant
-bool_constant:
-	value=RULE_BOOLEAN
-;
+bool_constant
+	: value=BOOLEAN
+	;
 
-// Rule CharacterConstant
-character_constant:
-	value=RULE_CHARCONST
-;
+character_constant
+	: value=CHARCONST
+	;
 
-// Rule DoubleLeftBracket
-double_left_bracket:
-	RULE_LEFT_BR
-	RULE_LEFT_BR
-;
+double_left_bracket
+	: LEFT_BR LEFT_BR
+	;
 
-// Rule DoubleRightBracket
-double_right_bracket:
-	RULE_RIGHT_BR
-	RULE_RIGHT_BR
-;
+double_right_bracket
+	: RIGHT_BR RIGHT_BR
+	;
 
-// Rule DataTypes
-data_types:
-	'bool'
+data_types
+	: 'bool'
 	| 'char'
 	| 'short'
 	| 'int'
@@ -306,24 +304,21 @@ data_types:
 	| 'double'
 	| 'void'
 	| 'alias'
-;
+	;
 
-// Rule TypeQualifier
-type_qualifier:
-	'const'
+type_qualifier
+	: 'const'
 	| 'volatile'
-;
+	;
 
-// Rule StorageClassSpecifier
-storage_class_specifier:
-	'extern'
+storage_class_specifier
+	: 'extern'
 	| 'static'
 	| 'register'
-;
+	;
 
-// Rule attribute_name
-attribute_name:
-	'NONE'
+attribute_name
+	: 'NONE'
 	| 'is_pc'
 	| 'is_interlock_for'
 	| 'do_not_synthesize'
@@ -331,48 +326,32 @@ attribute_name:
 	| 'no_cont'
 	| 'cond'
 	| 'flush'
-;
+	;
 
-// Rule StructOrUnion
-struct_or_union:
-	'struct'
+struct_or_union
+	: 'struct'
 	| 'union'
-;
+	;
 
-RULE_LEFT_BR : '[';
+LEFT_BR: '[';
+RIGHT_BR: ']';
 
-RULE_RIGHT_BR : ']';
+BOOLEAN: ('true'|'false');
+FLOAT: ('0'..'9')+ '.' ('0'..'9')* (('e'|'E') ('+'|'-')? ('0'..'9')+)? ('f'|'F'|'l'|'L')?;
+INTEGER: (BINARYINT|HEXADECIMALINT|OCTALINT|DECIMALINT|VLOGINT) ('u'|'U')? (('l'|'L') ('l'|'L')?)?;
 
-RULE_BOOLEAN : ('true'|'false');
+fragment BINARYINT: ('0b'|'0B') '0'..'1' ('_'? '0'..'1')*;
+fragment OCTALINT: '0' '_'? '0'..'7' ('_'? '0'..'7')*;
+fragment DECIMALINT: ('0'|'1'..'9' ('_'? '0'..'9')*);
+fragment HEXADECIMALINT: ('0x'|'0X') ('0'..'9'|'a'..'f'|'A'..'F') ('_'? ('0'..'9'|'a'..'f'|'A'..'F'))*;
+fragment VLOGINT: ('0'..'9')+ '\'' ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
 
-RULE_FLOAT : ('0'..'9')+ '.' ('0'..'9')* (('e'|'E') ('+'|'-')? ('0'..'9')+)? ('f'|'F'|'l'|'L')?;
+IDENTIFIER: '^'? ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
 
-RULE_INTEGER : (RULE_BINARYINT|RULE_HEXADECIMALINT|RULE_OCTALINT|RULE_DECIMALINT|RULE_VLOGINT) ('u'|'U')? (('l'|'L') ('l'|'L')?)?;
+CHARCONST: ('u'|'U'|'L')? '\'' ('\\' .|~('\\'|'\''))* '\'';
+ENCSTRINGCONST: ('u8'|'u'|'U'|'L') '"' ('\\' .|~('\\'|'"'))* '"';
+STRING: ('"' ('\\' .|~('\\'|'"'))* '"'|'\'' ('\\' .|~('\\'|'\''))* '\'');
 
-fragment RULE_BINARYINT : ('0b'|'0B') '0'..'1' ('_'? '0'..'1')*;
-
-fragment RULE_OCTALINT : '0' '_'? '0'..'7' ('_'? '0'..'7')*;
-
-fragment RULE_DECIMALINT : ('0'|'1'..'9' ('_'? '0'..'9')*);
-
-fragment RULE_HEXADECIMALINT : ('0x'|'0X') ('0'..'9'|'a'..'f'|'A'..'F') ('_'? ('0'..'9'|'a'..'f'|'A'..'F'))*;
-
-fragment RULE_VLOGINT : ('0'..'9')+ '\'' ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
-
-RULE_CHARCONST : ('u'|'U'|'L')? '\'' ('\\' .|~('\\'|'\''))* '\'';
-
-RULE_INT : '~this one has been deactivated';
-
-IDENTIFIER : '^'? ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
-
-RULE_ENCSTRINGCONST : ('u8'|'u'|'U'|'L') '"' ('\\' .|~('\\'|'"'))* '"';
-
-RULE_STRING : ('"' ('\\' .|~('\\'|'"'))* '"'|'\'' ('\\' .|~('\\'|'\''))* '\'');
-
-RULE_ML_COMMENT : '/*' .*?'*/' -> skip;
-
-RULE_SL_COMMENT : '//' ~('\n'|'\r')* ('\r'? '\n')? -> skip;
-
-RULE_WS : (' '|'\t'|'\r'|'\n')+ -> skip;
-
-RULE_ANY_OTHER : .;
+ML_COMMENT: '/*' .*?'*/' -> skip;
+SL_COMMENT: '//' ~('\n'|'\r')* ('\r'? '\n')? -> skip;
+WS: (' '|'\t'|'\r'|'\n')+ -> skip;

@@ -1,4 +1,4 @@
-# Generated from .\CoreDSL2.g4 by ANTLR 4.9.2
+# Generated from CoreDSL2.g4 by ANTLR 4.9.2
 from antlr4 import *
 if __name__ is not None and "." in __name__:
     from .CoreDSL2Parser import CoreDSL2Parser
@@ -139,16 +139,6 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#jump_statement.
-    def visitJump_statement(self, ctx:CoreDSL2Parser.Jump_statementContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CoreDSL2Parser#spawn_statement.
-    def visitSpawn_statement(self, ctx:CoreDSL2Parser.Spawn_statementContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CoreDSL2Parser#declaration.
     def visitDeclaration(self, ctx:CoreDSL2Parser.DeclarationContext):
         return self.visitChildren(ctx)
@@ -241,11 +231,6 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#designator.
     def visitDesignator(self, ctx:CoreDSL2Parser.DesignatorContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CoreDSL2Parser#abstract_declarator.
-    def visitAbstract_declarator(self, ctx:CoreDSL2Parser.Abstract_declaratorContext):
         return self.visitChildren(ctx)
 
 

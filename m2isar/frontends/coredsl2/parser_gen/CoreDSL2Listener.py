@@ -1,4 +1,4 @@
-# Generated from .\CoreDSL2.g4 by ANTLR 4.9.2
+# Generated from CoreDSL2.g4 by ANTLR 4.9.2
 from antlr4 import *
 if __name__ is not None and "." in __name__:
     from .CoreDSL2Parser import CoreDSL2Parser
@@ -242,24 +242,6 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#jump_statement.
-    def enterJump_statement(self, ctx:CoreDSL2Parser.Jump_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#jump_statement.
-    def exitJump_statement(self, ctx:CoreDSL2Parser.Jump_statementContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#spawn_statement.
-    def enterSpawn_statement(self, ctx:CoreDSL2Parser.Spawn_statementContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#spawn_statement.
-    def exitSpawn_statement(self, ctx:CoreDSL2Parser.Spawn_statementContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#declaration.
     def enterDeclaration(self, ctx:CoreDSL2Parser.DeclarationContext):
         pass
@@ -428,15 +410,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#designator.
     def exitDesignator(self, ctx:CoreDSL2Parser.DesignatorContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#abstract_declarator.
-    def enterAbstract_declarator(self, ctx:CoreDSL2Parser.Abstract_declaratorContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#abstract_declarator.
-    def exitAbstract_declarator(self, ctx:CoreDSL2Parser.Abstract_declaratorContext):
         pass
 
 
