@@ -14,26 +14,29 @@ isa
 	;
 
 instruction_set
-	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+ '}'
+	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+=section+ '}'
 	;
 
 core_def
-	: 'Core' name=IDENTIFIER ('provides' contributing_types+=IDENTIFIER (',' contributing_types+=IDENTIFIER)*)? '{' sections* '}'
+	: 'Core' name=IDENTIFIER ('provides' contributing_types+=IDENTIFIER (',' contributing_types+=IDENTIFIER)*)? '{' sections+=section* '}'
 	;
 
+/*
 sections
 	: section_arch_state
 	| section_functions
 	| section_instructions
 	;
+*/
 
-section_arch_state
-	: 'architectural_state' '{' declarations+=decl_or_expr+ '}'
+section
+	: type_='architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}'
+	| type_='functions' '{' functions+=function_definition+ '}'
+	| type_='instructions' attributes+=attribute* '{' instructions+=instruction+ '}'
 	;
 
-decl_or_expr
-	: declaration
-	| expression ';'
+section_arch_state
+	: 'architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}'
 	;
 
 section_functions
@@ -53,12 +56,7 @@ instruction
 	;
 
 rule_encoding
-	: fields+=field ('::' fields+=field)*
-	;
-
-field
-	: bit_value
-	| bit_field
+	: (bit_value | bit_field) ('::' (bit_value | bit_field))*
 	;
 
 bit_value
@@ -70,8 +68,8 @@ bit_field
 	;
 
 function_definition
-	: 'extern' type_=type_specifier name=IDENTIFIER '(' parameter_list? ')' ';' # extern_function_definition
-	| type_=type_specifier name=IDENTIFIER '(' parameter_list? ')' attributes+=attribute* behavior=block # intern_function_definition
+	: extern='extern' type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' ';'
+	| type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' attributes+=attribute* behavior=block
 	;
 
 parameter_list
@@ -79,12 +77,7 @@ parameter_list
 	;
 
 parameter_declaration
-	: type_=type_specifier declarator=direct_or_abstract_declarator?
-	;
-
-direct_or_abstract_declarator
-	: direct_declarator
-	| direct_abstract_declarator
+	: type_=type_specifier (direct_declarator | direct_abstract_declarator)?
 	;
 
 statement
@@ -189,7 +182,7 @@ init_declarator
 
 direct_declarator
 	: name=IDENTIFIER (':' index=integer_constant)?
-	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' parameter_list ')')?
+	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' params=parameter_list ')')?
 	;
 
 initializer
@@ -198,12 +191,7 @@ initializer
 	;
 
 initializerList
-	: init+=designated_or_not (',' init+=designated_or_not)*
-	;
-
-designated_or_not
-	: designated_initializer
-	| initializer
+	: (designated_initializer | initializer) (',' (designated_initializer | initializer))*
 	;
 
 designated_initializer
@@ -216,7 +204,7 @@ designator
 	;
 
 direct_abstract_declarator
-	: '(' (decl=direct_abstract_declarator? | parameter_list) ')'
+	: '(' (decl=direct_abstract_declarator? | params=parameter_list) ')'
 	| LEFT_BR expr=expression? RIGHT_BR
 	;
 

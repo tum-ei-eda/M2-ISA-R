@@ -53,12 +53,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#sections.
-    def enterSections(self, ctx:CoreDSL2Parser.SectionsContext):
+    # Enter a parse tree produced by CoreDSL2Parser#section.
+    def enterSection(self, ctx:CoreDSL2Parser.SectionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#sections.
-    def exitSections(self, ctx:CoreDSL2Parser.SectionsContext):
+    # Exit a parse tree produced by CoreDSL2Parser#section.
+    def exitSection(self, ctx:CoreDSL2Parser.SectionContext):
         pass
 
 
@@ -68,15 +68,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#section_arch_state.
     def exitSection_arch_state(self, ctx:CoreDSL2Parser.Section_arch_stateContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#decl_or_expr.
-    def enterDecl_or_expr(self, ctx:CoreDSL2Parser.Decl_or_exprContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#decl_or_expr.
-    def exitDecl_or_expr(self, ctx:CoreDSL2Parser.Decl_or_exprContext):
         pass
 
 
@@ -116,15 +107,6 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#field.
-    def enterField(self, ctx:CoreDSL2Parser.FieldContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#field.
-    def exitField(self, ctx:CoreDSL2Parser.FieldContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#bit_value.
     def enterBit_value(self, ctx:CoreDSL2Parser.Bit_valueContext):
         pass
@@ -143,21 +125,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#extern_function_definition.
-    def enterExtern_function_definition(self, ctx:CoreDSL2Parser.Extern_function_definitionContext):
+    # Enter a parse tree produced by CoreDSL2Parser#function_definition.
+    def enterFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#extern_function_definition.
-    def exitExtern_function_definition(self, ctx:CoreDSL2Parser.Extern_function_definitionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#intern_function_definition.
-    def enterIntern_function_definition(self, ctx:CoreDSL2Parser.Intern_function_definitionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#intern_function_definition.
-    def exitIntern_function_definition(self, ctx:CoreDSL2Parser.Intern_function_definitionContext):
+    # Exit a parse tree produced by CoreDSL2Parser#function_definition.
+    def exitFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
         pass
 
 
@@ -176,15 +149,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#parameter_declaration.
     def exitParameter_declaration(self, ctx:CoreDSL2Parser.Parameter_declarationContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#direct_or_abstract_declarator.
-    def enterDirect_or_abstract_declarator(self, ctx:CoreDSL2Parser.Direct_or_abstract_declaratorContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#direct_or_abstract_declarator.
-    def exitDirect_or_abstract_declarator(self, ctx:CoreDSL2Parser.Direct_or_abstract_declaratorContext):
         pass
 
 
@@ -383,15 +347,6 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#initializerList.
     def exitInitializerList(self, ctx:CoreDSL2Parser.InitializerListContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#designated_or_not.
-    def enterDesignated_or_not(self, ctx:CoreDSL2Parser.Designated_or_notContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#designated_or_not.
-    def exitDesignated_or_not(self, ctx:CoreDSL2Parser.Designated_or_notContext):
         pass
 
 
