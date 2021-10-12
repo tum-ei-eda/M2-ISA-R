@@ -65,6 +65,13 @@ class TypeConv(BaseNode):
 		self.size = size
 		self.expr = expr
 
+		if self.size is not None:
+			self.actual_size = 1 << (self.size - 1).bit_length()
+			if self.actual_size < 8:
+				self.actual_size = 8
+		else:
+			self.actual_size = None
+
 class Callable(BaseNode):
 	def __init__(self, ref_or_name: Union[str, "Function"], args: List[BaseNode]) -> None:
 		self.ref_or_name = ref_or_name

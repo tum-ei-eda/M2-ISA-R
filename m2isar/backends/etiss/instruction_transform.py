@@ -16,7 +16,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 	if context.is_exception:
 		code_str += '\npartInit.code() += "return exception;\\n";'
 	elif context.generates_exception:
-		code_str = f'partInit.code() += "exception = 0;\\n";\n{code_str}\npartInit.code() += "if (exception) return exception;\\n";'
+		code_str += '\npartInit.code() += "if (exception) return exception;\\n";'
 	elif arch.InstrAttribute.NO_CONT in context.attribs:
 		code_str += '\npartInit.code() += "return 0;\\n";'
 
@@ -76,8 +76,8 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		if exc_id not in replacements.exception_mapping:
 			raise ValueError(f'Exception {exc_id} not defined!')
 
-		#context.generates_exception = True
-		return f'partInit.code() += "return {replacements.exception_mapping[exc_id]};\\n";'
+		context.generates_exception = True
+		return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif self.ref_or_name.startswith('dispatch_'):
 		if fn_args is None: fn_args = []
@@ -417,6 +417,8 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 		return c
 	else:
 		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
+		if len(referred_mem.children) > 0:
+			code_str = '*' + code_str
 		if size != referred_mem.size:
 			code_str = f'(etiss_uint{size})' + code_str
 		c = CodeString(code_str, static, size, False, False)
@@ -431,7 +433,8 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 		self.data_type = arch.DataType.S if expr.signed else arch.DataType.U
 
 	if self.size is None:
-		self.size = expr.actual_size
+		self.size = expr.size
+		self.actual_size = expr.actual_size
 
 	if expr.is_mem_access:
 		if not expr.mem_corrected and expr.mem_ids[-1].access_size != self.size:
@@ -444,7 +447,11 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 		return expr
 
-	c = CodeString(f'({data_type_map[self.data_type]}{self.size})({expr.code})', expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
+	code_str = f'({data_type_map[self.data_type]}{self.actual_size})({expr.code})'
+	if self.actual_size != self.size:
+		code_str = f'({code_str} & {hex((1 << self.size) - 1)})'
+
+	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
 	c.mem_ids = expr.mem_ids
 	return c
 

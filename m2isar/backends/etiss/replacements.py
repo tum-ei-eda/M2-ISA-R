@@ -1,8 +1,8 @@
 default_prefix = '((${ARCH_NAME}*)cpu)->'
 prefixes = {
 	'PC': 'cpu->',
-	'X': '*((${ARCH_NAME}*)cpu)->',
-	'R': '*((${ARCH_NAME}*)cpu)->'
+	#'X': '*((${ARCH_NAME}*)cpu)->',
+	#'R': '*((${ARCH_NAME}*)cpu)->'
 }
 
 rename_static = {
