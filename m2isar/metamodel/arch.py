@@ -201,11 +201,11 @@ class BitFieldDescr(SizedRefOrConst):
 		super().__init__(name, size)
 
 class Instruction(SizedRefOrConst):
-	def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: "Operation"):
+	def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: Operation):
 		self.ext_name = ""
 		self.attributes = attributes if attributes else []
 		self.encoding = encoding
-		self.fields = {}
+		self.fields: Mapping[str, BitFieldDescr] = {}
 		self.scalars = {}
 		self.disass = disass
 		self.operation = operation if operation is not None else Operation([])

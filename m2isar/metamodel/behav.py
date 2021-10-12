@@ -1,7 +1,7 @@
-from typing import List, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Union
 
 if TYPE_CHECKING:
-	from .arch import Scalar, Function
+	from .arch import BitFieldDescr, Constant, FnParam, Function, Memory, Scalar
 
 
 class BaseNode:
@@ -51,11 +51,11 @@ class UnaryOperation(BaseNode):
 		self.right = right
 
 class NamedReference(BaseNode):
-	def __init__(self, reference):
+	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Scalar", "Constant", "FnParam"]):
 		self.reference = reference
 
 class IndexedReference(BaseNode):
-	def __init__(self, reference, index):
+	def __init__(self, reference: "Memory", index: BaseNode):
 		self.reference = reference
 		self.index = index
 
@@ -64,6 +64,13 @@ class TypeConv(BaseNode):
 		self.data_type = data_type
 		self.size = size
 		self.expr = expr
+
+		if self.size is not None:
+			self.actual_size = 1 << (self.size - 1).bit_length()
+			if self.actual_size < 8:
+				self.actual_size = 8
+		else:
+			self.actual_size = None
 
 class Callable(BaseNode):
 	def __init__(self, ref_or_name: Union[str, "Function"], args: List[BaseNode]) -> None:
