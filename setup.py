@@ -11,7 +11,8 @@ setuptools.setup(
     setup_requires=["setuptools_scm"],
     install_requires=[
         "mako",
-        "lark-parser >= 0.11.0"
+        "lark-parser >= 0.11.0",
+        "antlr4-python3-runtime"
     ],
     entry_points={
         "console_scripts": [
