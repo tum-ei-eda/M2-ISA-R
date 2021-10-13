@@ -1,0 +1,16 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Generate CoreDSL2 ANTLR parser",
+            "type": "shell",
+            "command": "java -jar ${workspaceFolder}/tmp/antlr-4.9.2-complete.jar -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4",
+            "options": {
+                "cwd": "${workspaceFolder}/m2isar/frontends/coredsl2/"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
