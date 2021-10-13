@@ -53,15 +53,6 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#section.
-    def enterSection(self, ctx:CoreDSL2Parser.SectionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#section.
-    def exitSection(self, ctx:CoreDSL2Parser.SectionContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#section_arch_state.
     def enterSection_arch_state(self, ctx:CoreDSL2Parser.Section_arch_stateContext):
         pass

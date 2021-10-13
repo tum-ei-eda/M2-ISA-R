@@ -34,11 +34,6 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#section.
-    def visitSection(self, ctx:CoreDSL2Parser.SectionContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CoreDSL2Parser#section_arch_state.
     def visitSection_arch_state(self, ctx:CoreDSL2Parser.Section_arch_stateContext):
         return self.visitChildren(ctx)
