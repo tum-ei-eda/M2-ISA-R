@@ -9,25 +9,9 @@ import_file
 	;
 
 isa
-	: instruction_set
-	| core_def
+	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+=section+ '}' # instruction_set
+	| 'Core' name=IDENTIFIER ('provides' contributing_types+=IDENTIFIER (',' contributing_types+=IDENTIFIER)*)? '{' sections+=section* '}' # core_def
 	;
-
-instruction_set
-	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+=section+ '}'
-	;
-
-core_def
-	: 'Core' name=IDENTIFIER ('provides' contributing_types+=IDENTIFIER (',' contributing_types+=IDENTIFIER)*)? '{' sections+=section* '}'
-	;
-
-/*
-sections
-	: section_arch_state
-	| section_functions
-	| section_instructions
-	;
-*/
 
 section
 	: type_='architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
@@ -37,22 +21,19 @@ section
 
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'
-	'encoding' ':' encoding=rule_encoding';'
+	'encoding' ':' encoding+=encoding_entry ('::' encoding+=encoding_entry)*';'
 	('args_disass' ':' disass=STRING ';')?
 	'behavior' ':' behavior=statement
 	'}'
 	;
 
 rule_encoding
-	: (bit_value | bit_field) ('::' (bit_value | bit_field))*
+	: fields+=encoding_entry ('::' fields+=encoding_entry)*
 	;
 
-bit_value
-	: value=INTEGER
-	;
-
-bit_field
-	: name=IDENTIFIER LEFT_BR left=integer_constant ':' right=integer_constant RIGHT_BR
+encoding_entry
+	: value=INTEGER # bit_value
+	| name=IDENTIFIER '[' left=constant ':' right=INTEGER ']' # bit_field
 	;
 
 function_definition
@@ -69,17 +50,17 @@ parameter_declaration
 	;
 
 statement
-	: block
-	| type_='if' '(' cond=expression ')' then_stmt=statement ('else' else_stmt=statement)?
-	| type_='for' '(' for_condition ')' stmt=statement
-	| type_='while' '(' cond=expression ')' stmt=statement
-	| type_='do' stmt=statement 'while' '(' cond=expression ')' ';'
-	| type_='switch' '(' cond=expression ')' '{' items+=switch_block_statement_group* switch_label* '}'
-	| type_='return' expr=expression? ';'
-	| type_='break' ';'
-	| type_='continue' ';'
-	| type_='spawn' stmt=statement
-	| expr=expression ';'
+	: block # block_statement
+	| type_='if' '(' cond=expression ')' then_stmt=statement ('else' else_stmt=statement)? # if_statement
+	| type_='for' '(' for_condition ')' stmt=statement # for_statement
+	| type_='while' '(' cond=expression ')' stmt=statement # while_statement
+	| type_='do' stmt=statement 'while' '(' cond=expression ')' ';' # do_statement
+	| type_='switch' '(' cond=expression ')' '{' items+=switch_block_statement_group* switch_label* '}' # switch_statement
+	| type_='return' expr=expression? ';' # return_statement
+	| type_='break' ';' # break_statement
+	| type_='continue' ';' # continue_statement
+	| type_='spawn' stmt=statement # spawn_statement
+	| expr=expression ';' # expression_statement
 	;
 
 switch_block_statement_group
@@ -112,33 +93,36 @@ declaration
 	  (init+=init_declarator (',' init+=init_declarator)*)? ';'
 	;
 
-declarationSpecifier
-	: storage_class_specifier
-	| type_qualifier
-	| attribute
-	;
-
 attribute
 	: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket
 	;
 
 type_specifier
-	: primitive_type
-	| composite_type
-	| enum_type
+	: data_type=data_types+ bit_size=bit_size_specifier? # primitive_type
+	| type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}' # composite_declaration
+	| type_=struct_or_union name=IDENTIFIER # composite_reference
+	| 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}' # enum_declaration
+	| 'enum' name=IDENTIFIER # enum_reference
 	;
 
+/*
 primitive_type
 	: data_type=data_types+ bit_size=bit_size_specifier?
 	;
 
-bit_size_specifier
-	: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>'
+enum_type
+	: 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}' # enum_declaration
+	| 'enum' name=IDENTIFIER # enum_reference
 	;
 
-enum_type
-	: 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}'
-	| 'enum' name=IDENTIFIER
+composite_type
+	: type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}' # composite_declaration
+	| type_=struct_or_union name=IDENTIFIER # composite_reference
+	;
+*/
+
+bit_size_specifier
+	: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>'
 	;
 
 enumerator_list
@@ -148,11 +132,6 @@ enumerator_list
 enumerator
 	: name=IDENTIFIER
 	| name=IDENTIFIER '=' expression
-	;
-
-composite_type
-	: type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}'
-	| type_=struct_or_union name=IDENTIFIER
 	;
 
 struct_declaration
@@ -169,7 +148,7 @@ init_declarator
 	;
 
 direct_declarator
-	: name=IDENTIFIER (':' index=integer_constant)?
+	: name=IDENTIFIER (':' index=INTEGER)?
 	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' params=parameter_list ')')?
 	;
 
@@ -201,35 +180,35 @@ expression_list
 	;
 
 expression
-	: primary_expression #primary
-	| bop=('.' | '->') ref=IDENTIFIER #deref_expression
-	| expression bop='[' expression (':' expression)? ']' #slice_expression
-	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' 		#method_call
-	| expression postfix=('++' | '--') #postfix_expression
-    | prefix=('&'|'*'|'+'|'-'|'++'|'--') expression #prefix_expression
-    | prefix=('~'|'!') expression #prefix_expression
-	| '('type_=type_specifier ')' expression 								#cast_expression
-    | expression bop=('*'|'/'|'%') expression #binary_expression
-    | expression bop=('+'|'-') expression #binary_expression
-    | expression bop=('<<' | '>>') expression #binary_expression
-    | expression bop=('<=' | '>=' | '>' | '<') expression #binary_expression
-    | expression bop=('==' | '!=') expression #binary_expression
-    | expression bop='&' expression #binary_expression
-    | expression bop='^' expression #binary_expression
-    | expression bop='|' expression #binary_expression
-    | expression bop='&&' expression #binary_expression
-    | expression bop='||' expression #binary_expression
-	| expression bop='::' expression #binary_expression
-    | <assoc=right> expression bop='?' expression ':' expression #conditional_expression
-	| <assoc=right> expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') expression #assignment_expression
+	: primary_expression # primary
+	| bop=('.' | '->') ref=IDENTIFIER # deref_expression
+	| expression bop='[' expression (':' expression)? ']' # slice_expression
+	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
+	| expression postfix=('++' | '--') # postfix_expression
+    | prefix=('&'|'*'|'+'|'-'|'++'|'--') expression # prefix_expression
+    | prefix=('~'|'!') expression # prefix_expression
+	| '('type_=type_specifier ')' expression # cast_expression
+    | expression bop=('*'|'/'|'%') expression # binary_expression
+    | expression bop=('+'|'-') expression # binary_expression
+    | expression bop=('<<' | '>>') expression # binary_expression
+    | expression bop=('<=' | '>=' | '>' | '<') expression # binary_expression
+    | expression bop=('==' | '!=') expression # binary_expression
+    | expression bop='&' expression # binary_expression
+    | expression bop='^' expression # binary_expression
+    | expression bop='|' expression # binary_expression
+    | expression bop='&&' expression # binary_expression
+    | expression bop='||' expression # binary_expression
+	| expression bop='::' expression # binary_expression
+    | <assoc=right> expression bop='?' expression ':' expression # conditional_expression
+	| <assoc=right> expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') expression # assignment_expression
 	;
 
 
 primary_expression
-	: ref=IDENTIFIER
-	| const_expr=constant
-	| literal+=string_literal+
-	| '(' expression ')'
+	: ref=IDENTIFIER # reference_expression
+	| const_expr=constant # constant_expression
+	| literal+=string_literal+ # literal_expression
+	| '(' expression ')' # parens_expression
 	;
 
 string_literal
@@ -238,12 +217,13 @@ string_literal
 	;
 
 constant
-	: integer_constant
-	| floating_constant
-	| character_constant
-	| bool_constant
+	: value=INTEGER # integer_constant
+	| value=FLOAT # floating_constant
+	| value=CHARCONST # character_constant
+	| value=BOOLEAN # bool_constant
 	;
 
+/*
 integer_constant
 	: value=INTEGER
 	;
@@ -259,6 +239,7 @@ bool_constant
 character_constant
 	: value=CHARCONST
 	;
+*/
 
 double_left_bracket
 	: LEFT_BR LEFT_BR
