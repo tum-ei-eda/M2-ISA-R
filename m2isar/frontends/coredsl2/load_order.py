@@ -1,5 +1,12 @@
-from typing import Dict
-from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
+from typing import TYPE_CHECKING, Dict
+
+from antlr4 import ParserRuleContext
+
+from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+
+
+class CoreContainerContext(ParserRuleContext):
+	pass
 
 class LoadOrder(CoreDSL2Visitor):
 	def __init__(self) -> None:
@@ -41,3 +48,16 @@ class LoadOrder(CoreDSL2Visitor):
 
 		ins_set_queue.append(ctx)
 		self.core_defs[name] = ins_set_queue
+
+	def visit(self, tree):
+		_ = super().visit(tree)
+
+		ret = {}
+
+		for core_name, contents in self.core_defs.items():
+			container = CoreContainerContext()
+			container.children = contents
+			container.name = core_name
+			ret[core_name] = container
+		
+		return ret
