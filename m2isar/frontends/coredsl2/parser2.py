@@ -1,6 +1,7 @@
 import pathlib
 import sys
 
+from .architecture_model_builder import ArchitectureModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
@@ -59,7 +60,12 @@ def main(argv):
 	recursive_import(tree, search_path)
 
 	lo = LoadOrder()
-	lo.visit(tree)
+	cores = lo.visit(tree)
+
+	arch_builder = ArchitectureModelBuilder()
+	for core_name, core_def in cores.items():
+		arch_builder.visit(core_def)
+
 
 	pass
 
