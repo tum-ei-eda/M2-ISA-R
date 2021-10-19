@@ -32,8 +32,8 @@ rule_encoding
 	;
 
 encoding_entry
-	: value=INTEGER # bit_value
-	| name=IDENTIFIER '[' left=constant ':' right=INTEGER ']' # bit_field
+	: value=integer_constant # bit_value
+	| name=IDENTIFIER '[' left=integer_constant ':' right=integer_constant ']' # bit_field
 	;
 
 function_definition
@@ -148,7 +148,7 @@ init_declarator
 	;
 
 direct_declarator
-	: name=IDENTIFIER (':' index=INTEGER)?
+	: name=IDENTIFIER (':' index=integer_constant)?
 	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' params=parameter_list ')')?
 	;
 
@@ -217,13 +217,12 @@ string_literal
 	;
 
 constant
-	: value=INTEGER # integer_constant
-	| value=FLOAT # floating_constant
-	| value=CHARCONST # character_constant
-	| value=BOOLEAN # bool_constant
+	: integer_constant
+	| floating_constant
+	| character_constant
+	| bool_constant
 	;
 
-/*
 integer_constant
 	: value=INTEGER
 	;
@@ -239,7 +238,6 @@ bool_constant
 character_constant
 	: value=CHARCONST
 	;
-*/
 
 double_left_bracket
 	: LEFT_BR LEFT_BR
