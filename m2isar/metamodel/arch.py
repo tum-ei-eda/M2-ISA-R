@@ -10,6 +10,17 @@ def get_const_or_val(arg):
 		return arg.value
 	return arg
 
+class NumberLiteral:
+	pass
+
+class IntLiteral(NumberLiteral):
+	def __init__(self, value: int, bit_size=0):
+		self.value = value
+		if bit_size == 0:
+			self.bit_size = value.bit_length()
+		else:
+			self.bit_size = bit_size
+
 class Named:
 	def __init__(self, name: str):
 		self.name = name
