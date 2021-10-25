@@ -38,41 +38,67 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._main_reg_file = None
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
-		a = self.visitChildren(ctx)
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
-		range = arch.RangeSpec(ctx.left, ctx.right)
-		#return arch.BitField()
-		return "bitfield"
-	
+		range = arch.RangeSpec(left.value, right.value)
+		return arch.BitField(ctx.name.text, range, arch.DataType.U)
+
 	def visitBit_value(self, ctx: CoreDSL2Parser.Bit_valueContext):
-		return "bitvalue"
+		val = self.visit(ctx.value)
+		return arch.BitVal(val.bit_size, val.value)
 
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
-		#a=self.visitChildren(ctx)
 		encoding = [self.visit(obj) for obj in ctx.encoding]
-		#return arch.Instruction(ctx.name.text, None, None, ctx.disass.text, ctx.behavior)
-	
+		attributes = [self.visit(obj) for obj in ctx.attributes]
+		i = arch.Instruction(ctx.name.text, attributes, encoding, ctx.disass.text, ctx.behavior)
+		self._instructions[ctx.name.text] = i
+		return i
+
+	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
+		return super().visitAttribute(ctx)
+
+	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
+		text: str = ctx.value.text.lower()
+
+		tick_pos = text.find("'")
+
+		if tick_pos != -1:
+			width = int(text[:tick_pos])
+			radix = text[tick_pos+1]
+			value = int(text[tick_pos+2:], RADIX[radix])
+
+		else:
+			value = int(text, 0)
+			if text.startswith("0b"):
+				width = len(text) - 2
+			elif text.startswith("0x"):
+				width = (len(text) - 2) * 4
+			elif text.startswith("0") and len(text) > 1:
+				width = (len(text) - 1) * 3
+			else:
+				width = value.bit_length()
+
+		return arch.IntLiteral(value, width)
+
+	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
+		return super().visitDeclaration(ctx)
+
+	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
+		return super().visitAssignment_expression(ctx)
+
 	def visitTerminal(self, node):
-		if node.symbol.type == CoreDSL2Lexer.INTEGER:
-			tick_pos = node.symbol.text.find("'")
-			text = node.symbol.text
-			if tick_pos != -1:
-				width = text[:tick_pos]
-				radix = text[tick_pos+1]
-				value = text[tick_pos+2:]
-
-				width = int(width)
-				value = int(value, RADIX[radix])
-
-				return value, width
-			
-			value = int(node.symbol.text, 0)
-			return value, value.bit_length()
-
-		
+		if node.symbol.type == CoreDSL2Lexer.MEM_ATTRIBUTE:
+			return arch.MemoryAttribute[node.symbol.text.upper()]
+		elif node.symbol.type == CoreDSL2Lexer.INSTR_ATTRIBUTE:
+			return arch.InstrAttribute[node.symbol.text.upper()]
 		return super().visitTerminal(node)
-	
+
+	def visitChildren(self, node):
+		ret = super().visitChildren(node)
+		if isinstance(ret, list) and len(ret) == 1:
+			return ret[0]
+		return ret
+
 	def aggregateResult(self, aggregate, nextResult):
 		ret = aggregate
 		if nextResult is not None:
