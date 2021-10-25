@@ -69,7 +69,7 @@ class TransformerContext:
 		self.pc_mem = None
 
 		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if arch.RegAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
+			if arch.MemoryAttribute.IS_PC in mem_descr.attributes: # FIXME: change to MemAttribute
 				self.pc_mem = mem_descr
 				break
 
