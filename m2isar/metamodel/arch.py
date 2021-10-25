@@ -101,14 +101,7 @@ class MemoryAttribute(Enum):
 	IS_PC = auto()
 	IS_MAIN_MEM = auto()
 	IS_MAIN_REG = auto()
-
-class RegAttribute(Enum):
-	IS_PC = auto()
 	DELETE = auto()
-	IS_MAIN_REG = auto()
-
-class SpaceAttribute(Enum):
-	IS_MAIN_MEM = auto()
 
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
@@ -149,7 +142,7 @@ class Memory(SizedRefOrConst):
 	children: List['Memory']
 	parent: Union['Memory', None]
 
-	def __init__(self, name, range: RangeSpec, size, attributes: List[Union[SpaceAttribute, MemoryAttribute, RegAttribute]]):
+	def __init__(self, name, range: RangeSpec, size, attributes: List[Union[MemoryAttribute, MemoryAttribute, MemoryAttribute]]):
 		self.attributes = attributes if attributes else []
 		self.range = range
 		self.children = []
@@ -168,11 +161,11 @@ class Memory(SizedRefOrConst):
 
 	@property
 	def is_pc(self):
-		return RegAttribute.IS_PC in self.attributes
+		return MemoryAttribute.IS_PC in self.attributes
 
 	@property
 	def is_main_mem(self):
-		return SpaceAttribute.IS_MAIN_MEM in self.attributes
+		return MemoryAttribute.IS_MAIN_MEM in self.attributes
 
 	def __str__(self) -> str:
 		return f'{super().__str__()}, size={self.size}'

@@ -91,13 +91,13 @@ class ArchitectureModelBuilder(Transformer):
 		return set(args)
 
 	def REG_ATTRIBUTE(self, args):
-		return arch.RegAttribute[args.value.upper()]
+		return arch.MemoryAttribute[args.value.upper()]
 
 	def reg_attributes(self, args):
 		return set(args)
 
 	def SPACE_ATTRIBUTE(self, args):
-		return arch.SpaceAttribute[args.value.upper()]
+		return arch.MemoryAttribute[args.value.upper()]
 
 	def space_attributes(self, args):
 		return set(args)
@@ -201,7 +201,7 @@ class ArchitectureModelBuilder(Transformer):
 		m = arch.Memory(name, _range, size, attributes)
 		self._memories[name] = m
 
-		if attributes is not None and arch.RegAttribute.IS_MAIN_REG in attributes:
+		if attributes is not None and arch.MemoryAttribute.IS_MAIN_REG in attributes:
 			self._main_reg_file = m
 
 		logger.debug(f'register_file {str(m)}')

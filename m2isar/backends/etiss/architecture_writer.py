@@ -12,7 +12,7 @@ logger = logging.getLogger("arch_writer")
 
 def write_child_reg_def(reg: arch.Memory, regs: List[str]):
 	logger.debug("processing register %s", reg)
-	if arch.RegAttribute.IS_PC in reg.attributes or arch.SpaceAttribute.IS_MAIN_MEM in reg.attributes:
+	if arch.MemoryAttribute.IS_PC in reg.attributes or arch.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
 		return
 
