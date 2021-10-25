@@ -122,7 +122,7 @@ composite_type
 */
 
 bit_size_specifier
-	: '<' size+=primary_expression (',' size+=primary_expression ',' size+=primary_expression ',' size+=primary_expression)? '>'
+	: '<' size+=primary (',' size+=primary ',' size+=primary ',' size+=primary)? '>'
 	;
 
 enumerator_list
@@ -175,36 +175,31 @@ direct_abstract_declarator
 	| LEFT_BR expr=expression? RIGHT_BR
 	;
 
-expression_list
-	: expressions+=expression (',' expressions+=expression)*
-	;
-
 expression
-	: primary_expression # primary
+	: primary # primary_expression
 	| bop=('.' | '->') ref=IDENTIFIER # deref_expression
-	| expression bop='[' expression (':' expression)? ']' # slice_expression
+	| expr=expression bop='[' left=expression (':' right=expression)? ']' # slice_expression
 	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
-	| expression postfix=('++' | '--') # postfix_expression
-    | prefix=('&'|'*'|'+'|'-'|'++'|'--') expression # prefix_expression
-    | prefix=('~'|'!') expression # prefix_expression
-	| '('type_=type_specifier ')' expression # cast_expression
-    | expression bop=('*'|'/'|'%') expression # binary_expression
-    | expression bop=('+'|'-') expression # binary_expression
-    | expression bop=('<<' | '>>') expression # binary_expression
-    | expression bop=('<=' | '>=' | '>' | '<') expression # binary_expression
-    | expression bop=('==' | '!=') expression # binary_expression
-    | expression bop='&' expression # binary_expression
-    | expression bop='^' expression # binary_expression
-    | expression bop='|' expression # binary_expression
-    | expression bop='&&' expression # binary_expression
-    | expression bop='||' expression # binary_expression
-	| expression bop='::' expression # binary_expression
-    | <assoc=right> expression bop='?' expression ':' expression # conditional_expression
-	| <assoc=right> expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') expression # assignment_expression
+	| left=expression postfix=('++' | '--') # postfix_expression
+    | prefix=('&'|'*'|'+'|'-'|'++'|'--') right=expression # prefix_expression
+    | prefix=('~'|'!') right=expression # prefix_expression
+	| '('type_=type_specifier ')' right=expression # cast_expression
+    | left=expression bop=('*'|'/'|'%') right=expression # binary_expression
+    | left=expression bop=('+'|'-') right=expression # binary_expression
+    | left=expression bop=('<<' | '>>') right=expression # binary_expression
+    | left=expression bop=('<=' | '>=' | '>' | '<') right=expression # binary_expression
+    | left=expression bop=('==' | '!=') right=expression # binary_expression
+    | left=expression bop='&' right=expression # binary_expression
+    | left=expression bop='^' right=expression # binary_expression
+    | left=expression bop='|' right=expression # binary_expression
+    | left=expression bop='&&' right=expression # binary_expression
+    | left=expression bop='||' right=expression # binary_expression
+	| left=expression bop='::' right=expression # binary_expression
+    | <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
+	| <assoc=right> left=expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') right=expression # assignment_expression
 	;
 
-
-primary_expression
+primary
 	: ref=IDENTIFIER # reference_expression
 	| const_expr=constant # constant_expression
 	| literal+=string_literal+ # literal_expression
@@ -272,12 +267,35 @@ storage_class_specifier
 	| 'register'
 	;
 
+/*
 attribute_name
 	: 'NONE'
 	| 'is_pc'
 	| 'is_interlock_for'
 	| 'do_not_synthesize'
 	| 'enable'
+	| 'no_cont'
+	| 'cond'
+	| 'flush'
+	| 'is_main_mem'
+	| 'is_main_reg'
+	| 'sim_exit'
+	;
+ */
+
+attribute_name
+	: MEM_ATTRIBUTE
+	| INSTR_ATTRIBUTE
+	;
+
+MEM_ATTRIBUTE
+	: 'is_pc'
+	| 'is_main_mem'
+	| 'is_main_reg'
+	;
+
+INSTR_ATTRIBUTE
+	: 'sim_exit'
 	| 'no_cont'
 	| 'cond'
 	| 'flush'
