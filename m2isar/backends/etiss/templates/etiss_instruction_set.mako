@@ -7,6 +7,9 @@
 
 #include "${core_name}Arch.h"
 
+#define ETISS_ARCH_STATIC_FN_ONLY
+#include "${core_name}Funcs.h"
+
 using namespace etiss;
 using namespace etiss::instr;
 
