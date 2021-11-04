@@ -31,7 +31,7 @@ def patch_model():
 
 patch_model()
 
-def generate_functions(core: arch.CoreDef):
+def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	"""Return a generator object to generate function behavior code. Uses function
 	definitions in the core object.
 	"""
@@ -48,7 +48,7 @@ def generate_functions(core: arch.CoreDef):
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
 
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, True)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, static_scalars, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -129,7 +129,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-def generate_instructions(core: arch.CoreDef):
+def generate_instructions(core: arch.CoreDef, static_scalars: bool):
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
@@ -153,7 +153,7 @@ def generate_instructions(core: arch.CoreDef):
 
 		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
 
 		# add pc increment to operation tree
 		if arch.InstrAttribute.NO_CONT not in instr_def.attributes:

@@ -17,6 +17,7 @@ def setup():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
+	parser.add_argument("--static-scalars", action="store_true", help="Enable crude static detection for scalars. WARNING: known to break!")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -70,8 +71,8 @@ def main():
 		write_arch_lib(core, start_time, output_path)
 		write_arch_cmake(core, start_time, output_path, args.separate)
 		write_arch_gdbcore(core, start_time, output_path)
-		write_functions(core, start_time, output_path)
-		write_instructions(core, start_time, output_path, args.separate)
+		write_functions(core, start_time, output_path, args.static_scalars)
+		write_instructions(core, start_time, output_path, args.separate, args.static_scalars)
 
 if __name__ == "__main__":
 	main()
