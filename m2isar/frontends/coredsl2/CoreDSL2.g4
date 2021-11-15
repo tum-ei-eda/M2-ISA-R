@@ -89,21 +89,52 @@ for_condition
 
 declaration
 	: (storage+=storage_class_specifier | qualifiers+=type_qualifier | attributes+=attribute)*
-	  type_=type_specifier ptr=('*' | '&')?
-	  (init+=init_declarator (',' init+=init_declarator)*)? ';'
+		type_=type_specifier
+		(init+=init_declarator (',' init+=init_declarator)*)? ';'
 	;
+
+type_specifier
+	: type_=value_type_specifier (ptr='*' | ptr='&')?
+	;
+
+value_type_specifier
+	: signed=integer_signedness (shorthand=integer_shorthand | '<' size=primary '>') # integer_type
+	| shorthand=integer_shorthand # integer_type
+	| shorthand=float_shorthand # float_type
+	| type_='bool' # bool_type
+	| type_='void' # void_type
+	| type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}' # composite_declaration
+	| type_=struct_or_union name=IDENTIFIER # composite_reference
+	| type_='enum' name=IDENTIFIER? '{' enumerator_list ','? '}' # enum_declaration
+	| type_='enum' name=IDENTIFIER # enum_reference
+	;
+
+integer_signedness
+	: 'unsigned'
+	| 'signed'
+	;
+
+integer_shorthand
+	: 'char'
+	| 'short'
+	| 'int'
+	| 'long'
+	;
+
+float_shorthand
+	: 'float'
+	| 'double'
+	;
+
+
+
 
 attribute
 	: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket
 	;
 
-type_specifier
-	: data_type=data_types+ bit_size=bit_size_specifier? # primitive_type
-	| type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}' # composite_declaration
-	| type_=struct_or_union name=IDENTIFIER # composite_reference
-	| 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}' # enum_declaration
-	| 'enum' name=IDENTIFIER # enum_reference
-	;
+
+
 
 /*
 primitive_type
@@ -183,7 +214,7 @@ expression
 	| left=expression postfix=('++' | '--') # postfix_expression
     | prefix=('&'|'*'|'+'|'-'|'++'|'--') right=expression # prefix_expression
     | prefix=('~'|'!') right=expression # prefix_expression
-	| '('type_=type_specifier ')' right=expression # cast_expression
+	| '(' (type_=type_specifier | sign=integer_signedness) ')' right=expression # cast_expression
     | left=expression bop=('*'|'/'|'%') right=expression # binary_expression
     | left=expression bop=('+'|'-') right=expression # binary_expression
     | left=expression bop=('<<' | '>>') right=expression # binary_expression
