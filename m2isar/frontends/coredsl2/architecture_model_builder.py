@@ -54,6 +54,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instructions[ctx.name.text] = i
 		return i
 
+	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
+		return super().visitSection_arch_state(ctx)
+
 	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
 		return super().visitAttribute(ctx)
 
@@ -81,6 +84,17 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return arch.IntLiteral(value, width)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
+		storage = ctx.storage
+		qualifiers = ctx.qualifiers
+		attributes = ctx.attributes
+
+		type_ = ctx.type_
+		decls: List[CoreDSL2Parser.Init_declaratorContext] = ctx.init
+
+		for decl in decls:
+			pass
+
+
 		return super().visitDeclaration(ctx)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
