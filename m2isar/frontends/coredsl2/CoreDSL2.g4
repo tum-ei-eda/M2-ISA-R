@@ -175,7 +175,7 @@ struct_declaration_specifier
 	;
 
 init_declarator
-	: declarator=direct_declarator attributes=attribute* ('=' init=initializer)?
+	: declarator=direct_declarator attributes+=attribute* ('=' init=initializer)?
 	;
 
 direct_declarator
@@ -348,7 +348,7 @@ fragment BINARYINT: ('0b'|'0B') '0'..'1' ('_'? '0'..'1')*;
 fragment OCTALINT: '0' '_'? '0'..'7' ('_'? '0'..'7')*;
 fragment DECIMALINT: ('0'|'1'..'9' ('_'? '0'..'9')*);
 fragment HEXADECIMALINT: ('0x'|'0X') ('0'..'9'|'a'..'f'|'A'..'F') ('_'? ('0'..'9'|'a'..'f'|'A'..'F'))*;
-fragment VLOGINT: ('0'..'9')+ '\'' ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
+fragment VLOGINT: ('0'..'9')+ '\'' ('s')? ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
 
 IDENTIFIER: '^'? ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
 

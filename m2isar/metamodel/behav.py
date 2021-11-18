@@ -26,6 +26,20 @@ class NumberLiteral(BaseNode):
 	def __init__(self, value):
 		self.value = value
 
+class IntLiteral(NumberLiteral):
+	def __init__(self, value: int, bit_size: int=None, signed: bool=None):
+		super().__init__(value)
+
+		if bit_size is None:
+			self.bit_size = value.bit_length()
+		else:
+			self.bit_size = bit_size
+
+		if signed is None:
+			self.signed = value < 0
+		else:
+			self.signed = signed
+
 class Assignment(BaseNode):
 	def __init__(self, target: BaseNode, expr: BaseNode):
 		self.target = target
@@ -55,9 +69,10 @@ class NamedReference(BaseNode):
 		self.reference = reference
 
 class IndexedReference(BaseNode):
-	def __init__(self, reference: "Memory", index: BaseNode):
+	def __init__(self, reference: "Memory", index: BaseNode, right: BaseNode=None):
 		self.reference = reference
 		self.index = index
+		self.right = right
 
 class TypeConv(BaseNode):
 	def __init__(self, data_type, size, expr: BaseNode):

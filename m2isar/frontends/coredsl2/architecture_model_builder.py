@@ -1,14 +1,51 @@
+import inspect
 import logging
 from typing import List, Mapping, Set, Tuple, Union
 
-from ...metamodel import arch
-from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor, CoreDSL2Lexer
+from ...metamodel import arch, behav
+from . import expr_interpreter
+from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser, CoreDSL2Visitor
+
+logger = logging.getLogger("arch_builder")
+
+def patch_model():
+	"""Monkey patch transformation functions inside instruction_transform
+	into model_classes.behav classes
+	"""
+
+	for name, fn in inspect.getmembers(expr_interpreter, inspect.isfunction):
+		sig = inspect.signature(fn)
+		param = sig.parameters.get("self")
+		if not param:
+			logger.warning("no self parameter found in %s", fn)
+			continue
+		if not param.annotation:
+			logger.warning("self parameter not annotated correctly for %s", fn)
+			continue
+
+		logger.debug("patching %s with fn %s", param.annotation, fn)
+		param.annotation.generate = fn
+
+patch_model()
+
 
 RADIX = {
 	'b': 2,
 	'h': 16,
 	'd': 10,
 	'o': 8
+}
+
+SHORTHANDS = {
+	"char": 8,
+	"short": 16,
+	"int": 32,
+	"long": 64
+}
+
+SIGNEDNESS = {
+	"signed": True,
+	"unsigned": False
 }
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
@@ -81,23 +118,153 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				width = value.bit_length()
 
-		return arch.IntLiteral(value, width)
+		return behav.IntLiteral(value, width)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
-		storage = ctx.storage
-		qualifiers = ctx.qualifiers
-		attributes = ctx.attributes
+		storage = [self.visit(obj) for obj in ctx.storage]
+		qualifiers = [self.visit(obj) for obj in ctx.qualifiers]
+		attributes = [self.visit(obj) for obj in ctx.attributes]
 
-		type_ = ctx.type_
+		type_ = self.visit(ctx.type_)
+
 		decls: List[CoreDSL2Parser.Init_declaratorContext] = ctx.init
 
 		for decl in decls:
-			pass
+			name = decl.declarator.name.text
 
+			if type_.ptr == "&": # register alias
+				size = [1]
+				init: behav.IndexedReference = self.visit(decl.init)
+				attributes = []
 
-		return super().visitDeclaration(ctx)
+				if decl.declarator.size:
+					size = [self.visit(obj).value for obj in decl.declarator.size]
+
+				left = init.index
+				right = init.right if init.right is not None else left
+				reference = init.reference
+
+				if decl.attributes:
+					attributes = [self.visit(obj) for obj in decl.attributes]
+
+				range = arch.RangeSpec(left, right)
+
+				#if range.length != size[0]:
+				#	raise ValueError(f"range mismatch for {name}")
+
+				m = arch.Memory(name, range, type_._width, attributes)
+				m.parent = reference
+				m.parent.children.append(m)
+
+				self._memory_aliases[name] = m
+
+			else:
+				if len(storage) == 0: # no storage specifier -> implementation parameter, "Constant" in M2-ISA-R
+					init = None
+					if decl.init is not None:
+						init = self.visit(decl.init).value
+
+					c = arch.Constant(name, init, [])
+					self._constants[name] = c
+
+				elif "register" in storage or "extern" in storage:
+					size = [1]
+					init = 0
+					attributes = []
+
+					if decl.declarator.size:
+						size = [self.visit(obj) for obj in decl.declarator.size]
+
+					if decl.init is not None:
+						init = self.visit(decl.init)
+
+					if decl.attributes:
+						attributes = [self.visit(obj) for obj in decl.attributes]
+
+					range = arch.RangeSpec(size[0])
+					m = arch.Memory(name, range, type_._width, attributes)
+					self._memories[name] = m
+
+		a = super().visitDeclaration(ctx)
+		return a
+
+	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
+		type_ = self.visit(ctx.type_)
+		if ctx.ptr:
+			type_.ptr = ctx.ptr.text
+		return type_
+
+	def visitInteger_type(self, ctx: CoreDSL2Parser.Integer_typeContext):
+		signed = True
+		width = None
+
+		if ctx.signed is not None:
+			signed = self.visit(ctx.signed)
+
+		if ctx.size is not None:
+			width = self.visit(ctx.size)
+
+		if ctx.shorthand is not None:
+			width = self.visit(ctx.shorthand)
+
+		if isinstance(width, behav.IntLiteral):
+			width = width.value
+		elif isinstance(width, behav.NamedReference):
+			width = width.reference
+		else:
+			raise ValueError("width has wrong type")
+
+		return arch.IntegerType(width, signed, None)
+
+	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
+		left = self.visit(ctx.left)
+		right = self.visit(ctx.right)
+		op = ctx.bop.text
+		return behav.BinaryOperation(left, op, right)
+
+	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
+		left = self.visit(ctx.left)
+		right = self.visit(ctx.right) if ctx.right is not None else None
+		expr = self.visit(ctx.expr).reference
+
+		op = behav.IndexedReference(expr, left, right)
+		return op
+
+	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
+		prefix = ctx.prefix.text
+		expr = self.visit(ctx.right)
+		return behav.UnaryOperation(prefix, expr)
+
+	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
+		name = ctx.ref.text
+		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name)
+		if ref is None:
+			raise ValueError(f"reference {name} could not be resolved")
+		return behav.NamedReference(ref)
+
+	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):
+		return ctx.children[0].symbol.text
+
+	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
+		return SIGNEDNESS[ctx.children[0].symbol.text]
+
+	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
+		return behav.IntLiteral(SHORTHANDS[ctx.children[0].symbol.text])
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
+		left = self.visit(ctx.left)
+		right = self.visit(ctx.right)
+
+		if isinstance(left, behav.NamedReference):
+			if isinstance(left.reference, arch.Constant):
+				left.reference.value = right.generate(None)
+
+			elif isinstance(left.reference, arch.Memory):
+				left.reference._initval[None] = right.generate(None)
+
+		elif isinstance(left, behav.IndexedReference):
+			left.reference._initval[left.index.generate(None)] = right.generate(None)
+
 		return super().visitAssignment_expression(ctx)
 
 	def visitTerminal(self, node):

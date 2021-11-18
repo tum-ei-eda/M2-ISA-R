@@ -2,24 +2,15 @@ from collections import namedtuple
 from enum import Enum, auto
 from typing import Iterable, List, Mapping, Set, Tuple, Union
 
-from .behav import Operation
+from .behav import BaseNode, Operation
 
 
 def get_const_or_val(arg):
 	if isinstance(arg, Constant):
 		return arg.value
+	elif isinstance(arg, BaseNode):
+		return arg.generate(None)
 	return arg
-
-class NumberLiteral:
-	pass
-
-class IntLiteral(NumberLiteral):
-	def __init__(self, value: int, bit_size=0):
-		self.value = value
-		if bit_size == 0:
-			self.bit_size = value.bit_length()
-		else:
-			self.bit_size = bit_size
 
 class Named:
 	def __init__(self, name: str):
@@ -64,7 +55,7 @@ class SizedRefOrConst(Named):
 
 
 class RangeSpec:
-	def __init__(self, upper_base: val_or_const, lower_base: val_or_const, upper_power: val_or_const=1, lower_power: val_or_const=1):
+	def __init__(self, upper_base: val_or_const, lower_base: val_or_const=None, upper_power: val_or_const=1, lower_power: val_or_const=1):
 		self._upper_base = upper_base
 		self._lower_base = lower_base
 
@@ -91,18 +82,23 @@ class RangeSpec:
 	def upper(self):
 		if self.upper_base is None or self.upper_power is None:
 			return None
-		return self.upper_base ** self.upper_power
+		ret = self.upper_base ** self.upper_power
+		if self.lower_base is None or self.lower_power is None:
+			return ret - 1
+		return ret
 
 	@property
 	def lower(self):
 		if self.lower_base is None or self.lower_power is None:
-			return None
+			return 0
 		return self.lower_base ** self.lower_power
 
 	@property
 	def length(self):
-		if self.upper is None or self.lower is None:
+		if self.upper is None:
 			return None
+		elif self.lower is None:
+			return self.upper
 		return self.upper - self.lower + 1
 
 	def __str__(self) -> str:
@@ -133,6 +129,28 @@ class DataType(Enum):
 	Q = auto()
 	B = auto()
 
+class DataType2:
+	def __init__(self, ptr) -> None:
+		self.ptr = ptr
+
+class IntegerType(DataType2):
+	def __init__(self, width: int, signed: bool, ptr):
+		self._width = width
+		self.signed = signed
+
+		super().__init__(ptr)
+
+	@property
+	def width(self):
+		return get_const_or_val(self._width)
+
+	@property
+	def actual_width(self):
+		if self._width is None:
+			return None
+
+		temp = 1 << (self._width - 1).bit_length()
+		return temp if temp >= 8 else 8
 
 class FnParam(SizedRefOrConst):
 	def __init__(self, name, size, data_type: DataType):
