@@ -46,7 +46,7 @@ parameter_list
 	;
 
 parameter_declaration
-	: type_=type_specifier (direct_declarator | direct_abstract_declarator)?
+	: type_=type_specifier (dd=direct_declarator | da=direct_abstract_declarator)?
 	;
 
 statement

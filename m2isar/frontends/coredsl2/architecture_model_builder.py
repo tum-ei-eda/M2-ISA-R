@@ -97,9 +97,32 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		attributes = [self.visit(obj) for obj in ctx.attributes]
 		type_ = self.visit(ctx.type_)
 
-		f = arch.Function(ctx.name.text, None, type_, [None], ctx.behavior)
+		params = []
+		if ctx.params:
+			params = self.visit(ctx.params)
+
+		if not isinstance(params, list):
+			params = [params]
+
+		return_size = None
+		data_type = None
+
+		if isinstance(type_, arch.IntegerType):
+			return_size = type_._width
+			data_type = arch.DataType.S if type_.signed else arch.DataType.U
+
+		f = arch.Function(ctx.name.text, return_size, data_type, params, ctx.behavior)
 		self._functions[ctx.name.text] = f
 		return f
+
+	def visitParameter_declaration(self, ctx: CoreDSL2Parser.Parameter_declarationContext):
+		type_ = self.visit(ctx.type_)
+		name = ctx.dd.name.text
+		if ctx.dd.size:
+			size = [self.visit(obj) for obj in ctx.dd.size]
+
+		p = arch.FnParam(name, type_._width, arch.DataType.S if type_.signed else arch.DataType.U)
+		return p
 
 	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
 		return super().visitSection_arch_state(ctx)
