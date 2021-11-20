@@ -24,9 +24,17 @@ class Named:
 
 class Constant(Named):
 	def __init__(self, name, value: int, attributes: Iterable[str]):
-		self.value = value
+		self._value = value
 		self.attributes = attributes if attributes else []
 		super().__init__(name)
+
+	@property
+	def value(self):
+		return get_const_or_val(self._value)
+
+	@value.setter
+	def value(self, value):
+		self._value = value
 
 	def __str__(self) -> str:
 		return f'{super().__str__()}, value={self.value}'
@@ -132,6 +140,10 @@ class DataType(Enum):
 class DataType2:
 	def __init__(self, ptr) -> None:
 		self.ptr = ptr
+
+class VoidType(DataType2):
+	def __init__(self, ptr) -> None:
+		super().__init__(ptr)
 
 class IntegerType(DataType2):
 	def __init__(self, width: int, signed: bool, ptr):

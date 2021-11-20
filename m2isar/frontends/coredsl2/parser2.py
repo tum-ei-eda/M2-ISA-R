@@ -62,10 +62,13 @@ def main(argv):
 	lo = LoadOrder()
 	cores = lo.visit(tree)
 
-	arch_builder = ArchitectureModelBuilder()
+	models = {}
+
 	for core_name, core_def in cores.items():
+		arch_builder = ArchitectureModelBuilder()
 		arch_builder.visit(core_def)
 
+		models[core_name] = arch_builder
 
 	pass
 

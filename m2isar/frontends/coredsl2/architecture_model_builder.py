@@ -87,9 +87,19 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		encoding = [self.visit(obj) for obj in ctx.encoding]
 		attributes = [self.visit(obj) for obj in ctx.attributes]
-		i = arch.Instruction(ctx.name.text, attributes, encoding, ctx.disass.text, ctx.behavior)
+		disass = ctx.disass.text if ctx.disass is not None else None
+
+		i = arch.Instruction(ctx.name.text, attributes, encoding, disass, ctx.behavior)
 		self._instructions[ctx.name.text] = i
 		return i
+
+	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
+		attributes = [self.visit(obj) for obj in ctx.attributes]
+		type_ = self.visit(ctx.type_)
+
+		f = arch.Function(ctx.name.text, None, type_, [None], ctx.behavior)
+		self._functions[ctx.name.text] = f
+		return f
 
 	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
 		return super().visitSection_arch_state(ctx)
@@ -162,7 +172,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				if len(storage) == 0: # no storage specifier -> implementation parameter, "Constant" in M2-ISA-R
 					init = None
 					if decl.init is not None:
-						init = self.visit(decl.init).value
+						init = self.visit(decl.init)
 
 					c = arch.Constant(name, init, [])
 					self._constants[name] = c
@@ -215,6 +225,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			raise ValueError("width has wrong type")
 
 		return arch.IntegerType(width, signed, None)
+
+	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
+		return arch.VoidType(None)
+
+	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
+		return arch.IntegerType(1, False, None)
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		left = self.visit(ctx.left)
