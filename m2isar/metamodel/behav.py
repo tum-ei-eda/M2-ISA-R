@@ -22,6 +22,12 @@ class BinaryOperation(BaseNode):
 		self.op = op
 		self.right = right
 
+class SliceOperation(BaseNode):
+	def __init__(self, expr: BaseNode, left: BaseNode, right: BaseNode):
+		self.expr = expr
+		self.left = left
+		self.right = right
+
 class NumberLiteral(BaseNode):
 	def __init__(self, value):
 		self.value = value

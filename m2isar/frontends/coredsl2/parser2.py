@@ -1,74 +1,74 @@
+import argparse
+import logging
 import pathlib
 import sys
+from typing import Dict, Mapping, Tuple
 
+from ...metamodel import arch
 from .architecture_model_builder import ArchitectureModelBuilder
+from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
-from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
 from .utils import make_parser
 
 
-class Visitor2(CoreDSL2Visitor):
-	def visitImport_file(self, ctx: CoreDSL2Parser.Import_fileContext):
-		print("import")
-
-class Visitor(CoreDSL2Visitor):
-	def visitTerminal(self, node):
-		return None
-	def defaultResult(self):
-		return []
-	def aggregateResult(self, aggregate, nextResult):
-		if nextResult is None:
-			return None
-		return aggregate + [nextResult]
-
-	def visitDescription_content(self, ctx: CoreDSL2Parser.Description_contentContext):
-		a = self.visitChildren(ctx)
-		#imports = [self.visit(i) for i in ctx.imports]
-		#definitions = [self.visit(i) for i in ctx.definitions]
-		pass
-
-	def visitImport_file(self, ctx: CoreDSL2Parser.Import_fileContext):
-		a = self.visitChildren(ctx)
-		return ctx.RULE_STRING().getText().replace('"', '')
-	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
-		a = self.visitChildren(ctx)
-		return (ctx.name, ctx.extension)
-	def visitCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
-		a = self.visitChildren(ctx)
-		return (ctx.name, ctx.contributing_types)
-
-class Listener(CoreDSL2Listener):
-	def enterInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
-		id = ctx.IDENTIFIER()
-		id2 = ctx.name
-		ext = ctx.extension
-		print("ISA: " + ctx.name.text)
-	def enterCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
-		print("Core: " + ctx.name.text)
-
 def main(argv):
+	parser = argparse.ArgumentParser()
+	parser.add_argument("top_level", help="The top-level CoreDSL file.")
+	#parser.add_argument("-j", default=1, type=int, dest='parallel', help="Use PARALLEL threads while parsing.")
+	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+
+	args = parser.parse_args()
+
 	app_dir = pathlib.Path(__file__).parent.resolve()
-	top_level = pathlib.Path(argv[1])
+
+	logging.basicConfig(level=getattr(logging, args.log.upper()))
+	logger = logging.getLogger("parser")
+
+	top_level = pathlib.Path(args.top_level)
 	abs_top_level = top_level.resolve()
 	search_path = abs_top_level.parent
 
 	parser = make_parser(abs_top_level)
 
+	logger.info("parsing top level")
 	tree = parser.description_content()
 
 	recursive_import(tree, search_path)
 
+	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	cores = lo.visit(tree)
 
-	models = {}
+	temp_save = {}
+	models: Dict[Tuple(int, int), arch.CoreDef] = {}
 
 	for core_name, core_def in cores.items():
+		logger.info(f'building architecture model for core {core_name}')
 		arch_builder = ArchitectureModelBuilder()
-		arch_builder.visit(core_def)
+		c = arch_builder.visit(core_def)
 
-		models[core_name] = arch_builder
+		temp_save[core_name] = (c, arch_builder)
+		models[core_name] = c[-1]
+
+	for core_name, core_def in models.items():
+		logger.info(f'building behavior model for core {core_name}')
+
+		unassigned_const = False
+		for const in core_def.constants.values():
+			if const.value is None:
+				logger.critical("constant %s in core %s has no value assigned!", const.name, core_name)
+				unassigned_const = True
+				#sys.exit(-1)
+		if unassigned_const:
+			sys.exit(-1)
+
+		warned_fns = set()
+
+		for (code, mask), instr_def in core_def.instructions.items():
+			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+				instr_def.fields, core_def.functions, warned_fns)
+			op = behav_builder.visit(instr_def.operation)
 
 	pass
 

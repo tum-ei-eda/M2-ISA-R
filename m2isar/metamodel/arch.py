@@ -161,13 +161,18 @@ class IntegerType(DataType2):
 		if self._width is None:
 			return None
 
-		temp = 1 << (self._width - 1).bit_length()
+		temp = 1 << (self.width - 1).bit_length()
 		return temp if temp >= 8 else 8
 
 class FnParam(SizedRefOrConst):
-	def __init__(self, name, size, data_type: DataType):
+	def __init__(self, name, size, data_type: DataType, width=1):
 		self.data_type = data_type
+		self._width = width
 		super().__init__(name, size)
+
+	@property
+	def width(self):
+		return get_const_or_val(self._width)
 
 	def __str__(self) -> str:
 		return f'{super().__str__()}, data_type={self.data_type}'
@@ -276,7 +281,17 @@ class Function(SizedRefOrConst):
 		self.data_type = data_type
 		if args is None:
 			args = []
-		self.args = {arg.name: arg for arg in args}
+
+		self.args = {}
+
+		for idx, arg in enumerate(args):
+			if arg.name is None:
+				name = f"anon_{idx}"
+			else:
+				name = arg.name
+
+			self.args[name] = arg
+
 		self.operation = operation if operation is not None else Operation([])
 		self.static = False
 
@@ -285,12 +300,28 @@ class Function(SizedRefOrConst):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, data_type={self.data_type}'
 
+def extract_memory_alias(memories: Iterable[Memory]):
+	parents = {}
+	aliases = {}
+	for m in memories:
+		for c in m.children:
+			aliases[c.name] = c
+
+		p, a = extract_memory_alias(m.children)
+
+		parents.update(p)
+		aliases.update(a)
+
+		if m.parent is None:
+			parents[m.name] = m
+
+	return parents, aliases
+
 class InstructionSet(Named):
-	def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], address_spaces: Mapping[str, Memory], registers: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
+	def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], memories: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
 		self.extension = extension
 		self.constants = constants
-		self.address_spaces = address_spaces
-		self.registers = registers
+		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
 		self.functions = functions
 		self.instructions = instructions
 

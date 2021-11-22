@@ -1,4 +1,5 @@
 import inspect
+import itertools
 import logging
 from typing import List, Mapping, Set, Tuple, Union
 
@@ -48,6 +49,15 @@ SIGNEDNESS = {
 	"unsigned": False
 }
 
+def flatten_list(l: list):
+	ret = []
+	for item in l:
+		if isinstance(item, list):
+			ret += flatten_list(item)
+		else:
+			ret.append(item)
+	return ret
+
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_constants: Mapping[str, arch.Constant]
 	_instructions: Mapping[str, arch.Instruction]
@@ -84,13 +94,76 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		val = self.visit(ctx.value)
 		return arch.BitVal(val.bit_size, val.value)
 
+	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
+		self._read_types[ctx.name.text] = None
+
+		name = ctx.name.text
+		extension = []
+		if ctx.extension:
+			extension = [obj.text for obj in ctx.extension]
+
+		contents = flatten_list([self.visit(obj) for obj in ctx.sections])
+
+		constants = {}
+		memories = {}
+		functions = {}
+		instructions = {}
+
+		for item in contents:
+			if isinstance(item, arch.Constant):
+				constants[item.name] = item
+			elif isinstance(item, arch.Memory):
+				memories[item.name] = item
+			elif isinstance(item, arch.Function):
+				functions[item.name] = item
+			elif isinstance(item, arch.Instruction):
+				instructions[(item.code, item.mask)] = item
+			else:
+				raise ValueError("unexpected item encountered")
+
+		i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
+
+		if name in self._instruction_sets:
+			raise ValueError(f"instruction set {name} already defined")
+
+		self._instruction_sets[name] = i
+		return i
+
+	def visitCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
+		self.visitChildren(ctx)
+
+		name = ctx.name.text
+
+		c = arch.CoreDef(name, list(self._read_types.keys()), None,
+			self._constants, self._memories, self._memory_aliases,
+			self._functions, self._instructions, self._instr_classes,
+			self._main_reg_file)
+
+		return c
+
+	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
+		decls = [self.visit(obj) for obj in ctx.declarations]
+		decls = list(itertools.chain.from_iterable(decls))
+		for obj in ctx.expressions:
+			self.visit(obj)
+
+		return decls
+
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		encoding = [self.visit(obj) for obj in ctx.encoding]
 		attributes = [self.visit(obj) for obj in ctx.attributes]
 		disass = ctx.disass.text if ctx.disass is not None else None
 
 		i = arch.Instruction(ctx.name.text, attributes, encoding, disass, ctx.behavior)
-		self._instructions[ctx.name.text] = i
+		self._instr_classes.add(i.size)
+
+		instr_id = (i.code, i.mask)
+
+		if instr_id in self._instructions:
+			self._overwritten_instrs.append((self._instructions[instr_id], i))
+
+		self._instructions[instr_id] = i
+
 		return i
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
@@ -105,30 +178,31 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			params = [params]
 
 		return_size = None
-		data_type = None
+		data_type = arch.DataType.NONE
 
 		if isinstance(type_, arch.IntegerType):
 			return_size = type_._width
 			data_type = arch.DataType.S if type_.signed else arch.DataType.U
 
 		f = arch.Function(ctx.name.text, return_size, data_type, params, ctx.behavior)
+
+		if ctx.name.text in self._functions:
+			raise ValueError(f"function {ctx.name.text} already defined")
 		self._functions[ctx.name.text] = f
 		return f
 
 	def visitParameter_declaration(self, ctx: CoreDSL2Parser.Parameter_declarationContext):
 		type_ = self.visit(ctx.type_)
-		name = ctx.dd.name.text
-		if ctx.dd.size:
-			size = [self.visit(obj) for obj in ctx.dd.size]
+		name = None
+		size = None
+		if ctx.dd:
+			if ctx.dd.name:
+				name = ctx.dd.name.text
+			if ctx.dd.size:
+				size = [self.visit(obj) for obj in ctx.dd.size]
 
 		p = arch.FnParam(name, type_._width, arch.DataType.S if type_.signed else arch.DataType.U)
 		return p
-
-	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
-		return super().visitSection_arch_state(ctx)
-
-	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
-		return super().visitAttribute(ctx)
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
 		text: str = ctx.value.text.lower()
@@ -162,6 +236,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		decls: List[CoreDSL2Parser.Init_declaratorContext] = ctx.init
 
+		ret_decls = []
+
 		for decl in decls:
 			name = decl.declarator.name.text
 
@@ -189,7 +265,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				m.parent = reference
 				m.parent.children.append(m)
 
+				if name in self._memory_aliases:
+					raise ValueError(f"memory {name} already defined")
+
 				self._memory_aliases[name] = m
+				ret_decls.append(m)
 
 			else:
 				if len(storage) == 0: # no storage specifier -> implementation parameter, "Constant" in M2-ISA-R
@@ -198,7 +278,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						init = self.visit(decl.init)
 
 					c = arch.Constant(name, init, [])
+
+					if name in self._constants:
+						raise ValueError(f"constant {name} already defined")
 					self._constants[name] = c
+					ret_decls.append(c)
 
 				elif "register" in storage or "extern" in storage:
 					size = [1]
@@ -216,10 +300,17 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					range = arch.RangeSpec(size[0])
 					m = arch.Memory(name, range, type_._width, attributes)
-					self._memories[name] = m
 
-		a = super().visitDeclaration(ctx)
-		return a
+					if name in self._memories:
+						raise ValueError(f"memory {name} already defined")
+
+					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
+						self._main_reg_file = m
+
+					self._memories[name] = m
+					ret_decls.append(m)
+
+		return ret_decls
 
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
 		type_ = self.visit(ctx.type_)
@@ -303,8 +394,6 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[left.index.generate(None)] = right.generate(None)
-
-		return super().visitAssignment_expression(ctx)
 
 	def visitTerminal(self, node):
 		if node.symbol.type == CoreDSL2Lexer.MEM_ATTRIBUTE:

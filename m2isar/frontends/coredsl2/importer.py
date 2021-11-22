@@ -1,3 +1,5 @@
+import logging
+
 from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
 from .utils import make_parser
 
@@ -51,6 +53,7 @@ class VisitImporter(CoreDSL2Visitor):
 		self.new_defs = []
 		self.got_new = True
 		self.search_path = search_path
+		self.logger = logging.getLogger("visit_importer")
 
 	def visitDescription_content(self, ctx: CoreDSL2Parser.Description_contentContext):
 		for i in ctx.imports:
@@ -59,7 +62,7 @@ class VisitImporter(CoreDSL2Visitor):
 	def visitImport_file(self, ctx: CoreDSL2Parser.Import_fileContext):
 		filename = ctx.uri.text.replace('"', '')
 		if filename not in self.imported:
-			print(f"importing file {filename}")
+			self.logger.info("importing file %s", filename)
 			self.got_new = True
 			self.imported.add(filename)
 
