@@ -2,9 +2,9 @@ import argparse
 import logging
 import pathlib
 import sys
-from typing import Dict, Mapping, Tuple
+from typing import Dict, Tuple
 
-from ...metamodel import arch
+from ...metamodel import arch, behav
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
@@ -68,7 +68,12 @@ def main(argv):
 		for (code, mask), instr_def in core_def.instructions.items():
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				instr_def.fields, core_def.functions, warned_fns)
+			
 			op = behav_builder.visit(instr_def.operation)
+			if isinstance(op, list):
+				instr_def.operation = behav.Operation(op)
+			else:
+				instr_def.operation = behav.Operation([op])
 
 	pass
 
