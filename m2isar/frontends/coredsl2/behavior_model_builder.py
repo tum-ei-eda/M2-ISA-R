@@ -49,7 +49,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		if ref is None:
 			raise ValueError(f"function {name} is not defined")
-		
+
 		if ref.size is None:
 			c = behav.ProcedureCall(ref, args)
 		else:
@@ -87,7 +87,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				ret_decls.append(a)
 			else: # create only scalar definition
 				ret_decls.append(sd)
-		
+
 		return ret_decls
 
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
@@ -101,8 +101,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		if not isinstance(then_stmts, list):
 			then_stmts = [then_stmts]
-		
-		if not isinstance(else_stmts, list):
+
+		if not isinstance(else_stmts, list) and else_stmts is not None:
 			else_stmts = [else_stmts]
 
 		return behav.Conditional(cond, then_stmts, else_stmts)
@@ -121,12 +121,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.UnaryOperation(op, right)
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
-		expr = self.visit(ctx.expr)		
-		
+		expr = self.visit(ctx.expr)
+
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right else None
-		
-		if isinstance(expr, behav.NamedReference):	
+
+		if isinstance(expr, behav.NamedReference):
 			return behav.IndexedReference(expr.reference, left, right)
 		else:
 			return behav.SliceOperation(expr, left, right)
