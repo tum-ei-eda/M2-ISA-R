@@ -1,6 +1,8 @@
 import argparse
+import itertools
 import logging
 import pathlib
+import pickle
 import sys
 from typing import Dict, Tuple
 
@@ -12,7 +14,7 @@ from .load_order import LoadOrder
 from .utils import make_parser
 
 
-def main(argv):
+def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	#parser.add_argument("-j", default=1, type=int, dest='parallel', help="Use PARALLEL threads while parsing.")
@@ -40,6 +42,9 @@ def main(argv):
 	lo = LoadOrder()
 	cores = lo.visit(tree)
 
+	model_path = search_path.joinpath('gen_model')
+	model_path.mkdir(exist_ok=True)
+
 	temp_save = {}
 	models: Dict[Tuple(int, int), arch.CoreDef] = {}
 
@@ -52,8 +57,9 @@ def main(argv):
 		models[core_name] = c[-1]
 
 	for core_name, core_def in models.items():
-		logger.info(f'building behavior model for core {core_name}')
+		logger.info('building behavior model for core %s', core_name)
 
+		logger.info("checking core constants")
 		unassigned_const = False
 		for const in core_def.constants.values():
 			if const.value is None:
@@ -63,19 +69,52 @@ def main(argv):
 		if unassigned_const:
 			sys.exit(-1)
 
+		logger.info("evaluating core parameters")
+
+		for const_def in core_def.constants.values():
+			const_def._value = const_def.value
+
+		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
+			mem_def._size = mem_def.size
+			mem_def.range._lower_base = mem_def.range.lower_base
+			mem_def.range._upper_base = mem_def.range.upper_base
+
+		for fn_def in core_def.functions.values():
+			fn_def._size = fn_def.size
+			for fn_arg in fn_def.args.values():
+				fn_arg._size = fn_arg.size
+				fn_arg._width = fn_arg.width
+
+		logger.info("generating function behavior")
+
 		warned_fns = set()
+
+		for fn_name, fn_def in core_def.functions.items():
+			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+				fn_def.args, core_def.functions, warned_fns)
+
+			if not isinstance(fn_def.operation, behav.Operation):
+				op = behav_builder.visit(fn_def.operation)
+				if isinstance(op, list):
+					fn_def.operation = behav.Operation(op)
+				else:
+					fn_def.operation = behav.Operation([op])
+
+		logger.info("generating instruction behavior")
 
 		for (code, mask), instr_def in core_def.instructions.items():
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				instr_def.fields, core_def.functions, warned_fns)
-			
+
 			op = behav_builder.visit(instr_def.operation)
 			if isinstance(op, list):
 				instr_def.operation = behav.Operation(op)
 			else:
 				instr_def.operation = behav.Operation([op])
 
-	pass
+	logger.info("dumping model")
+	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
+		pickle.dump(models, f)
 
 if __name__ == '__main__':
-	main(sys.argv)
+	main()
