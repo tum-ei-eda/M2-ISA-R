@@ -116,8 +116,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				memories[item.name] = item
 			elif isinstance(item, arch.Function):
 				functions[item.name] = item
+				item.ext_name = name
 			elif isinstance(item, arch.Instruction):
 				instructions[(item.code, item.mask)] = item
+				item.ext_name = name
 			else:
 				raise ValueError("unexpected item encountered")
 
