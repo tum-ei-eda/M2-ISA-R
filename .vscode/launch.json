@@ -26,22 +26,22 @@
             "stopOnEntry": true
         },
         {
-            "name": "Parse CoreDSL2 (lark)",
-            "type": "python",
-            "request": "launch",
-            "module": "m2isar.frontends.coredsl2.parser",
-            "args": [
-                "${input:inputFile}"
-            ],
-            "stopOnEntry": true
-        },
-        {
             "name": "Generate ETISS",
             "type": "python",
             "request": "launch",
             "module": "m2isar.backends.etiss.writer",
             "args": [
                 "--separate",
+                "${input:inputFile}"
+            ],
+            "stopOnEntry": true
+        },
+        {
+            "name": "Model Viewer",
+            "type": "python",
+            "request": "launch",
+            "module": "m2isar.backends.viewer.viewer",
+            "args": [
                 "${input:inputFile}"
             ],
             "stopOnEntry": true
@@ -64,6 +64,8 @@
                 "../coredsl-models/riscv/tum_rv.core_desc",
                 "../coredsl-models/armv6m/top.core_desc",
                 "../coredsl-models/armv7m/top.core_desc",
+                "../coredsl-models/test/top.core_desc",
+                "../coredsl-models/test/test.core_desc",
                 "../coredsl2-models/test/top.core_desc",
                 "../coredsl2-models/riscv/top.core_desc"
             ],
