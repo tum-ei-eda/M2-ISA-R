@@ -162,7 +162,7 @@ class ArchitectureModelBuilder(Transformer):
 		length_base = self.get_constant_or_val(length_base)
 		length_power = self.get_constant_or_val(length_power) if length_power is not None else 1
 
-		m = arch.Memory(name, arch.RangeSpec(length_base, 0, length_power), size, attribs)
+		m = arch.Memory(name, arch.RangeSpec(length_base, None, length_power), size, attribs)
 		self._memories[name] = m
 
 		logger.debug(f'address_space {str(m)}')
@@ -317,8 +317,11 @@ class ArchitectureModelBuilder(Transformer):
 	def instruction_set(self, args):
 		name, extension, constants, address_spaces, registers, functions, instructions = args
 		constants = {obj.name: obj for obj in constants} if constants else None
-		address_spaces = {obj.name: obj for obj in address_spaces} if address_spaces else None
-		registers = {obj.name: obj for obj in registers} if registers else None
+
+		memories = {}
+		for item in (address_spaces, registers):
+			if item:
+				memories.update({obj.name: obj for obj in item})
 
 		instructions_dict = None
 		if instructions:
@@ -335,7 +338,7 @@ class ArchitectureModelBuilder(Transformer):
 				functions_dict[f.name] = f
 				f.ext_name = name
 
-		i_s = arch.InstructionSet(name, extension, constants, address_spaces, registers, functions_dict, instructions_dict)
+		i_s = arch.InstructionSet(name, extension, constants, memories, functions_dict, instructions_dict)
 		self._instruction_sets[name] = i_s
 		self._read_types[name] = None
 
