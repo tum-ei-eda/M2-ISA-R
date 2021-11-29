@@ -6,7 +6,6 @@ from . import replacements
 from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
                                 TransformerContext, data_type_map)
 
-USE_STATIC_SCALARS = False
 
 def operation(self: behav.Operation, context: TransformerContext):
 	args = [stmt.generate(context) for stmt in self.statements]
@@ -30,7 +29,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE if USE_STATIC_SCALARS else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE if context.static_scalars else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	c.scalar = self.scalar
 	return c
 
@@ -271,7 +270,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	if target.scalar and not context.ignore_static:
 		if expr.static:
-			if target.scalar.static == StaticType.WRITE and USE_STATIC_SCALARS:
+			if target.scalar.static == StaticType.WRITE and context.static_scalars:
 				code_str += f'partInit.code() += "{target.code};\\n";\n'
 			target.scalar.static |= StaticType.READ
 		else:
@@ -371,7 +370,7 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	elif isinstance(referred_var, arch.Scalar):
 		signed = referred_var.data_type == arch.DataType.S
 		size = referred_var.size
-		if USE_STATIC_SCALARS:
+		if context.static_scalars:
 			static = referred_var.static
 		scalar = referred_var
 	elif isinstance(referred_var, arch.Constant):

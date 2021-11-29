@@ -11,7 +11,7 @@ from .templates import template_dir
 
 logger = logging.getLogger("instruction_writer")
 
-def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, static_scalars: bool):
 	fn_set_header_template = Template(filename=str(template_dir/'etiss_function_set_header.mako'))
 	fn_set_footer_template = Template(filename=str(template_dir/'etiss_function_set_footer.mako'))
 
@@ -25,7 +25,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 		funcs_f.write(fn_set_str)
 
-		for fn_name, templ_str in generate_functions(core):
+		for fn_name, templ_str in generate_functions(core, static_scalars):
 			logger.info("processing function %s", fn_name)
 			funcs_f.write(templ_str)
 
@@ -33,7 +33,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 		funcs_f.write(fn_set_str)
 
-def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
+def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool, static_scalars: bool):
 	instr_set_template = Template(filename=str(template_dir/'etiss_instruction_set.mako'))
 
 	outfiles = {}
@@ -54,7 +54,7 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 
 			out_f.write(instr_set_str)
 
-		for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core):
+		for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core, static_scalars):
 			logger.info("processing instruction %s", instr_name)
 			# save instruction code to file
 			outfiles.get(ext_name, outfiles['default']).write(templ_str)

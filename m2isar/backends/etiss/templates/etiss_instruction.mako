@@ -24,10 +24,10 @@ ${fields_code}
 ${operation}
 // -----------------------------------------------------------------------------
 
-		% for reg in reg_dependencies:
+		% for reg in sorted(reg_dependencies):
 		partInit.getRegisterDependencies().add(reg_name[${reg}], ${core_default_width});
 		% endfor
-		% for reg in reg_affected:
+		% for reg in sorted(reg_affected):
 		partInit.getAffectedRegisters().add(reg_name[${reg}], ${core_default_width});
 		% endfor
 		partInit.getAffectedRegisters().add("instructionPointer", 32);

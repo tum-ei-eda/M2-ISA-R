@@ -32,6 +32,7 @@
             "module": "m2isar.backends.etiss.writer",
             "args": [
                 "--separate",
+                "--static-scalars",
                 "${input:inputFile}"
             ],
             "stopOnEntry": true
