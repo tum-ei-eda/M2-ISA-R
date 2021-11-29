@@ -1,6 +1,6 @@
 from collections import namedtuple
 from enum import Enum, auto
-from typing import Iterable, List, Mapping, Set, Tuple, Union
+from typing import Dict, Iterable, List, Mapping, Set, Tuple, Union
 
 from .behav import BaseNode, Operation
 
@@ -235,7 +235,6 @@ class BitField(Named):
 class BitFieldDescr(SizedRefOrConst):
 	def __init__(self, name, size: val_or_const, data_type: DataType):
 		self.data_type = data_type
-		self.upper = 0
 
 		super().__init__(name, size)
 
@@ -262,9 +261,10 @@ class Instruction(SizedRefOrConst):
 					f = self.fields[e.name]
 					if f.data_type != e.data_type:
 						raise ValueError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
-					f._size += e.range.upper - e.range.lower + 1
+					if e.range.upper + 1 > f._size:
+						f._size = e.range.upper + 1
 				else:
-					f = BitFieldDescr(e.name, e.range.upper - e.range.lower + 1, e.data_type)
+					f = BitFieldDescr(e.name, e.range.upper + 1, e.data_type)
 					self.fields[e.name] = f
 			else:
 				self.mask |= (2**e.length - 1) << self._size
@@ -282,15 +282,15 @@ class Function(SizedRefOrConst):
 		if args is None:
 			args = []
 
-		self.args = {}
+		self.args: Dict[str, FnParam] = {}
 
 		for idx, arg in enumerate(args):
 			if arg.name is None:
-				name = f"anon_{idx}"
+				arg_name = f"anon_{idx}"
 			else:
-				name = arg.name
+				arg_name = arg.name
 
-			self.args[name] = arg
+			self.args[arg_name] = arg
 
 		self.operation = operation if operation is not None else Operation([])
 		self.static = False
