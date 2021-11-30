@@ -127,6 +127,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.UnaryOperation(op, right)
 
+	def visitParens_expression(self, ctx: CoreDSL2Parser.Parens_expressionContext):
+		expr = self.visit(ctx.expr)
+		return behav.Group(expr)
+
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		expr = self.visit(ctx.expr)
 
