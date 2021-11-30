@@ -365,6 +365,13 @@ def unary_operation(self: behav.UnaryOperation, context: TransformerContext):
 	c.mem_ids = right.mem_ids
 	return c
 
+def slice_operation(self: behav.SliceOperation, context: TransformerContext):
+	expr = self.expr.generate(context)
+	left = self.left.generate(context)
+	right = self.right.generate(context)
+
+
+
 def named_reference(self: behav.NamedReference, context: TransformerContext):
 	referred_var = self.reference
 

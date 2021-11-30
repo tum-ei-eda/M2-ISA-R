@@ -1,5 +1,6 @@
 from ...metamodel import arch, behav
 
+
 def int_literal(self: behav.IntLiteral, context):
 	return self.value
 

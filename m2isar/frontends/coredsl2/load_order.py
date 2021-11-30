@@ -59,5 +59,5 @@ class LoadOrder(CoreDSL2Visitor):
 			container.children = contents
 			container.name = core_name
 			ret[core_name] = container
-		
+
 		return ret

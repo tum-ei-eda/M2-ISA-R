@@ -1,13 +1,9 @@
-import inspect
-import itertools
 import logging
-from os import name
-from typing import List, Mapping, Set, Tuple, Union
+from typing import List, Mapping, Set
 
 from ...metamodel import arch, behav
-from . import expr_interpreter
-from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser, CoreDSL2Visitor
-from .architecture_model_builder import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
+from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 
 logger = logging.getLogger("behav_builder")
 

@@ -17,7 +17,6 @@ from .utils import make_parser
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
-	#parser.add_argument("-j", default=1, type=int, dest='parallel', help="Use PARALLEL threads while parsing.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 
 	args = parser.parse_args()

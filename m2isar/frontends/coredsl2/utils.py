@@ -3,6 +3,33 @@ import antlr4.error.ErrorListener
 
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
 
+RADIX = {
+	'b': 2,
+	'h': 16,
+	'd': 10,
+	'o': 8
+}
+
+SHORTHANDS = {
+	"char": 8,
+	"short": 16,
+	"int": 32,
+	"long": 64
+}
+
+SIGNEDNESS = {
+	"signed": True,
+	"unsigned": False
+}
+
+def flatten_list(l: list):
+	ret = []
+	for item in l:
+		if isinstance(item, list):
+			ret += flatten_list(item)
+		else:
+			ret.append(item)
+	return ret
 
 class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 	def __init__(self, filename=None) -> None:
