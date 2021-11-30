@@ -138,8 +138,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._constants, self._memories, self._memory_aliases,
-			self._functions, self._instructions, self._instr_classes,
-			self._main_reg_file)
+			self._functions, self._instructions, self._instr_classes)
 
 		return c
 

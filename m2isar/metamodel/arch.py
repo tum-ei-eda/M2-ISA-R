@@ -1,3 +1,4 @@
+import itertools
 from collections import namedtuple
 from enum import Enum, auto
 from typing import Dict, Iterable, List, Mapping, Set, Tuple, Union
@@ -328,7 +329,7 @@ class InstructionSet(Named):
 		super().__init__(name)
 
 class CoreDef(Named):
-	def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int], main_reg_file: Memory):
+	def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int]):
 		self.contributing_types = contributing_types
 		self.template = template
 		self.constants = constants
@@ -337,7 +338,17 @@ class CoreDef(Named):
 		self.functions = functions
 		self.instructions = instructions
 		self.instr_classes = instr_classes
-		self.main_reg_file = main_reg_file
+		self.main_reg_file = None
+		self.main_memory = None
+		self.pc_memory = None
+
+		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
+			if MemoryAttribute.IS_MAIN_REG in mem.attributes:
+				self.main_reg_file = mem
+			elif MemoryAttribute.IS_PC in mem.attributes:
+				self.pc_memory = mem
+			elif MemoryAttribute.IS_MAIN_MEM in mem.attributes:
+				self.main_memory = mem
 
 		super().__init__(name)
 

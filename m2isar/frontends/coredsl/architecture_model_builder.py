@@ -367,7 +367,7 @@ class ArchitectureModelBuilder(Transformer):
 		"""Define a Core. Collects all seen constants, memories, functions and instructions."""
 
 		name, _, template, _, _, _, _, _, _ = args
-		c = arch.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes, self._main_reg_file)
+		c = arch.CoreDef(name, list(self._read_types.keys()), template, self._constants, self._memories, self._memory_aliases, self._functions, self._instructions, self._instr_classes)
 
 		logger.debug(f'core_def {str(c)}')
 		return c
