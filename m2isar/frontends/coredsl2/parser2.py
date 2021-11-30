@@ -108,9 +108,25 @@ def main():
 
 			op = behav_builder.visit(instr_def.operation)
 			if isinstance(op, list):
-				instr_def.operation = behav.Operation(op)
+				op = behav.Operation(op)
 			else:
-				instr_def.operation = behav.Operation([op])
+				op = behav.Operation([op])
+
+			pc_inc = behav.Assignment(
+				behav.NamedReference(core_def.pc_memory),
+				behav.BinaryOperation(
+					behav.NamedReference(core_def.pc_memory),
+					behav.Operator("+"),
+					behav.NumberLiteral(int(instr_def.size/8))
+				)
+			)
+
+			if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND in instr_def.attributes:
+				op.statements.insert(0, pc_inc)
+			elif arch.InstrAttribute.NO_CONT not in instr_def.attributes:
+				op.statements.append(pc_inc)
+
+			instr_def.operation = op
 
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:

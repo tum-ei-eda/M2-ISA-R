@@ -153,18 +153,19 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool):
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
 
 		# add pc increment to operation tree
-		if arch.InstrAttribute.NO_CONT not in instr_def.attributes:
-			logger.debug("appending PC increment to operation tree")
-			instr_def.operation.statements.append(
-				behav.Assignment(
-					behav.NamedReference(context.pc_mem),
-					behav.BinaryOperation(
+		if False:
+			if arch.InstrAttribute.NO_CONT not in instr_def.attributes:
+				logger.debug("appending PC increment to operation tree")
+				instr_def.operation.statements.append(
+					behav.Assignment(
 						behav.NamedReference(context.pc_mem),
-						behav.Operator("+"),
-						behav.NumberLiteral(int(enc_idx/8))
+						behav.BinaryOperation(
+							behav.NamedReference(context.pc_mem),
+							behav.Operator("+"),
+							behav.NumberLiteral(int(enc_idx/8))
+						)
 					)
 				)
-			)
 
 		if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes:
 			logger.debug("adding forced block end")

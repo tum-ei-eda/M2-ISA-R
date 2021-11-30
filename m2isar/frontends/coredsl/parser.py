@@ -3,16 +3,15 @@ import logging
 import pathlib
 import pickle
 import sys
-from typing import List
+from typing import Dict, List
 
 from lark import Lark, Tree
 
-from ...metamodel import arch
+from ...metamodel import arch, behav
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
 from .instruction_set_storage import InstructionSetStorage
 from .transformers import Importer, NaturalConverter, ParallelImporter, Parent
-
 
 GRAMMAR_FNAME = 'coredsl.lark'
 
@@ -64,7 +63,7 @@ def main():
 	model_path = search_path.joinpath('gen_model')
 	model_path.mkdir(exist_ok=True)
 
-	models = {}
+	models: Dict[str, arch.CoreDef] = {}
 
 	for core_name, instruction_sets in iss.core_defs.items():
 		logger.info(f'building architecture model for core {core_name}')
@@ -98,7 +97,23 @@ def main():
 		for (code, mask), instr_def in core_def.instructions.items():
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
 			if isinstance(instr_def.operation, Tree):
-				instr_def.operation = behav_builder.transform(instr_def.operation)
+				op = behav_builder.transform(instr_def.operation)
+
+				pc_inc = behav.Assignment(
+					behav.NamedReference(core_def.pc_memory),
+					behav.BinaryOperation(
+						behav.NamedReference(core_def.pc_memory),
+						behav.Operator("+"),
+						behav.NumberLiteral(int(instr_def.size/8))
+					)
+				)
+
+				if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND in instr_def.attributes:
+					op.statements.insert(0, pc_inc)
+				elif arch.InstrAttribute.NO_CONT not in instr_def.attributes:
+					op.statements.append(pc_inc)
+
+				instr_def.operation = op
 
 	logger.info('dumping model')
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
