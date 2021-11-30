@@ -19,7 +19,7 @@
             "name": "Parse CoreDSL2 (antlr)",
             "type": "python",
             "request": "launch",
-            "module": "m2isar.frontends.coredsl2.parser2",
+            "module": "m2isar.frontends.coredsl2.parser",
             "args": [
                 "${input:inputFile}"
             ],
