@@ -57,6 +57,12 @@ class Conditional(BaseNode):
 		self.then_stmts = then_stmts if then_stmts is not None else []
 		self.else_stmts = else_stmts if else_stmts is not None else []
 
+class Ternary(BaseNode):
+	def __init__(self, cond: BaseNode, then_expr: BaseNode, else_expr: BaseNode):
+		self.cond = cond
+		self.then_expr = then_expr
+		self.else_expr = else_expr
+
 class ScalarDefinition(BaseNode):
 	def __init__(self, scalar: "Scalar"):
 		self.scalar = scalar

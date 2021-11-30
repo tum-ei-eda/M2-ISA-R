@@ -107,6 +107,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.Conditional(cond, then_stmts, else_stmts)
 
+	def visitConditional_expression(self, ctx: CoreDSL2Parser.Conditional_expressionContext):
+		cond = self.visit(ctx.cond)
+		then_expr = self.visit(ctx.then_expr)
+		else_expr = self.visit(ctx.else_expr)
+
+		return behav.Ternary(cond, then_expr, else_expr)
+
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		left = self.visit(ctx.left)
 		op =  behav.Operator(ctx.bop.text)

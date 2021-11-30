@@ -260,6 +260,26 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	return code_str
 
+def ternary(self: behav.Ternary, context: TransformerContext):
+	cond = self.cond.generate(context)
+	then_expr = self.then_expr.generate(context)
+	else_expr = self.else_expr.generate(context)
+
+	static = StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
+
+	if not static:
+		if cond.static:
+			cond.code = context.make_static(cond.code)
+		if then_expr.static:
+			then_expr.code = context.make_static(then_expr.code)
+		if else_expr.static:
+			else_expr.code = context.make_static(else_expr.code)
+
+	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size, then_expr.signed or else_expr.signed, False, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
+	c.mem_ids = cond.mem_ids + then_expr.mem_ids + else_expr.mem_ids
+
+	return c
+
 def assignment(self: behav.Assignment, context: TransformerContext):
 	target = self.target.generate(context)
 	expr = self.expr.generate(context)
@@ -446,13 +466,26 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 		return expr
 
-	code_str = f'({data_type_map[self.data_type]}{self.actual_size})({expr.code})'
-	if self.actual_size != self.size:
-		code_str = f'({code_str} & {hex((1 << self.size) - 1)})'
+	else:
+		if self.actual_size != self.size:
+			code_str = f'({expr.code} & {hex((1 << self.size) - 1)})'
+		else:
+			code_str = expr.code
 
-	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
-	c.mem_ids = expr.mem_ids
-	return c
+		if self.data_type == arch.DataType.S and self.actual_size != self.size:
+			target_size = self.actual_size
+
+			if isinstance(self.size, int):
+				code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - self.size})) >> ({target_size - self.size})'
+			else:
+				code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size} - {self.size})) >> ({target_size} - {self.size})'
+
+		else:
+			code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
+
+		c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
+		c.mem_ids = expr.mem_ids
+		return c
 
 def number_literal(self: behav.NumberLiteral, context: TransformerContext):
 	lit = self.value
