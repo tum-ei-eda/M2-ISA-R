@@ -234,7 +234,7 @@ primary
 	: ref=IDENTIFIER # reference_expression
 	| const_expr=constant # constant_expression
 	| literal+=string_literal+ # literal_expression
-	| '(' expression ')' # parens_expression
+	| '(' expr=expression ')' # parens_expression
 	;
 
 string_literal
