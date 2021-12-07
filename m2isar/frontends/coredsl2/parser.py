@@ -52,6 +52,9 @@ def main():
 		arch_builder = ArchitectureModelBuilder()
 		c = arch_builder.visit(core_def)
 
+		for orig, overwritten in arch_builder._overwritten_instrs:
+			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
+
 		temp_save[core_name] = (c, arch_builder)
 		models[core_name] = c[-1]
 
@@ -120,7 +123,7 @@ def main():
 				)
 			)
 
-			if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND in instr_def.attributes:
+			if arch.InstrAttribute.NO_CONT in instr_def.attributes:# and arch.InstrAttribute.COND in instr_def.attributes:
 				op.statements.insert(0, pc_inc)
 			elif arch.InstrAttribute.NO_CONT not in instr_def.attributes:
 				op.statements.append(pc_inc)
