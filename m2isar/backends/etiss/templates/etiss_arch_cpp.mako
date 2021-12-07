@@ -114,6 +114,17 @@ void ${core_name}Arch::resetCPU(ETISS_CPU * cpu,etiss::uint64 * startpointer)
 	% endif
 	% endif
 	% endfor
+
+	% for reg in initval_regs:
+<% ref = "*" if len(reg.children) > 0 else "" %> \
+	% if reg.range.length > 1:
+	% for idx, val in reg._initval.items():
+	${ref}${core_name.lower()}cpu->${reg.name}[${idx}] = ${val};
+	% endfor
+	% else:
+	${ref}${core_name.lower()}cpu->${reg.name} = ${reg._initval[None]};
+	% endif
+	% endfor
 }
 
 void ${core_name}Arch::deleteCPU(ETISS_CPU *cpu)

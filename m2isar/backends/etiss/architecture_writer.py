@@ -58,13 +58,16 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 	with open(output_path / f"{core.name}Arch.h", "w") as f:
 		f.write(txt)
 
-def build_reg_hierarchy(reg: arch.Memory, ptr_regs: List[arch.Memory], actual_regs: List[arch.Memory], alias_regs: Dict[arch.Memory, arch.Memory]):
+def build_reg_hierarchy(reg: arch.Memory, ptr_regs: List[arch.Memory], actual_regs: List[arch.Memory], alias_regs: Dict[arch.Memory, arch.Memory], initval_regs: List[arch.Memory]):
+	if reg._initval:
+		initval_regs.append(reg)
+
 	if len(reg.children) > 0:
 		for child in reg.children:
 			if child.is_main_mem:
 				logger.warning("main memory is a child memory of %s", reg)
 				continue
-			build_reg_hierarchy(child, ptr_regs, actual_regs, alias_regs)
+			build_reg_hierarchy(child, ptr_regs, actual_regs, alias_regs, initval_regs)
 			alias_regs[child] = reg
 		ptr_regs.append(reg)
 	else:
@@ -76,11 +79,12 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 	ptr_regs = []
 	actual_regs = []
 	alias_regs = {}
+	initval_regs = []
 
 	for mem_name, mem_desc in core.memories.items():
 		if mem_desc.is_main_mem:
 			continue
-		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs)
+		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs, initval_regs)
 
 	reg_names = [f"{core.main_reg_file.name}{n}" for n in range(core.main_reg_file.data_range.length)]
 
@@ -96,7 +100,8 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		reg_names=reg_names,
 		ptr_regs=ptr_regs,
 		actual_regs=actual_regs,
-		alias_regs=alias_regs
+		alias_regs=alias_regs,
+		initval_regs=initval_regs
 	)
 
 	logger.info("writing architecture class file")
