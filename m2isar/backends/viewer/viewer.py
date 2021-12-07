@@ -62,17 +62,27 @@ def main():
 	with open(model_fname, 'rb') as f:
 		models: Dict[str, arch.CoreDef] = pickle.load(f)
 
-	for core_name, core_def in models.items():
+	for core_name, core_def in sorted(models.items()):
 		print(f"core {core_name}")
 
-		for const_name, const_def in core_def.constants.items():
+		for const_name, const_def in sorted(core_def.constants.items()):
 			print(f"constant {const_name} = {const_def.value}")
 
-		for mem_name, mem_def in core_def.memories.items():
-			print(f"memory {mem_name}: {mem_def.range} {mem_def.size}")
+		for mem_name, mem_def in sorted(core_def.memories.items()):
+			print(f"memory {mem_name}: {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
 
-		for mem_name, mem_def in core_def.memory_aliases.items():
-			print(f"memory alias {mem_name}: {mem_def.range} {mem_def.size}")
+		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
+			print(f"memory alias {mem_name} ({mem_def.parent.name}): {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
+
+		for (code, mask), instr_def in sorted(core_def.instructions.items()):
+			print(f"instruction {code:08x}:{mask:08x} ({instr_def.name})")
+			enc_str = []
+			for enc in instr_def.encoding:
+				if isinstance(enc, arch.BitVal):
+					enc_str.append(f"{enc.value:0{enc.length}b}")
+				elif isinstance(enc, arch.BitField):
+					enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
+			print(" ".join(enc_str))
 
 	pass
 
