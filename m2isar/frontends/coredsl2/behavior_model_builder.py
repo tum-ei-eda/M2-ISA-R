@@ -1,6 +1,7 @@
 import logging
 from typing import List, Mapping, Set
 
+from ...backends import StaticType
 from ...metamodel import arch, behav
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
@@ -72,7 +73,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		for decl in decls:
 			name = decl.declarator.name.text
 
-			s = arch.Scalar(name, None, False, type_.width, arch.DataType.S if type_.signed else arch.DataType.U)
+			s = arch.Scalar(name, None, StaticType.NONE, type_.width, arch.DataType.S if type_.signed else arch.DataType.U)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 
@@ -131,12 +132,18 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		expr = self.visit(ctx.expr)
 
 		left = self.visit(ctx.left)
-		right = self.visit(ctx.right) if ctx.right else None
+		right = self.visit(ctx.right) if ctx.right else left
 
 		if isinstance(expr, behav.NamedReference):
 			return behav.IndexedReference(expr.reference, left, right)
 		else:
 			return behav.SliceOperation(expr, left, right)
+
+	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
+		left = self.visit(ctx.left)
+		right = self.visit(ctx.right)
+
+		return behav.ConcatOperation(left, right)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		op = ctx.bop.text
