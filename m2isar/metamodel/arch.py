@@ -278,7 +278,7 @@ class Instruction(SizedRefOrConst):
 		return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):
-	def __init__(self, name, return_len, data_type: DataType, args: Iterable[FnParam], operation: "Operation"):
+	def __init__(self, name, return_len, data_type: DataType, args: Iterable[FnParam], operation: "Operation", extern: bool=False):
 		self.data_type = data_type
 		if args is None:
 			args = []
@@ -295,6 +295,7 @@ class Function(SizedRefOrConst):
 
 		self.operation = operation if operation is not None else Operation([])
 		self.static = False
+		self.extern = extern
 
 		super().__init__(name, return_len)
 

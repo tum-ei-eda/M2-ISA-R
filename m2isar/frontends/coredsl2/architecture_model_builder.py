@@ -157,7 +157,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			return_size = type_._width
 			data_type = arch.DataType.S if type_.signed else arch.DataType.U
 
-		f = arch.Function(ctx.name.text, return_size, data_type, params, ctx.behavior)
+		f = arch.Function(ctx.name.text, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 
 		if ctx.name.text in self._functions:
 			raise ValueError(f"function {ctx.name.text} already defined")
