@@ -28,6 +28,11 @@ class SliceOperation(BaseNode):
 		self.left = left
 		self.right = right
 
+class ConcatOperation(BaseNode):
+	def __init__(self, left: BaseNode, right: BaseNode) -> None:
+		self.left = left
+		self.right = right
+
 class NumberLiteral(BaseNode):
 	def __init__(self, value):
 		self.value = value
