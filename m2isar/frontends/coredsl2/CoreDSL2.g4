@@ -126,31 +126,9 @@ float_shorthand
 	| 'double'
 	;
 
-
-
-
 attribute
 	: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket
 	;
-
-
-
-
-/*
-primitive_type
-	: data_type=data_types+ bit_size=bit_size_specifier?
-	;
-
-enum_type
-	: 'enum' name=IDENTIFIER? '{' enumerator_list ','? '}' # enum_declaration
-	| 'enum' name=IDENTIFIER # enum_reference
-	;
-
-composite_type
-	: type_=struct_or_union name=IDENTIFIER? '{' declarations+=struct_declaration* '}' # composite_declaration
-	| type_=struct_or_union name=IDENTIFIER # composite_reference
-	;
-*/
 
 bit_size_specifier
 	: '<' size+=primary (',' size+=primary ',' size+=primary ',' size+=primary)? '>'
@@ -225,7 +203,7 @@ expression
     | left=expression bop='|' right=expression # binary_expression
     | left=expression bop='&&' right=expression # binary_expression
     | left=expression bop='||' right=expression # binary_expression
-	| left=expression bop='::' right=expression # binary_expression
+	| left=expression bop='::' right=expression # concat_expression
     | <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
 	| <assoc=right> left=expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') right=expression # assignment_expression
 	;
