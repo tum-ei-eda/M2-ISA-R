@@ -5,7 +5,12 @@ This M2-ISA-R backend generates architecture plugins for the instruction set sim
 - Endianness conversion
 - Variable-length instruction handling
 
-These functionalities must be implemented manually in the file `<core_name>ArchSpecificImpl.cpp`
+These functionalities must be implemented manually in the file `<core_name>ArchSpecificImpl.cpp`. Future versions of M2-ISA-R aim to also generate at least parts of these functions from a metamodel.
+
+## Known issues
+- Instruction behavior such as `MEM[X[rs1] + imm] = MEM[X[rs2]]` does not see `X[rs1]` as a dependent register.
+- Staticness (whether the value of a variable is completely known at instruction generation time, i.e. outside of JIT-compilation in ETISS) detection of instruction-level local variables (scalars) is crude and breaks once multiple levels of scoping are necessary.
+- The above also breaks ETISS's register dependency tracking when scope-restricted variables or expressions are used for register addressing, see [issue #6](https://github.com/tum-ei-eda/M2-ISA-R/issues/6) in this repo.
 
 ## Usage
 
@@ -19,5 +24,6 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -s, --separate        Generate separate .cpp files for each instruction set.
+  --static-scalars      Enable crude static detection for scalars. WARNING: known to break!
   --log {critical,error,warning,info,debug}
 ```

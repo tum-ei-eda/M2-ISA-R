@@ -26,7 +26,7 @@ M2-ISA-R v2 currently ships three usable tools: Two parsers (for transforming Co
 - To parse a CoreDSL 2 description: `coredsl2_parser path/to/input/<top_level>.core_desc`
 - To generate ETISS Architecture: `etiss_writer -s path/to/input/gen_model/<top_level>.m2isarmodel`
 
-For parsers, see [m2isar/frontends/coredsl] or [m2isar/frontends/coredsl2]. For the ETISS architecture writer, see [m2isar/backends/etiss].
+For parsers, see [m2isar/frontends/coredsl](m2isar/frontends/coredsl) or [m2isar/frontends/coredsl2](m2isar/frontends/coredsl2). For the ETISS architecture writer, see [m2isar/backends/etiss](m2isar/backends/etiss).
 
 ## Roadmap
 - [ ] CoreDSL 2 support (WIP, awaiting final CoreDSL 2 ratification)
