@@ -27,3 +27,21 @@ optional arguments:
   --static-scalars      Enable crude static detection for scalars. WARNING: known to break!
   --log {critical,error,warning,info,debug}
 ```
+
+## Internals
+This M2-ISA-R generator backend works in different stages to generate ETISS architecture models:
+1) Load pickled architecture model
+2) Create output directory structure
+3) Generate ETISS model boilderplate
+4) Generate function and instruction behavior
+
+Behavior generation makes heavy use of Python's monkey-patching and introspection capabilities. To separate the plain structure and data model information from the knowledge of how to transform this data into ETISS code, the functions required for ETISS code generation are monkey-patched into the architecture model at runtime. In this process, the generic method `generate(context)` of every behavior model node is replaced by a specialized method, defined in [instruction_transform.py](instruction_transform.py). To automate this patching process, Python's `inspect` module is used, looking at every function inside [instruction_transform.py](instruction_transform.py), reading its signature and type hints, and replacing the `generate` function in the class indicated by the type hint of the `self` argument. Example:
+
+```
+def operation(self: behav.Operation, context: TransformerContext):
+  return "nop"
+```
+
+The patching logic would perform the assignment `behav.Operation.generate = operation`. For the implementation of the patching logic, see [here](https://github.com/tum-ei-eda/M2-ISA-R/blob/coredsl2/m2isar/backends/etiss/instruction_generator.py#L14).
+
+High-level code generation is done through `mako` templates, where large amounts of static text is required. Behavioral code is generated directly in Python through string operations. To pass state information between generation nodes, `CodeString` objects containing the actual string and supporting data are used.
