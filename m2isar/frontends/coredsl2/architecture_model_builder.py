@@ -1,34 +1,15 @@
-import inspect
 import itertools
 import logging
 from typing import List, Mapping, Set, Tuple, Union
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, patch_model
 from . import expr_interpreter
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 
 logger = logging.getLogger("arch_builder")
 
-def patch_model():
-	"""Monkey patch transformation functions inside instruction_transform
-	into model_classes.behav classes
-	"""
-
-	for name, fn in inspect.getmembers(expr_interpreter, inspect.isfunction):
-		sig = inspect.signature(fn)
-		param = sig.parameters.get("self")
-		if not param:
-			logger.warning("no self parameter found in %s", fn)
-			continue
-		if not param.annotation:
-			logger.warning("self parameter not annotated correctly for %s", fn)
-			continue
-
-		logger.debug("patching %s with fn %s", param.annotation, fn)
-		param.annotation.generate = fn
-
-patch_model()
+patch_model(expr_interpreter)
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_constants: Mapping[str, arch.Constant]

@@ -1,35 +1,15 @@
-import inspect
 import logging
 from string import Template as strfmt
 
 from mako.template import Template
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, patch_model
 from . import instruction_transform, instruction_utils
 from .templates import template_dir
 
-
 logger = logging.getLogger("instruction_generator")
 
-def patch_model():
-	"""Monkey patch transformation functions inside instruction_transform
-	into model_classes.behav classes
-	"""
-
-	for name, fn in inspect.getmembers(instruction_transform, inspect.isfunction):
-		sig = inspect.signature(fn)
-		param = sig.parameters.get("self")
-		if not param:
-			logger.warning("no self parameter found in %s", fn)
-			continue
-		if not param.annotation:
-			logger.warning("self parameter not annotated correctly for %s", fn)
-			continue
-
-		logger.debug("patching %s with fn %s", param.annotation, fn)
-		param.annotation.generate = fn
-
-patch_model()
+patch_model(instruction_transform)
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	"""Return a generator object to generate function behavior code. Uses function
@@ -151,21 +131,6 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool):
 		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
-
-		# add pc increment to operation tree
-		if False:
-			if arch.InstrAttribute.NO_CONT not in instr_def.attributes:
-				logger.debug("appending PC increment to operation tree")
-				instr_def.operation.statements.append(
-					behav.Assignment(
-						behav.NamedReference(context.pc_mem),
-						behav.BinaryOperation(
-							behav.NamedReference(context.pc_mem),
-							behav.Operator("+"),
-							behav.NumberLiteral(int(enc_idx/8))
-						)
-					)
-				)
 
 		if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes:
 			logger.debug("adding forced block end")
