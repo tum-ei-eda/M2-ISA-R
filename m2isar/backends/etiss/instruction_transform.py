@@ -8,6 +8,10 @@ from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
 
 
 def operation(self: behav.Operation, context: TransformerContext):
+	"""Generate an `Operation` model object. Essentially generate all children,
+	concatenate their code, and add exception behavior if needed.
+	"""
+
 	args = [stmt.generate(context) for stmt in self.statements]
 
 	code_str = '\n'.join(args)
@@ -502,23 +506,22 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 		self.size = expr.size
 		self.actual_size = expr.actual_size
 
+	# save access size for memory access
 	if expr.is_mem_access:
 		if not expr.mem_corrected and expr.mem_ids[-1].access_size != self.size:
 			expr.mem_ids[-1].access_size = self.size
 			expr.size = self.size
 			expr.mem_corrected = True
-			#return expr
 		elif expr.mem_ids[-1].access_size == self.size:
 			expr.mem_corrected = True
 
-		#return expr
-
-
+	# mask off unneeded bits
 	if self.actual_size != self.size:
 		code_str = f'({expr.code} & {hex((1 << self.size) - 1)})'
 	else:
 		code_str = expr.code
 
+	# sign extension
 	if self.data_type == arch.DataType.S and self.actual_size != self.size:
 		target_size = self.actual_size
 
@@ -532,6 +535,8 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
 	c.mem_ids = expr.mem_ids
+	c.mem_corrected = expr.mem_corrected
+
 	return c
 
 def number_literal(self: behav.NumberLiteral, context: TransformerContext):

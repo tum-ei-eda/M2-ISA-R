@@ -59,6 +59,14 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		f.write(txt)
 
 def build_reg_hierarchy(reg: arch.Memory, ptr_regs: List[arch.Memory], actual_regs: List[arch.Memory], alias_regs: Dict[arch.Memory, arch.Memory], initval_regs: List[arch.Memory]):
+	"""Populate the passed lists with memory objects of their category.
+
+	ptr_regs: Registers that need to be a pointer within ETISS
+	actual_regs: Registers that are not a pointer
+	alias_regs: Registers which are an alias to some other register
+	initval_regs: Registers which have initial value(s) defined in the model
+	"""
+
 	if reg._initval:
 		initval_regs.append(reg)
 

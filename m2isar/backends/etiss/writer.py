@@ -5,6 +5,8 @@ import pickle
 import shutil
 import time
 
+from m2isar.metamodel.arch import CoreDef
+
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
                                   write_arch_lib, write_arch_specific_cpp,
@@ -14,6 +16,9 @@ from .instruction_writer import write_functions, write_instructions
 
 
 def setup():
+	"""Setup a M2-ISA-R metamodel consumer. Create an argument parser, unpickle the model
+	and generate output file structure.
+	"""
 	parser = argparse.ArgumentParser()
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
@@ -45,7 +50,7 @@ def setup():
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		models = pickle.load(f)
+		models: dict[str, CoreDef] = pickle.load(f)
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
