@@ -123,6 +123,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
 		attributes = [self.visit(obj) for obj in ctx.attributes]
 		type_ = self.visit(ctx.type_)
+		name = ctx.name.text
 
 		params = []
 		if ctx.params:
@@ -138,11 +139,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			return_size = type_._width
 			data_type = arch.DataType.S if type_.signed else arch.DataType.U
 
-		f = arch.Function(ctx.name.text, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
+		f = arch.Function(name, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 
-		if ctx.name.text in self._functions:
-			raise ValueError(f"function {ctx.name.text} already defined")
-		self._functions[ctx.name.text] = f
+		f2 = self._functions.get(name, None)
+
+		if f2 is not None:
+			if not f2.extern or len(f2.operation.statements) > 0:
+				raise ValueError(f"function {name} already defined")
+
+		self._functions[name] = f
 		return f
 
 	def visitParameter_declaration(self, ctx: CoreDSL2Parser.Parameter_declarationContext):
@@ -303,7 +308,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
-		op = ctx.bop.text
+		op = behav.Operator(ctx.bop.text)
 		return behav.BinaryOperation(left, op, right)
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
@@ -315,7 +320,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return op
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
-		prefix = ctx.prefix.text
+		prefix = behav.Operator(ctx.prefix.text)
 		expr = self.visit(ctx.right)
 		return behav.UnaryOperation(prefix, expr)
 
