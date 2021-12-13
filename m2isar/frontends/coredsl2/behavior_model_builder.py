@@ -226,10 +226,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if ctx.shorthand is not None:
 			width = self.visit(ctx.shorthand)
 
-		if isinstance(width, behav.IntLiteral):
-			width = width.value
-		elif isinstance(width, behav.NamedReference):
-			width = width.reference
+		if isinstance(width, behav.BaseNode):
+			width = width.generate(None)
 		else:
 			raise ValueError("width has wrong type")
 
