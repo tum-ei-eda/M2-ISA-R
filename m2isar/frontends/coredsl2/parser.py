@@ -82,6 +82,9 @@ def main():
 			mem_def.range._upper_base = mem_def.range.upper_base
 
 		for fn_def in core_def.functions.values():
+			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
+				raise ValueError(f"non-extern function {fn_def.name} has no body")
+
 			fn_def._size = fn_def.size
 			for fn_arg in fn_def.args.values():
 				fn_arg._size = fn_arg.size
@@ -123,11 +126,7 @@ def main():
 				)
 			)
 
-			if arch.InstrAttribute.NO_CONT in instr_def.attributes:# and arch.InstrAttribute.COND in instr_def.attributes:
-				op.statements.insert(0, pc_inc)
-			elif arch.InstrAttribute.NO_CONT not in instr_def.attributes:
-				op.statements.append(pc_inc)
-
+			op.statements.insert(0, pc_inc)
 			instr_def.operation = op
 
 	logger.info("dumping model")

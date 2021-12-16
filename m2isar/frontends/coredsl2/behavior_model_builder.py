@@ -66,12 +66,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 
-		decls: List[CoreDSL2Parser.Init_declaratorContext] = ctx.init
+		decls: List[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
 
 		ret_decls = []
 
 		for decl in decls:
-			name = decl.declarator.name.text
+			name = decl.name.text
 
 			s = arch.Scalar(name, None, StaticType.NONE, type_.width, arch.DataType.S if type_.signed else arch.DataType.U)
 			self._scalars[name] = s

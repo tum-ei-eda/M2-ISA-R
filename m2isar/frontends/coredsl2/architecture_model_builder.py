@@ -144,7 +144,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		f2 = self._functions.get(name, None)
 
 		if f2 is not None:
-			if not f2.extern or len(f2.operation.statements) > 0:
+			if f2.extern or len(f2.operation.statements) > 0:
 				raise ValueError(f"function {name} already defined")
 
 		self._functions[name] = f
@@ -154,11 +154,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		type_ = self.visit(ctx.type_)
 		name = None
 		size = None
-		if ctx.dd:
-			if ctx.dd.name:
-				name = ctx.dd.name.text
-			if ctx.dd.size:
-				size = [self.visit(obj) for obj in ctx.dd.size]
+		if ctx.decl:
+			if ctx.decl.name:
+				name = ctx.decl.name.text
+			if ctx.decl.size:
+				size = [self.visit(obj) for obj in ctx.decl.size]
 
 		p = arch.FnParam(name, type_._width, arch.DataType.S if type_.signed else arch.DataType.U)
 		return p
@@ -193,20 +193,20 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 
-		decls: List[CoreDSL2Parser.Init_declaratorContext] = ctx.init
+		decls: List[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
 
 		ret_decls = []
 
 		for decl in decls:
-			name = decl.declarator.name.text
+			name = decl.name.text
 
 			if type_.ptr == "&": # register alias
 				size = [1]
 				init: behav.IndexedReference = self.visit(decl.init)
 				attributes = []
 
-				if decl.declarator.size:
-					size = [self.visit(obj).value for obj in decl.declarator.size]
+				if decl.size:
+					size = [self.visit(obj).value for obj in decl.size]
 
 				left = init.index
 				right = init.right if init.right is not None else left
@@ -248,8 +248,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					init = 0
 					attributes = []
 
-					if decl.declarator.size:
-						size = [self.visit(obj) for obj in decl.declarator.size]
+					if decl.size:
+						size = [self.visit(obj) for obj in decl.size]
 
 					if decl.init is not None:
 						init = self.visit(decl.init)
@@ -354,12 +354,16 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[left.index.generate(None)] = right.generate(None)
 
-	def visitTerminal(self, node):
-		if node.symbol.type == CoreDSL2Lexer.MEM_ATTRIBUTE:
-			return arch.MemoryAttribute[node.symbol.text.upper()]
-		elif node.symbol.type == CoreDSL2Lexer.INSTR_ATTRIBUTE:
-			return arch.InstrAttribute[node.symbol.text.upper()]
-		return super().visitTerminal(node)
+	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
+		name = ctx.name.text
+
+		attr = arch.InstrAttribute._member_map_.get(name.upper()) or \
+			arch.MemoryAttribute._member_map_.get(name.upper())
+
+		if attr is None:
+			logger.warning("unknown attribute \"%s\" encountered", name)
+
+		return attr
 
 	def visitChildren(self, node):
 		ret = super().visitChildren(node)

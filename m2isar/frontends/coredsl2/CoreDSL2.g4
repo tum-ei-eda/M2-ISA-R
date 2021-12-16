@@ -38,7 +38,7 @@ encoding_entry
 
 function_definition
 	: extern='extern' type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' ';'
-	| type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' attributes+=attribute* behavior=block
+	| type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' attributes+=attribute* (behavior=block | ';')
 	;
 
 parameter_list
@@ -46,7 +46,7 @@ parameter_list
 	;
 
 parameter_declaration
-	: type_=type_specifier (dd=direct_declarator | da=direct_abstract_declarator)?
+	: type_=type_specifier decl=declarator?
 	;
 
 statement
@@ -90,7 +90,7 @@ for_condition
 declaration
 	: (storage+=storage_class_specifier | qualifiers+=type_qualifier | attributes+=attribute)*
 		type_=type_specifier
-		(init+=init_declarator (',' init+=init_declarator)*)? ';'
+		(declarations+=declarator (',' declarations+=declarator)*)? ';'
 	;
 
 type_specifier
@@ -127,7 +127,7 @@ float_shorthand
 	;
 
 attribute
-	: double_left_bracket type_=attribute_name ('=' value=expression)? double_right_bracket
+	: '[[' name=IDENTIFIER ('=' params+=expression | '(' params+=expression (',' params+=expression)* ')')? ']]'
 	;
 
 bit_size_specifier
@@ -144,7 +144,7 @@ enumerator
 	;
 
 struct_declaration
-	: specifier=struct_declaration_specifier declarators+=direct_declarator(',' declarators+=direct_declarator)* ';'
+	: specifier=struct_declaration_specifier declarators+=declarator(',' declarators+=declarator)* ';'
 	;
 
 struct_declaration_specifier
@@ -152,13 +152,11 @@ struct_declaration_specifier
 	| qualifiers+=type_qualifier
 	;
 
-init_declarator
-	: declarator=direct_declarator attributes+=attribute* ('=' init=initializer)?
-	;
-
-direct_declarator
-	: name=IDENTIFIER (':' index=integer_constant)?
-	  ((LEFT_BR size+=expression RIGHT_BR)+ | '(' params=parameter_list ')')?
+declarator
+	: name=IDENTIFIER
+		(LEFT_BR size+=expression RIGHT_BR)*
+		attributes+=attribute*
+		('=' init=initializer)?
 	;
 
 initializer
@@ -177,11 +175,6 @@ designated_initializer
 designator
 	: LEFT_BR idx=expression RIGHT_BR
 	| '.' prop=IDENTIFIER
-	;
-
-direct_abstract_declarator
-	: '(' (decl=direct_abstract_declarator? | params=parameter_list) ')'
-	| LEFT_BR expr=expression? RIGHT_BR
 	;
 
 expression
@@ -274,40 +267,6 @@ storage_class_specifier
 	: 'extern'
 	| 'static'
 	| 'register'
-	;
-
-/*
-attribute_name
-	: 'NONE'
-	| 'is_pc'
-	| 'is_interlock_for'
-	| 'do_not_synthesize'
-	| 'enable'
-	| 'no_cont'
-	| 'cond'
-	| 'flush'
-	| 'is_main_mem'
-	| 'is_main_reg'
-	| 'sim_exit'
-	;
- */
-
-attribute_name
-	: MEM_ATTRIBUTE
-	| INSTR_ATTRIBUTE
-	;
-
-MEM_ATTRIBUTE
-	: 'is_pc'
-	| 'is_main_mem'
-	| 'is_main_reg'
-	;
-
-INSTR_ATTRIBUTE
-	: 'sim_exit'
-	| 'no_cont'
-	| 'cond'
-	| 'flush'
 	;
 
 struct_or_union
