@@ -3,7 +3,7 @@
 #ifndef ETISS_ARCH_STATIC_FN_ONLY
 % endif
 
-inline ${return_type} ${fn_name} (${args_list})
+static inline ${return_type} ${fn_name} (${args_list})
 {
 ${operation}
 }
