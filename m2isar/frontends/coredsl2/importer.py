@@ -1,4 +1,5 @@
 import logging
+import pathlib
 
 from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
 from .utils import make_parser
@@ -29,6 +30,9 @@ class Importer(CoreDSL2Listener):
 		pass
 
 def recursive_import(tree, search_path):
+	path_extender = ImportPathExtender(search_path)
+	path_extender.visit(tree)
+
 	importer = VisitImporter(search_path)
 
 	while importer.got_new:
@@ -66,10 +70,28 @@ class VisitImporter(CoreDSL2Visitor):
 			self.got_new = True
 			self.imported.add(filename)
 
-			parser = make_parser(self.search_path/filename)
+			file_path = pathlib.Path(filename)
+			file_dir = file_path.parent
+
+			parser = make_parser(file_path)
 
 			tree = parser.description_content()
+			path_extender = ImportPathExtender(file_dir)
+			path_extender.visit(tree)
 
 			self.new_children.extend(tree.children)
 			self.new_imports.extend(tree.imports)
 			self.new_defs.extend(tree.definitions)
+
+class ImportPathExtender(CoreDSL2Visitor):
+	def __init__(self, search_path: pathlib.Path) -> None:
+		super().__init__()
+		self.search_path = search_path
+
+	def visitDescription_content(self, ctx: CoreDSL2Parser.Description_contentContext):
+		for i in ctx.imports:
+			self.visit(i)
+
+	def visitImport_file(self, ctx: CoreDSL2Parser.Import_fileContext):
+		filename = self.search_path / ctx.uri.text.replace('"', '')
+		ctx.uri.text = str(filename)
