@@ -16,7 +16,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 	code_str = '\n'.join(args)
 
-	if context.is_exception:
+	if context.is_exception or (context.generates_exception and arch.InstrAttribute.NO_CONT in context.attribs):
 		code_str += '\npartInit.code() += "return exception;\\n";'
 	elif context.generates_exception:
 		code_str += '\npartInit.code() += "if (exception) return exception;\\n";'
