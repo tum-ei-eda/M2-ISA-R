@@ -66,7 +66,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 				if arg.static:
 					arg.code = context.make_static(arg.code)
 
-		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
+		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static and not fn.extern else []
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
@@ -221,11 +221,11 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 				if arg.static:
 					arg.code = context.make_static(arg.code)
 
-		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static else []
+		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static and not fn.extern else []
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
-		signed = True in [arg.signed for arg in fn_args]
+		signed = fn.data_type == arch.DataType.S
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
 		static = StaticType.READ if static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE

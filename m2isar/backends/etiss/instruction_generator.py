@@ -24,6 +24,9 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	for fn_name, fn_def in core.functions.items():
 		logger.debug("setting up function generator for %s", fn_name)
 
+		if fn_def.extern:
+			continue
+
 		return_type = instruction_utils.data_type_map[fn_def.data_type]
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
