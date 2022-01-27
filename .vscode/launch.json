@@ -69,7 +69,8 @@
                 "../coredsl-models/test/top.core_desc",
                 "../coredsl-models/test/test.core_desc",
                 "../coredsl2-models/test/top.core_desc",
-                "../coredsl2-models/riscv/top.core_desc"
+                "../coredsl2-models/riscv/top.core_desc",
+                "../etiss_arch_riscv/top.core_desc"
             ],
             "description": ""
         }
