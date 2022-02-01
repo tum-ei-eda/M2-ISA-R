@@ -9,7 +9,7 @@ cd /path/to/M2-ISA-R/m2isar/frontends/coredsl2
 java -jar /path/to/antlr-4.9.3-complete.jar -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
 ```
 
-A VSCode task for parser generation is already created for this project. To use it, put the ANTLR binary in the `/path/to/M2-ISA-R/ext` folder.
+A VSCode task for parser generation is already created for this project. To use it, put the ANTLR binary in the `/path/to/M2-ISA-R/ext` folder, then select `Terminal` -> `Run Task...` -> `Generate CoreDSL2 ANTLR parser`.
 
 ## Limitations
 This parser should be considered as in active development, so bugs will most likely occur. In addition, this parser (but also the metamodel and therefore the code generator) do not implement the following CoreDSL 2 features (at the moment):
@@ -20,7 +20,7 @@ This parser should be considered as in active development, so bugs will most lik
 - `spawn` statements
 - String literals
 
-In addition to that, qualifiers other than `extern` and `register` in `architectural_state` declarations are ignored. The "flexible attribute system" of the reference parser is also not implemented, only a fixed set of attributes are understood.
+In addition to that, qualifiers other than `extern` and `register` in `architectural_state` declarations are ignored. The "flexible attribute system" of the reference parser is implemented, although unknown attributes are currently ignored.
 
 In the future, these features might also be implemented if needed. For most CPU models, they should however not be absolutely necessary.
 
@@ -40,7 +40,7 @@ The parser outputs the architecture model as a pickled python object at `path/to
 The parser can be called by its full python module path `python -m m2isar.frontends.coredsl2.parser` or if installed as in the main README, simply by `coredsl2_parser`.
 
 ```
-$ coredsl_parser --help
+$ coredsl2_parser --help
 usage: parser.py [-h] [--log {critical,error,warning,info,debug}] top_level
 
 positional arguments:
