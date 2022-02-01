@@ -31,3 +31,14 @@ For parsers, see [m2isar/frontends/coredsl](m2isar/frontends/coredsl) or [m2isar
 ## Roadmap
 - [ ] CoreDSL 2 support (WIP, awaiting final CoreDSL 2 ratification)
 - [ ] Formal metamodel description
+- [ ] Support for extended CoreDSL 2 features:
+	- [ ] Loops
+	- [ ] Complex data types
+	- [ ] Bit-wise aliasing
+	- [ ] Spawn blocks
+- [ ] Detection and evaluation of generation-time static expressions
+- [ ] Better support for translation-time static expressions, see #5 and #6
+- [ ] Full generation of ETISS architecture models:
+	- [ ] Variable width instruction decoding
+	- [ ] Exception handling
+	- [ ] Privilege levels
