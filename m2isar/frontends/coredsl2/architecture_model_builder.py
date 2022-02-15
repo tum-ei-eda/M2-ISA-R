@@ -1,10 +1,10 @@
 import itertools
 import logging
-from typing import List, Mapping, Set, Tuple, Union
+from typing import Union
 
 from ...metamodel import arch, behav, patch_model
 from . import expr_interpreter
-from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser, CoreDSL2Visitor
+from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 
 logger = logging.getLogger("arch_builder")
@@ -12,15 +12,15 @@ logger = logging.getLogger("arch_builder")
 patch_model(expr_interpreter)
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
-	_constants: Mapping[str, arch.Constant]
-	_instructions: Mapping[str, arch.Instruction]
-	_functions: Mapping[str, arch.Function]
-	_instruction_sets: Mapping[str, arch.InstructionSet]
-	_read_types: Mapping[str, str]
-	_memories: Mapping[str, arch.Memory]
-	_memory_aliases: Mapping[str, arch.Memory]
-	_overwritten_instrs: List[Tuple[arch.Instruction, arch.Instruction]]
-	_instr_classes: Set[int]
+	_constants: dict[str, arch.Constant]
+	_instructions: dict[str, arch.Instruction]
+	_functions: dict[str, arch.Function]
+	_instruction_sets: dict[str, arch.InstructionSet]
+	_read_types: dict[str, str]
+	_memories: dict[str, arch.Memory]
+	_memory_aliases: dict[str, arch.Memory]
+	_overwritten_instrs: list[tuple[arch.Instruction, arch.Instruction]]
+	_instr_classes: set[int]
 	_main_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
@@ -193,7 +193,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 
-		decls: List[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
+		decls: list[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
 
 		ret_decls = []
 

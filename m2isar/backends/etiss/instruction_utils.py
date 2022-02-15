@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from itertools import chain
 from string import Template
-from typing import Iterable, List, Mapping
 
 from ...metamodel import arch
 from .. import StaticType
@@ -54,8 +53,8 @@ class MemID:
 	access_size: int
 
 class TransformerContext:
-	def __init__(self, constants: Mapping[str, arch.Constant], memories: Mapping[str, arch.Memory], memory_aliases: Mapping[str, arch.Memory], fields: Mapping[str, arch.BitFieldDescr],
-			attribs: Iterable[arch.InstrAttribute], functions: Mapping[str, arch.Function],
+	def __init__(self, constants: dict[str, arch.Constant], memories: dict[str, arch.Memory], memory_aliases: dict[str, arch.Memory], fields: dict[str, arch.BitFieldDescr],
+			attribs: list[arch.InstrAttribute], functions: dict[str, arch.Function],
 			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, ignore_static=False):
 
 		self.constants = constants

@@ -1,7 +1,7 @@
 import itertools
 from collections import namedtuple
 from enum import Enum, auto
-from typing import Dict, Iterable, List, Mapping, Set, Tuple, Union
+from typing import Union
 
 from .behav import BaseNode, Operation
 
@@ -24,7 +24,7 @@ class Named:
 		return f'<{type(self).__name__} object>: name={self.name}'
 
 class Constant(Named):
-	def __init__(self, name, value: int, attributes: Iterable[str]):
+	def __init__(self, name, value: int, attributes: list[str]):
 		self._value = value
 		self.attributes = attributes if attributes else []
 		super().__init__(name)
@@ -186,10 +186,10 @@ class Scalar(SizedRefOrConst):
 		super().__init__(name, size)
 
 class Memory(SizedRefOrConst):
-	children: List['Memory']
+	children: list['Memory']
 	parent: Union['Memory', None]
 
-	def __init__(self, name, range: RangeSpec, size, attributes: List[Union[MemoryAttribute, MemoryAttribute, MemoryAttribute]]):
+	def __init__(self, name, range: RangeSpec, size, attributes: list[Union[MemoryAttribute, MemoryAttribute, MemoryAttribute]]):
 		self.attributes = attributes if attributes else []
 		self.range = range
 		self.children = []
@@ -240,11 +240,11 @@ class BitFieldDescr(SizedRefOrConst):
 		super().__init__(name, size)
 
 class Instruction(SizedRefOrConst):
-	def __init__(self, name, attributes: Iterable[InstrAttribute], encoding: Iterable[Union[BitField, BitVal]], disass: str, operation: Operation):
+	def __init__(self, name, attributes: list[InstrAttribute], encoding: list[Union[BitField, BitVal]], disass: str, operation: Operation):
 		self.ext_name = ""
 		self.attributes = attributes if attributes else []
 		self.encoding = encoding
-		self.fields: Mapping[str, BitFieldDescr] = {}
+		self.fields: dict[str, BitFieldDescr] = {}
 		self.scalars = {}
 		self.disass = disass
 		self.operation = operation if operation is not None else Operation([])
@@ -278,12 +278,12 @@ class Instruction(SizedRefOrConst):
 		return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):
-	def __init__(self, name, return_len, data_type: DataType, args: Iterable[FnParam], operation: "Operation", extern: bool=False):
+	def __init__(self, name, return_len, data_type: DataType, args: list[FnParam], operation: "Operation", extern: bool=False):
 		self.data_type = data_type
 		if args is None:
 			args = []
 
-		self.args: Dict[str, FnParam] = {}
+		self.args: dict[str, FnParam] = {}
 
 		for idx, arg in enumerate(args):
 			if arg.name is None:
@@ -302,7 +302,7 @@ class Function(SizedRefOrConst):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, data_type={self.data_type}'
 
-def extract_memory_alias(memories: Iterable[Memory]):
+def extract_memory_alias(memories: list[Memory]):
 	parents = {}
 	aliases = {}
 	for m in memories:
@@ -320,7 +320,7 @@ def extract_memory_alias(memories: Iterable[Memory]):
 	return parents, aliases
 
 class InstructionSet(Named):
-	def __init__(self, name, extension: Iterable[str], constants: Mapping[str, Constant], memories: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction]):
+	def __init__(self, name, extension: list[str], constants: dict[str, Constant], memories: dict[str, Memory], functions: dict[str, Function], instructions: dict[tuple[int, int], Instruction]):
 		self.extension = extension
 		self.constants = constants
 		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
@@ -330,7 +330,7 @@ class InstructionSet(Named):
 		super().__init__(name)
 
 class CoreDef(Named):
-	def __init__(self, name, contributing_types: Iterable[str], template: str, constants: Mapping[str, Constant], memories: Mapping[str, Memory], memory_aliases: Mapping[str, Memory], functions: Mapping[str, Function], instructions: Mapping[Tuple[int, int], Instruction], instr_classes: Set[int]):
+	def __init__(self, name, contributing_types: list[str], template: str, constants: dict[str, Constant], memories: dict[str, Memory], memory_aliases: dict[str, Memory], functions: dict[str, Function], instructions: dict[tuple[int, int], Instruction], instr_classes: set[int]):
 		self.contributing_types = contributing_types
 		self.template = template
 		self.constants = constants

@@ -4,7 +4,6 @@ import logging
 import pathlib
 import pickle
 import sys
-from typing import Dict, Tuple
 
 from ...metamodel import arch, behav
 from .architecture_model_builder import ArchitectureModelBuilder
@@ -45,7 +44,7 @@ def main():
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
-	models: Dict[Tuple(int, int), arch.CoreDef] = {}
+	models: dict[tuple(int, int), arch.CoreDef] = {}
 
 	for core_name, core_def in cores.items():
 		logger.info(f'building architecture model for core {core_name}')

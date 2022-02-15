@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING, Dict
-
 from antlr4 import ParserRuleContext
 
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
@@ -11,7 +9,7 @@ class CoreContainerContext(ParserRuleContext):
 class LoadOrder(CoreDSL2Visitor):
 	def __init__(self) -> None:
 		super().__init__()
-		self.instruction_sets: Dict[str, CoreDSL2Parser.Instruction_setContext] = {}
+		self.instruction_sets: dict[str, CoreDSL2Parser.Instruction_setContext] = {}
 		self.core_defs = {}
 
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):

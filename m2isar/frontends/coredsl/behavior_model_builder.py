@@ -1,17 +1,15 @@
 import logging
-from typing import Mapping, Set
 
 from lark import Transformer
 
 from ...backends import StaticType
 from ...metamodel import arch, behav
 
-
 logger = logging.getLogger("behavior")
 
 class BehaviorModelBuilder(Transformer):
-	def __init__(self, constants: Mapping[str, arch.Constant], memories: Mapping[str, arch.Memory], memory_aliases: Mapping[str, arch.Memory],
-		fields: Mapping[str, arch.BitFieldDescr], functions: Mapping[str, arch.Function], warned_fns: Set[str]):
+	def __init__(self, constants: dict[str, arch.Constant], memories: dict[str, arch.Memory], memory_aliases: dict[str, arch.Memory],
+		fields: dict[str, arch.BitFieldDescr], functions: dict[str, arch.Function], warned_fns: set[str]):
 
 		self._constants = constants
 		self._memories = memories

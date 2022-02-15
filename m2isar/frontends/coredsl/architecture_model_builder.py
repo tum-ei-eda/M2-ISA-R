@@ -1,25 +1,24 @@
 import logging
-from typing import List, Mapping, Set, Tuple, Union
+from typing import Union
 
 from lark import Discard, Transformer, Tree
 
 from ...metamodel import arch
-
 
 logger = logging.getLogger("architecture")
 
 class ArchitectureModelBuilder(Transformer):
 	"""Builds the architecture model of a Core from a lark parse tree"""
 
-	_constants: Mapping[str, arch.Constant]
-	_instructions: Mapping[str, arch.Instruction]
-	_functions: Mapping[str, arch.Function]
-	_instruction_sets: Mapping[str, arch.InstructionSet]
-	_read_types: Mapping[str, str]
-	_memories: Mapping[str, arch.Memory]
-	_memory_aliases: Mapping[str, arch.Memory]
-	_overwritten_instrs: List[Tuple[arch.Instruction, arch.Instruction]]
-	_instr_classes: Set[int]
+	_constants: dict[str, arch.Constant]
+	_instructions: dict[str, arch.Instruction]
+	_functions: dict[str, arch.Function]
+	_instruction_sets: dict[str, arch.InstructionSet]
+	_read_types: dict[str, str]
+	_memories: dict[str, arch.Memory]
+	_memory_aliases: dict[str, arch.Memory]
+	_overwritten_instrs: list[tuple[arch.Instruction, arch.Instruction]]
+	_instr_classes: set[int]
 	_main_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
@@ -87,7 +86,7 @@ class ArchitectureModelBuilder(Transformer):
 	def CONST_ATTRIBUTE(self, args) -> arch.ConstAttribute:
 		return arch.ConstAttribute[args.value.upper()]
 
-	def const_attributes(self, args) -> Set[arch.ConstAttribute]:
+	def const_attributes(self, args) -> set[arch.ConstAttribute]:
 		return set(args)
 
 	def REG_ATTRIBUTE(self, args):
