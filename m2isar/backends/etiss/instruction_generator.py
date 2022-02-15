@@ -3,8 +3,8 @@ from string import Template as strfmt
 
 from mako.template import Template
 
-from ...metamodel import arch, behav, patch_model
-from . import instruction_transform, instruction_utils
+from ...metamodel import arch, patch_model
+from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
@@ -109,7 +109,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-def generate_instructions(core: arch.CoreDef, static_scalars: bool):
+def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on: BlockEndType):
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
@@ -135,7 +135,8 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool):
 
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
 
-		if arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes:
+		if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)
+				or (arch.InstrAttribute.NO_CONT in instr_def.attributes and block_end_on == BlockEndType.ALL)):
 			logger.debug("adding forced block end")
 			misc_code.append('ic.force_block_end_ = true;')
 

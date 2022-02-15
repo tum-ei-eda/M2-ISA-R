@@ -7,6 +7,7 @@ import time
 
 from m2isar.metamodel.arch import CoreDef
 
+from . import BlockEndType
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
                                   write_arch_lib, write_arch_specific_cpp,
@@ -23,6 +24,7 @@ def setup():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
 	parser.add_argument("--static-scalars", action="store_true", help="Enable crude static detection for scalars. WARNING: known to break!")
+	parser.add_argument("--block-end-on", default="none", choices=[x.name.lower() for x in BlockEndType], help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -77,7 +79,7 @@ def main():
 		write_arch_cmake(core, start_time, output_path, args.separate)
 		write_arch_gdbcore(core, start_time, output_path)
 		write_functions(core, start_time, output_path, args.static_scalars)
-		write_instructions(core, start_time, output_path, args.separate, args.static_scalars)
+		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()])
 
 if __name__ == "__main__":
 	main()
