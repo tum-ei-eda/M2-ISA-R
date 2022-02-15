@@ -5,9 +5,9 @@ from contextlib import ExitStack
 from mako.template import Template
 
 from ...metamodel import arch
+from . import BlockEndType
 from .instruction_generator import generate_functions, generate_instructions
 from .templates import template_dir
-
 
 logger = logging.getLogger("instruction_writer")
 
@@ -33,7 +33,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 		funcs_f.write(fn_set_str)
 
-def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool, static_scalars: bool):
+def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool, static_scalars: bool, block_end_on: BlockEndType):
 	instr_set_template = Template(filename=str(template_dir/'etiss_instruction_set.mako'))
 
 	outfiles = {}
@@ -54,7 +54,7 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 
 			out_f.write(instr_set_str)
 
-		for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core, static_scalars):
+		for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core, static_scalars, block_end_on):
 			logger.info("processing instruction %s", instr_name)
 			# save instruction code to file
 			outfiles.get(ext_name, outfiles['default']).write(templ_str)
