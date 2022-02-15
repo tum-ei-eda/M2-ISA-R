@@ -16,21 +16,29 @@ data_type_map = {
 
 MEM_VAL_REPL = 'mem_val_'
 
+def actual_size(size, min=8, max=128):
+	s = 1 << (size - 1).bit_length()
+	if s > max:
+		raise ValueError("value too big")
+
+	return s if s >= min else min
+
 class CodeString:
-	mem_ids: List["MemID"]
+	mem_ids: list["MemID"]
 	def __init__(self, code, static, size, signed, is_mem_access, regs_affected=None):
 		self.code = code
 		self.static = StaticType(static)
 		self.size = size
-		self.actual_size = 1 << (size - 1).bit_length()
-		if self.actual_size < 8:
-			self.actual_size = 8
 		self.signed = signed
 		self.is_mem_access = is_mem_access
 		self.mem_ids = []
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
 		self.scalar = None
 		self.mem_corrected = False
+
+	@property
+	def actual_size(self):
+		return actual_size(self.size)
 
 	def __str__(self):
 		return self.code
