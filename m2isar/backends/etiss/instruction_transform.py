@@ -469,6 +469,9 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 
 	referred_mem = self.reference
 
+	if isinstance(referred_mem, arch.Memory):
+		context.used_arch_data = True
+
 	size = referred_mem.size
 
 	index_code = index.code
