@@ -16,12 +16,19 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 	code_str = '\n'.join(args)
 
-	if context.is_exception or (context.generates_exception and arch.InstrAttribute.NO_CONT in context.attribs):
-		code_str += '\npartInit.code() += "return exception;\\n";'
-	elif context.generates_exception:
-		code_str += '\npartInit.code() += "if (exception) return exception;\\n";'
+	return_conditions = []
+	return_needed = any((context.generates_exception, arch.InstrAttribute.NO_CONT in context.attribs, arch.InstrAttribute.COND in context.attribs))
+
+	if context.generates_exception:
+		return_conditions.append("exception")
+	if arch.InstrAttribute.NO_CONT in context.attribs and arch.InstrAttribute.COND in context.attribs:
+		return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
 	elif arch.InstrAttribute.NO_CONT in context.attribs:
-		code_str += '\npartInit.code() += "return 0;\\n";'
+		return_conditions.clear()
+
+	if return_needed:
+		cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
+		code_str += f'\npartInit.code() += "{cond_str}return exception;\\n";'
 
 	return code_str
 
