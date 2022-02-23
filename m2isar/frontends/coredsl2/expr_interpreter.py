@@ -11,6 +11,10 @@ def named_reference(self: behav.NamedReference, context):
 		return self.reference.value
 	raise ValueError("non-interpretable value encountered")
 
+def indexed_reference(self: behav.IndexedReference, context):
+	idx = self.index.generate(context)
+	return self.reference._initval[idx]
+
 def binary_operation(self: behav.BinaryOperation, context):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
