@@ -17,13 +17,21 @@ def operation(self: behav.Operation, context: TransformerContext):
 	code_str = '\n'.join(args)
 
 	return_conditions = []
-	return_needed = any((context.generates_exception, arch.InstrAttribute.NO_CONT in context.attribs, arch.InstrAttribute.COND in context.attribs))
+	return_needed = any((
+		context.generates_exception,
+		arch.InstrAttribute.NO_CONT in context.attribs,
+		arch.InstrAttribute.COND in context.attribs,
+		arch.InstrAttribute.FLUSH in context.attribs
+	))
 
 	if context.generates_exception:
 		return_conditions.append("exception")
 	if arch.InstrAttribute.NO_CONT in context.attribs and arch.InstrAttribute.COND in context.attribs:
 		return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
 	elif arch.InstrAttribute.NO_CONT in context.attribs:
+		return_conditions.clear()
+	if arch.InstrAttribute.FLUSH in context.attribs:
+		code_str = 'partInit.code() += "exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
 		return_conditions.clear()
 
 	if return_needed:
