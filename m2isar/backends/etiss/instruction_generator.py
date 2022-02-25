@@ -43,7 +43,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 		logger.debug("generating header for %s", fn_name)
 
 		args_list = [f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
-		if not fn_def.static:
+		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or not fn_def.static:
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
 		fn_args = ', '.join(args_list)

@@ -236,7 +236,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 				if arg.static:
 					arg.code = context.make_static(arg.code)
 
-		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static and not fn.extern else []
+		arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
