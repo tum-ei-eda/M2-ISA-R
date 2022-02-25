@@ -351,6 +351,10 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	else:
 		context.generates_exception = True
 		for m_id in expr.mem_ids:
+			if not expr.mem_corrected:
+				print(f"assuming mem read size at {target.size}")
+				m_id.access_size = target.size
+
 			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
 			code_str += f'partInit.code() += "exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
 
