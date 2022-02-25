@@ -37,7 +37,7 @@ encoding_entry
 	;
 
 function_definition
-	: extern='extern' type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' ';'
+	: extern='extern' type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' attributes+=attribute* ';'
 	| type_=type_specifier name=IDENTIFIER '(' params=parameter_list? ')' attributes+=attribute* (behavior=block | ';')
 	;
 
