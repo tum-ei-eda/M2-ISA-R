@@ -306,7 +306,7 @@ class ArchitectureModelBuilder(Transformer):
 			data_type = arch.DataType.U
 
 		return_len = self.get_constant_or_val(return_len) if return_len else None
-		f = arch.Function(name, return_len, data_type, fn_args, operation)
+		f = arch.Function(name, attributes, return_len, data_type, fn_args, operation)
 
 		self._functions[name] = f
 

@@ -139,7 +139,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			return_size = type_._width
 			data_type = arch.DataType.S if type_.signed else arch.DataType.U
 
-		f = arch.Function(name, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
+		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 
 		f2 = self._functions.get(name, None)
 
@@ -358,7 +358,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		attr = arch.InstrAttribute._member_map_.get(name.upper()) or \
-			arch.MemoryAttribute._member_map_.get(name.upper())
+			arch.MemoryAttribute._member_map_.get(name.upper()) or \
+			arch.FunctionAttribute._member_map_.get(name.upper())
 
 		if attr is None:
 			logger.warning("unknown attribute \"%s\" encountered", name)
