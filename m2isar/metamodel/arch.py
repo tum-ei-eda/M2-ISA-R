@@ -129,6 +129,9 @@ class InstrAttribute(Enum):
 	FLUSH = auto()
 	SIM_EXIT = auto()
 
+class FunctionAttribute(Enum):
+	ETISS_NEEDS_ARCH = auto()
+
 class DataType(Enum):
 	NONE = auto()
 	U = auto()
