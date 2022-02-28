@@ -245,7 +245,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 				elif "register" in storage or "extern" in storage:
 					size = [1]
-					init = 0
+					init = None
 					attributes = []
 
 					if decl.size:
@@ -259,6 +259,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					range = arch.RangeSpec(size[0])
 					m = arch.Memory(name, range, type_._width, attributes)
+					if init is not None:
+						m._initval[None] = init.generate(None)
 
 					if name in self._memories:
 						raise ValueError(f"memory {name} already defined")
