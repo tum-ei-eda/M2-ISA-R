@@ -52,7 +52,7 @@ def setup():
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		models: dict[str, CoreDef] = pickle.load(f)
+		models: "dict[str, CoreDef]" = pickle.load(f)
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 

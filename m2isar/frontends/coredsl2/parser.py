@@ -44,7 +44,7 @@ def main():
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
-	models: dict[tuple(int, int), arch.CoreDef] = {}
+	models: "dict[tuple(int, int), arch.CoreDef]" = {}
 
 	for core_name, core_def in cores.items():
 		logger.info(f'building architecture model for core {core_name}')

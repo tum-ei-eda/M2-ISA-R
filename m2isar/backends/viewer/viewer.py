@@ -39,7 +39,7 @@ def main():
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		models: dict[str, arch.CoreDef] = pickle.load(f)
+		models: "dict[str, arch.CoreDef]" = pickle.load(f)
 
 	for core_name, core_def in sorted(models.items()):
 		print(f"core {core_name}")

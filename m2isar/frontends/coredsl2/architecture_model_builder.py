@@ -12,15 +12,15 @@ logger = logging.getLogger("arch_builder")
 patch_model(expr_interpreter)
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
-	_constants: dict[str, arch.Constant]
-	_instructions: dict[str, arch.Instruction]
-	_functions: dict[str, arch.Function]
-	_instruction_sets: dict[str, arch.InstructionSet]
-	_read_types: dict[str, str]
-	_memories: dict[str, arch.Memory]
-	_memory_aliases: dict[str, arch.Memory]
-	_overwritten_instrs: list[tuple[arch.Instruction, arch.Instruction]]
-	_instr_classes: set[int]
+	_constants: "dict[str, arch.Constant]"
+	_instructions: "dict[str, arch.Instruction]"
+	_functions: "dict[str, arch.Function]"
+	_instruction_sets: "dict[str, arch.InstructionSet]"
+	_read_types: "dict[str, str]"
+	_memories: "dict[str, arch.Memory]"
+	_memory_aliases: "dict[str, arch.Memory]"
+	_overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]"
+	_instr_classes: "set[int]"
 	_main_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
@@ -193,7 +193,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 
-		decls: list[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
+		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
 
 		ret_decls = []
 

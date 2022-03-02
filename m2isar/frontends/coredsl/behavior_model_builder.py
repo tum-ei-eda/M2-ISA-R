@@ -8,8 +8,8 @@ from ...metamodel import arch, behav
 logger = logging.getLogger("behavior")
 
 class BehaviorModelBuilder(Transformer):
-	def __init__(self, constants: dict[str, arch.Constant], memories: dict[str, arch.Memory], memory_aliases: dict[str, arch.Memory],
-		fields: dict[str, arch.BitFieldDescr], functions: dict[str, arch.Function], warned_fns: set[str]):
+	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+		fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 
 		self._constants = constants
 		self._memories = memories
