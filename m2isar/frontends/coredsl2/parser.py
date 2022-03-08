@@ -5,13 +5,13 @@ import pathlib
 import pickle
 import sys
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, patch_model
+from . import expr_simplifier
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
-
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -121,12 +121,23 @@ def main():
 				behav.BinaryOperation(
 					behav.NamedReference(core_def.pc_memory),
 					behav.Operator("+"),
-					behav.NumberLiteral(int(instr_def.size/8))
+					behav.IntLiteral(int(instr_def.size/8))
 				)
 			)
 
 			op.statements.insert(0, pc_inc)
 			instr_def.operation = op
+
+	patch_model(expr_simplifier)
+
+	for core_name, core_def in models.items():
+		logger.info("simplifying functions for core %s", core_name)
+		for fn_name, fn_def in core_def.functions.items():
+			fn_def.operation.generate(None)
+
+		logger.info("simplifying instructions for core %s", core_name)
+		for (code, mask), instr_def in core_def.instructions.items():
+			instr_def.operation.generate(None)
 
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
