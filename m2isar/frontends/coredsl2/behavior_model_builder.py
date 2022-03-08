@@ -9,8 +9,8 @@ logger = logging.getLogger("behav_builder")
 
 class BehaviorModelBuilder(CoreDSL2Visitor):
 
-	def __init__(self, constants: dict[str, arch.Constant], memories: dict[str, arch.Memory], memory_aliases: dict[str, arch.Memory],
-		fields: dict[str, arch.BitFieldDescr], functions: dict[str, arch.Function], warned_fns: set[str]):
+	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+		fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 
 		super().__init__()
 
@@ -65,7 +65,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 
-		decls: list[CoreDSL2Parser.DeclaratorContext] = ctx.declarations
+		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
 
 		ret_decls = []
 

@@ -10,15 +10,15 @@ logger = logging.getLogger("architecture")
 class ArchitectureModelBuilder(Transformer):
 	"""Builds the architecture model of a Core from a lark parse tree"""
 
-	_constants: dict[str, arch.Constant]
-	_instructions: dict[str, arch.Instruction]
-	_functions: dict[str, arch.Function]
-	_instruction_sets: dict[str, arch.InstructionSet]
-	_read_types: dict[str, str]
-	_memories: dict[str, arch.Memory]
-	_memory_aliases: dict[str, arch.Memory]
-	_overwritten_instrs: list[tuple[arch.Instruction, arch.Instruction]]
-	_instr_classes: set[int]
+	_constants: "dict[str, arch.Constant]"
+	_instructions: "dict[str, arch.Instruction]"
+	_functions: "dict[str, arch.Function]"
+	_instruction_sets: "dict[str, arch.InstructionSet]"
+	_read_types: "dict[str, str]"
+	_memories: "dict[str, arch.Memory]"
+	_memory_aliases: "dict[str, arch.Memory]"
+	_overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]"
+	_instr_classes: "set[int]"
 	_main_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
@@ -86,7 +86,7 @@ class ArchitectureModelBuilder(Transformer):
 	def CONST_ATTRIBUTE(self, args) -> arch.ConstAttribute:
 		return arch.ConstAttribute[args.value.upper()]
 
-	def const_attributes(self, args) -> set[arch.ConstAttribute]:
+	def const_attributes(self, args) -> "set[arch.ConstAttribute]":
 		return set(args)
 
 	def REG_ATTRIBUTE(self, args):

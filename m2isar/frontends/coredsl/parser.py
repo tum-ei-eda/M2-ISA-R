@@ -62,13 +62,13 @@ def main():
 	model_path = search_path.joinpath('gen_model')
 	model_path.mkdir(exist_ok=True)
 
-	models: dict[str, arch.CoreDef] = {}
+	models: "dict[str, arch.CoreDef]" = {}
 
 	for core_name, instruction_sets in iss.core_defs.items():
 		logger.info(f'building architecture model for core {core_name}')
 
 		arch_builder = ArchitectureModelBuilder()
-		mt : list[arch.CoreDef] = arch_builder.transform(Tree('make_list', instruction_sets))
+		mt : "list[arch.CoreDef]" = arch_builder.transform(Tree('make_list', instruction_sets))
 
 		models[core_name] = mt[0]
 

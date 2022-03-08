@@ -13,7 +13,7 @@ class Operator(BaseNode):
 		self.value = op
 
 class Operation(BaseNode):
-	def __init__(self, statements: list[BaseNode]) -> None:
+	def __init__(self, statements: "list[BaseNode]") -> None:
 		self.statements = statements
 
 class BinaryOperation(BaseNode):
@@ -57,7 +57,7 @@ class Assignment(BaseNode):
 		self.expr = expr
 
 class Conditional(BaseNode):
-	def __init__(self, cond: BaseNode, then_stmts: list[BaseNode], else_stmts: list[BaseNode]):
+	def __init__(self, cond: BaseNode, then_stmts: "list[BaseNode]", else_stmts: "list[BaseNode]"):
 		self.cond = cond
 		self.then_stmts = then_stmts if then_stmts is not None else []
 		self.else_stmts = else_stmts if else_stmts is not None else []
@@ -105,7 +105,7 @@ class TypeConv(BaseNode):
 			self.actual_size = None
 
 class Callable(BaseNode):
-	def __init__(self, ref_or_name: Union[str, "Function"], args: list[BaseNode]) -> None:
+	def __init__(self, ref_or_name: Union[str, "Function"], args: "list[BaseNode]") -> None:
 		self.ref_or_name = ref_or_name
 		self.args = args if args is not None else []
 

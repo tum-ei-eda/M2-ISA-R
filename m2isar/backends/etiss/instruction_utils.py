@@ -23,7 +23,7 @@ def actual_size(size, min=8, max=128):
 	return s if s >= min else min
 
 class CodeString:
-	mem_ids: list["MemID"]
+	mem_ids: "list[MemID]"
 	def __init__(self, code, static, size, signed, is_mem_access, regs_affected=None):
 		self.code = code
 		self.static = StaticType(static)
@@ -54,8 +54,8 @@ class MemID:
 	access_size: int
 
 class TransformerContext:
-	def __init__(self, constants: dict[str, arch.Constant], memories: dict[str, arch.Memory], memory_aliases: dict[str, arch.Memory], fields: dict[str, arch.BitFieldDescr],
-			attribs: list[arch.InstrAttribute], functions: dict[str, arch.Function],
+	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
+			attribs: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
 			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, ignore_static=False):
 
 		self.constants = constants

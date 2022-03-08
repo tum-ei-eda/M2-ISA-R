@@ -8,7 +8,7 @@ from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
 
-def write_child_reg_def(reg: arch.Memory, regs: list[str]):
+def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 	logger.debug("processing register %s", reg)
 	if arch.MemoryAttribute.IS_PC in reg.attributes or arch.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
@@ -56,7 +56,7 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 	with open(output_path / f"{core.name}Arch.h", "w") as f:
 		f.write(txt)
 
-def build_reg_hierarchy(reg: arch.Memory, ptr_regs: list[arch.Memory], actual_regs: list[arch.Memory], alias_regs: dict[arch.Memory, arch.Memory], initval_regs: list[arch.Memory]):
+def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_regs: "list[arch.Memory]", alias_regs: "dict[arch.Memory, arch.Memory]", initval_regs: "list[arch.Memory]"):
 	"""Populate the passed lists with memory objects of their category.
 
 	ptr_regs: Registers that need to be a pointer within ETISS
