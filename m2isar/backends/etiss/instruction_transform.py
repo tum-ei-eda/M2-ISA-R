@@ -64,7 +64,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 	elif name == 'raise':
 		sender, code = fn_args
-		exc_id = (int(sender.code), int(code.code))
+		exc_id = tuple([int(x.code.replace("U", "").replace("L", "")) for x in (sender, code)])
 		if exc_id not in replacements.exception_mapping:
 			raise ValueError(f'Exception {exc_id} not defined!')
 
@@ -78,7 +78,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		if not static:
 			context.used_arch_data = True
 			for arg in fn_args:
-				if arg.static:
+				if arg.static and not arg.is_literal:
 					arg.code = context.make_static(arg.code)
 
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if not fn.static and not fn.extern else []
@@ -105,8 +105,8 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 		context.used_arch_data = True
 
-		name = name[len("dispatch_"):]
-		arg_str = ', '.join([context.make_static(arg.code) if arg.static else arg.code for arg in fn_args])
+		name = name.removeprefix("dispatch_")
+		arg_str = ', '.join([context.make_static(arg.code) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
@@ -149,11 +149,11 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		cond, then_stmts, else_stmts = fn_args
 		static = StaticType.NONE not in [x.static for x in fn_args]
 		if not static:
-			if cond.static:
+			if cond.static and not cond.is_literal:
 				cond.code = context.make_static(cond.code)
-			if then_stmts.static:
+			if then_stmts.static and not then_stmts.is_literal:
 				then_stmts.code = context.make_static(then_stmts.code)
-			if else_stmts.static:
+			if else_stmts.static and not else_stmts.is_literal:
 				else_stmts.code = context.make_static(else_stmts.code)
 
 		c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
@@ -167,10 +167,10 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		source_size = expr.size
 
 		if len(fn_args) >= 2:
-			target_size = int(fn_args[1].code)
+			target_size = int(fn_args[1].code.replace("L", "").replace("U", ""))
 		if len(fn_args) >= 3:
 			try:
-				source_size = int(fn_args[2].code)
+				source_size = int(fn_args[2].code.replace("L", "").replace("U", ""))
 			except ValueError:
 				source_size = context.make_static(fn_args[2].code)
 
@@ -204,25 +204,25 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif name == 'shll':
 		expr, amount = fn_args
-		if expr.static and not amount.static:
+		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
-		if amount.static and not expr.static:
+		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif name == 'shrl':
 		expr, amount = fn_args
-		if expr.static and not amount.static:
+		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
-		if amount.static and not expr.static:
+		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	elif name == 'shra':
 		expr, amount = fn_args
-		if expr.static and not amount.static:
+		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
-		if amount.static and not expr.static:
+		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
 		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
@@ -233,7 +233,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		if not static:
 			context.used_arch_data = True
 			for arg in fn_args:
-				if arg.static:
+				if arg.static and not arg.is_literal:
 					arg.code = context.make_static(arg.code)
 
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
@@ -254,8 +254,8 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		if fn_args is None: fn_args = []
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-		name = name[len("fdispatch_"):]
-		arg_str = ', '.join([context.make_static(arg.code) if arg.static else arg.code for arg in fn_args])
+		name = name.removeprefix("fdispatch_")
+		arg_str = ', '.join([context.make_static(arg.code) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
 
 		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
 		return c
@@ -292,11 +292,11 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 	static = StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
 
 	if not static:
-		if cond.static:
+		if cond.static and not cond.is_literal:
 			cond.code = context.make_static(cond.code)
-		if then_expr.static:
+		if then_expr.static and not then_expr.is_literal:
 			then_expr.code = context.make_static(then_expr.code)
-		if else_expr.static:
+		if else_expr.static and not else_expr.is_literal:
 			else_expr.code = context.make_static(else_expr.code)
 
 	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size, then_expr.signed or else_expr.signed, False, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
@@ -327,7 +327,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	if not expr.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
 		raise ValueError('Static target cannot be assigned to non-static expression!')
 
-	if expr.static:
+	if expr.static and not expr.is_literal:
 		if bool(target.static & StaticType.WRITE):
 			expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
 
@@ -380,9 +380,9 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	op = self.op
 	right = self.right.generate(context)
 
-	if not left.static and right.static:
+	if not left.static and right.static and not right.is_literal:
 		right.code = context.make_static(right.code)
-	if not right.static and left.static:
+	if not right.static and left.static and not left.is_literal:
 		left.code = context.make_static(left.code)
 
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
@@ -403,21 +403,23 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 	right = self.right.generate(context)
 
 	try:
-		new_size = int(left.code) - int(right.code) + 1
+		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
+		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
 	except Exception:
 		new_size = expr.size
+		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
 	static = StaticType.NONE not in [x.static for x in (expr, left, right)]
 
 	if not static:
-		if expr.static:
+		if expr.static and not expr.is_literal:
 			expr.code = context.make_static(expr.code)
-		if left.static:
+		if left.static and not left.is_literal:
 			left.code = context.make_static(left.code)
-		if right.static:
+		if right.static and not right.is_literal:
 			right.code = context.make_static(right.code)
 
-	c = CodeString(f"((({expr.code}) >> ({right.code})) & ((1 << (({left.code}) - ({right.code}) + 1)) - 1))", static, new_size, expr.signed, expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
+	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed, expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
 	return c
 
@@ -425,13 +427,13 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
-	if not left.static and right.static:
+	if not left.static and right.static and not right.is_literal:
 		right.code = context.make_static(right.code)
-	if not right.static and left.static:
+	if not right.static and left.static and not left.is_literal:
 		left.code = context.make_static(left.code)
 
 	new_size = left.size + right.size
-	c = CodeString(f"(({left.code}) << {right.size} | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
@@ -561,10 +563,37 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 	return c
 
+def int_literal(self: behav.IntLiteral, context: TransformerContext):
+	lit = int(self.value)
+	size = min(self.bit_size, 64)
+	sign = False
+
+	twocomp_lit = (lit + (1 << size)) % (1 << size)
+
+	postfix = "U" if not sign else ""
+	if size > 32:
+		postfix += "L"
+	if size > 64:
+		postfix += "L"
+
+	ret = CodeString(str(lit) + postfix, True, size, sign, False)
+	ret.is_literal = True
+	return ret
+
 def number_literal(self: behav.NumberLiteral, context: TransformerContext):
-	lit = self.value
-	size = int(lit).bit_length()
-	return CodeString(str(lit), True, size, int(lit) < 0, False)
+	lit = int(self.value)
+	size = min(lit.bit_length(), 64)
+	sign = lit < 0
+
+	twocomp_lit = (lit + (1 << 64)) % (1 << 64)
+
+	postfix = "U" if not sign else ""
+	if size > 32:
+		postfix += "L"
+	if size > 64:
+		postfix += "L"
+
+	return CodeString(str(twocomp_lit) + postfix, True, size, sign, False)
 
 def group(self: behav.Group, context: TransformerContext):
 	expr = self.expr.generate(context)

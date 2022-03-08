@@ -34,6 +34,7 @@ class CodeString:
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
 		self.scalar = None
 		self.mem_corrected = False
+		self.is_literal = False
 
 	@property
 	def actual_size(self):
