@@ -23,24 +23,7 @@ class Named:
 	def __repr__(self) -> str:
 		return f'<{type(self).__name__} object>: name={self.name}'
 
-class Constant(Named):
-	def __init__(self, name, value: int, attributes: list[str]):
-		self._value = value
-		self.attributes = attributes if attributes else []
-		super().__init__(name)
-
-	@property
-	def value(self):
-		return get_const_or_val(self._value)
-
-	@value.setter
-	def value(self, value):
-		self._value = value
-
-	def __str__(self) -> str:
-		return f'{super().__str__()}, value={self.value}'
-
-val_or_const = Union[int, Constant]
+val_or_const = Union[int, "Constant"]
 
 class SizedRefOrConst(Named):
 	def __init__(self, name, size: val_or_const):
@@ -62,6 +45,23 @@ class SizedRefOrConst(Named):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
 
+class Constant(SizedRefOrConst):
+	def __init__(self, name, value: int, attributes: list[str], size=None, signed=False):
+		self._value = value
+		self.attributes = attributes if attributes else []
+		self.signed = signed
+		super().__init__(name, size)
+
+	@property
+	def value(self):
+		return get_const_or_val(self._value)
+
+	@value.setter
+	def value(self, value):
+		self._value = value
+
+	def __str__(self) -> str:
+		return f'{super().__str__()}, value={self.value}'
 
 class RangeSpec:
 	def __init__(self, upper_base: val_or_const, lower_base: val_or_const=None, upper_power: val_or_const=1, lower_power: val_or_const=1):
