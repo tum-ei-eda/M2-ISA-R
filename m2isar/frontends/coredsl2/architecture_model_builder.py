@@ -236,7 +236,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
-					c = arch.Constant(name, init, [])
+					c = arch.Constant(name, init, [], type_._width, type_.signed)
 
 					if name in self._constants:
 						raise ValueError(f"constant {name} already defined")
