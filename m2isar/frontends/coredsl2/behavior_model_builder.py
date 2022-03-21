@@ -90,6 +90,53 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		expr = self.visit(ctx.expr) if ctx.expr else None
 		return behav.Return(expr)
 
+	def visitWhile_statement(self, ctx: CoreDSL2Parser.While_statementContext):
+		stmt = self.visit(ctx.stmt) if ctx.stmt else None
+		cond = self.visit(ctx.cond)
+
+		if not isinstance(stmt, list):
+			stmt = [stmt]
+
+		return behav.Loop(cond, stmt, False)
+
+	def visitDo_statement(self, ctx: CoreDSL2Parser.Do_statementContext):
+		stmt = self.visit(ctx.stmt) if ctx.stmt else None
+		cond = self.visit(ctx.cond)
+
+		if not isinstance(stmt, list):
+			stmt = [stmt]
+
+		return behav.Loop(cond, stmt, True)
+
+	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
+		start_decl, start_expr, end_expr, loop_exprs = self.visit(ctx.cond)
+		stmt = self.visit(ctx.stmt) if ctx.stmt else None
+
+		if not isinstance(stmt, list):
+			stmt = [stmt]
+
+		ret = []
+
+		if start_decl is not None:
+			ret.append(start_decl)
+		if start_expr is not None:
+			ret.append(start_expr)
+
+		if loop_exprs:
+			stmt.extend(loop_exprs)
+
+		ret.append(behav.Loop(end_expr, stmt, False))
+
+		return ret
+
+	def visitFor_condition(self, ctx: CoreDSL2Parser.For_conditionContext):
+		start_decl = self.visit(ctx.start_decl) if ctx.start_decl else None
+		start_expr = self.visit(ctx.start_expr) if ctx.start_expr else None
+		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else None
+		loop_exprs = [self.visit(obj) for obj in ctx.loop_exprs] if ctx.loop_exprs else None
+
+		return start_decl, start_expr, end_expr, loop_exprs
+
 	def visitIf_statement(self, ctx: CoreDSL2Parser.If_statementContext):
 		cond = self.visit(ctx.cond)
 		then_stmts = self.visit(ctx.then_stmt)
