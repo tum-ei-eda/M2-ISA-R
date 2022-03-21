@@ -284,6 +284,27 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	return code_str
 
+def loop(self: behav.Loop, context: TransformerContext):
+	cond = self.cond.generate(context)
+	stmts = [stmt.generate(context) for stmt in self.stmts]
+
+	code_str = f"while ({cond}) {{" if not self.post_test else "do {"
+	if not cond.static:
+		code_str = f'partInit.code() += "{code_str}\\n";'
+		context.dependent_regs.update(cond.regs_affected)
+
+	code_str += '\n'
+	code_str += '\n'.join(stmts)
+	code_str += '\n'
+
+	end_code = "}" if not self.post_test else f"}} while({cond});"
+	if not cond.static:
+		end_code = f'partInit.code() += "{end_code}\\n";'
+
+	code_str += end_code
+
+	return code_str
+
 def ternary(self: behav.Ternary, context: TransformerContext):
 	cond = self.cond.generate(context)
 	then_expr = self.then_expr.generate(context)
