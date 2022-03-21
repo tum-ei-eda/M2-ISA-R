@@ -181,14 +181,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		else:
 			value = int(text, 0)
-			if text.startswith("0b"):
-				width = len(text) - 2
-			elif text.startswith("0x"):
-				width = (len(text) - 2) * 4
-			elif text.startswith("0") and len(text) > 1:
-				width = (len(text) - 1) * 3
-			else:
-				width = value.bit_length()
+			width = value.bit_length()
 
 		return behav.IntLiteral(value, width)
 
