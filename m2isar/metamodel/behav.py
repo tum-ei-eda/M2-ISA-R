@@ -64,6 +64,12 @@ class Conditional(BaseNode):
 		self.then_stmts = then_stmts if then_stmts is not None else []
 		self.else_stmts = else_stmts if else_stmts is not None else []
 
+class Loop(BaseNode):
+	def __init__(self, cond: BaseNode, stmts: "list[BaseNode]", post_test: bool):
+		self.cond = cond
+		self.stmts = stmts if stmts is not None else []
+		self.post_test = post_test
+
 class Ternary(BaseNode):
 	def __init__(self, cond: BaseNode, then_expr: BaseNode, else_expr: BaseNode):
 		self.cond = cond
