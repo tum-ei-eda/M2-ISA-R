@@ -182,8 +182,9 @@ expression
 	| bop=('.' | '->') ref=IDENTIFIER # deref_expression
 	| expr=expression bop='[' left=expression (':' right=expression)? ']' # slice_expression
 	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
-	| left=expression postfix=('++' | '--') # postfix_expression
-    | prefix=('&'|'*'|'+'|'-'|'++'|'--') right=expression # prefix_expression
+	| left=expression op=('++' | '--') # postinc_expression
+	| op=('++'|'--') right=expression # preinc_expression
+    | prefix=('&'|'*'|'+'|'-') right=expression # prefix_expression
     | prefix=('~'|'!') right=expression # prefix_expression
 	| '(' (type_=type_specifier | sign=integer_signedness) ')' right=expression # cast_expression
     | left=expression bop=('*'|'/'|'%') right=expression # binary_expression
