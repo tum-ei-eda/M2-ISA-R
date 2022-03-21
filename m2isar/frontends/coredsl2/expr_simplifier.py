@@ -83,6 +83,9 @@ def conditional(self: behav.Conditional, context):
 
 	return self
 
+def loop(self: behav.Loop, context):
+	return self
+
 def ternary(self: behav.Ternary, context):
 	self.cond = self.cond.generate(context)
 	self.then_expr = self.then_expr.generate(context)
