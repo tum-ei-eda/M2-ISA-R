@@ -76,28 +76,35 @@ def main():
 
 	core = models[args.core_name]
 	readlen = max(core.instr_classes) // 8
+	steplen = min(core.instr_classes) // 8
+
+	instrs_by_size = defaultdict(dict)
+
+	for k, v in core.instructions.items():
+		instrs_by_size[v.size][k] = v
 
 	with open(args.bin, "rb", readlen) as f:
-		while True:
-			iw = f.peek(readlen)
-
+		while iw := f.peek(readlen):
 			found_ins = None
 			for cls in sorted(core.instr_classes):
 				ii = int.from_bytes(iw[:cls // 8], "little")
-				i = find_instr(ii, core.instructions)
+				i = find_instr(ii, instrs_by_size[cls])
 				if i is not None:
 					found_ins = i
 
 			if found_ins is None:
-				raise KeyError()
+				ins_str = "unknown"
+				step = steplen
 
-			#print(found_ins)
-			operands = decode(ii, i)
-			op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
+			else:
+				operands = decode(ii, found_ins)
+				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
+				ins_str = f"{found_ins.name} [{op_str}]"
+				step = found_ins.size // 8
 
-			print(f"{f.tell():08x}: {found_ins.name} [{op_str}]")
+			print(f"{f.tell():08x}: {iw[:step // 8].hex()} {ins_str}")
 
-			f.seek(found_ins.actual_size // 8, SEEK_CUR)
+			f.seek(step, SEEK_CUR)
 
 
 
