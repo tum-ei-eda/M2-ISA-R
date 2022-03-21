@@ -52,7 +52,7 @@ parameter_declaration
 statement
 	: block # block_statement
 	| type_='if' '(' cond=expression ')' then_stmt=statement ('else' else_stmt=statement)? # if_statement
-	| type_='for' '(' for_condition ')' stmt=statement # for_statement
+	| type_='for' '(' cond=for_condition ')' stmt=statement # for_statement
 	| type_='while' '(' cond=expression ')' stmt=statement # while_statement
 	| type_='do' stmt=statement 'while' '(' cond=expression ')' ';' # do_statement
 	| type_='switch' '(' cond=expression ')' '{' items+=switch_block_statement_group* switch_label* '}' # switch_statement
