@@ -13,7 +13,7 @@ A VSCode task for parser generation is already created for this project. To use 
 
 ## Limitations
 This parser should be considered as in active development, so bugs will most likely occur. In addition, this parser (but also the metamodel and therefore the code generator) do not implement the following CoreDSL 2 features (at the moment):
-- Loops
+- Pre- / Post-increment (`x++, ++x`)
 - Switch case statements
 - Complex datatypes (`struct`, `enum`)
 - Pointers
@@ -22,14 +22,14 @@ This parser should be considered as in active development, so bugs will most lik
 
 In addition to that, qualifiers other than `extern` and `register` in `architectural_state` declarations are ignored. The "flexible attribute system" of the reference parser is implemented, although unknown attributes are currently ignored.
 
+The parser does not honor CoreDSL 2's type promotion rules for arithmetic operations. For progress on this feature, see #10.
+
 In the future, these features might also be implemented if needed. For most CPU models, they should however not be absolutely necessary.
 
-Currently implemented but untested functionality:
+Functionality currently considered experimental:
 - Slicing expressions
 - Concatenation expressions
-
-Implementation pending:
-- Postfix expressions
+- Loops
 
 ## Outputs
 
