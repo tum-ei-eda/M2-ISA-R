@@ -195,7 +195,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		target_size = context.native_size
 
 		if len(fn_args) >= 2:
-			target_size = int(fn_args[1].code)
+			target_size = int(fn_args[1].code.replace("L", "").replace("U", ""))
 
 		c = CodeString(f'(etiss_uint{target_size})({expr.code})', expr.static, target_size, expr.signed, expr.is_mem_access, expr.regs_affected)
 		c.mem_ids = expr.mem_ids
