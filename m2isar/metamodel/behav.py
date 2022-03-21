@@ -46,6 +46,8 @@ class IntLiteral(NumberLiteral):
 		else:
 			self.bit_size = bit_size
 
+		self.bit_size = max(1, self.bit_size)
+
 		if signed is None:
 			self.signed = value < 0
 		else:
