@@ -117,6 +117,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.BinaryOperation(left, op, right)
 
+	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
+		raise NotImplementedError("pre-increment expressions are not supported yet")
+
+	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
+		raise NotImplementedError("post-increment expressions are not supported yet")
+
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
 		op = behav.Operator(ctx.prefix.text)
 		right = self.visit(ctx.right)
