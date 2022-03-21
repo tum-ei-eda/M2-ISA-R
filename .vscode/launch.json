@@ -48,6 +48,18 @@
             "stopOnEntry": true
         },
         {
+            "name": "Disassembler",
+            "type": "python",
+            "request": "launch",
+            "module": "m2isar.backends.disass.disass",
+            "args": [
+                "${input:inputFile}",
+                "RV32IMACFD",
+                "/home/wysiwyng/work/etiss-mine/install/examples/SW/riscv/build/riscv_example_s0.bin"
+            ],
+            "stopOnEntry": true
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
