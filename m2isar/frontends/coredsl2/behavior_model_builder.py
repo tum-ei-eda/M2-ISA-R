@@ -186,7 +186,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right else left
 
-		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, arch.Memory) and expr.reference.data_range.length > 0:
+		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, arch.Memory) and expr.reference.data_range.length > 1:
 			return behav.IndexedReference(expr.reference, left, right)
 		else:
 			return behav.SliceOperation(expr, left, right)
