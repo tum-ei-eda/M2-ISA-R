@@ -251,6 +251,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.size:
 						size = [self.visit(obj) for obj in decl.size]
 
+					if len(size) > 1:
+						raise NotImplementedError("arrays with more than one dimension are not supported")
+
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
