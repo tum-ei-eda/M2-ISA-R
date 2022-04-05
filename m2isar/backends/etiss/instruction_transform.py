@@ -567,13 +567,13 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 		code_str = expr.code
 
 	# sign extension
-	if self.data_type == arch.DataType.S and self.actual_size != self.size:
+	if self.data_type == arch.DataType.S and expr.actual_size != expr.size:
 		target_size = self.actual_size
 
 		if isinstance(self.size, int):
-			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size - self.size})) >> ({target_size - self.size}))'
+			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
 		else:
-			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size} - {self.size})) >> ({target_size} - {self.size}))'
+			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size} - {expr.size})) >> ({target_size} - {expr.size}))'
 
 	else:
 		code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
