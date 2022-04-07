@@ -73,7 +73,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 	elif ref is not None:
 		fn = ref
-		static = fn.static
+		static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
 		if not static:
 			context.used_arch_data = True
@@ -228,7 +228,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	elif ref is not None:
 		fn = ref
-		static = fn.static
+		static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
 		if not static:
 			context.used_arch_data = True
@@ -242,8 +242,6 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		signed = fn.data_type == arch.DataType.S
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-
-		static = StaticType.READ if static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
 		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
 		c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
