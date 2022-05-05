@@ -81,7 +81,7 @@ def main():
 		tree.insert(core_name, tk.END, core_name+"mem_alias", text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
 			#print(f"memory alias {mem_name} ({mem_def.parent.name}): {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
-			tree.insert(core_name+"mem_alias", tk.END, core_name+mem_name, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(core_name+"mem_alias", tk.END, core_name+mem_name, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
 		tree.insert(core_name, tk.END, core_name+"instrs", text="Instructions")
 		for (code, mask), instr_def in sorted(core_def.instructions.items()):
