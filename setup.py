@@ -12,13 +12,15 @@ setuptools.setup(
     install_requires=[
         "mako",
         "lark-parser >= 0.11.0",
-        "antlr4-python3-runtime"
+        "antlr4-python3-runtime",
+        "bitarray"
     ],
     entry_points={
         "console_scripts": [
             "etiss_writer=m2isar.backends.etiss.writer:main",
             "coredsl_parser=m2isar.frontends.coredsl.parser:main",
-            "coredsl2_parser=m2isar.frontends.coredsl2.parser:main"
+            "coredsl2_parser=m2isar.frontends.coredsl2.parser:main",
+            "m2isar_viewer=m2isar.backends.viewer.viewer:main"
         ]
     },
     zip_safe=False
