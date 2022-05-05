@@ -83,6 +83,10 @@ def main():
 			#print(f"memory alias {mem_name} ({mem_def.parent.name}): {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
 			tree.insert(core_name+"mem_alias", tk.END, core_name+mem_name, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
+		tree.insert(core_name, tk.END, core_name+"main_mem", text="Main Memory Object", values=(core_def.main_memory,))
+		tree.insert(core_name, tk.END, core_name+"main_reg", text="Main Register File Object", values=(core_def.main_reg_file,))
+		tree.insert(core_name, tk.END, core_name+"pc_mem", text="PC Memory Object", values=(core_def.pc_memory,))
+
 		tree.insert(core_name, tk.END, core_name+"instrs", text="Instructions")
 		for (code, mask), instr_def in sorted(core_def.instructions.items()):
 			opcode_str = f"{code:08x}:{mask:08x}"
