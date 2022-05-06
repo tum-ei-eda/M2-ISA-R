@@ -9,7 +9,9 @@ from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
 
-patch_model(instruction_transform)
+def generate_arg_str(arg: arch.FnParam):
+	arg_name = f" {arg.name}" if arg.name is not None else ""
+	return f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size}{arg_name}'
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	"""Return a generator object to generate function behavior code. Uses function
@@ -24,8 +26,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	for fn_name, fn_def in core.functions.items():
 		logger.debug("setting up function generator for %s", fn_name)
 
-		if fn_def.extern:
-			continue
+		#if fn_def.extern:
+		#	continue
 
 		return_type = instruction_utils.data_type_map[fn_def.data_type]
 		if fn_def.size:
@@ -42,7 +44,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 
 		logger.debug("generating header for %s", fn_name)
 
-		args_list = [f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size} {arg.name}' for arg in fn_def.args.values()]
+		args_list = [generate_arg_str(arg) for arg in fn_def.args.values()]
 		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or not fn_def.static:
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
