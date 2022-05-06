@@ -1,6 +1,6 @@
-from enum import Flag, auto
+from enum import IntFlag, auto
 
-class StaticType(Flag):
+class StaticType(IntFlag):
 	NONE = 0
 	READ = auto()
 	WRITE = auto()

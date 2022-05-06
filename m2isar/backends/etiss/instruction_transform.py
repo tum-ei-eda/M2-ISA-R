@@ -48,8 +48,8 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', StaticType.WRITE if context.static_scalars else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
-	c.scalar = self.scalar
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', self.scalar.static if context.static_scalars else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	#c.scalar = self.scalar
 	return c
 
 def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
@@ -500,7 +500,7 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 		static = StaticType.RW
 
 	c = CodeString(name, static, size, signed, False)
-	c.scalar = scalar
+	#c.scalar = scalar
 	return c
 
 def indexed_reference(self: behav.IndexedReference, context: TransformerContext):

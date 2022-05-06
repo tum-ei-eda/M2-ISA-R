@@ -130,6 +130,7 @@ class InstrAttribute(Enum):
 	SIM_EXIT = auto()
 
 class FunctionAttribute(Enum):
+	ETISS_STATICFN = auto()
 	ETISS_NEEDS_ARCH = auto()
 
 class DataType(Enum):

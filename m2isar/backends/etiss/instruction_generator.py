@@ -18,6 +18,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	definitions in the core object.
 	"""
 
+	patch_model(instruction_transform)
+
 	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
 
 	core_default_width = core.constants['XLEN'].value
@@ -40,7 +42,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 		out_code = fn_def.operation.generate(context)
 		out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
 
-		fn_def.static = not context.used_arch_data
+		#fn_def.static = not context.used_arch_data
 
 		logger.debug("generating header for %s", fn_name)
 
@@ -115,6 +117,8 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
+
+	patch_model(instruction_transform)
 
 	instr_template = Template(filename=str(template_dir/'etiss_instruction.mako'))
 

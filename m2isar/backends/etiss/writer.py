@@ -13,6 +13,7 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_lib, write_arch_specific_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
+from .expr_preprocessor import process_functions, process_instructions
 from .instruction_writer import write_functions, write_instructions
 
 
@@ -60,6 +61,11 @@ def setup():
 
 def main():
 	models, logger, output_base_path, spec_name, start_time, args = setup()
+
+	for core_name, core in models.items():
+		logger.info("preprocessing model %s", core_name)
+		process_functions(core)
+		process_instructions(core)
 
 	for core_name, core in models.items():
 		logger.info("processing model %s", core_name)
