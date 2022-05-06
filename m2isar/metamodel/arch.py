@@ -218,9 +218,6 @@ class Memory(SizedRefOrConst):
 	def is_main_mem(self):
 		return MemoryAttribute.IS_MAIN_MEM in self.attributes
 
-	def __str__(self) -> str:
-		return f'{super().__str__()}, size={self.size}'
-
 BitVal = namedtuple('BitVal', ['length', 'value'])
 
 class BitField(Named):
