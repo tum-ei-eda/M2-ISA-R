@@ -99,6 +99,9 @@ def main():
 
 			if not isinstance(fn_def.operation, behav.Operation):
 				op = behav_builder.visit(fn_def.operation)
+
+				fn_def.scalars = behav_builder._scalars
+
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
 				else:
@@ -111,6 +114,9 @@ def main():
 				instr_def.fields, core_def.functions, warned_fns)
 
 			op = behav_builder.visit(instr_def.operation)
+
+			instr_def.scalars = behav_builder._scalars
+
 			if isinstance(op, list):
 				op = behav.Operation(op)
 			else:

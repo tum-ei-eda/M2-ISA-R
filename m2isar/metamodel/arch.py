@@ -284,6 +284,7 @@ class Function(SizedRefOrConst):
 	def __init__(self, name, attributes, return_len, data_type: DataType, args: "list[FnParam]", operation: "Operation", extern: bool=False):
 		self.data_type = data_type
 		self.attributes = attributes if attributes else []
+		self.scalars = {}
 		if args is None:
 			args = []
 
