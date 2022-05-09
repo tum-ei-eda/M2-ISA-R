@@ -63,6 +63,9 @@ class Constant(SizedRefOrConst):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, value={self.value}'
 
+	def __repr__(self) -> str:
+		return f'{super().__repr__()}, value={self.value}'
+
 class RangeSpec:
 	def __init__(self, upper_base: val_or_const, lower_base: val_or_const=None, upper_power: val_or_const=1, lower_power: val_or_const=1):
 		self._upper_base = upper_base
