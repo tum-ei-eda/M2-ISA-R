@@ -71,17 +71,17 @@ def main():
 		tree.insert(core_name, tk.END, core_name+"consts", text="Constants")
 		for const_name, const_def in sorted(core_def.constants.items()):
 			#print(f"constant {const_name} = {const_def.value}")
-			tree.insert(core_name+"consts", tk.END, core_name+const_name, text=const_name, values=(const_def.value,))
+			tree.insert(core_name+"consts", tk.END, core_name+"consts"+const_name, text=const_name, values=(const_def.value,))
 
 		tree.insert(core_name, tk.END, core_name+"mems", text="Memories")
 		for mem_name, mem_def in sorted(core_def.memories.items()):
 			#print(f"memory {mem_name}: {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
-			tree.insert(core_name+"mems", tk.END, core_name+mem_name, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(core_name+"mems", tk.END, core_name+"mems"+mem_name, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
 		tree.insert(core_name, tk.END, core_name+"mem_alias", text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
 			#print(f"memory alias {mem_name} ({mem_def.parent.name}): {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
-			tree.insert(core_name+"mem_alias", tk.END, core_name+mem_name, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(core_name+"mem_alias", tk.END, core_name+"mem_alias"+mem_name, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
 		tree.insert(core_name, tk.END, core_name+"main_mem", text="Main Memory Object", values=(core_def.main_memory,))
 		tree.insert(core_name, tk.END, core_name+"main_reg", text="Main Register File Object", values=(core_def.main_reg_file,))
