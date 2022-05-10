@@ -80,16 +80,17 @@ def assignment(self: behav.Assignment, context: "TreeGenContext"):
 def conditional(self: behav.Conditional, context: "TreeGenContext"):
 	context.push(context.tree.insert(context.parent, tk.END, text="Conditional"))
 
-	context.push(context.tree.insert(context.parent, tk.END, text="Cond"))
-	cond = self.cond.generate(context)
+	context.push(context.tree.insert(context.parent, tk.END, text="Conditions"))
+	for cond in self.conds:
+		cond.generate(context)
 	context.pop()
 
-	context.push(context.tree.insert(context.parent, tk.END, text="Then Statements"))
-	then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Else Statements"))
-	else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
+	context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
+	for op in self.stmts:
+		context.push(context.tree.insert(context.parent, tk.END, text="Statement"))
+		for stmt in op:
+			stmt.generate(context)
+		context.pop()
 	context.pop()
 
 	context.pop()

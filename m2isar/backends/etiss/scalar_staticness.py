@@ -55,11 +55,8 @@ def assignment(self: behav.Assignment, context):
 
 
 def conditional(self: behav.Conditional, context):
-	cond = self.cond.generate(context)
-	then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
-	else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
-
-	pass
+	conds = [x.generate(context) for x in self.conds]
+	stmts = [[y.generate(context) for y in x] for x in self.stmts]
 
 def loop(self: behav.Loop, context):
 	return self

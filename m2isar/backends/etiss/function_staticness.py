@@ -46,15 +46,12 @@ def assignment(self: behav.Assignment, context):
 	return all([target, expr])
 
 def conditional(self: behav.Conditional, context):
-	cond = self.cond.generate(context)
-	then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
-	else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
+	conds = [x.generate(context) for x in self.conds]
+	stmts = [all(y.generate(context) for y in x) for x in self.stmts]
 
-	args = [cond]
-	args.extend(then_stmts)
-	args.extend(else_stmts)
+	conds.extend(stmts)
 
-	return all(args)
+	return all(conds)
 
 def loop(self: behav.Loop, context):
 	return self
@@ -102,6 +99,7 @@ def type_conv(self: behav.TypeConv, context):
 
 def callable(self: behav.Callable, context):
 	args = [arg.generate(context) for arg in self.args]
+	args.append(self.ref_or_name.static)
 
 	return all(args)
 

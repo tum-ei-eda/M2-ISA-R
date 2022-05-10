@@ -68,18 +68,31 @@ def assignment(self: behav.Assignment, context):
 	return self
 
 def conditional(self: behav.Conditional, context):
-	self.cond = self.cond.generate(context)
+	self.conds = [x.generate(context) for x in self.conds]
+	self.stmts = [[y.generate(context) for y in x] for x in self.stmts]
 
-	for stmt in self.then_stmts:
-		stmt = stmt.generate(context)
-	for stmt in self.else_stmts:
-		stmt = stmt.generate(context)
+	eval_false = True
 
-	if isinstance(self.cond, behav.IntLiteral):
-		if self.cond.value:
-			return self.then_stmts
+	conds = []
+	stmts = []
+
+	for cond, stmt in zip(self.conds, self.stmts):
+		if isinstance(cond, behav.IntLiteral):
+			if cond.value:
+				return stmt
 		else:
-			return self.else_stmts
+			conds.append(cond)
+			stmts.append(stmt)
+			eval_false = False
+
+	if len(self.conds) < len(self.stmts):
+		if eval_false and isinstance(self.conds[-1], behav.IntLiteral):
+			if not cond.value:
+				return self.stmts[-1]
+		stmts.append(self.stmts[-1])
+
+	self.conds = conds
+	self.stmts = stmts
 
 	return self
 

@@ -262,23 +262,34 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		raise ValueError(f'Function {name} not recognized!')
 
 def conditional(self: behav.Conditional, context: TransformerContext):
-	cond = self.cond.generate(context)
-	then_stmts = [stmt.generate(context) for stmt in self.then_stmts]
-	else_stmts = [stmt.generate(context) for stmt in self.else_stmts]
+	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
+	stmts: "list[list[str]]" = [[y.generate(context) for y in x] for x in self.stmts]
 
-	code_str = f'if ({cond}) {{'
-	if not cond.static:
-		code_str = f'partInit.code() += "{code_str}\\n";'
-		context.dependent_regs.update(cond.regs_affected)
+	static = all(x.static for x in conds)
 
-	code_str += '\n'
-	code_str += '\n'.join(then_stmts)
-	code_str += '\n}' if cond.static else '\npartInit.code() += "}\\n";'
+	cond_str = f'if ({conds[0]}) {{'
+	if not static:
+		cond_str = f'partInit.code() += "{cond_str}\\n";'
+		context.dependent_regs.update(conds[0].regs_affected)
 
-	if else_stmts:
-		code_str += ' else {\n' if cond.static else '\npartInit.code() += " else {\\n";\n'
-		code_str += '\n'.join(else_stmts)
-		code_str += '\n}' if cond.static else '\npartInit.code() += "}\\n";'
+	code_str = cond_str + '\n'
+	code_str += '\n'.join(stmts[0])
+	code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
+
+	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
+		elif_str = f' else if ({elif_cond}) {{'
+		if not static:
+			elif_str = f'partInit.code() += "{elif_str}\\n";'
+			context.dependent_regs.update(elif_cond.regs_affected)
+
+		code_str += elif_str + '\n'
+		code_str += '\n'.join(elif_stmts)
+		code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
+
+	if len(conds) < len(stmts):
+		code_str += ' else {\n' if static else '\npartInit.code() += " else {\\n";\n'
+		code_str += '\n'.join(stmts[-1])
+		code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
 
 	return code_str
 

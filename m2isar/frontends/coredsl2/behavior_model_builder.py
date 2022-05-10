@@ -138,17 +138,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return start_decl, start_expr, end_expr, loop_exprs
 
 	def visitIf_statement(self, ctx: CoreDSL2Parser.If_statementContext):
-		cond = self.visit(ctx.cond)
-		then_stmts = self.visit(ctx.then_stmt)
-		else_stmts = self.visit(ctx.else_stmt) if ctx.else_stmt else None
+		conds = [self.visit(x) for x in ctx.cond]
+		stmts = [self.visit(x) for x in ctx.stmt]
 
-		if not isinstance(then_stmts, list):
-			then_stmts = [then_stmts]
+		stmts = [[x] if not isinstance(x, list) else x for x in stmts]
 
-		if not isinstance(else_stmts, list) and else_stmts is not None:
-			else_stmts = [else_stmts]
-
-		return behav.Conditional(cond, then_stmts, else_stmts)
+		return behav.Conditional(conds, stmts)
 
 	def visitConditional_expression(self, ctx: CoreDSL2Parser.Conditional_expressionContext):
 		cond = self.visit(ctx.cond)

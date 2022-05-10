@@ -59,10 +59,9 @@ class Assignment(BaseNode):
 		self.expr = expr
 
 class Conditional(BaseNode):
-	def __init__(self, cond: BaseNode, then_stmts: "list[BaseNode]", else_stmts: "list[BaseNode]"):
-		self.cond = cond
-		self.then_stmts = then_stmts if then_stmts is not None else []
-		self.else_stmts = else_stmts if else_stmts is not None else []
+	def __init__(self, conds: "list[BaseNode]", stmts: "list[list[BaseNode]]"):
+		self.conds = conds
+		self.stmts = stmts
 
 class Loop(BaseNode):
 	def __init__(self, cond: BaseNode, stmts: "list[BaseNode]", post_test: bool):
