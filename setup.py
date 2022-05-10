@@ -12,7 +12,7 @@ setuptools.setup(
     install_requires=[
         "mako",
         "lark-parser >= 0.11.0",
-        "antlr4-python3-runtime",
+        "antlr4-python3-runtime == 4.10",
         "bitarray"
     ],
     entry_points={
