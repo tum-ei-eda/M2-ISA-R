@@ -62,36 +62,54 @@ def main():
 	tree.heading("#0", text="Item")
 	tree.heading(1, text="Value")
 
-	tree.insert("", tk.END, "top", text=model_fname.stem)
-
 	for core_name, core_def in sorted(models.items()):
 		#print(f"core {core_name}")
-		tree.insert("top", tk.END, core_name, text=core_name)
+		core_id = tree.insert("", tk.END, text=core_name)
 
-		tree.insert(core_name, tk.END, core_name+"consts", text="Constants")
+		consts_id = tree.insert(core_id, tk.END, text="Constants")
 		for const_name, const_def in sorted(core_def.constants.items()):
 			#print(f"constant {const_name} = {const_def.value}")
-			tree.insert(core_name+"consts", tk.END, core_name+"consts"+const_name, text=const_name, values=(const_def.value,))
+			tree.insert(consts_id, tk.END, text=const_name, values=(const_def.value,))
 
-		tree.insert(core_name, tk.END, core_name+"mems", text="Memories")
+		mems_id = tree.insert(core_id, tk.END, text="Memories")
 		for mem_name, mem_def in sorted(core_def.memories.items()):
 			#print(f"memory {mem_name}: {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
-			tree.insert(core_name+"mems", tk.END, core_name+"mems"+mem_name, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(mems_id, tk.END, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
-		tree.insert(core_name, tk.END, core_name+"mem_alias", text="Memory Aliases")
+		alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
 			#print(f"memory alias {mem_name} ({mem_def.parent.name}): {mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}")
-			tree.insert(core_name+"mem_alias", tk.END, core_name+"mem_alias"+mem_name, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
 
-		tree.insert(core_name, tk.END, core_name+"main_mem", text="Main Memory Object", values=(core_def.main_memory,))
-		tree.insert(core_name, tk.END, core_name+"main_reg", text="Main Register File Object", values=(core_def.main_reg_file,))
-		tree.insert(core_name, tk.END, core_name+"pc_mem", text="PC Memory Object", values=(core_def.pc_memory,))
+		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
+		tree.insert(core_id, tk.END, text="Main Register File Object", values=(core_def.main_reg_file,))
+		tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
 
-		tree.insert(core_name, tk.END, core_name+"instrs", text="Instructions")
-		for (code, mask), instr_def in sorted(core_def.instructions.items()):
+		fns_id = tree.insert(core_id, tk.END, text="Functions")
+		for fn_name, fn_def in core_def.functions.items():
+			fn_id = tree.insert(fns_id, tk.END, text=fn_name, values=("extern" if fn_def.extern else ""))
+
+			return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
+			tree.insert(fn_id, tk.END, text="Return", values=(return_str,))
+
+			attrs_id = tree.insert(fn_id, tk.END, text="Attributes")
+
+			for attr in fn_def.attributes:
+				tree.insert(attrs_id, tk.END, text=attr.name)
+
+			params_id = tree.insert(fn_id, tk.END, text="Parameters")
+
+			for param_name, param_def in fn_def.args.items():
+				tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.data_type} {param_def.size}",))
+
+			context = TreeGenContext(tree, fn_id)
+			fn_def.operation.generate(context)
+
+		instrs_id = tree.insert(core_id, tk.END, text="Instructions")
+		for (code, mask), instr_def in core_def.instructions.items():
 			opcode_str = f"{code:08x}:{mask:08x}"
 			#print(f"instruction {opcode_str} ({instr_def.name})")
-			tree.insert(core_name+"instrs", tk.END, core_name+opcode_str, text=opcode_str, values=(instr_def.name,))
+			instr_id = tree.insert(instrs_id, tk.END, text=opcode_str, values=(instr_def.name,))
 
 			enc_str = []
 			for enc in instr_def.encoding:
@@ -101,17 +119,15 @@ def main():
 					enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 			#print(" ".join(enc_str))
 
-			tree.insert(core_name+opcode_str, tk.END, core_name+opcode_str+"encoding", text="Encoding", values=(" ".join(enc_str),))
-			tree.insert(core_name+opcode_str, tk.END, core_name+opcode_str+"assembly", text="Assembly", values=(instr_def.disass,))
-			tree.insert(core_name+opcode_str, tk.END, core_name+opcode_str+"attrs", text="Attributes")
+			tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
+			tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
+			attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
 
 			for attr in instr_def.attributes:
-				tree.insert(core_name+opcode_str+"attrs", tk.END, core_name+opcode_str+"attrs"+attr.name, text=attr.name)
+				tree.insert(attrs_id, tk.END, text=attr.name)
 
-			context = TreeGenContext(tree, core_name+opcode_str)
+			context = TreeGenContext(tree, instr_id)
 			instr_def.operation.generate(context)
-
-
 
 	root.mainloop()
 	pass
