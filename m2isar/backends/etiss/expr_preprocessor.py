@@ -14,7 +14,7 @@ def process_functions(core: arch.CoreDef):
 		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 			raise ValueError("etiss_needs_arch and etiss_staticfn not allowed together")
 
-		if fn_def.extern and (arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
+		if not fn_def.extern and (arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
 			raise ValueError("etiss_needs_arch and etiss_staticfn only allowed for extern functions")
 
 		if fn_def.extern:
