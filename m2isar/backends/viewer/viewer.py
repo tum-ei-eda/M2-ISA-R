@@ -3,6 +3,7 @@ import logging
 import pathlib
 import pickle
 import tkinter as tk
+from collections import defaultdict
 from tkinter import ttk
 
 from m2isar.backends.viewer.utils import TreeGenContext
@@ -12,6 +13,11 @@ from . import treegen
 
 logger = logging.getLogger("viewer")
 
+
+def sort_instruction(entry: "tuple[tuple[int, int], arch.Instruction]"):
+	(code, mask), instr_def = entry
+	return bin(mask).count("1"), code
+	#return code, bin(mask).count("1")
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -105,29 +111,42 @@ def main():
 			context = TreeGenContext(tree, fn_id)
 			fn_def.operation.generate(context)
 
-		instrs_id = tree.insert(core_id, tk.END, text="Instructions")
-		for (code, mask), instr_def in core_def.instructions.items():
-			opcode_str = f"{code:08x}:{mask:08x}"
-			#print(f"instruction {opcode_str} ({instr_def.name})")
-			instr_id = tree.insert(instrs_id, tk.END, text=opcode_str, values=(instr_def.name,))
+		instrs_by_size = defaultdict(dict)
 
-			enc_str = []
-			for enc in instr_def.encoding:
-				if isinstance(enc, arch.BitVal):
-					enc_str.append(f"{enc.value:0{enc.length}b}")
-				elif isinstance(enc, arch.BitField):
-					enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
-			#print(" ".join(enc_str))
+		for k, v in core_def.instructions.items():
+			instrs_by_size[v.size][k] = v
 
-			tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
-			tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
-			attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
+		for k, v in instrs_by_size.items():
+			instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
 
-			for attr in instr_def.attributes:
-				tree.insert(attrs_id, tk.END, text=attr.name)
+		instrs_top_id = tree.insert(core_id, tk.END, text="Instructions")
 
-			context = TreeGenContext(tree, instr_id)
-			instr_def.operation.generate(context)
+		for size, instrs in sorted(instrs_by_size.items()):
+			instrs_id = tree.insert(instrs_top_id, tk.END, text=f"Width {size}")
+
+			for (code, mask), instr_def in instrs.items():
+				opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
+
+				instr_id = tree.insert(instrs_id, tk.END, text=f"{instr_def.ext_name} : {instr_def.name}", values=(opcode_str,), tags=("mono",))
+
+				enc_str = []
+				for enc in instr_def.encoding:
+					if isinstance(enc, arch.BitVal):
+						enc_str.append(f"{enc.value:0{enc.length}b}")
+					elif isinstance(enc, arch.BitField):
+						enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
+
+				tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
+				tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
+				attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
+
+				for attr in instr_def.attributes:
+					tree.insert(attrs_id, tk.END, text=attr.name)
+
+				context = TreeGenContext(tree, instr_id)
+				instr_def.operation.generate(context)
+
+	#tree.tag_configure("mono", font=font.nametofont("TkFixedFont"))
 
 	root.mainloop()
 	pass
