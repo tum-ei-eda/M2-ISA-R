@@ -184,21 +184,21 @@ expression
 	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
 	| left=expression op=('++' | '--') # postinc_expression
 	| op=('++'|'--') right=expression # preinc_expression
-    | prefix=('&'|'*'|'+'|'-') right=expression # prefix_expression
-    | prefix=('~'|'!') right=expression # prefix_expression
+	| prefix=('&'|'*'|'+'|'-') right=expression # prefix_expression
+	| prefix=('~'|'!') right=expression # prefix_expression
 	| '(' (type_=type_specifier | sign=integer_signedness) ')' right=expression # cast_expression
-    | left=expression bop=('*'|'/'|'%') right=expression # binary_expression
-    | left=expression bop=('+'|'-') right=expression # binary_expression
-    | left=expression bop=('<<' | '>>') right=expression # binary_expression
-    | left=expression bop=('<=' | '>=' | '>' | '<') right=expression # binary_expression
-    | left=expression bop=('==' | '!=') right=expression # binary_expression
-    | left=expression bop='&' right=expression # binary_expression
-    | left=expression bop='^' right=expression # binary_expression
-    | left=expression bop='|' right=expression # binary_expression
-    | left=expression bop='&&' right=expression # binary_expression
-    | left=expression bop='||' right=expression # binary_expression
+	| left=expression bop=('*'|'/'|'%') right=expression # binary_expression
+	| left=expression bop=('+'|'-') right=expression # binary_expression
+	| left=expression bop=('<<' | '>>') right=expression # binary_expression
+	| left=expression bop=('<=' | '>=' | '>' | '<') right=expression # binary_expression
+	| left=expression bop=('==' | '!=') right=expression # binary_expression
+	| left=expression bop='&' right=expression # binary_expression
+	| left=expression bop='^' right=expression # binary_expression
+	| left=expression bop='|' right=expression # binary_expression
+	| left=expression bop='&&' right=expression # binary_expression
+	| left=expression bop='||' right=expression # binary_expression
 	| left=expression bop='::' right=expression # concat_expression
-    | <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
+	| <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
 	| <assoc=right> left=expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') right=expression # assignment_expression
 	;
 
