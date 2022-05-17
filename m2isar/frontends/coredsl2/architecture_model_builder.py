@@ -144,7 +144,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		f2 = self._functions.get(name, None)
 
 		if f2 is not None:
-			if f2.extern or len(f2.operation.statements) > 0:
+			if len(f2.operation.statements) > 0:
 				raise ValueError(f"function {name} already defined")
 
 		self._functions[name] = f
@@ -368,6 +368,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		if attr is None:
 			logger.warning("unknown attribute \"%s\" encountered", name)
+			attr = name
 
 		return attr
 
