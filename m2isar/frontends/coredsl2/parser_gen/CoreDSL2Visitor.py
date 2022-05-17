@@ -84,6 +84,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#procedure_call.
+    def visitProcedure_call(self, ctx:CoreDSL2Parser.Procedure_callContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#if_statement.
     def visitIf_statement(self, ctx:CoreDSL2Parser.If_statementContext):
         return self.visitChildren(ctx)

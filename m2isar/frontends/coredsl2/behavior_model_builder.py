@@ -37,7 +37,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				ret += [nextResult]
 		return ret
 
-	def visitMethod_call(self, ctx: CoreDSL2Parser.Method_callContext):
+	def visitProcedure_call(self, ctx: CoreDSL2Parser.Procedure_callContext):
 		name = ctx.ref.text
 		ref = self._functions.get(name, None)
 
@@ -46,12 +46,18 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if ref is None:
 			raise ValueError(f"function {name} is not defined")
 
-		if ref.size is None:
-			c = behav.ProcedureCall(ref, args)
-		else:
-			c = behav.FunctionCall(ref, args)
+		return behav.ProcedureCall(ref, args)
 
-		return c
+	def visitMethod_call(self, ctx: "CoreDSL2Parser.Method_callContext"):
+		name = ctx.ref.text
+		ref = self._functions.get(name, None)
+
+		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
+
+		if ref is None:
+			raise ValueError(f"function {name} is not defined")
+
+		return behav.FunctionCall(ref, args)
 
 	def visitBlock(self, ctx: CoreDSL2Parser.BlockContext):
 		items = [self.visit(obj) for obj in ctx.items]

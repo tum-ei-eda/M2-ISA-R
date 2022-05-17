@@ -51,6 +51,7 @@ parameter_declaration
 
 statement
 	: block # block_statement
+	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' ';' # procedure_call
 	| type_='if' '(' cond+=expression ')' stmt+=statement ('else' 'if' '(' cond+=expression ')' stmt+=statement)* ('else' stmt+=statement)? # if_statement
 	| type_='for' '(' cond=for_condition ')' stmt=statement # for_statement
 	| type_='while' '(' cond=expression ')' stmt=statement # while_statement

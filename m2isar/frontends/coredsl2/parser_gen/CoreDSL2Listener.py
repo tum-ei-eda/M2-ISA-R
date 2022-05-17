@@ -143,6 +143,15 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#procedure_call.
+    def enterProcedure_call(self, ctx:CoreDSL2Parser.Procedure_callContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#procedure_call.
+    def exitProcedure_call(self, ctx:CoreDSL2Parser.Procedure_callContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#if_statement.
     def enterIf_statement(self, ctx:CoreDSL2Parser.If_statementContext):
         pass
