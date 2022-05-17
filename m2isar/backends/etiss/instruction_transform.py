@@ -62,14 +62,14 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		context.generates_exception = True
 		return 'partInit.code() += "exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
 
-	elif name == 'raise':
-		sender, code = fn_args
-		exc_id = tuple([int(x.code.replace("U", "").replace("L", "")) for x in (sender, code)])
-		if exc_id not in replacements.exception_mapping:
-			raise ValueError(f'Exception {exc_id} not defined!')
+	# elif name == 'raise':
+	# 	sender, code = fn_args
+	# 	exc_id = tuple([int(x.code.replace("U", "").replace("L", "")) for x in (sender, code)])
+	# 	if exc_id not in replacements.exception_mapping:
+	# 		raise ValueError(f'Exception {exc_id} not defined!')
 
-		context.generates_exception = True
-		return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
+	# 	context.generates_exception = True
+	# 	return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif ref is not None:
 		fn = ref
@@ -96,7 +96,13 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
 				code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
 
-		code_str += f'partInit.code() += "{fn.name}({arg_str});";'
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+			context.generates_exception = True
+			exc_code = "exception = "
+		else:
+			exc_code = ""
+
+		code_str += f'partInit.code() += "{exc_code}{fn.name}({arg_str});";'
 
 		return code_str
 
