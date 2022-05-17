@@ -11,6 +11,10 @@ from ...metamodel import arch
 
 logger = logging.getLogger("viewer")
 
+def sort_instruction(entry):
+	(code, mask), _ = entry
+	return bin(mask).count("1"), code
+
 def find_instr(iw: int, instructions: "dict[tuple[int, int], arch.Instruction]"):
 	for (code, mask), instr_def in instructions.items():
 		if (iw & mask) == code:
@@ -83,8 +87,14 @@ def main():
 	for k, v in core.instructions.items():
 		instrs_by_size[v.size][k] = v
 
-	with open(args.bin, "rb", readlen) as f:
-		while iw := f.peek(readlen):
+	for k, v in instrs_by_size.items():
+		instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
+
+	instrs_by_size = dict(sorted(instrs_by_size.items()))
+
+	with open(args.bin, "rb") as f:
+		while iw_read := f.peek(readlen):
+			iw = iw_read[:readlen]
 			found_ins = None
 			for cls in sorted(core.instr_classes):
 				ii = int.from_bytes(iw[:cls // 8], "little")
@@ -102,7 +112,9 @@ def main():
 				ins_str = f"{found_ins.name} [{op_str}]"
 				step = found_ins.size // 8
 
-			print(f"{f.tell():08x}: {iw[:step // 8].hex()} {ins_str}")
+			iword = int.from_bytes(iw[:step], "little")
+			iword = "{iword:0{step}x}".format(iword=iword, step=step*2)
+			print(f"{f.tell():08x}: {iword:<16} {ins_str}")
 
 			f.seek(step, SEEK_CUR)
 
