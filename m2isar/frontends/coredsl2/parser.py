@@ -33,10 +33,10 @@ def main():
 	parser = make_parser(abs_top_level)
 
 	try:
-	logger.info("parsing top level")
-	tree = parser.description_content()
+		logger.info("parsing top level")
+		tree = parser.description_content()
 
-	recursive_import(tree, search_path)
+		recursive_import(tree, search_path)
 	except M2SyntaxError as e:
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
@@ -44,7 +44,7 @@ def main():
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	try:
-	cores = lo.visit(tree)
+		cores = lo.visit(tree)
 	except M2Error as e:
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
@@ -58,8 +58,8 @@ def main():
 	for core_name, core_def in cores.items():
 		logger.info(f'building architecture model for core {core_name}')
 		try:
-		arch_builder = ArchitectureModelBuilder()
-		c = arch_builder.visit(core_def)
+			arch_builder = ArchitectureModelBuilder()
+			c = arch_builder.visit(core_def)
 		except M2Error as e:
 			logger.critical("Error building architecture model of core %s: %s", core_name, e)
 
@@ -111,7 +111,7 @@ def main():
 
 			if not isinstance(fn_def.operation, behav.Operation):
 				try:
-				op = behav_builder.visit(fn_def.operation)
+					op = behav_builder.visit(fn_def.operation)
 				except M2Error as e:
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
@@ -132,7 +132,7 @@ def main():
 				instr_def.fields, core_def.functions, warned_fns)
 
 			try:
-			op = behav_builder.visit(instr_def.operation)
+				op = behav_builder.visit(instr_def.operation)
 			except M2Error as e:
 				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e)
 				sys.exit(1)
