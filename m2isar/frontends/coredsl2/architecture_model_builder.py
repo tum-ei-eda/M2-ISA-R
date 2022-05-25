@@ -3,14 +3,12 @@ import logging
 from typing import Union
 
 from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError
-from ...metamodel import arch, behav, patch_model
-from . import expr_interpreter
+from ...metamodel import arch, behav
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 
 logger = logging.getLogger("arch_builder")
 
-patch_model(expr_interpreter)
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_constants: "dict[str, arch.Constant]"

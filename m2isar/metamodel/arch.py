@@ -254,6 +254,7 @@ class Instruction(SizedRefOrConst):
 		self.scalars = {}
 		self.disass = disass
 		self.operation = operation if operation is not None else Operation([])
+		self.throws = False
 
 		self.mask = 0
 		self.code = 0
@@ -288,6 +289,7 @@ class Function(SizedRefOrConst):
 		self.data_type = data_type
 		self.attributes = attributes if attributes else []
 		self.scalars = {}
+		self.throws = False
 		if args is None:
 			args = []
 

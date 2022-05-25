@@ -1,12 +1,23 @@
 import logging
 
-from ...metamodel import arch, patch_model
-from . import scalar_staticness, function_staticness
+from ... import M2ValueError
+from .. import arch, patch_model
+from . import (expr_simplifier, function_staticness, function_throws,
+               scalar_staticness)
 
 logger = logging.getLogger("preprocessor")
 
 def process_functions(core: arch.CoreDef):
 	for fn_name, fn_def in core.functions.items():
+		patch_model(expr_simplifier)
+		logger.debug("simplifying expressions for fn %s", fn_name)
+		fn_def.operation.generate(None)
+
+		patch_model(function_throws)
+		logger.debug("checking throws for fn %s", fn_name)
+		throws = fn_def.operation.generate(None)
+		fn_def.throws = throws or arch.FunctionAttribute.ETISS_EXC_ENTRY in fn_def.attributes
+
 		patch_model(scalar_staticness)
 		logger.debug("examining scalar staticness for fn %s", fn_name)
 		fn_def.operation.generate(None)
@@ -29,8 +40,16 @@ def process_functions(core: arch.CoreDef):
 			fn_def.static = ret
 
 def process_instructions(core: arch.CoreDef):
-	patch_model(scalar_staticness)
-
 	for (code, mask), instr_def in core.instructions.items():
+		patch_model(expr_simplifier)
+		logger.debug("simplifying expressions for instr %s", instr_def.name)
+		instr_def.operation.generate(None)
+
+		patch_model(function_throws)
+		logger.debug("checking throws for instr %s", instr_def.name)
+		throws = instr_def.operation.generate(None)
+		instr_def.throws = throws
+
+		patch_model(scalar_staticness)
 		logger.debug("examining staticness for instr %s", instr_def.name)
 		instr_def.operation.generate(None)

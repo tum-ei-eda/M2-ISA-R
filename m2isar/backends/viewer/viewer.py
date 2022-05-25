@@ -9,6 +9,8 @@ from tkinter import ttk
 from m2isar.backends.viewer.utils import TreeGenContext
 
 from ...metamodel import arch, patch_model
+from ...metamodel.utils.expr_preprocessor import (process_functions,
+                                                  process_instructions)
 from . import treegen
 
 logger = logging.getLogger("viewer")
@@ -51,6 +53,11 @@ def main():
 
 	with open(model_fname, 'rb') as f:
 		models: "dict[str, arch.CoreDef]" = pickle.load(f)
+
+	for core_name, core in models.items():
+		logger.info("preprocessing model %s", core_name)
+		process_functions(core)
+		process_instructions(core)
 
 	patch_model(treegen)
 
@@ -97,6 +104,7 @@ def main():
 
 			return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
 			tree.insert(fn_id, tk.END, text="Return", values=(return_str,))
+			tree.insert(fn_id, tk.END, text="Throws", values=(fn_def.throws))
 
 			attrs_id = tree.insert(fn_id, tk.END, text="Attributes")
 
@@ -138,6 +146,7 @@ def main():
 
 				tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
 				tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
+				tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
 				attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
 
 				for attr in instr_def.attributes:

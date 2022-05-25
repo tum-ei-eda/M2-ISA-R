@@ -7,13 +7,14 @@ import time
 
 from m2isar.metamodel.arch import CoreDef
 
+from ...metamodel.utils.expr_preprocessor import (process_functions,
+                                                  process_instructions)
 from . import BlockEndType
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
                                   write_arch_lib, write_arch_specific_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
-from .expr_preprocessor import process_functions, process_instructions
 from .instruction_writer import write_functions, write_instructions
 
 
