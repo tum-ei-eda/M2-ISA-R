@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from itertools import chain
 from string import Template
 
+from ... import M2ValueError
 from ...metamodel import arch
-from .. import StaticType
+from ...metamodel.utils import StaticType
 from . import replacements
 
 data_type_map = {
@@ -18,7 +19,7 @@ MEM_VAL_REPL = 'mem_val_'
 def actual_size(size, min=8, max=128):
 	s = 1 << (size - 1).bit_length()
 	if s > max:
-		raise ValueError("value too big")
+		raise M2ValueError("value too big")
 
 	return s if s >= min else min
 

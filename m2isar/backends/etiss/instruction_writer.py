@@ -26,7 +26,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		funcs_f.write(fn_set_str)
 
 		for fn_name, templ_str in generate_functions(core, static_scalars):
-			logger.info("processing function %s", fn_name)
+			logger.debug("writing function %s", fn_name)
 			funcs_f.write(templ_str)
 
 		fn_set_str = fn_set_footer_template.render()
@@ -55,6 +55,5 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 			out_f.write(instr_set_str)
 
 		for instr_name, (code, mask), ext_name, templ_str in generate_instructions(core, static_scalars, block_end_on):
-			logger.info("processing instruction %s", instr_name)
-			# save instruction code to file
+			logger.debug("writing instruction %s", instr_name)
 			outfiles.get(ext_name, outfiles['default']).write(templ_str)

@@ -1,11 +1,14 @@
+import logging
 from itertools import chain
 from string import Template
 
+from ... import M2NameError, M2SyntaxError, M2ValueError
 from ...metamodel import arch, behav
 from . import replacements
 from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
                                 TransformerContext, data_type_map)
 
+logger = logging.getLogger("instr_transform")
 
 def operation(self: behav.Operation, context: TransformerContext):
 	"""Generate an `Operation` model object. Essentially generate all children,
@@ -130,7 +133,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		return code_str
 
 	else:
-		raise ValueError(f'Function {name} not recognized!')
+		raise M2NameError(f'Function {name} not recognized!')
 
 def function_call(self: behav.FunctionCall, context: TransformerContext):
 	fn_args = [arg.generate(context) for arg in self.args]
@@ -146,7 +149,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		sender, code = fn_args
 		exc_id = (int(sender.code), int(code.code))
 		if exc_id not in replacements.exception_mapping:
-			raise ValueError(f'Exception {exc_id} not defined!')
+			raise M2ValueError(f'Exception {exc_id} not defined!')
 
 		context.generates_exception = True
 		return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
@@ -265,7 +268,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		return c
 
 	else:
-		raise ValueError(f'Function {name} not recognized!')
+		raise M2NameError(f'Function {name} not recognized!')
 
 def conditional(self: behav.Conditional, context: TransformerContext):
 	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
@@ -361,7 +364,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 			target.static = StaticType.NONE
 
 	if not expr.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
-		raise ValueError('Static target cannot be assigned to non-static expression!')
+		raise M2ValueError('Static target cannot be assigned to non-static expression!')
 
 	if expr.static and not expr.is_literal:
 		if bool(target.static & StaticType.WRITE):
@@ -388,7 +391,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 		context.generates_exception = True
 		for m_id in expr.mem_ids:
 			if not expr.mem_corrected:
-				print(f"assuming mem read size at {target.size}")
+				logger.debug("assuming mem read size at %d", target.size)
 				m_id.access_size = target.size
 
 			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
@@ -396,10 +399,10 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 		if target.is_mem_access:
 			if len(target.mem_ids) != 1:
-				raise ValueError('Only one memory access is allowed as assignment target!')
+				raise M2SyntaxError('Only one memory access is allowed as assignment target!')
 
 			if not target.mem_corrected:
-				print(f"assuming mem write size at {expr.size}")
+				logger.debug("assuming mem write size at %d", expr.size)
 				target.mem_ids[0].access_size = expr.size
 
 			m_id = target.mem_ids[0]

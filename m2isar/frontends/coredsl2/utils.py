@@ -1,6 +1,7 @@
 import antlr4
 import antlr4.error.ErrorListener
 
+from ... import M2SyntaxError
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
 
 RADIX = {
@@ -37,7 +38,7 @@ class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 		super().__init__()
 
 	def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-		raise ValueError(f"Syntax error in file {self.filename}, line {line}, column {column}: {msg}")
+		raise M2SyntaxError(f"Syntax error in file {self.filename}, line {line}, column {column}: {msg}")
 
 
 def make_parser(filename):

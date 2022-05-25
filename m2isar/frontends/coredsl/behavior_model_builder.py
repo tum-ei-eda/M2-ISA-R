@@ -2,8 +2,9 @@ import logging
 
 from lark import Transformer
 
-from ...backends import StaticType
+from ... import M2DuplicateError, M2NameError
 from ...metamodel import arch, behav
+from ...metamodel.utils import StaticType
 
 logger = logging.getLogger("behavior")
 
@@ -60,7 +61,7 @@ class BehaviorModelBuilder(Transformer):
 		name, data_type, size = args
 
 		if name in self._scalars:
-			raise ValueError(f"Scalar {name} already defined!")
+			raise M2DuplicateError(f"Scalar {name} already defined!")
 
 		size_val = self.get_constant_or_val(size)
 
@@ -88,7 +89,7 @@ class BehaviorModelBuilder(Transformer):
 		referred_mem = self._memory_aliases.get(name) or self._memories.get(name)
 
 		if referred_mem is None:
-			raise ValueError(f"Indexed reference {name} does not exist!")
+			raise M2NameError(f"Indexed reference {name} does not exist!")
 
 		ref = behav.IndexedReference(referred_mem, index_expr)
 		if size is None:
@@ -105,7 +106,7 @@ class BehaviorModelBuilder(Transformer):
 			self._memories.get(name)
 
 		if var is None:
-			raise ValueError(f"Named reference {name} does not exist!")
+			raise M2NameError(f"Named reference {name} does not exist!")
 
 		ref = behav.NamedReference(var)
 		if size is None:

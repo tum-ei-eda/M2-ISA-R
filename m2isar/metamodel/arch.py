@@ -3,6 +3,7 @@ from collections import namedtuple
 from enum import Enum, auto
 from typing import Union
 
+from .. import M2TypeError
 from .behav import BaseNode, Operation
 
 
@@ -266,7 +267,7 @@ class Instruction(SizedRefOrConst):
 				if e.name in self.fields:
 					f = self.fields[e.name]
 					if f.data_type != e.data_type:
-						raise ValueError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
+						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
 					if e.range.upper + 1 > f._size:
 						f._size = e.range.upper + 1
 				else:

@@ -2,6 +2,7 @@ import itertools
 import logging
 from typing import Union
 
+from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError
 from ...metamodel import arch, behav, patch_model
 from . import expr_interpreter
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
@@ -74,12 +75,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				instructions[(item.code, item.mask)] = item
 				item.ext_name = name
 			else:
-				raise ValueError("unexpected item encountered")
+				raise M2ValueError("unexpected item encountered")
 
 		i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
 
 		if name in self._instruction_sets:
-			raise ValueError(f"instruction set {name} already defined")
+			raise M2DuplicateError(f"instruction set {name} already defined")
 
 		self._instruction_sets[name] = i
 		return i
@@ -145,7 +146,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		if f2 is not None:
 			if len(f2.operation.statements) > 0:
-				raise ValueError(f"function {name} already defined")
+				raise M2DuplicateError(f"function {name} already defined")
 
 		self._functions[name] = f
 		return f
@@ -225,7 +226,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				m.parent.children.append(m)
 
 				if name in self._memory_aliases:
-					raise ValueError(f"memory {name} already defined")
+					raise M2DuplicateError(f"memory {name} already defined")
 
 				self._memory_aliases[name] = m
 				ret_decls.append(m)
@@ -239,7 +240,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					c = arch.Constant(name, init, [], type_._width, type_.signed)
 
 					if name in self._constants:
-						raise ValueError(f"constant {name} already defined")
+						raise M2DuplicateError(f"constant {name} already defined")
 					self._constants[name] = c
 					ret_decls.append(c)
 
@@ -266,7 +267,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						m._initval[None] = init.generate(None)
 
 					if name in self._memories:
-						raise ValueError(f"memory {name} already defined")
+						raise M2DuplicateError(f"memory {name} already defined")
 
 					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
@@ -300,7 +301,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		elif isinstance(width, behav.NamedReference):
 			width = width.reference
 		else:
-			raise ValueError("width has wrong type")
+			raise M2TypeError("width has wrong type")
 
 		return arch.IntegerType(width, signed, None)
 
@@ -333,7 +334,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.ref.text
 		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name)
 		if ref is None:
-			raise ValueError(f"reference {name} could not be resolved")
+			raise M2NameError(f"reference {name} could not be resolved")
 		return behav.NamedReference(ref)
 
 	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):

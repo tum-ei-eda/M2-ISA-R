@@ -3,6 +3,7 @@ from typing import Union
 
 from lark import Discard, Transformer, Tree
 
+from ... import M2DuplicateError, M2NameError
 from ...metamodel import arch
 
 logger = logging.getLogger("architecture")
@@ -119,7 +120,7 @@ class ArchitectureModelBuilder(Transformer):
 		name, default_value = args
 
 		if name in self._constants:
-			raise ValueError(f'Constant {name} already defined!')
+			raise M2DuplicateError(f'Constant {name} already defined!')
 
 		if name in self._constants: return self._constants[name]
 		c = arch.Constant(name, default_value, set())
@@ -155,7 +156,7 @@ class ArchitectureModelBuilder(Transformer):
 		name, size, length_base, length_power, attribs = args
 
 		if name in self._memories:
-			raise ValueError(f'Address space {name} already defined!')
+			raise M2DuplicateError(f'Address space {name} already defined!')
 
 		size = self.get_constant_or_val(size)
 		length_base = self.get_constant_or_val(length_base)
@@ -175,7 +176,7 @@ class ArchitectureModelBuilder(Transformer):
 		name, size, attributes = args
 
 		if name in self._memories:
-			raise ValueError(f'Register {name} already defined!')
+			raise M2DuplicateError(f'Register {name} already defined!')
 
 		size = self.get_constant_or_val(size)
 
@@ -193,7 +194,7 @@ class ArchitectureModelBuilder(Transformer):
 		_range, name, size, attributes = args
 
 		if name in self._memories:
-			raise ValueError(f'Register file {name} already defined!')
+			raise M2DuplicateError(f'Register file {name} already defined!')
 
 		size = self.get_constant_or_val(size)
 
@@ -214,7 +215,7 @@ class ArchitectureModelBuilder(Transformer):
 		name, size, actual, index, attributes = args
 
 		if name in self._memory_aliases:
-			raise ValueError(f'Register alias {name} already defined!')
+			raise M2DuplicateError(f'Register alias {name} already defined!')
 
 		size = self.get_constant_or_val(size)
 
@@ -223,7 +224,7 @@ class ArchitectureModelBuilder(Transformer):
 
 		parent_mem = self._memories.get(actual) or self._memory_aliases.get(actual)
 		if parent_mem is None:
-			raise ValueError(f'Parent register {actual} for alias {name} not defined!')
+			raise M2NameError(f'Parent register {actual} for alias {name} not defined!')
 
 		m = arch.Memory(name, index, size, attributes)
 		m.parent = parent_mem

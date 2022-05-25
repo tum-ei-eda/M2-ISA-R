@@ -5,6 +5,7 @@ import pathlib
 import pickle
 import sys
 
+from ... import M2Error, M2SyntaxError
 from ...metamodel import arch, behav, patch_model
 from . import expr_simplifier
 from .architecture_model_builder import ArchitectureModelBuilder
@@ -31,14 +32,22 @@ def main():
 
 	parser = make_parser(abs_top_level)
 
+	try:
 	logger.info("parsing top level")
 	tree = parser.description_content()
 
 	recursive_import(tree, search_path)
+	except M2SyntaxError as e:
+		logger.critical("Error during parsing: %s", e)
+		sys.exit(1)
 
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
+	try:
 	cores = lo.visit(tree)
+	except M2Error as e:
+		logger.critical("Error during load order building: %s", e)
+		sys.exit(1)
 
 	model_path = search_path.joinpath('gen_model')
 	model_path.mkdir(exist_ok=True)
@@ -48,8 +57,11 @@ def main():
 
 	for core_name, core_def in cores.items():
 		logger.info(f'building architecture model for core {core_name}')
+		try:
 		arch_builder = ArchitectureModelBuilder()
 		c = arch_builder.visit(core_def)
+		except M2Error as e:
+			logger.critical("Error building architecture model of core %s: %s", core_name, e)
 
 		for orig, overwritten in arch_builder._overwritten_instrs:
 			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
@@ -60,7 +72,7 @@ def main():
 	for core_name, core_def in models.items():
 		logger.info('building behavior model for core %s', core_name)
 
-		logger.info("checking core constants")
+		logger.debug("checking core constants")
 		unassigned_const = False
 		for const in core_def.constants.values():
 			if const.value is None:
@@ -70,7 +82,7 @@ def main():
 		if unassigned_const:
 			sys.exit(-1)
 
-		logger.info("evaluating core parameters")
+		logger.debug("evaluating core parameters")
 
 		for const_def in core_def.constants.values():
 			const_def._value = const_def.value
@@ -82,14 +94,14 @@ def main():
 
 		for fn_def in core_def.functions.values():
 			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
-				raise ValueError(f"non-extern function {fn_def.name} has no body")
+				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
 			fn_def._size = fn_def.size
 			for fn_arg in fn_def.args.values():
 				fn_arg._size = fn_arg.size
 				fn_arg._width = fn_arg.width
 
-		logger.info("generating function behavior")
+		logger.debug("generating function behavior")
 
 		warned_fns = set()
 
@@ -98,7 +110,11 @@ def main():
 				fn_def.args, core_def.functions, warned_fns)
 
 			if not isinstance(fn_def.operation, behav.Operation):
+				try:
 				op = behav_builder.visit(fn_def.operation)
+				except M2Error as e:
+					logger.critical("Error building behavior for function %s: %s", fn_name, e)
+					sys.exit()
 
 				fn_def.scalars = behav_builder._scalars
 
@@ -107,13 +123,19 @@ def main():
 				else:
 					fn_def.operation = behav.Operation([op])
 
-		logger.info("generating instruction behavior")
+		logger.debug("generating instruction behavior")
 
 		for (code, mask), instr_def in core_def.instructions.items():
+			logger.debug("generating instruction %s", instr_def.name)
+			logger.debug("generating attributes")
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				instr_def.fields, core_def.functions, warned_fns)
 
+			try:
 			op = behav_builder.visit(instr_def.operation)
+			except M2Error as e:
+				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e)
+				sys.exit(1)
 
 			instr_def.scalars = behav_builder._scalars
 

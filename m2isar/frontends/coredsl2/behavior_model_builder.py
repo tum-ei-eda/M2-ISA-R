@@ -1,7 +1,8 @@
 import logging
 
-from ...backends import StaticType
+from ... import M2NameError, M2TypeError
 from ...metamodel import arch, behav
+from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 
@@ -44,7 +45,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
 		if ref is None:
-			raise ValueError(f"function {name} is not defined")
+			raise M2NameError(f"function {name} is not defined")
 
 		return behav.ProcedureCall(ref, args)
 
@@ -55,7 +56,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
 		if ref is None:
-			raise ValueError(f"function {name} is not defined")
+			raise M2NameError(f"function {name} is not defined")
 
 		return behav.FunctionCall(ref, args)
 
@@ -219,7 +220,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			self._memories.get(name)
 
 		if var is None:
-			raise ValueError(f"Named reference {name} does not exist!")
+			raise M2NameError(f"Named reference {name} does not exist!")
 
 		return behav.NamedReference(var)
 
@@ -275,7 +276,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if isinstance(width, behav.BaseNode):
 			width = width.generate(None)
 		else:
-			raise ValueError("width has wrong type")
+			raise M2TypeError("width has wrong type")
 
 		return arch.IntegerType(width, signed, None)
 

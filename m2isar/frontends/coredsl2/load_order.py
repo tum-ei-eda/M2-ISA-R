@@ -1,5 +1,6 @@
 from antlr4 import ParserRuleContext
 
+from ... import M2DuplicateError
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 
 
@@ -16,7 +17,7 @@ class LoadOrder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		if name in self.instruction_sets:
-			raise ValueError(f"instruction set {name} specified more than once")
+			raise M2DuplicateError(f"instruction set {name} specified more than once")
 
 		self.instruction_sets[name] = ctx
 
