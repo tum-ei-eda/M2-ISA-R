@@ -131,6 +131,21 @@ def main():
 		for (code, mask), instr_def in core_def.instructions.items():
 			logger.debug("generating instruction %s", instr_def.name)
 			logger.debug("generating attributes")
+
+			for attr_name, attr_ops in instr_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							instr_def.fields, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of instruction \"%s\": %s", attr_name, instr_def.name, e)
+						sys.exit(1)
+
+				instr_def.attributes[attr_name] = ops
+
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				instr_def.fields, core_def.functions, warned_fns)
 

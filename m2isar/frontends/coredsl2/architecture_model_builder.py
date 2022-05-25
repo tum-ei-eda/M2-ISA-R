@@ -104,7 +104,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		encoding = [self.visit(obj) for obj in ctx.encoding]
-		attributes = [self.visit(obj) for obj in ctx.attributes]
+		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		disass = ctx.disass.text if ctx.disass is not None else None
 
 		i = arch.Instruction(ctx.name.text, attributes, encoding, disass, ctx.behavior)
@@ -120,7 +120,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return i
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
-		attributes = [self.visit(obj) for obj in ctx.attributes]
+		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		type_ = self.visit(ctx.type_)
 		name = ctx.name.text
 
@@ -188,7 +188,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		storage = [self.visit(obj) for obj in ctx.storage]
 		qualifiers = [self.visit(obj) for obj in ctx.qualifiers]
-		attributes = [self.visit(obj) for obj in ctx.attributes]
+		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 
 		type_ = self.visit(ctx.type_)
 
@@ -202,7 +202,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			if type_.ptr == "&": # register alias
 				size = [1]
 				init: behav.IndexedReference = self.visit(decl.init)
-				attributes = []
+				attributes = {}
 
 				if decl.size:
 					size = [self.visit(obj).value for obj in decl.size]
@@ -212,7 +212,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				reference = init.reference
 
 				if decl.attributes:
-					attributes = [self.visit(obj) for obj in decl.attributes]
+					attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 				range = arch.RangeSpec(left, right)
 
@@ -245,7 +245,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				elif "register" in storage or "extern" in storage:
 					size = [1]
 					init = None
-					attributes = []
+					attributes = {}
 
 					if decl.size:
 						size = [self.visit(obj) for obj in decl.size]
@@ -257,7 +257,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						init = self.visit(decl.init)
 
 					if decl.attributes:
-						attributes = [self.visit(obj) for obj in decl.attributes]
+						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 					range = arch.RangeSpec(size[0])
 					m = arch.Memory(name, range, type_._width, attributes)
@@ -369,7 +369,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			logger.warning("unknown attribute \"%s\" encountered", name)
 			attr = name
 
-		return attr
+		return attr, ctx.params
 
 	def visitChildren(self, node):
 		ret = super().visitChildren(node)

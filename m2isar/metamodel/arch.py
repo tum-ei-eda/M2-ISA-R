@@ -47,9 +47,9 @@ class SizedRefOrConst(Named):
 		return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
 
 class Constant(SizedRefOrConst):
-	def __init__(self, name, value: int, attributes: "list[str]", size=None, signed=False):
+	def __init__(self, name, value: int, attributes: "dict[ConstAttribute, list[BaseNode]]", size=None, signed=False):
 		self._value = value
-		self.attributes = attributes if attributes else []
+		self.attributes = attributes if attributes else {}
 		self.signed = signed
 		super().__init__(name, size)
 
@@ -133,6 +133,7 @@ class InstrAttribute(Enum):
 	COND = auto()
 	FLUSH = auto()
 	SIM_EXIT = auto()
+	ENABLE = auto()
 
 class FunctionAttribute(Enum):
 	ETISS_STATICFN = auto()
@@ -199,8 +200,8 @@ class Memory(SizedRefOrConst):
 	children: "list[Memory]"
 	parent: Union['Memory', None]
 
-	def __init__(self, name, range: RangeSpec, size, attributes: "list[Union[MemoryAttribute, MemoryAttribute, MemoryAttribute]]"):
-		self.attributes = attributes if attributes else []
+	def __init__(self, name, range: RangeSpec, size, attributes: "dict[MemoryAttribute, list[BaseNode]]"):
+		self.attributes = attributes if attributes else {}
 		self.range = range
 		self.children = []
 		self.parent = None
@@ -247,9 +248,9 @@ class BitFieldDescr(SizedRefOrConst):
 		super().__init__(name, size)
 
 class Instruction(SizedRefOrConst):
-	def __init__(self, name, attributes: "list[InstrAttribute]", encoding: "list[Union[BitField, BitVal]]", disass: str, operation: Operation):
+	def __init__(self, name, attributes: "dict[InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]", disass: str, operation: Operation):
 		self.ext_name = ""
-		self.attributes = attributes if attributes else []
+		self.attributes = attributes if attributes else {}
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
 		self.scalars = {}
@@ -286,9 +287,9 @@ class Instruction(SizedRefOrConst):
 		return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
 class Function(SizedRefOrConst):
-	def __init__(self, name, attributes, return_len, data_type: DataType, args: "list[FnParam]", operation: "Operation", extern: bool=False):
+	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: DataType, args: "list[FnParam]", operation: "Operation", extern: bool=False):
 		self.data_type = data_type
-		self.attributes = attributes if attributes else []
+		self.attributes = attributes if attributes else {}
 		self.scalars = {}
 		self.throws = False
 		if args is None:

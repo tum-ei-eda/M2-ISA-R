@@ -149,8 +149,11 @@ def main():
 				tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
 				attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
 
-				for attr in instr_def.attributes:
-					tree.insert(attrs_id, tk.END, text=attr.name)
+				for attr, ops in instr_def.attributes.items():
+					attr_id = tree.insert(attrs_id, tk.END, text=attr.name)
+					for op in ops:
+						context = TreeGenContext(tree, attr_id)
+						op.generate(context)
 
 				context = TreeGenContext(tree, instr_id)
 				instr_def.operation.generate(context)
