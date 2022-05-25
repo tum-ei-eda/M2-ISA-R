@@ -96,6 +96,12 @@ class TransformerContext:
 			return val
 		return Template(f'" + std::to_string({val}) + "').safe_substitute(**replacements.rename_static)
 
+	def wrap_codestring(self, val):
+		if self.ignore_static:
+			return val
+		else:
+			return f'partInit.code() += "{val}\\n";'
+
 	def get_constant_or_val(self, name_or_val):
 		if type(name_or_val) == int:
 			return name_or_val

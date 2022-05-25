@@ -19,27 +19,28 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 	code_str = '\n'.join(args)
 
-	return_conditions = []
-	return_needed = any((
-		context.generates_exception,
-		arch.InstrAttribute.NO_CONT in context.attribs,
-		arch.InstrAttribute.COND in context.attribs,
-		arch.InstrAttribute.FLUSH in context.attribs
-	))
+	if not context.ignore_static:
+		return_conditions = []
+		return_needed = any((
+			context.generates_exception,
+			arch.InstrAttribute.NO_CONT in context.attribs,
+			arch.InstrAttribute.COND in context.attribs,
+			arch.InstrAttribute.FLUSH in context.attribs
+		))
 
-	if context.generates_exception:
-		return_conditions.append("exception")
-	if arch.InstrAttribute.NO_CONT in context.attribs and arch.InstrAttribute.COND in context.attribs:
-		return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
-	elif arch.InstrAttribute.NO_CONT in context.attribs:
-		return_conditions.clear()
-	if arch.InstrAttribute.FLUSH in context.attribs:
-		code_str = 'partInit.code() += "exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
-		return_conditions.clear()
+		if context.generates_exception:
+			return_conditions.append("((${ARCH_NAME}*)cpu)->exception")
+		if arch.InstrAttribute.NO_CONT in context.attribs and arch.InstrAttribute.COND in context.attribs:
+			return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
+		elif arch.InstrAttribute.NO_CONT in context.attribs:
+			return_conditions.clear()
+		if arch.InstrAttribute.FLUSH in context.attribs:
+			code_str = 'partInit.code() += "((${ARCH_NAME}*)cpu)->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
+			return_conditions.clear()
 
-	if return_needed:
-		cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
-		code_str += f'\npartInit.code() += "{cond_str}return exception;\\n";'
+		if return_needed:
+			cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
+			code_str += f'\npartInit.code() += "{cond_str}return ((${{ARCH_NAME}}*)cpu)->exception;\\n";'
 
 	return code_str
 
@@ -63,7 +64,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 	if name == 'wait':
 		context.generates_exception = True
-		return 'partInit.code() += "exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
+		return 'partInit.code() += "((${ARCH_NAME}*)cpu)->exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
 
 	# elif name == 'raise':
 	# 	sender, code = fn_args
@@ -72,7 +73,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 	# 		raise ValueError(f'Exception {exc_id} not defined!')
 
 	# 	context.generates_exception = True
-	# 	return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
+	# 	return f'partInit.code() += "((${ARCH_NAME}*)cpu)->exception = {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif ref is not None:
 		fn = ref
@@ -96,16 +97,16 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		if mem_access:
 			context.generates_exception = True
 			for m_id in mem_ids:
-				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-				code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+				code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
+				code_str += context.wrap_codestring(f'((${{ARCH_NAME}}*)cpu)->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
 
 		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
 			context.generates_exception = True
-			exc_code = "exception = "
+			exc_code = "((${ARCH_NAME}*)cpu)->exception = "
 		else:
 			exc_code = ""
 
-		code_str += f'partInit.code() += "{exc_code}{fn.name}({arg_str});";'
+		code_str += context.wrap_codestring(f'{exc_code}{fn.name}({arg_str});')
 
 		return code_str
 
@@ -127,7 +128,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			context.generates_exception = True
 			for m_id in mem_ids:
 				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-				code_str += f'partInit.code() += "exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+				code_str += f'partInit.code() += "((${{ARCH_NAME}}*)cpu)->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
 
 		code_str += f'partInit.code() += "{name}({arg_str});";'
 		return code_str
@@ -143,7 +144,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 	if name == 'wait':
 		context.generates_exception = True
-		return 'partInit.code() += "exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
+		return 'partInit.code() += "((${ARCH_NAME}*)cpu)->exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
 
 	elif name == 'raise':
 		sender, code = fn_args
@@ -152,7 +153,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			raise M2ValueError(f'Exception {exc_id} not defined!')
 
 		context.generates_exception = True
-		return f'partInit.code() += "exception = {replacements.exception_mapping[exc_id]};\\n";'
+		return f'partInit.code() += "((${{ARCH_NAME}}*)cpu)->exception = {replacements.exception_mapping[exc_id]};\\n";'
 
 	elif name == 'choose':
 		cond, then_stmts, else_stmts = fn_args
@@ -394,8 +395,8 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 				logger.debug("assuming mem read size at %d", target.size)
 				m_id.access_size = target.size
 
-			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-			code_str += f'partInit.code() += "exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+			code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
+			code_str += context.wrap_codestring(f'((${{ARCH_NAME}}*)cpu)->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
 
 		if target.is_mem_access:
 			if len(target.mem_ids) != 1:
@@ -407,10 +408,10 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 			m_id = target.mem_ids[0]
 
-			code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};\\n";\n'
-			code_str += f'partInit.code() += "exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
+			code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};') + '\n'
+			code_str += context.wrap_codestring(f'((${{ARCH_NAME}}*)cpu)->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
 		else:
-			code_str += f'partInit.code() += "{target.code} = {expr.code};\\n";'
+			code_str += context.wrap_codestring(f'{target.code} = {expr.code};')
 
 	return code_str
 
