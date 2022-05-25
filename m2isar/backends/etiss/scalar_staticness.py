@@ -1,5 +1,5 @@
 from ...metamodel import arch, behav
-from .. import StaticType
+from ...metamodel.utils import StaticType
 
 def operation(self: behav.Operation, context):
 	statements = []
