@@ -122,6 +122,7 @@ class MemoryAttribute(Enum):
 	IS_MAIN_MEM = auto()
 	IS_MAIN_REG = auto()
 	DELETE = auto()
+	ETISS_CAN_FAIL = auto()
 
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
