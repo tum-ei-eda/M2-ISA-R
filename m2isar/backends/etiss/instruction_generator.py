@@ -35,7 +35,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
 
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, [], core.functions, 0, core_default_width, core_name, static_scalars, True)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes, core.functions, 0, core_default_width, core_name, static_scalars, True)
 
 		logger.debug("generating code for %s", fn_name)
 

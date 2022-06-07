@@ -109,6 +109,23 @@ def main():
 		warned_fns = set()
 
 		for fn_name, fn_def in core_def.functions.items():
+			logger.debug("generating function %s", fn_name)
+			logger.debug("generating attributes")
+
+			for attr_name, attr_ops in fn_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							fn_def.args, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of function \"%s\": %s", attr_name, fn_def.name, e)
+						sys.exit(1)
+
+				fn_def.attributes[attr_name] = ops
+
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				fn_def.args, core_def.functions, warned_fns)
 

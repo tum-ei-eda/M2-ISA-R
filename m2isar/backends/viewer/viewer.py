@@ -108,8 +108,11 @@ def main():
 
 			attrs_id = tree.insert(fn_id, tk.END, text="Attributes")
 
-			for attr in fn_def.attributes:
-				tree.insert(attrs_id, tk.END, text=attr.name)
+			for attr, ops in fn_def.attributes.items():
+				attr_id = tree.insert(attrs_id, tk.END, text=attr)
+				for op in ops:
+					context = TreeGenContext(tree, attr_id)
+					op.generate(context)
 
 			params_id = tree.insert(fn_id, tk.END, text="Parameters")
 
