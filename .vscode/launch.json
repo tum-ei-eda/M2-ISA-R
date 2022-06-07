@@ -13,7 +13,8 @@
                 "-j1",
                 "${input:inputFile}"
             ],
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "justMyCode": false
         },
         {
             "name": "Parse CoreDSL2 (antlr)",
@@ -21,9 +22,11 @@
             "request": "launch",
             "module": "m2isar.frontends.coredsl2.parser",
             "args": [
-                "${input:inputFile}"
+                "${input:inputFile}",
+                "--log", "info"
             ],
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "justMyCode": false
         },
         {
             "name": "Generate ETISS",
@@ -33,9 +36,11 @@
             "args": [
                 "--separate",
                 "--static-scalars",
+                "--log", "info",
                 "${input:inputFile}"
             ],
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "justMyCode": false
         },
         {
             "name": "Model Viewer",
@@ -45,7 +50,8 @@
             "args": [
                 "${input:inputFile}"
             ],
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "justMyCode": false
         },
         {
             "name": "Disassembler",
@@ -57,14 +63,16 @@
                 "RV32IMACFD",
                 "/home/wysiwyng/work/etiss-mine/install/examples/SW/riscv/build/riscv_example_s0.bin"
             ],
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "justMyCode": false
         },
         {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ],
     "inputs": [
@@ -73,14 +81,10 @@
             "default": "../coredsl-models/riscv/tum_rv.core_desc",
             "type": "pickString",
             "options": [
-                "../coredsl-models/riscv/minres_rv.core_desc",
-                "../coredsl-models/riscv/tum_rv.core_desc",
-                "../coredsl-models/riscv/top.core_desc",
-                "../coredsl-models/armv6m/top.core_desc",
-                "../coredsl-models/armv7m/top.core_desc",
-                "../coredsl-models/test/top.core_desc",
-                "../coredsl-models/test/test.core_desc",
-                "../coredsl2-models/test/top.core_desc",
+                "../coredsl2-models/test/eval.core_desc",
+                "../coredsl2-models/test/fn.core_desc",
+                "../coredsl2-models/test/inherit.core_desc",
+                "../coredsl2-models/test/overlap.core_desc",
                 "../coredsl2-models/riscv/top.core_desc",
                 "../etiss_arch_riscv/top.core_desc"
             ],
