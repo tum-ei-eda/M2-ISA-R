@@ -277,12 +277,22 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	static = all(x.static for x in conds)
 
+	code_str = ""
+
+	for cond in conds:
+		if cond.is_mem_access:
+			context.generates_exception = True
+
+			for m_id in cond.mem_ids:
+				code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
+				code_str += context.wrap_codestring(f'((${{ARCH_NAME}}*)cpu)->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
+
 	cond_str = f'if ({conds[0]}) {{'
 	if not static:
 		cond_str = f'partInit.code() += "{cond_str}\\n";'
 		context.dependent_regs.update(conds[0].regs_affected)
 
-	code_str = cond_str + '\n'
+	code_str += cond_str + '\n'
 	code_str += '\n'.join(stmts[0])
 	code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
 
