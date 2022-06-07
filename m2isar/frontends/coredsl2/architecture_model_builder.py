@@ -121,6 +121,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
+
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in attributes:
+			attributes[arch.FunctionAttribute.ETISS_NEEDS_ARCH] = []
+
 		type_ = self.visit(ctx.type_)
 		name = ctx.name.text
 
