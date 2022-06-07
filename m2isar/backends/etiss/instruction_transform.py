@@ -23,18 +23,18 @@ def operation(self: behav.Operation, context: TransformerContext):
 		return_conditions = []
 		return_needed = any((
 			context.generates_exception,
-			arch.InstrAttribute.NO_CONT in context.attribs,
-			arch.InstrAttribute.COND in context.attribs,
-			arch.InstrAttribute.FLUSH in context.attribs
+			arch.InstrAttribute.NO_CONT in context.attributes,
+			arch.InstrAttribute.COND in context.attributes,
+			arch.InstrAttribute.FLUSH in context.attributes
 		))
 
 		if context.generates_exception:
 			return_conditions.append("((${ARCH_NAME}*)cpu)->exception")
-		if arch.InstrAttribute.NO_CONT in context.attribs and arch.InstrAttribute.COND in context.attribs:
+		if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
 			return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
-		elif arch.InstrAttribute.NO_CONT in context.attribs:
+		elif arch.InstrAttribute.NO_CONT in context.attributes:
 			return_conditions.clear()
-		if arch.InstrAttribute.FLUSH in context.attribs:
+		if arch.InstrAttribute.FLUSH in context.attributes:
 			code_str = 'partInit.code() += "((${ARCH_NAME}*)cpu)->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
 			return_conditions.clear()
 

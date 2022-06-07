@@ -56,14 +56,14 @@ class MemID:
 
 class TransformerContext:
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
-			attribs: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
+			attributes: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
 			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, ignore_static=False):
 
 		self.constants = constants
 		self.memories = memories
 		self.memory_aliases = memory_aliases
 		self.fields = fields
-		self.attribs = attribs if attribs else []
+		self.attributes = attributes if attributes else []
 		self.scalars = {}
 		self.functions = functions
 		self.instr_size = instr_size
