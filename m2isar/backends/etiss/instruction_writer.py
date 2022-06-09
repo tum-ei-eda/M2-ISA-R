@@ -25,6 +25,8 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 	core_name = core.name
 
+	logger.info("writing functions")
+
 	with open(output_path / f'{core_name}Funcs.h', 'w') as funcs_f:
 		fn_set_str = fn_set_header_template.render(
 			start_time=start_time,
@@ -46,6 +48,8 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 
 	outfiles = {}
 	core_name = core.name
+
+	logger.info("writing instructions")
 
 	with ExitStack() as stack:
 		if separate:

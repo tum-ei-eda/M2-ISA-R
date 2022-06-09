@@ -38,6 +38,8 @@ def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.
 	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))
 	regs = []
 
+	logger.info("writing architecture struct")
+
 	for mem_name, mem_desc in core.memories.items():
 		write_child_reg_def(mem_desc, regs)
 
@@ -47,12 +49,13 @@ def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		regs=regs
 	)
 
-	logger.info("writing architecture struct")
 	with open(output_path / f"{core.name}.h", "w") as f:
 		f.write(txt)
 
 def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_h.mako'))
+
+	logger.info("writing architecture class header")
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -60,7 +63,6 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		instr_classes=sorted(core.instr_classes)
 	)
 
-	logger.info("writing architecture class header")
 	with open(output_path / f"{core.name}Arch.h", "w") as f:
 		f.write(txt)
 
@@ -95,6 +97,8 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 	alias_regs = {}
 	initval_regs = []
 
+	logger.info("writing architecture class file")
+
 	for mem_name, mem_desc in core.memories.items():
 		if mem_desc.is_main_mem:
 			continue
@@ -118,63 +122,68 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		initval_regs=initval_regs
 	)
 
-	logger.info("writing architecture class file")
 	with open(output_path / f"{core.name}Arch.cpp", "w") as f:
 		f.write(txt)
 
 def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_lib.mako'))
 
+	logger.info("writing architecture lib")
+
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name
 	)
 
-	logger.info("writing architecture lib")
 	with open(output_path / f"{core.name}ArchLib.cpp", "w") as f:
 		f.write(txt)
 
 def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_h.mako'))
 
+	logger.info("writing architecture specific header")
+
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file
 	)
 
-	logger.info("writing architecture specific header")
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w") as f:
 		f.write(txt)
 
 def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
+	logger.info("writing architecture specific file")
+
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file
 	)
 
-	logger.info("writing architecture specific file")
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w") as f:
 		f.write(txt)
 
 def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_gdbcore.mako'))
 
+	logger.info("writing gdbcore")
+
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file
 	)
 
-	logger.info("writing gdbcore")
 	with open(output_path / f"{core.name}GDBCore.h", "w") as f:
 		f.write(txt)
 
 def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cmake.mako'))
+
+	logger.info("writing CMakeLists")
 
 	arch_files = [f'{core.name}Instr.cpp']
 	if separate:
@@ -186,6 +195,5 @@ def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.P
 		arch_files=arch_files
 	)
 
-	logger.info("writing CMakeLists")
 	with open(output_path / "CMakeLists.txt", "w") as f:
 		f.write(txt)
