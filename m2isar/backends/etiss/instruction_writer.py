@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+#
+# Copyright (c) 2022
+# Chair of Electrical Design Automation
+# Technical University of Munich
+
 import logging
 import pathlib
 from contextlib import ExitStack
@@ -16,6 +24,8 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 	fn_set_footer_template = Template(filename=str(template_dir/'etiss_function_set_footer.mako'))
 
 	core_name = core.name
+
+	logger.info("writing functions")
 
 	with open(output_path / f'{core_name}Funcs.h', 'w') as funcs_f:
 		fn_set_str = fn_set_header_template.render(
@@ -38,6 +48,8 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 
 	outfiles = {}
 	core_name = core.name
+
+	logger.info("writing instructions")
 
 	with ExitStack() as stack:
 		if separate:
