@@ -387,13 +387,16 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	if expr.static and not expr.is_literal:
 		if bool(target.static & StaticType.WRITE):
-			expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
+			if context.ignore_static:
+				expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_dynamic)
+			else:
+				expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
 
 		else:
 			expr.code = context.make_static(expr.code)
 
 	if bool(target.static & StaticType.READ):
-		target.code = Template(target.code).safe_substitute(replacements.rename_dynamic)
+		target.code = Template(target.code).safe_substitute(replacements.rename_write)
 
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
