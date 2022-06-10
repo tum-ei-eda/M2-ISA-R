@@ -67,7 +67,8 @@ def conditional(self: behav.Conditional, context):
 	stmts = [[y.generate(context) for y in x] for x in self.stmts]
 
 def loop(self: behav.Loop, context):
-	return self
+	cond = self.cond.generate(context)
+	stmts = [x.generate(context) for x in self.stmts]
 
 def ternary(self: behav.Ternary, context):
 	cond = self.cond.generate(context)
