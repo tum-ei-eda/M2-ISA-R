@@ -62,7 +62,11 @@ def conditional(self: behav.Conditional, context):
 	return all(conds)
 
 def loop(self: behav.Loop, context):
-	return self
+	cond = self.cond.generate(context)
+	stmts = [x.generate(context) for x in self.stmts]
+	stmts.append(cond)
+
+	return all(stmts)
 
 def ternary(self: behav.Ternary, context):
 	cond = self.cond.generate(context)
