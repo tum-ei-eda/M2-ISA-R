@@ -1,3 +1,13 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+
+This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+
+Copyright (C) 2022
+Chair of Electrical Design Automation
+Technical University of Munich
+-->
+
 # M2-ISA-R v2
 
 This tool serves as a general-purpose instruction set architecture metamodel. A parser for [CoreDSL](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual) and an architecture generator for the instruction set simulator [ETISS](https://github.com/tum-ei-eda/etiss) are currently also provided.

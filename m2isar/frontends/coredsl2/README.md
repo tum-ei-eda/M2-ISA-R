@@ -1,12 +1,24 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+
+This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+
+Copyright (C) 2022
+Chair of Electrical Design Automation
+Technical University of Munich
+-->
+
 # CoreDSL 2 Parser
 
 This parser understands the preliminary version 2 of CoreDSL. Its grammar is implemented after the [original XText grammar](https://github.com/Minres/CoreDSL/blob/master/com.minres.coredsl/src/com/minres/coredsl/CoreDsl.xtext) and the [accompanying programmer's manual](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual), as the reference grammar is not complete.
 
-## Setup
-This parser uses the ANTLR parsing toolkit internally, the parser component needs to be generated before use. Download the ANTLR parser generator from [here](https://www.antlr.org/download.html), then execute:
+## Parser generation
+This parser uses the ANTLR parsing toolkit internally, the parser component needs to be generated before use. A current parser is provided in this repo, if you change the grammar file, you need to regenerate the parser as follows:
+
+Download the ANTLR parser generator from [here](https://www.antlr.org/download.html), then execute:
 ```
 cd /path/to/M2-ISA-R/m2isar/frontends/coredsl2
-java -jar /path/to/antlr-4.9.3-complete.jar -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
+java -jar /path/to/antlr-4.10.1-complete.jar -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
 ```
 
 A VSCode task for parser generation is already created for this project. To use it, put the ANTLR binary in the `/path/to/M2-ISA-R/ext` folder, then select `Terminal` -> `Run Task...` -> `Generate CoreDSL2 ANTLR parser`.
