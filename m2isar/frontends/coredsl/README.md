@@ -1,3 +1,13 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+
+This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+
+Copyright (C) 2022
+Chair of Electrical Design Automation
+Technical University of Munich
+-->
+
 # CoreDSL 1.5 Parser
 
 This parser understands the unofficial version 1.5 of CoreDSL. It is based on the original CoreDSL specification with some fixes backported from version 2.0, such as sized address spaces. As stated in the main README, this parser is obsolete and kept around for reference only. New developments based on it should be avoided. For support please contact the project maintainers. The grammar of the currently used CoreDSL dialect can be seen in [coredsl.lark](m2isar/frontends/coredsl/coredsl.lark). See [here](https://lark-parser.readthedocs.io/en/latest/grammar.html) for the lark grammar reference which this grammar description uses.

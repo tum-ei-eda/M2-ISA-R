@@ -1,3 +1,13 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+
+This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+
+Copyright (C) 2022
+Chair of Electrical Design Automation
+Technical University of Munich
+-->
+
 # ETISS Writer
 
 This M2-ISA-R backend generates architecture plugins for the instruction set simulator ETISS. Call it like this: `python -m m2isar.backends.etiss.writer` or `etiss_writer`, if installed as in the main README. Generator outputs (ETISS architecture plugins) are saved at `path/to/input/gen_output/<top_level>/<core_name>`. These architecture plugins possess all required functionality to run arbitrary target programs on them, except:

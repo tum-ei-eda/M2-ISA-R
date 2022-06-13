@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-
+#
 # This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
 #
-# Copyright (c) 2022
+# Copyright (C) 2022
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
@@ -12,8 +12,6 @@ import pathlib
 import pickle
 from collections import defaultdict
 from io import SEEK_CUR
-
-from bitarray.util import ba2int, int2ba
 
 from ...metamodel import arch
 

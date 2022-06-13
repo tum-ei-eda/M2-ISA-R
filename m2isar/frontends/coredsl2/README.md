@@ -1,3 +1,13 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+
+This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
+
+Copyright (C) 2022
+Chair of Electrical Design Automation
+Technical University of Munich
+-->
+
 # CoreDSL 2 Parser
 
 This parser understands the preliminary version 2 of CoreDSL. Its grammar is implemented after the [original XText grammar](https://github.com/Minres/CoreDSL/blob/master/com.minres.coredsl/src/com/minres/coredsl/CoreDsl.xtext) and the [accompanying programmer's manual](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual), as the reference grammar is not complete.
