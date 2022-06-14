@@ -91,6 +91,15 @@ class TransformerContext:
 				self.pc_mem = mem_descr
 				break
 
+		self.raise_fn: arch.Function = None
+		self.mem_raise_fn: arch.Function = None
+
+		for fn_name, fn_def in self.functions.items():
+			if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn_def.attributes:
+				self.raise_fn = fn_def
+			if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn_def.attributes:
+				self.mem_raise_fn = fn_def
+
 		self.generates_exception = False
 		self.is_exception = False
 		self.temp_var_count = 0

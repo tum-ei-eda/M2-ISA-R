@@ -418,6 +418,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 			code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
 			code_str += context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
+			code_str += context.wrap_codestring(f'if (cpu->exception) return {context.mem_raise_fn.name}(cpu->exception);') + '\n'
 
 		if target.is_mem_access:
 			if len(target.mem_ids) != 1:
