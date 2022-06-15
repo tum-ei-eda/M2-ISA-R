@@ -680,3 +680,6 @@ def group(self: behav.Group, context: TransformerContext):
 
 def operator(self: behav.Operator, context: TransformerContext):
 	return self.op
+
+def code_literal(self: behav.CodeLiteral, context: TransformerContext):
+	return CodeString(self.val, False, context.native_size, False, False)
