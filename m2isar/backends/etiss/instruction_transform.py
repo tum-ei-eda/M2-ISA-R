@@ -37,7 +37,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 		))
 
 		if context.generates_exception:
-			return_conditions.append("cpu->exception")
+			return_conditions.append("cpu->return_pending")
 		if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
 			return_conditions.append(f'cpu->instructionPointer != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
 		elif arch.InstrAttribute.NO_CONT in context.attributes:
