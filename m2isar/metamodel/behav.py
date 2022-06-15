@@ -16,6 +16,10 @@ class BaseNode:
 	def generate(self, context):
 		raise NotImplementedError()
 
+class CodeLiteral(BaseNode):
+	def __init__(self, val) -> None:
+		self.val = val
+
 class Operator(BaseNode):
 	def __init__(self, op: str):
 		self.value = op
