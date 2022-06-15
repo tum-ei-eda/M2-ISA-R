@@ -14,7 +14,8 @@ prefixes = {
 }
 
 rename_write = {
-	'PC': 'cpu->nextPc'
+#	'PC': 'cpu->nextPc'
+	'PC': 'cpu->instructionPointer'
 }
 
 rename_static = {
