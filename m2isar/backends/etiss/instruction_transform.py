@@ -50,6 +50,9 @@ def operation(self: behav.Operation, context: TransformerContext):
 			cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
 			code_str += f'\npartInit.code() += "{cond_str}return cpu->exception;\\n";'
 
+	elif arch.FunctionAttribute.ETISS_EXC_ENTRY in context.attributes:
+		code_str = "cpu->return_pending = 1;\n" + code_str
+
 	return code_str
 
 def return_(self: behav.Return, context: TransformerContext):
