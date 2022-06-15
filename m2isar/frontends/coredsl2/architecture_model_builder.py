@@ -86,7 +86,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
 
 		if name in self._instruction_sets:
-			raise M2DuplicateError(f"instruction set {name} already defined")
+			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
 
 		self._instruction_sets[name] = i
 		return i
@@ -156,7 +156,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		if f2 is not None:
 			if len(f2.operation.statements) > 0:
-				raise M2DuplicateError(f"function {name} already defined")
+				raise M2DuplicateError(f"function \"{name}\" already defined")
 
 		self._functions[name] = f
 		return f
@@ -229,14 +229,14 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				range = arch.RangeSpec(left, right)
 
 				#if range.length != size[0]:
-				#	raise ValueError(f"range mismatch for {name}")
+				#	raise ValueError(f"range mismatch for \"{name}\"")
 
 				m = arch.Memory(name, range, type_._width, attributes)
 				m.parent = reference
 				m.parent.children.append(m)
 
 				if name in self._memory_aliases:
-					raise M2DuplicateError(f"memory {name} already defined")
+					raise M2DuplicateError(f"memory \"{name}\" already defined")
 
 				self._memory_aliases[name] = m
 				ret_decls.append(m)
@@ -250,7 +250,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					c = arch.Constant(name, init, [], type_._width, type_.signed)
 
 					if name in self._constants:
-						raise M2DuplicateError(f"constant {name} already defined")
+						raise M2DuplicateError(f"constant \"{name}\" already defined")
 					self._constants[name] = c
 					ret_decls.append(c)
 
@@ -277,7 +277,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						m._initval[None] = init.generate(None)
 
 					if name in self._memories:
-						raise M2DuplicateError(f"memory {name} already defined")
+						raise M2DuplicateError(f"memory \"{name}\" already defined")
 
 					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
@@ -344,7 +344,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.ref.text
 		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name)
 		if ref is None:
-			raise M2NameError(f"reference {name} could not be resolved")
+			raise M2NameError(f"reference \"{name}\" could not be resolved")
 		return behav.NamedReference(ref)
 
 	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):

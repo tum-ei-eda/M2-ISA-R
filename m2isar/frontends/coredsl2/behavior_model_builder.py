@@ -8,7 +8,7 @@
 
 import logging
 
-from ... import M2NameError, M2TypeError
+from ... import M2NameError, M2SyntaxError, M2TypeError
 from ...metamodel import arch, behav
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
@@ -53,7 +53,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
 		if ref is None:
-			raise M2NameError(f"function {name} is not defined")
+			raise M2NameError(f"function \"{name}\" is not defined")
 
 		return behav.ProcedureCall(ref, args)
 
@@ -64,7 +64,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
 		if ref is None:
-			raise M2NameError(f"function {name} is not defined")
+			raise M2NameError(f"function \"{name}\" is not defined")
+
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in ref.attributes:
+			raise M2SyntaxError(f"exception entry function \"{name}\" must be called as procedure")
 
 		return behav.FunctionCall(ref, args)
 
@@ -228,7 +231,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			self._memories.get(name)
 
 		if var is None:
-			raise M2NameError(f"Named reference {name} does not exist!")
+			raise M2NameError(f"Named reference \"{name}\" does not exist!")
 
 		return behav.NamedReference(var)
 
