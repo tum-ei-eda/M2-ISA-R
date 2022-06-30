@@ -39,7 +39,7 @@ def process_functions(core: arch.CoreDef):
 		#if not fn_def.extern and (arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
 		#	raise M2ValueError("etiss_needs_arch and etiss_staticfn only allowed for extern functions, in function %s", fn_name)
 
-		if fn_def.extern:
+		if fn_def.extern or arch.FunctionAttribute.ETISS_EXC_ENTRY in fn_def.attributes:
 			if arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 				fn_def.static = True
 
