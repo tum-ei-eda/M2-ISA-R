@@ -460,13 +460,6 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
-	try:
-		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
-		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
-	except Exception:
-		new_size = expr.size
-		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
-
 	static = StaticType.NONE not in [x.static for x in (expr, left, right)]
 
 	if not static:
@@ -476,6 +469,13 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 			left.code = context.make_static(left.code)
 		if right.static and not right.is_literal:
 			right.code = context.make_static(right.code)
+
+	try:
+		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
+		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
+	except Exception:
+		new_size = expr.size
+		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
 	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed, expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
