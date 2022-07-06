@@ -36,7 +36,7 @@ def binary_operation(self: behav.BinaryOperation, context):
 			self.right.bit_size = self.left.reference.size
 
 	if isinstance(self.left, behav.IntLiteral) and isinstance(self.right, behav.IntLiteral):
-		res: int = eval(f"{self.left.value}{self.op.value}{self.right.value}")
+		res: int = int(eval(f"{self.left.value}{self.op.value}{self.right.value}"))
 		return behav.IntLiteral(res, max(self.left.bit_size, self.right.bit_size, res.bit_length()))
 
 	return self
