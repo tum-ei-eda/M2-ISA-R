@@ -6,10 +6,13 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-from ...metamodel import arch, behav
-from ...metamodel.utils import StaticType
+import dataclasses
 
-def operation(self: behav.Operation, context):
+from ...metamodel import arch, behav
+from ...metamodel.utils import ScalarStaticnessContext, StaticType
+
+
+def operation(self: behav.Operation, context: ScalarStaticnessContext):
 	statements = []
 	for stmt in self.statements:
 		temp = stmt.generate(context)
@@ -20,40 +23,45 @@ def operation(self: behav.Operation, context):
 
 	return self
 
-def binary_operation(self: behav.BinaryOperation, context):
+def binary_operation(self: behav.BinaryOperation, context: ScalarStaticnessContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
 	return min(left, right)
 
-def slice_operation(self: behav.SliceOperation, context):
+def slice_operation(self: behav.SliceOperation, context: ScalarStaticnessContext):
 	expr = self.expr.generate(context)
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
 	return min(expr, left, right)
 
-def concat_operation(self: behav.ConcatOperation, context):
+def concat_operation(self: behav.ConcatOperation, context: ScalarStaticnessContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
 	return min(left, right)
 
-def number_literal(self: behav.IntLiteral, context):
+def number_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
 	return StaticType.READ
 
-def int_literal(self: behav.IntLiteral, context):
+def int_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
 	return StaticType.READ
 
-def scalar_definition(self: behav.ScalarDefinition, context):
+def scalar_definition(self: behav.ScalarDefinition, context: ScalarStaticnessContext):
 	self.scalar.static = StaticType.RW
 	return StaticType.RW
 
-def assignment(self: behav.Assignment, context):
+def assignment(self: behav.Assignment, context: ScalarStaticnessContext):
 	target = self.target.generate(context)
-	expr = self.expr.generate(context)
-	if expr != StaticType.NONE:
-		expr = StaticType.RW
+
+	if context.context_is_static != StaticType.NONE:
+		expr = self.expr.generate(context)
+
+		if expr != StaticType.NONE:
+			expr = StaticType.RW
+	else:
+		expr = StaticType.NONE
 
 	if isinstance(self.target, behav.NamedReference) and isinstance(self.target.reference, arch.Scalar):
 		self.target.reference.static &= expr
@@ -62,32 +70,34 @@ def assignment(self: behav.Assignment, context):
 		self.target.scalar.static &= expr
 
 
-def conditional(self: behav.Conditional, context):
+def conditional(self: behav.Conditional, context: ScalarStaticnessContext):
 	conds = [x.generate(context) for x in self.conds]
-	stmts = [[y.generate(context) for y in x] for x in self.stmts]
+	stmt_context = dataclasses.replace(context, context_is_static=min(conds))
+	stmts = [[y.generate(stmt_context) for y in x] for x in self.stmts]
 
-def loop(self: behav.Loop, context):
+def loop(self: behav.Loop, context: ScalarStaticnessContext):
 	cond = self.cond.generate(context)
-	stmts = [x.generate(context) for x in self.stmts]
+	stmt_context = dataclasses.replace(context, context_is_static=cond)
+	stmts = [x.generate(stmt_context) for x in self.stmts]
 
-def ternary(self: behav.Ternary, context):
+def ternary(self: behav.Ternary, context: ScalarStaticnessContext):
 	cond = self.cond.generate(context)
 	then_expr = self.then_expr.generate(context)
 	else_expr = self.else_expr.generate(context)
 
 	return min(cond, then_expr, else_expr)
 
-def return_(self: behav.Return, context):
+def return_(self: behav.Return, context: ScalarStaticnessContext):
 	expr = self.expr.generate(context)
 
 	return expr
 
-def unary_operation(self: behav.UnaryOperation, context):
+def unary_operation(self: behav.UnaryOperation, context: ScalarStaticnessContext):
 	right = self.right.generate(context)
 
 	return right
 
-def named_reference(self: behav.NamedReference, context):
+def named_reference(self: behav.NamedReference, context: ScalarStaticnessContext):
 	if isinstance(self.reference, arch.Scalar):
 		return self.reference.static
 
@@ -100,23 +110,23 @@ def named_reference(self: behav.NamedReference, context):
 
 	return static_map.get(type(self.reference), StaticType.NONE)
 
-def indexed_reference(self: behav.IndexedReference, context):
+def indexed_reference(self: behav.IndexedReference, context: ScalarStaticnessContext):
 	index = self.index.generate(context)
 
 	return StaticType.NONE
 
-def type_conv(self: behav.TypeConv, context):
+def type_conv(self: behav.TypeConv, context: ScalarStaticnessContext):
 	expr = self.expr.generate(context)
 
 	return expr
 
-def callable(self: behav.Callable, context):
+def callable(self: behav.Callable, context: ScalarStaticnessContext):
 	args = [arg.generate(context) for arg in self.args]
 	args.append(StaticType.READ if self.ref_or_name.static else StaticType.NONE)
 
 	return min(args)
 
-def group(self: behav.Group, context):
+def group(self: behav.Group, context: ScalarStaticnessContext):
 	expr = self.expr.generate(context)
 
 	return expr
