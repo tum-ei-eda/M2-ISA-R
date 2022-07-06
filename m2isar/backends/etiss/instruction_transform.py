@@ -307,7 +307,7 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
 		elif_str = f' else if ({elif_cond}) {{'
 		if not static:
-			elif_str = f'partInit.code() += "{elif_str}\\n";'
+			elif_str = f'\npartInit.code() += "{elif_str}\\n";'
 			context.dependent_regs.update(elif_cond.regs_affected)
 
 		code_str += elif_str + '\n'
