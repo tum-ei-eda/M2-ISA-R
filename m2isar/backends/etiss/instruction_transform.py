@@ -554,7 +554,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 	size = referred_mem.size
 
 	index_code = index.code
-	if index.static and not context.ignore_static:
+	if index.static and not context.ignore_static and not index.is_literal:
 		index.code = context.make_static(index.code)
 
 	if context.ignore_static:
