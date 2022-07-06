@@ -10,8 +10,8 @@ import logging
 
 from ... import M2ValueError
 from .. import arch, patch_model
-from . import (expr_simplifier, function_staticness, function_throws,
-               scalar_staticness)
+from . import (ScalarStaticnessContext, expr_simplifier, function_staticness,
+               function_throws, scalar_staticness)
 
 logger = logging.getLogger("preprocessor")
 
@@ -26,9 +26,10 @@ def process_functions(core: arch.CoreDef):
 		throws = fn_def.operation.generate(None)
 		fn_def.throws = throws or arch.FunctionAttribute.ETISS_EXC_ENTRY in fn_def.attributes
 
+		context = ScalarStaticnessContext()
 		patch_model(scalar_staticness)
 		logger.debug("examining scalar staticness for fn %s", fn_name)
-		fn_def.operation.generate(None)
+		fn_def.operation.generate(context)
 
 		patch_model(function_staticness)
 		logger.debug("examining function staticness for fn %s", fn_name)
@@ -58,6 +59,7 @@ def process_instructions(core: arch.CoreDef):
 		throws = instr_def.operation.generate(None)
 		instr_def.throws = throws
 
+		context = ScalarStaticnessContext()
 		patch_model(scalar_staticness)
 		logger.debug("examining staticness for instr %s", instr_def.name)
-		instr_def.operation.generate(None)
+		instr_def.operation.generate(context)

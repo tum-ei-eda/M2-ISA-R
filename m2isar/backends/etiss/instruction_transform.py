@@ -310,7 +310,7 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
 		elif_str = f' else if ({elif_cond}) {{'
 		if not static:
-			elif_str = f'partInit.code() += "{elif_str}\\n";'
+			elif_str = f'\npartInit.code() += "{elif_str}\\n";'
 			context.dependent_regs.update(elif_cond.regs_affected)
 
 		code_str += elif_str + '\n'
@@ -470,13 +470,6 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
 
-	try:
-		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
-		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
-	except Exception:
-		new_size = expr.size
-		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
-
 	static = StaticType.NONE not in [x.static for x in (expr, left, right)]
 
 	if not static:
@@ -486,6 +479,13 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 			left.code = context.make_static(left.code)
 		if right.static and not right.is_literal:
 			right.code = context.make_static(right.code)
+
+	try:
+		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
+		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
+	except Exception:
+		new_size = expr.size
+		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
 	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed, expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
@@ -571,7 +571,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 	size = referred_mem.size
 
 	index_code = index.code
-	if index.static and not context.ignore_static:
+	if index.static and not context.ignore_static and not index.is_literal:
 		index.code = context.make_static(index.code)
 
 	if context.ignore_static:
