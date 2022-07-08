@@ -53,7 +53,7 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 
 	with ExitStack() as stack:
 		if separate:
-			outfiles = {ext_name: stack.enter_context(open(output_path / f'{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types}
+			outfiles = {ext_name: stack.enter_context(open(output_path / f'{core_name}_{ext_name}Instr.cpp', 'w')) for ext_name in core.contributing_types if len(core.instructions_by_ext[ext_name]) > 0}
 
 		outfiles['default'] = stack.enter_context(open(output_path / f'{core_name}Instr.cpp', 'w'))
 

@@ -187,7 +187,7 @@ def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.P
 
 	arch_files = [f'{core.name}Instr.cpp']
 	if separate:
-		arch_files += [f'{core.name}_{ext_name}Instr.cpp' for ext_name in core.contributing_types]
+		arch_files += [f'{core.name}_{ext_name}Instr.cpp' for ext_name in core.contributing_types if len(core.instructions_by_ext[ext_name]) > 0]
 
 	txt = arch_header_template.render(
 		start_time=start_time,
