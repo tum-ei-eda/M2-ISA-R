@@ -7,7 +7,7 @@
 # Technical University of Munich
 
 import itertools
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from enum import Enum, auto
 from typing import Union
 
@@ -296,6 +296,7 @@ class Instruction(SizedRefOrConst):
 
 class Function(SizedRefOrConst):
 	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: DataType, args: "list[FnParam]", operation: "Operation", extern: bool=False):
+		self.ext_name = ""
 		self.data_type = data_type
 		self.attributes = attributes if attributes else {}
 		self.scalars = {}
@@ -362,6 +363,15 @@ class CoreDef(Named):
 		self.main_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
+
+		self.instructions_by_ext = defaultdict(dict)
+		self.functions_by_ext = defaultdict(dict)
+
+		for (code, mask), instr_def in self.instructions.items():
+			self.instructions_by_ext[instr_def.ext_name][(code, mask)] = instr_def
+
+		for fn_name, fn_def in self.functions.items():
+			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
 			if MemoryAttribute.IS_MAIN_REG in mem.attributes:
