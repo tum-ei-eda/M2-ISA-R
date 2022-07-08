@@ -350,6 +350,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):
 		return ctx.children[0].symbol.text
 
+	def visitType_qualifier(self, ctx: CoreDSL2Parser.Type_qualifierContext):
+		return ctx.children[0].symbol.text
+
 	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
 		return SIGNEDNESS[ctx.children[0].symbol.text]
 
