@@ -614,11 +614,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 		elif expr.mem_ids[-1].access_size == self.size:
 			expr.mem_corrected = True
 
-	# mask off unneeded bits
-	if self.actual_size != self.size:
-		code_str = f'({expr.code} & {hex((1 << self.size) - 1)})'
-	else:
-		code_str = expr.code
+	code_str = expr.code
 
 	# sign extension
 	if self.data_type == arch.DataType.S and expr.actual_size != expr.size:
@@ -641,7 +637,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 def int_literal(self: behav.IntLiteral, context: TransformerContext):
 	lit = int(self.value)
 	size = min(self.bit_size, 64)
-	sign = False
+	sign = self.signed
 
 	twocomp_lit = (lit + (1 << size)) % (1 << size)
 
