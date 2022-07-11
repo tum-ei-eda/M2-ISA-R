@@ -357,7 +357,7 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 		if else_expr.static and not else_expr.is_literal:
 			else_expr.code = context.make_static(else_expr.code)
 
-	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size, then_expr.signed or else_expr.signed, False, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
+	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size, then_expr.signed or else_expr.signed, any((cond.is_mem_access, then_expr.is_mem_access, else_expr.is_mem_access)), set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
 	c.mem_ids = cond.mem_ids + then_expr.mem_ids + else_expr.mem_ids
 
 	return c
