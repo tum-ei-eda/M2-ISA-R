@@ -55,7 +55,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: ScalarStaticnessCon
 def assignment(self: behav.Assignment, context: ScalarStaticnessContext):
 	target = self.target.generate(context)
 
-	if context.context_is_static != StaticType.NONE:
+	if context.context_is_static != StaticType.NONE or isinstance(self.target, behav.ScalarDefinition):
 		expr = self.expr.generate(context)
 
 		if expr != StaticType.NONE:
