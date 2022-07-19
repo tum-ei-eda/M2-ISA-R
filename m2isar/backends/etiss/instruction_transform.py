@@ -609,7 +609,10 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size} - {expr.size})) >> ({target_size} - {expr.size}))'
 
 	else:
-		code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
+		if self.data_type == arch.DataType.S and not expr.signed and self.actual_size > expr.actual_size:
+			code_str = f'({data_type_map[self.data_type]}{self.actual_size})({data_type_map[self.data_type]}{expr.actual_size})({code_str})'
+		else:
+			code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
 
 	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
 	c.mem_ids = expr.mem_ids
