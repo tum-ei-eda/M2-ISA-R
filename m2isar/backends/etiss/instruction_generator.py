@@ -89,7 +89,8 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 			logger.debug("adding parameter %s", enc.name)
 			if enc.name not in seen_fields:
 				seen_fields[enc.name] = 255
-				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{core_default_width} {enc.name} = 0;\n'
+				width = instr_def.fields[enc.name].actual_size
+				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
 			upper = enc.range.upper
