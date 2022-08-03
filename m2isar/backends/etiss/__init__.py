@@ -9,6 +9,8 @@
 from enum import Enum, auto
 
 class BlockEndType(Enum):
+	"""Denotes the conditions on which to enforce a translation block end in ETISS"""
+
 	NONE = auto()
 	UNCOND = auto()
 	ALL = auto()

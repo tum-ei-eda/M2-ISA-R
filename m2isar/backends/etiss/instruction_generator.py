@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Functions for generating function and instruction behavior."""
+
 import logging
 from string import Template as strfmt
 
@@ -26,6 +28,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	definitions in the core object.
 	"""
 
+	# load the instruction_transform generators
 	patch_model(instruction_transform)
 
 	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
@@ -43,6 +46,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 		if fn_def.size:
 			return_type += f'{fn_def.actual_size}'
 
+		# set up a transformer context and generate code
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes, core.functions, 0, core_default_width, core_name, static_scalars, True)
 
 		logger.debug("generating code for %s", fn_name)
@@ -55,6 +59,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 		logger.debug("generating header for %s", fn_name)
 
 		args_list = [generate_arg_str(arg) for arg in fn_def.args.values()]
+
+		# if function needs access to ETISS architecture data, add these as arguments to the function
 		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
@@ -84,10 +90,14 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	logger.debug("generating instruction parameters for %s", instr_def.name)
 
+	# iterate from LSB to MSB
 	for enc in reversed(instr_def.encoding):
 		if isinstance(enc, arch.BitField):
+			# parameter field
 			logger.debug("adding parameter %s", enc.name)
+
 			if enc.name not in seen_fields:
+				# first encounter of this parameter, instantiate a new integer for it
 				seen_fields[enc.name] = 255
 				width = instr_def.fields[enc.name].actual_size
 				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{width} {enc.name} = 0;\n'
@@ -99,11 +109,14 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 			if seen_fields[enc.name] > lower:
 				seen_fields[enc.name] = lower
 
+			# generate extraction code
 			fields_code += f'static BitArrayRange R_{enc.name}_{lower}({enc_idx+length-1}, {enc_idx});\n'
 			fields_code += f'{enc.name} += R_{enc.name}_{lower}.read(ba) << {lower};\n'
 
+			# keep track of current position in encoding
 			enc_idx += length
 		else:
+			# fixed encoding bits
 			logger.debug("adding fixed encoding part")
 			enc_idx += enc.length
 
@@ -146,10 +159,12 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 		if instr_def.attributes == None:
 			instr_def.attributes = []
 
+		# generate instruction parameter extraction code
 		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
 
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
 
+		# force a block end if necessary
 		if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)
 				or (arch.InstrAttribute.NO_CONT in instr_def.attributes and block_end_on == BlockEndType.ALL)):
 			logger.debug("adding forced block end")
@@ -164,6 +179,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 		out_code = instr_def.operation.generate(context)
 		out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
 
+		# keep track of temp and memory variable names
 		if context.temp_var_count > temp_var_count:
 			temp_var_count = context.temp_var_count
 

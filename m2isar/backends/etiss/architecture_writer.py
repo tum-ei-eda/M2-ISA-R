@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Functions for generating auxillary ETISS ArchImpl files."""
+
 import logging
 import pathlib
 
@@ -17,6 +19,8 @@ from .templates import template_dir
 logger = logging.getLogger("arch_writer")
 
 def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
+	"""Recursively generate register declarations"""
+
 	logger.debug("processing register %s", reg)
 	if arch.MemoryAttribute.IS_PC in reg.attributes or arch.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
@@ -29,6 +33,9 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 		for child in reg.children:
 			write_child_reg_def(child, regs)
 
+		# registers with children (aliases) are defined as two arrays:
+		# 1) array of pointers, used for actual access
+		# 2) array of actual data type, for every index which is not aliased
 		regs.append(f"etiss_uint{reg.actual_size} *{reg.name}{array_txt}")
 		regs.append(f"etiss_uint{reg.actual_size} ins_{reg.name}{array_txt}")
 	else:
@@ -90,6 +97,8 @@ def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_
 		actual_regs.append(reg)
 
 def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
+	"""Generate {CoreName}Arch.cpp file. Contains mainly register initialization code."""
+
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
 
 	ptr_regs = []
@@ -99,13 +108,16 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 
 	logger.info("writing architecture class file")
 
+	# determine memory types
 	for mem_name, mem_desc in core.memories.items():
 		if mem_desc.is_main_mem:
 			continue
 		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs, initval_regs)
 
+	# generate main register file names for ETISS's 'char* reg_name[]'
 	reg_names = [f"{core.main_reg_file.name}{n}" for n in range(core.main_reg_file.data_range.length)]
 
+	# if main register file entries have aliases optionally use these for 'char* reg_name[]'
 	if aliased_regnames:
 		for child in core.main_reg_file.children:
 			reg_names[child.range.lower] = child.name
@@ -186,6 +198,9 @@ def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.P
 	logger.info("writing CMakeLists")
 
 	arch_files = [f'{core.name}Instr.cpp']
+
+	# if generation of one instr.cpp per extension is desired, only generate extensions which actually
+	# contain instructions
 	if separate:
 		arch_files += [f'{core.name}_{ext_name}Instr.cpp' for ext_name in core.contributing_types if len(core.instructions_by_ext[ext_name]) > 0]
 

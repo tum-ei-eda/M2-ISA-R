@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+# Simple disassembler backend for M2-ISA-R ISA metamodels
+
 import argparse
 import logging
 import pathlib
@@ -18,10 +20,18 @@ from ...metamodel import arch
 logger = logging.getLogger("viewer")
 
 def sort_instruction(entry):
+	"""Key function for sorting instructions:
+
+	Sorts by most restrictive mask first, to accurately distinguish
+	overlapping opcodes
+	"""
+
 	(code, mask), _ = entry
 	return bin(mask).count("1"), code
 
 def find_instr(iw: int, instructions: "dict[tuple[int, int], arch.Instruction]"):
+	"""Linear search for an instruction by its codeword."""
+
 	for (code, mask), instr_def in instructions.items():
 		if (iw & mask) == code:
 			return instr_def
@@ -32,6 +42,7 @@ def slice_int(v: int, upper: int, lower: int):
 	return (v & ((1 << upper + 1) - 1)) >> lower
 
 def decode(iw: int, instr: arch.Instruction):
+	"""Separate out operands of an instruction from its codeword."""
 	enc_idx = 0
 
 	operands = defaultdict(int)
@@ -90,17 +101,23 @@ def main():
 
 	instrs_by_size = defaultdict(dict)
 
+	# group instructions by their codeword width
 	for k, v in core.instructions.items():
 		instrs_by_size[v.size][k] = v
 
+	# sort instructions by opcode
 	for k, v in instrs_by_size.items():
 		instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
 
 	instrs_by_size = dict(sorted(instrs_by_size.items()))
 
 	with open(args.bin, "rb") as f:
+		# read at most XLEN bytes at a time
 		while iw_read := f.peek(readlen):
+			# truncate read data as peek is not guaranteed to return exactly XLEN bytes
 			iw = iw_read[:readlen]
+
+			# look for instruction
 			found_ins = None
 			for cls in sorted(core.instr_classes):
 				ii = int.from_bytes(iw[:cls // 8], "little")
@@ -112,18 +129,19 @@ def main():
 				ins_str = "unknown"
 				step = steplen
 
+			# decode instruction operands
 			else:
 				operands = decode(ii, found_ins)
 				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
 				ins_str = f"{found_ins.name} [{op_str}]"
 				step = found_ins.size // 8
 
+			# print decoded instruction mnemonic
 			iword = int.from_bytes(iw[:step], "little")
 			iword = "{iword:0{step}x}".format(iword=iword, step=step*2)
 			print(f"{f.tell():08x}: {iword:<16} {ins_str}")
 
 			f.seek(step, SEEK_CUR)
-
 
 
 if __name__ == "__main__":

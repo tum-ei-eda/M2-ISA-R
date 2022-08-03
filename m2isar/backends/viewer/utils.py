@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Utility stuff for M2-ISA-R viewer"""
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,6 +15,8 @@ if TYPE_CHECKING:
 	from tkinter import ttk
 
 class TreeGenContext:
+	"""Data keeping class for recursive TreeView generation"""
+
 	def __init__(self, tree: "ttk.Treeview", parent) -> None:
 		self.tree = tree
 		self.parent_stack = [parent]

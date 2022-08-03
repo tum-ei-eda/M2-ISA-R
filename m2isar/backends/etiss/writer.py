@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Main entrypoint for the etiss_writer program."""
+
 import argparse
 import logging
 import pathlib
@@ -30,6 +32,8 @@ def setup():
 	"""Setup a M2-ISA-R metamodel consumer. Create an argument parser, unpickle the model
 	and generate output file structure.
 	"""
+
+	# read command line arguments
 	parser = argparse.ArgumentParser()
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
@@ -38,9 +42,11 @@ def setup():
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
+	# configure logging
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("etiss_writer")
 
+	# resolve model paths
 	top_level = pathlib.Path(args.top_level)
 	abs_top_level = top_level.resolve()
 	search_path = abs_top_level.parent.parent
@@ -55,6 +61,7 @@ def setup():
 			raise FileNotFoundError('Models not generated!')
 		model_fname = model_path / (abs_top_level.stem + '.m2isarmodel')
 
+	# create top level output directory
 	spec_name = abs_top_level.stem
 	output_base_path = search_path.joinpath('gen_output')
 	output_base_path.mkdir(exist_ok=True)
@@ -69,15 +76,20 @@ def setup():
 	return (models, logger, output_base_path, spec_name, start_time, args)
 
 def main():
+	# setup etiss writer
 	models, logger, output_base_path, spec_name, start_time, args = setup()
 
+	# preprocess all models
 	for core_name, core in models.items():
 		logger.info("preprocessing model %s", core_name)
 		process_functions(core)
 		process_instructions(core)
 
+	# generate each core in the model
 	for core_name, core in models.items():
 		logger.info("processing model %s", core_name)
+
+		# create output files path
 		output_path = output_base_path / spec_name / core_name
 		try:
 			output_path.mkdir(parents=True)
@@ -85,6 +97,7 @@ def main():
 			shutil.rmtree(output_path)
 			output_path.mkdir(parents=True)
 
+		# generate and write files
 		write_arch_struct(core, start_time, output_path)
 		write_arch_header(core, start_time, output_path)
 		write_arch_cpp(core, start_time, output_path, False)

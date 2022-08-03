@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Generate a ttk.Treeview representation of a M2-ISA-R model structure."""
+
 from ...metamodel import arch, behav
 from .utils import TreeGenContext
 import tkinter as tk
