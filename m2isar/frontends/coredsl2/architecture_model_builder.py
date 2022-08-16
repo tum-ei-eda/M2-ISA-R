@@ -6,8 +6,6 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""ANTLR visitor to build the architecture model of a CoreDSL 2 specification."""
-
 import itertools
 import logging
 from typing import Union
@@ -21,6 +19,8 @@ logger = logging.getLogger("arch_builder")
 
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
+	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
+
 	_constants: "dict[str, arch.Constant]"
 	_instructions: "dict[str, arch.Instruction]"
 	_functions: "dict[str, arch.Function]"

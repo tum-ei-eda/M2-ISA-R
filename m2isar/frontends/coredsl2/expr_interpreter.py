@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Very crude expression evaluation functions for use during model generation."""
+
 from ... import M2ValueError
 from ...metamodel import arch, behav
 

@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Tranformation functions to determine whether a function throws an exception."""
+
 from ...metamodel import arch, behav
 
 def operation(self: behav.Operation, context):

@@ -6,6 +6,20 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""A transformation module for simplifying M2-ISA-R behavior expressions. The following
+simplifications are done:
+
+* Resolvable :class:`m2isar.metamodel.arch.Constant` s are replaced by
+  `m2isar.metamodel.arch.IntLiteral` s representing their value
+* Fully resolvable arithmetic operations are carried out and their results
+  represented as a matching :class:`m2isar.metamodel.arch.IntLiteral`
+* Conditions and loops with fully resolvable conditions are either discarded entirely
+  or transformed into code blocks without any conditions
+* Ternaries with fully resolvable conditions are transformed into only the matching part
+* Type conversions of :class:`m2isar.metamodel.arch.IntLiteral` s apply the desired
+  type directly to the :class:`IntLiteral` and discard the type conversion
+"""
+
 from ...metamodel import arch, behav
 
 def operation(self: behav.Operation, context):

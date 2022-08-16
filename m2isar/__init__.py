@@ -6,6 +6,15 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""This is the top-level M2-ISA-R package. The project is divided into three major parts:
+
+* :mod:`m2isar.metamodel`, the metamodel classes and helpers.
+* :mod:`m2isar.backends`, consumers of M2-ISA-R models. Provided are an architecture plugin
+  generator for ETISS and a graphical tool to inspect M2-ISA-R models.
+* :mod:`m2isar.frontends`, producers of M2-ISA-R models. Currently provided is a parser for
+  CoreDSL 2 ISA models.
+"""
+
 class M2Error(Exception):
 	pass
 

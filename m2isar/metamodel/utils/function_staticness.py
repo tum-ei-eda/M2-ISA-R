@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Transformation functions to determine whether a function is considered to be static."""
+
 from ...metamodel import arch, behav
 
 def operation(self: behav.Operation, context):

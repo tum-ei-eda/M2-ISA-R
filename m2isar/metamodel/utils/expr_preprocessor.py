@@ -6,6 +6,10 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""A helper module for applying all preprocessing functions in this package to
+functions and instructions.
+"""
+
 import logging
 
 from ... import M2ValueError
@@ -16,6 +20,8 @@ from . import (ScalarStaticnessContext, expr_simplifier, function_staticness,
 logger = logging.getLogger("preprocessor")
 
 def process_functions(core: arch.CoreDef):
+	"""Apply all preprocessing to all functions in `core`."""
+
 	for fn_name, fn_def in core.functions.items():
 		patch_model(expr_simplifier)
 		logger.debug("simplifying expressions for fn %s", fn_name)
@@ -49,6 +55,8 @@ def process_functions(core: arch.CoreDef):
 			fn_def.static = ret
 
 def process_instructions(core: arch.CoreDef):
+	"""Apply all preprocessing to all instructions in `core`."""
+
 	for (code, mask), instr_def in core.instructions.items():
 		patch_model(expr_simplifier)
 		logger.debug("simplifying expressions for instr %s", instr_def.name)
