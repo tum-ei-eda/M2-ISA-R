@@ -19,10 +19,13 @@ setuptools.setup(
     setup_requires=["setuptools_scm"],
     install_requires=[
         "mako",
-        "lark-parser >= 0.11.0",
-        "antlr4-python3-runtime == 4.10",
-        "bitarray"
+        "antlr4-python3-runtime ~= 4.10"
     ],
+    extras_require={
+        "lark": [
+            "lark-parser ~= 0.11"
+        ]
+    },
     entry_points={
         "console_scripts": [
             "etiss_writer=m2isar.backends.etiss.writer:main",
