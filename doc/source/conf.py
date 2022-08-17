@@ -21,18 +21,25 @@ release = '0.0.1'
 extensions = [
     #'sphinx.ext.autodoc',
     #'sphinx.ext.autosummary',
-    #'sphinx.ext.todo',
-    #'sphinx.ext.coverage',
-    #'sphinx.ext.viewcode',
+    'sphinx.ext.todo',
+    'sphinx.ext.coverage',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     #'sphinx_autodoc_typehints',
     'autoapi.extension'
 ]
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'mako': ('https://docs.makotemplates.org/en/latest/', None),
+    'lark-parser': ('https://lark-parser.readthedocs.io/en/latest/', None)
+}
 
 autoapi_type = 'python'
 autoapi_dirs = ['../../m2isar']
 autoapi_options = [
     'members',
-    'inherited-members',
+    #'inherited-members',
     'undoc-members',
     'private-members',
     'show-inheritance',
@@ -43,16 +50,13 @@ autoapi_options = [
 ]
 autoapi_ignore = [
     '*migrations*',
-    '*parser_gen*'
+    #'*parser_gen*'
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
-html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
-autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
-set_type_checking_flag = True  # Enable 'expensive' imports for sphinx_autodoc_typehints
-#nbsphinx_allow_errors = True  # Continue through Jupyter errors
+#html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
 #autodoc_typehints = "description" # Sphinx-native method. Not as good as sphinx_autodoc_typehints
 add_module_names = False # Remove namespaces from class/method signatures
 
