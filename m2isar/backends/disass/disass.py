@@ -6,7 +6,9 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-# Simple disassembler backend for M2-ISA-R ISA metamodels
+"""Simple disassembler backend for M2-ISA-R ISA metamodels. Not very
+actively maintained, might break or otherwise not work as expected.
+"""
 
 import argparse
 import logging
@@ -43,6 +45,7 @@ def slice_int(v: int, upper: int, lower: int):
 
 def decode(iw: int, instr: arch.Instruction):
 	"""Separate out operands of an instruction from its codeword."""
+
 	enc_idx = 0
 
 	operands = defaultdict(int)
