@@ -28,6 +28,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 	code_str = '\n'.join(args)
 
 	if not context.ignore_static:
+		code_str += '\npartInit.code() += "cpu->instructionPointer = cpu->nextPc;\\n";'# + code_str
 		return_conditions = []
 		return_needed = any((
 			context.generates_exception,
