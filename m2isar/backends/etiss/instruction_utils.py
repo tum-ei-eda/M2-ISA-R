@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Utility classes and functions for instruction generation."""
+
 from dataclasses import dataclass
 from itertools import chain
 from string import Template
@@ -25,6 +27,8 @@ data_type_map = {
 MEM_VAL_REPL = 'mem_val_'
 
 def actual_size(size, min=8, max=128):
+	"""Calculate a fitting c datatype width for any arbitrary size."""
+
 	s = 1 << (size - 1).bit_length()
 	if s > max:
 		raise M2ValueError("value too big")
@@ -32,6 +36,10 @@ def actual_size(size, min=8, max=128):
 	return s if s >= min else min
 
 class CodeString:
+	"""Code string object. Tracks generate C++ code and various metadata for recursive
+	code generation.
+	"""
+
 	mem_ids: "list[MemID]"
 	def __init__(self, code, static, size, signed, is_mem_access, regs_affected=None):
 		self.code = code
@@ -57,12 +65,17 @@ class CodeString:
 
 @dataclass
 class MemID:
+	"""Track a memory access across recursive code generation."""
 	mem_space: arch.Memory
 	mem_id: int
 	index: CodeString
 	access_size: int
 
 class TransformerContext:
+	"""Track miscellaneous information throughout the code generation process. Also
+	provides helper functions for staticness conversion etc.
+	"""
+
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
 			attributes: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
 			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, ignore_static=False):
@@ -109,17 +122,22 @@ class TransformerContext:
 		self.used_arch_data = False
 
 	def make_static(self, val):
+		"""Wrap a static expression."""
+
 		if self.ignore_static:
 			return val
 		return Template(f'" + std::to_string({val}) + "').safe_substitute(**replacements.rename_static)
 
 	def wrap_codestring(self, val, static=False):
+		"""Wrap an entire static line."""
+
 		if self.ignore_static or static:
 			return val
 		else:
 			return f'partInit.code() += "{val}\\n";'
 
 	def get_constant_or_val(self, name_or_val):
+		"""Convenience accessor for constant values."""
 		if type(name_or_val) == int:
 			return name_or_val
 		else:

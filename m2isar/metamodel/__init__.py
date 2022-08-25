@@ -6,18 +6,33 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""This module contains the M2-ISA-R metamodel classes to build an ISA from. The M2-ISA-R
+metamodel is split into two submodules, one for architectural description, one for the behavioral
+description.
+
+Also included are preprocessing functions, mostly to simplify a model and to extract information
+about scalar and function staticness as well as exceptions.
+
+Any model traversal should use the :func:`patch_model` function and a module including the needed
+transformations. :func:`patch_model` monkey patches transformation functions into the classes of the
+behavior model, therefore separating model code from transformation code. For examples on how
+these transformation functions look like, see either the modules in :mod:`m2isar.metamodel.utils`
+or the main code generation module :mod:`m2isar.backends.etiss.instruction_transform`.
+"""
+
 import inspect
 import logging
 
 def patch_model(module):
 	"""Monkey patch transformation functions inside `module`
-	into `m2isar.metamodel.behav` classes
+	into :mod:`m2isar.metamodel.behav` classes
 
 	Transformation functions must have a specific signature for this to work:
 
 	`def transform(self: <behav Class>, context: Any)`
 
-	where `<behav Class>` is the class in `m2isar.metamodel.behav` which this transformation is associated with.
+	where `<behav Class>` is the class in :mod:`m2isar.metamodel.behav` which this
+	transformation is associated with.
 	"""
 
 	logger = logging.getLogger("patch_model")

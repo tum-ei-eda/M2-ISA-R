@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Dump generated instruction and function code to a pickle file."""
+
 import pickle
 
 from . import instruction_generator

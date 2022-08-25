@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""CRUD to statically replace certain objects in ETISS."""
+
 default_prefix = '((${ARCH_NAME}*)cpu)->'
 prefixes = {
 	'PC': 'cpu->',

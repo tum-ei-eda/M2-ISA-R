@@ -17,6 +17,9 @@ from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
 logger = logging.getLogger("behav_builder")
 
 class BehaviorModelBuilder(CoreDSL2Visitor):
+	"""ANTLR visitor to build an M2-ISA-R behavioral model of a function or instruction
+	of a CoreDSL 2 specification.
+	"""
 
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 		fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
@@ -32,12 +35,16 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		self.warned_fns = warned_fns if warned_fns is not None else set()
 
 	def visitChildren(self, node):
+		"""Helper method to return flatter results on tree visits."""
+
 		ret = super().visitChildren(node)
 		if isinstance(ret, list) and len(ret) == 1:
 			return ret[0]
 		return ret
 
 	def aggregateResult(self, aggregate, nextResult):
+		"""Aggregate results from multiple children into a list."""
+
 		ret = aggregate
 		if nextResult is not None:
 			if ret is None:
@@ -47,36 +54,53 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return ret
 
 	def visitProcedure_call(self, ctx: CoreDSL2Parser.Procedure_callContext):
+		"""Generate a procedure (method call without return value) call."""
+
+		# extract name and reference to procedure object to be called
 		name = ctx.ref.text
 		ref = self._functions.get(name, None)
 
-		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
-
+		# error out if method is unknown
 		if ref is None:
-			raise M2NameError(f"function \"{name}\" is not defined")
+			raise M2NameError(f"procedure {name} is not defined")
+
+		# generate method arguments
+		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
 		return behav.ProcedureCall(ref, args)
 
 	def visitMethod_call(self, ctx: "CoreDSL2Parser.Method_callContext"):
+		"""Generate a function (method call with return value) call."""
+
+		# extract name and reference to function object to be called
 		name = ctx.ref.text
 		ref = self._functions.get(name, None)
 
-		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
-
+		# error out if method is unknown
 		if ref is None:
 			raise M2NameError(f"function \"{name}\" is not defined")
 
 		if arch.FunctionAttribute.ETISS_EXC_ENTRY in ref.attributes:
 			raise M2SyntaxError(f"exception entry function \"{name}\" must be called as procedure")
 
+		# generate method arguments
+		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
+
 		return behav.FunctionCall(ref, args)
 
 	def visitBlock(self, ctx: CoreDSL2Parser.BlockContext):
+		"""Generate a block of statements, return a list."""
+
 		items = [self.visit(obj) for obj in ctx.items]
 		items = flatten_list(items)
 		return items
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
+		"""Generate a declaration statement. Can be multiple declarations of
+		the same type at once. Each declaration can have an initial value.
+		"""
+
+		# extract variable qualifiers, currently unused
 		storage = [self.visit(obj) for obj in ctx.storage]
 		qualifiers = [self.visit(obj) for obj in ctx.qualifiers]
 		attributes = [self.visit(obj) for obj in ctx.attributes]
@@ -87,28 +111,38 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		ret_decls = []
 
+		# iterate over all contained declarations
 		for decl in decls:
 			name = decl.name.text
 
+			# instantiate a scalar and its definition
 			s = arch.Scalar(name, None, StaticType.NONE, type_.width, arch.DataType.S if type_.signed else arch.DataType.U)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 
-			if decl.init: # create scalar definition and assignment
+			# if initializer is present, generate an assignment to apply
+			# initialization to the scalar
+			if decl.init:
 				init = self.visit(decl.init)
 
 				a = behav.Assignment(sd, init)
 				ret_decls.append(a)
-			else: # create only scalar definition
+
+			# if not only generate the declaration
+			else:
 				ret_decls.append(sd)
 
 		return ret_decls
 
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
+		"""Generate a return statement."""
+
 		expr = self.visit(ctx.expr) if ctx.expr else None
 		return behav.Return(expr)
 
 	def visitWhile_statement(self, ctx: CoreDSL2Parser.While_statementContext):
+		"""Generate a while loop."""
+
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 		cond = self.visit(ctx.cond)
 
@@ -118,6 +152,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Loop(cond, stmt, False)
 
 	def visitDo_statement(self, ctx: CoreDSL2Parser.Do_statementContext):
+		"""Generate a do .. while loop."""
+
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 		cond = self.visit(ctx.cond)
 
@@ -127,6 +163,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Loop(cond, stmt, True)
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
+		"""Generate a for loop. Currently hacky, untested and mostly broken."""
+
 		start_decl, start_expr, end_expr, loop_exprs = self.visit(ctx.cond)
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 
@@ -148,6 +186,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return ret
 
 	def visitFor_condition(self, ctx: CoreDSL2Parser.For_conditionContext):
+		"""Generate the condition of a for loop."""
+
 		start_decl = self.visit(ctx.start_decl) if ctx.start_decl else None
 		start_expr = self.visit(ctx.start_expr) if ctx.start_expr else None
 		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else None
@@ -156,6 +196,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return start_decl, start_expr, end_expr, loop_exprs
 
 	def visitIf_statement(self, ctx: CoreDSL2Parser.If_statementContext):
+		"""Generate an if statement. Packs all if, else if and else branches
+		into one object.
+		"""
+
 		conds = [self.visit(x) for x in ctx.cond]
 		stmts = [self.visit(x) for x in ctx.stmt]
 
@@ -164,6 +208,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Conditional(conds, stmts)
 
 	def visitConditional_expression(self, ctx: CoreDSL2Parser.Conditional_expressionContext):
+		"""Generate a ternary expression."""
+
 		cond = self.visit(ctx.cond)
 		then_expr = self.visit(ctx.then_expr)
 		else_expr = self.visit(ctx.else_expr)
@@ -171,6 +217,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Ternary(cond, then_expr, else_expr)
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
+		"""Generate a binary expression."""
+
 		left = self.visit(ctx.left)
 		op =  behav.Operator(ctx.bop.text)
 		right = self.visit(ctx.right)
@@ -178,22 +226,38 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.BinaryOperation(left, op, right)
 
 	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
+		"""Generate a pre-increment expression. Not yet supported, throws
+		:exc:`NotImplementedError`."""
+
 		raise NotImplementedError("pre-increment expressions are not supported yet")
 
 	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
+		"""Generate a post-increment expression. Not yet supported, throws
+		:exc:`NotImplementedError`."""
+
 		raise NotImplementedError("post-increment expressions are not supported yet")
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
+		"""Generate an unary expression."""
+
 		op = behav.Operator(ctx.prefix.text)
 		right = self.visit(ctx.right)
 
 		return behav.UnaryOperation(op, right)
 
 	def visitParens_expression(self, ctx: CoreDSL2Parser.Parens_expressionContext):
+		"""Generate a parenthesized expression."""
+
 		expr = self.visit(ctx.expr)
 		return behav.Group(expr)
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
+		"""Generate a slice expression. Depending on context, this is translated
+		to either an actual :class:`m2isar.metamodel.behav.SliceOperation`or
+		an :class:`m2isar.metamodel.behav.IndexedReference` if a :class:`m2isar.metamodel.arch.Memory
+		object is to be sliced.
+		"""
+
 		expr = self.visit(ctx.expr)
 
 		left = self.visit(ctx.left)
@@ -205,12 +269,18 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			return behav.SliceOperation(expr, left, right)
 
 	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
+		"""Generate a concatenation expression."""
+
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
 
 		return behav.ConcatOperation(left, right)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
+		"""Generate an assignment. If a combined arithmetic-assignment is present,
+		generate an additional binary operation and use it as the RHS.
+		"""
+
 		op = ctx.bop.text
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
@@ -222,6 +292,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Assignment(left, right)
 
 	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
+		"""Generate a simple reference."""
+
 		name = ctx.ref.text
 
 		var = self._scalars.get(name) or \
@@ -236,6 +308,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.NamedReference(var)
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
+		"""Generate an integer literal."""
+
 		text: str = ctx.value.text.lower()
 
 		tick_pos = text.find("'")
@@ -252,6 +326,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.IntLiteral(value, width)
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
+		"""Generate a type cast."""
+
 		expr = self.visit(ctx.right)
 		if ctx.type_:
 			type_ = self.visit(ctx.type_)
@@ -266,12 +342,16 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.TypeConv(sign, size, expr)
 
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
+		"""Generate a generic type specifier."""
+
 		type_ = self.visit(ctx.type_)
 		if ctx.ptr:
 			type_.ptr = ctx.ptr.text
 		return type_
 
 	def visitInteger_type(self, ctx: CoreDSL2Parser.Integer_typeContext):
+		"""Generate an integer type specifier."""
+
 		signed = True
 		width = None
 
@@ -292,13 +372,21 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return arch.IntegerType(width, signed, None)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
+		"""Generate a void type specifier."""
+
 		return arch.VoidType(None)
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
+		"""Generate a bool type specifier. Aliases to unsigned<1>."""
+
 		return arch.IntegerType(1, False, None)
 
 	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
+		"""Generate integer signedness."""
+
 		return SIGNEDNESS[ctx.children[0].symbol.text]
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
+		"""Lookup a shorthand type specifier."""
+
 		return behav.IntLiteral(SHORTHANDS[ctx.children[0].symbol.text])

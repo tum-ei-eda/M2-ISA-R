@@ -6,6 +6,10 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Transformation functions to determine which scalars in a function or instruction
+behavior are to be considered static.
+"""
+
 import dataclasses
 
 from ...metamodel import arch, behav
