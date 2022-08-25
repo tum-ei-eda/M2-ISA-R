@@ -113,8 +113,8 @@ class TransformerContext:
 			return val
 		return Template(f'" + std::to_string({val}) + "').safe_substitute(**replacements.rename_static)
 
-	def wrap_codestring(self, val):
-		if self.ignore_static:
+	def wrap_codestring(self, val, static=False):
+		if self.ignore_static or static:
 			return val
 		else:
 			return f'partInit.code() += "{val}\\n";'

@@ -372,12 +372,12 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
 
-	code_str = ''
+	code_lines = []
 
 	if target.scalar and not context.ignore_static:
 		if expr.static:
 			if target.scalar.static == StaticType.WRITE and context.static_scalars:
-				code_str += f'partInit.code() += "{target.code};\\n";\n'
+				code_lines.append(f'partInit.code() += "{target.code};\\n";')
 			target.scalar.static |= StaticType.READ
 		else:
 			#if target.scalar.static == StaticType.RW:
@@ -409,9 +409,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 		if target.actual_size > target.size:
 			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
-		code_str += f'{target.code} = {expr.code};'
-		if not static and not context.ignore_static:
-			code_str = f'partInit.code() += "{code_str}\\n";'
+		code_lines.append(context.wrap_codestring(f'{target.code} = {expr.code};', static))
 
 	else:
 		context.generates_exception = True
@@ -420,10 +418,10 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 				logger.debug("assuming mem read size at %d", target.size)
 				m_id.access_size = target.size
 
-			code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
-			code_str += context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
+			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};'))
+			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
 			raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_str += context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};') + '\n'
+			code_lines.append(context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};'))
 
 		if target.is_mem_access:
 			if len(target.mem_ids) != 1:
@@ -435,14 +433,14 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 			m_id = target.mem_ids[0]
 
-			code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};') + '\n'
-			code_str += context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
+			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};'))
+			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
 			raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_str += context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};') + '\n'
+			code_lines.append(context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};'))
 		else:
-			code_str += context.wrap_codestring(f'{target.code} = {expr.code};')
+			code_lines.append(context.wrap_codestring(f'{target.code} = {expr.code};'))
 
-	return code_str
+	return '\n'.join(code_lines)
 
 def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	left = self.left.generate(context)
