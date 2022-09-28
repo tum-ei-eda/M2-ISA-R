@@ -1,0 +1,50 @@
+name: Generate Sphinx Docs
+
+on:
+  push:
+    branches:
+      - coredsl2
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  sphinx:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get install graphviz
+        pip install --upgrade pip setuptools wheel
+        pip install -r doc/requirements.txt
+
+    - name: Build docs
+      working-directory: doc
+      run: |
+        make html
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v1
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: doc/build/html
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v1
