@@ -8,6 +8,6 @@ Chair of Electrical Design Automation
 Technical University of Munich
 -->
 
-Put `antlr-4.10.1-complete.jar` here. Download: https://www.antlr.org/download.html
+Put `antlr-4.11.1-complete.jar` here. Download: https://www.antlr.org/download.html
 
-`wget https://www.antlr.org/download/antlr-4.10.1-complete.jar`
+`wget https://www.antlr.org/download/antlr-4.11.1-complete.jar`
