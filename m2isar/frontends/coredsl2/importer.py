@@ -58,7 +58,6 @@ def recursive_import(tree, search_path):
 	importer = VisitImporter(search_path)
 
 	while importer.got_new:
-		print("new loop")
 		importer.new_imports.clear()
 		importer.new_defs.clear()
 		importer.new_children.clear()

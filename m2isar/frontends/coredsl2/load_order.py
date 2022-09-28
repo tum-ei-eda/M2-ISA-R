@@ -8,7 +8,7 @@
 
 from antlr4 import ParserRuleContext
 
-from ... import M2DuplicateError
+from ... import M2DuplicateError, M2NameError
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 
 
@@ -30,6 +30,9 @@ class LoadOrder(CoreDSL2Visitor):
 		self.instruction_sets[name] = ctx
 
 	def extend_ins_set(self, ins_set_name):
+		if ins_set_name not in self.instruction_sets:
+			raise M2NameError(f"instruction set {ins_set_name} is unknown")
+
 		extensions = [e.text for e in self.instruction_sets[ins_set_name].extension]
 		if extensions:
 			ret = [ins_set_name]
