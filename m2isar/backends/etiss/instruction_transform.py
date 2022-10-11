@@ -66,11 +66,19 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	"""Generate a scalar definition. Calculates the actual required data width and generates
 	a variable instantiation."""
 
+	if context.static_scalars:
+		if context.ignore_static:
+			static = StaticType.RW
+		else:
+			static = self.scalar.static
+	else:
+		static = StaticType.NONE
+
 	context.scalars[self.scalar.name] = self.scalar
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	if actual_size < 8:
 		actual_size = 8
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', self.scalar.static if context.static_scalars else StaticType.NONE, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	#c.scalar = self.scalar
 	return c
 
