@@ -37,7 +37,7 @@ def patch_model(module):
 
 	logger = logging.getLogger("patch_model")
 
-	for name, fn in inspect.getmembers(module, inspect.isfunction):
+	for _, fn in inspect.getmembers(module, inspect.isfunction):
 		sig = inspect.signature(fn)
 		param = sig.parameters.get("self")
 		if not param:

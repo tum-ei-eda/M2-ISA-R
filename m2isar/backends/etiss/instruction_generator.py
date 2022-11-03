@@ -47,7 +47,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 			return_type += f'{fn_def.actual_size}'
 
 		# set up a transformer context and generate code
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes, core.functions, 0, core_default_width, core_name, static_scalars, True)
+		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
+			core.functions, 0, core_default_width, core_name, static_scalars, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -103,7 +104,6 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
-			upper = enc.range.upper
 			length = enc.range.length
 
 			if seen_fields[enc.name] > lower:

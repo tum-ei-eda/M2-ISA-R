@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
 	from .arch import BitFieldDescr, Constant, FnParam, Function, Memory, Scalar
 
+# pylint: disable=abstract-method
 
 class BaseNode:
 	"""The base class for all behavior model classes. Only implements an
@@ -170,8 +171,8 @@ class TypeConv(BaseNode):
 
 		if self.size is not None:
 			self.actual_size = 1 << (self.size - 1).bit_length()
-			if self.actual_size < 8:
-				self.actual_size = 8
+			self.actual_size = max(self.actual_size, 8)
+
 		else:
 			self.actual_size = None
 
@@ -184,11 +185,9 @@ class Callable(BaseNode):
 
 class FunctionCall(Callable):
 	"""A function (method with return value) call."""
-	pass
 
 class ProcedureCall(Callable):
 	"""A procedure (method without return value) call."""
-	pass
 
 class Group(BaseNode):
 	"""A group of expressions, used e.g. for parenthesized expressions."""

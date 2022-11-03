@@ -53,7 +53,6 @@ def decode(iw: int, instr: arch.Instruction):
 	for enc in reversed(instr.encoding):
 		if isinstance(enc, arch.BitField):
 			lower = enc.range.lower
-			upper = enc.range.upper
 			length = enc.range.length
 
 			operands[enc.name] += slice_int(iw, enc_idx+length-1, enc_idx) << lower
@@ -73,7 +72,6 @@ def main():
 	args = parser.parse_args()
 
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
-	logger = logging.getLogger("etiss_writer")
 
 	top_level = pathlib.Path(args.top_level)
 	abs_top_level = top_level.resolve()
@@ -89,7 +87,6 @@ def main():
 			raise FileNotFoundError('Models not generated!')
 		model_fname = model_path / (abs_top_level.stem + '.m2isarmodel')
 
-	spec_name = abs_top_level.stem
 	output_base_path = search_path.joinpath('gen_output')
 	output_base_path.mkdir(exist_ok=True)
 
