@@ -18,6 +18,8 @@ from . import replacements
 from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
                                 TransformerContext, data_type_map)
 
+# pylint: disable=unused-argument
+
 logger = logging.getLogger("instr_transform")
 
 def operation(self: behav.Operation, context: TransformerContext):
@@ -76,8 +78,8 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 
 	context.scalars[self.scalar.name] = self.scalar
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
-	if actual_size < 8:
-		actual_size = 8
+	actual_size = max(actual_size, 8)
+
 	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
 	#c.scalar = self.scalar
 	return c
@@ -105,7 +107,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 	# 	context.generates_exception = True
 	# 	return f'partInit.code() += "cpu->exception = {replacements.exception_mapping[exc_id]};\\n";'
 
-	elif ref is not None:
+	if ref is not None:
 		# if there is a function object, use its information
 		fn = ref
 
@@ -142,7 +144,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 				code_str += context.wrap_codestring(f'cpu->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
 
 		# add special behavior if this function is an exception entry point
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes and fn.size is not None:
 			context.generates_exception = True
 			exc_code = "cpu->exception = "
 		else:
@@ -152,8 +154,9 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 		return code_str
 
-	elif name.startswith('dispatch_'):
-		if fn_args is None: fn_args = []
+	if name.startswith('dispatch_'):
+		if fn_args is None:
+			fn_args = []
 
 		context.used_arch_data = True
 
@@ -175,8 +178,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		code_str += f'partInit.code() += "{name}({arg_str});";'
 		return code_str
 
-	else:
-		raise M2NameError(f'Function {name} not recognized!')
+	raise M2NameError(f'Function {name} not recognized!')
 
 def function_call(self: behav.FunctionCall, context: TransformerContext):
 	"""Generate a regular function call (with further use of return value)."""
@@ -192,7 +194,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		context.generates_exception = True
 		return 'partInit.code() += "cpu->exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
 
-	elif name == 'raise':
+	if name == 'raise':
 		# obsolete, should not happen as raise should only ever be used as a procedure
 		sender, code = fn_args
 		exc_id = (int(sender.code), int(code.code))
@@ -202,7 +204,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		context.generates_exception = True
 		return f'partInit.code() += "cpu->exception = {replacements.exception_mapping[exc_id]};\\n";'
 
-	elif name == 'choose':
+	if name == 'choose':
 		# obsolete, old implementation of ternary
 		cond, then_stmts, else_stmts = fn_args
 		static = StaticType.NONE not in [x.static for x in fn_args]
@@ -214,12 +216,13 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			if else_stmts.static and not else_stmts.is_literal:
 				else_stmts.code = context.make_static(else_stmts.code)
 
-		c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size, then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
+		c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size,
+			then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
 		c.mem_ids = cond.mem_ids + then_stmts.mem_ids + else_stmts.mem_ids
 
 		return c
 
-	elif name == 'sext':
+	if name == 'sext':
 		# obsolete, sign extensions are handled via type casts (unfortunately)
 		expr = fn_args[0]
 		target_size = context.native_size
@@ -237,7 +240,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			if source_size >= target_size:
 				code_str = f'(etiss_int{target_size})({expr.code})'
 			else:
-				if (source_size & (source_size - 1) == 0): # power of two
+				if source_size & (source_size - 1) == 0: # power of two
 					code_str = f'(etiss_int{target_size})((etiss_int{source_size})({expr.code}))'
 				else:
 					code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - source_size})) >> ({target_size - source_size})'
@@ -249,7 +252,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 		return c
 
-	elif name == 'zext':
+	if name == 'zext':
 		# obsolete, effectively does nothing in our context
 		expr = fn_args[0]
 		target_size = context.native_size
@@ -262,34 +265,37 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 		return c
 
-	elif name == 'shll':
+	if name == 'shll':
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
 		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
-		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
+		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
+			set.union(expr.regs_affected, amount.regs_affected))
 
-	elif name == 'shrl':
+	if name == 'shrl':
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
 		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
-		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
+		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
+			set.union(expr.regs_affected, amount.regs_affected))
 
-	elif name == 'shra':
+	if name == 'shra':
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
 			expr.code = context.make_static(expr.code)
 		if amount.static and not amount.is_literal and not expr.static:
 			amount.code = context.make_static(amount.code)
-		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
+		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size,
+			expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
-	elif ref is not None:
+	if ref is not None:
 		# if there is a function object, use its information
 
 		fn = ref
@@ -320,9 +326,11 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 
 		return c
 
-	elif name.startswith('fdispatch_'):
+	if name.startswith('fdispatch_'):
 		# obsolete, replaced by 'extern' functions
-		if fn_args is None: fn_args = []
+		if fn_args is None:
+			fn_args = []
+
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 		name = name.removeprefix("fdispatch_")
@@ -331,8 +339,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
 		return c
 
-	else:
-		raise M2NameError(f'Function {name} not recognized!')
+	raise M2NameError(f'Function {name} not recognized!')
 
 def conditional(self: behav.Conditional, context: TransformerContext):
 	"""Generate a conditional ('if' with optional 'else if' and 'else' blocks"""
@@ -429,7 +436,9 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 		if else_expr.static and not else_expr.is_literal:
 			else_expr.code = context.make_static(else_expr.code)
 
-	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size, then_expr.signed or else_expr.signed, any((cond.is_mem_access, then_expr.is_mem_access, else_expr.is_mem_access)), set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
+	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size,
+		then_expr.signed or else_expr.signed, any((cond.is_mem_access, then_expr.is_mem_access, else_expr.is_mem_access)),
+		set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
 	c.mem_ids = cond.mem_ids + then_expr.mem_ids + else_expr.mem_ids
 
 	return c
@@ -538,7 +547,8 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	if not right.static and left.static and not left.is_literal:
 		left.code = context.make_static(left.code)
 
-	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
+		left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
 	# keep track of any memory accesses
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
@@ -579,7 +589,8 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 		new_size = expr.size
 		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
-	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed, expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
+	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed,
+		expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
 	return c
 
@@ -596,7 +607,8 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 		left.code = context.make_static(left.code)
 
 	new_size = left.size + right.size
-	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
+		left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
@@ -607,7 +619,6 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	referred_var = self.reference
 
 	static = StaticType.NONE
-	scalar = None
 
 	name = referred_var.name
 
@@ -638,7 +649,6 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 		size = referred_var.size
 		if context.static_scalars:
 			static = referred_var.static
-		scalar = referred_var
 
 	elif isinstance(referred_var, arch.Constant):
 		# architecture constant
@@ -695,17 +705,17 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 		c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 		context.mem_var_count += 1
 		return c
-	else:
-		# generate normal indexed access if not
-		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
-		if len(referred_mem.children) > 0:
-			code_str = '*' + code_str
-		if size != referred_mem.size:
-			code_str = f'(etiss_uint{size})' + code_str
-		c = CodeString(code_str, static, size, False, False)
-		if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
-			c.regs_affected.add(index_code)
-		return c
+
+	# generate normal indexed access if not
+	code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
+	if len(referred_mem.children) > 0:
+		code_str = '*' + code_str
+	if size != referred_mem.size:
+		code_str = f'(etiss_uint{size})' + code_str
+	c = CodeString(code_str, static, size, False, False)
+	if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+		c.regs_affected.add(index_code)
+	return c
 
 def type_conv(self: behav.TypeConv, context: TransformerContext):
 	"""Generate a type cast expression"""

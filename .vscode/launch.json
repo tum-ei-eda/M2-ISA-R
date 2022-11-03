@@ -23,7 +23,7 @@
             "module": "m2isar.frontends.coredsl2.parser",
             "args": [
                 "${input:inputFile}",
-                "--log", "info"
+                "--log", "debug"
             ],
             "stopOnEntry": true,
             "justMyCode": false

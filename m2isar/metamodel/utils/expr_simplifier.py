@@ -22,6 +22,8 @@ simplifications are done:
 
 from ...metamodel import arch, behav
 
+# pylint: disable=unused-argument
+
 def operation(self: behav.Operation, context):
 	statements = []
 	for stmt in self.statements:
@@ -31,7 +33,7 @@ def operation(self: behav.Operation, context):
 				statements.extend(temp)
 			else:
 				statements.append(temp)
-		except (NotImplementedError, ValueError) as e:
+		except (NotImplementedError, ValueError):
 			print(f"cant simplify {stmt}")
 
 	self.statements = statements
@@ -50,6 +52,7 @@ def binary_operation(self: behav.BinaryOperation, context):
 			self.right.bit_size = self.left.reference.size
 
 	if isinstance(self.left, behav.IntLiteral) and isinstance(self.right, behav.IntLiteral):
+		# pylint: disable=eval-used
 		res: int = int(eval(f"{self.left.value}{self.op.value}{self.right.value}"))
 		return behav.IntLiteral(res, max(self.left.bit_size, self.right.bit_size, res.bit_length()))
 
@@ -109,7 +112,7 @@ def conditional(self: behav.Conditional, context):
 
 	if len(self.conds) < len(self.stmts):
 		if eval_false and isinstance(self.conds[-1], behav.IntLiteral):
-			if not cond.value:
+			if not cond.value: # pylint: disable=undefined-loop-variable
 				return self.stmts[-1]
 		stmts.append(self.stmts[-1])
 
@@ -132,8 +135,8 @@ def ternary(self: behav.Ternary, context):
 	if isinstance(self.cond, behav.IntLiteral):
 		if self.cond.value:
 			return self.then_expr
-		else:
-			return self.else_expr
+
+		return self.else_expr
 
 	return self
 
@@ -145,6 +148,7 @@ def return_(self: behav.Return, context):
 def unary_operation(self: behav.UnaryOperation, context):
 	self.right = self.right.generate(context)
 	if isinstance(self.right, behav.IntLiteral):
+		# pylint: disable=eval-used
 		res: int = eval(f"{self.op.value}{self.right.value}")
 		return behav.IntLiteral(res, max(self.right.bit_size, res.bit_length()))
 
@@ -173,7 +177,7 @@ def type_conv(self: behav.TypeConv, context):
 
 	return self
 
-def callable(self: behav.Callable, context):
+def callable_(self: behav.Callable, context):
 	for stmt in self.args:
 		stmt = stmt.generate(context)
 

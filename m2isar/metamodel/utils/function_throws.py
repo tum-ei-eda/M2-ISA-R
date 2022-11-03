@@ -10,6 +10,8 @@
 
 from ...metamodel import arch, behav
 
+# pylint: disable=unused-argument
+
 def operation(self: behav.Operation, context):
 	statements = []
 	for stmt in self.statements:
@@ -104,7 +106,7 @@ def type_conv(self: behav.TypeConv, context):
 
 	return expr
 
-def callable(self: behav.Callable, context):
+def callable_(self: behav.Callable, context):
 	args = [arg.generate(context) for arg in self.args]
 	args.append(self.ref_or_name.throws)
 

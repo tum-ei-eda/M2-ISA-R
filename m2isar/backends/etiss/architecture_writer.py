@@ -50,7 +50,7 @@ def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.
 
 	logger.info("writing architecture struct")
 
-	for mem_name, mem_desc in core.memories.items():
+	for _, mem_desc in core.memories.items():
 		write_child_reg_def(mem_desc, regs)
 
 	txt = arch_struct_template.render(
@@ -59,7 +59,7 @@ def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		regs=regs
 	)
 
-	with open(output_path / f"{core.name}.h", "w") as f:
+	with open(output_path / f"{core.name}.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
@@ -73,10 +73,11 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		instr_classes=sorted(core.instr_classes)
 	)
 
-	with open(output_path / f"{core.name}Arch.h", "w") as f:
+	with open(output_path / f"{core.name}Arch.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_regs: "list[arch.Memory]", alias_regs: "dict[arch.Memory, arch.Memory]", initval_regs: "list[arch.Memory]"):
+def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_regs: "list[arch.Memory]",
+		alias_regs: "dict[arch.Memory, arch.Memory]", initval_regs: "list[arch.Memory]"):
 	"""Populate the passed lists with memory objects of their category.
 
 	ptr_regs: Registers that need to be a pointer within ETISS
@@ -85,6 +86,7 @@ def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_
 	initval_regs: Registers which have initial value(s) defined in the model
 	"""
 
+	# pylint: disable=protected-access
 	if reg._initval:
 		initval_regs.append(reg)
 
@@ -112,7 +114,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 	logger.info("writing architecture class file")
 
 	# determine memory types
-	for mem_name, mem_desc in core.memories.items():
+	for _, mem_desc in core.memories.items():
 		if mem_desc.is_main_mem:
 			continue
 		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs, initval_regs)
@@ -137,7 +139,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		initval_regs=initval_regs
 	)
 
-	with open(output_path / f"{core.name}Arch.cpp", "w") as f:
+	with open(output_path / f"{core.name}Arch.cpp", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
@@ -150,7 +152,7 @@ def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		core_name=core.name
 	)
 
-	with open(output_path / f"{core.name}ArchLib.cpp", "w") as f:
+	with open(output_path / f"{core.name}ArchLib.cpp", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
@@ -164,7 +166,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 		main_reg=core.main_reg_file
 	)
 
-	with open(output_path / f"{core.name}ArchSpecificImp.h", "w") as f:
+	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
@@ -215,7 +217,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		error_callbacks=error_callbacks
 	)
 
-	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w") as f:
+	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
@@ -229,7 +231,7 @@ def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib
 		main_reg=core.main_reg_file
 	)
 
-	with open(output_path / f"{core.name}GDBCore.h", "w") as f:
+	with open(output_path / f"{core.name}GDBCore.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
@@ -250,5 +252,5 @@ def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.P
 		arch_files=arch_files
 	)
 
-	with open(output_path / "CMakeLists.txt", "w") as f:
+	with open(output_path / "CMakeLists.txt", "w", encoding="utf-8") as f:
 		f.write(txt)

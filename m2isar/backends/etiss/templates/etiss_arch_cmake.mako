@@ -21,7 +21,12 @@ ADD_LIBRARY($${}{PROJECT_NAME} SHARED
 	% endfor
 )
 
-FILE(COPY "$${}{CMAKE_CURRENT_LIST_DIR}/$${}{PROJECT_NAME}Funcs.h" DESTINATION "$${}{ETISS_BINARY_DIR}/include/jit/Arch/$${}{PROJECT_NAME}")
+add_custom_command(
+	TARGET $${}{PROJECT_NAME} POST_BUILD
+	COMMAND $${}{CMAKE_COMMAND} -E copy
+		"$${}{CMAKE_CURRENT_LIST_DIR}/$${}{PROJECT_NAME}Funcs.h"
+		"$${}{ETISS_BINARY_DIR}/include/jit/Arch/$${}{PROJECT_NAME}"
+)
 INSTALL(FILES "$${}{CMAKE_CURRENT_LIST_DIR}/$${}{PROJECT_NAME}Funcs.h" DESTINATION "include/jit/Arch/$${}{PROJECT_NAME}")
 
 ETISSPluginArch($${}{PROJECT_NAME})

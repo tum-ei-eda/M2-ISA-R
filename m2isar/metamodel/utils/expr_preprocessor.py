@@ -57,7 +57,7 @@ def process_functions(core: arch.CoreDef):
 def process_instructions(core: arch.CoreDef):
 	"""Apply all preprocessing to all instructions in `core`."""
 
-	for (code, mask), instr_def in core.instructions.items():
+	for _, instr_def in core.instructions.items():
 		patch_model(expr_simplifier)
 		logger.debug("simplifying expressions for instr %s", instr_def.name)
 		instr_def.operation.generate(None)

@@ -153,7 +153,7 @@ def main():
 
 		logger.debug("generating instruction behavior")
 
-		for (code, mask), instr_def in core_def.instructions.items():
+		for instr_def in core_def.instructions.values():
 			logger.debug("generating instruction %s", instr_def.name)
 			logger.debug("generating attributes")
 
