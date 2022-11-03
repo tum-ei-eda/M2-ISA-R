@@ -135,58 +135,72 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
+def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instruction, fields, static_scalars: bool, block_end_on: BlockEndType):
+	patch_model(instruction_transform)
+
+	instr_name = instr_def.name
+	core_name = core.name
+	misc_code = []
+	core_default_width = core.constants['XLEN'].value
+	fields_code, _, _, enc_idx = fields
+
+	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
+
+	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
+		core.functions, enc_idx, core_default_width, core_name, static_scalars)
+
+	# force a block end if necessary
+	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)
+			or (arch.InstrAttribute.NO_CONT in instr_def.attributes and block_end_on == BlockEndType.ALL)):
+		logger.debug("adding forced block end")
+		misc_code.append('ic.force_block_end_ = true;')
+
+	# generate instruction behavior code
+	logger.debug("generating behavior code for %s", instr_def.name)
+
+	out_code = instr_def.operation.generate(context)
+	out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
+
+	logger.debug("rendering template for %s", instr_def.name)
+
+	callback_str = callback_template.render(
+		instr_name=instr_name,
+		misc_code=misc_code,
+		fields_code=fields_code,
+		operation=out_code,
+		reg_dependencies=context.dependent_regs,
+		reg_affected=context.affected_regs,
+		core_default_width=core_default_width,
+	)
+
+	return callback_str
+
 def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on: BlockEndType):
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
 
-	patch_model(instruction_transform)
-
 	instr_template = Template(filename=str(template_dir/'etiss_instruction.mako'))
 
-	temp_var_count = 0
-	mem_var_count = 0
-
-	core_default_width = core.constants['XLEN'].value
 	core_name = core.name
 
 	for (code, mask), instr_def in core.instructions.items():
 		logger.debug("setting up instruction generator for %s", instr_def.name)
 
 		instr_name = instr_def.name
-		misc_code = []
 
-		if instr_def.attributes == None:
+		if instr_def.attributes is None:
 			instr_def.attributes = []
 
 		# generate instruction parameter extraction code
-		fields_code, asm_printer_code, seen_fields, enc_idx = generate_fields(core.constants['XLEN'].value, instr_def)
-
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes, core.functions, enc_idx, core_default_width, core_name, static_scalars)
-
-		# force a block end if necessary
-		if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)
-				or (arch.InstrAttribute.NO_CONT in instr_def.attributes and block_end_on == BlockEndType.ALL)):
-			logger.debug("adding forced block end")
-			misc_code.append('ic.force_block_end_ = true;')
+		fields = generate_fields(core.constants['XLEN'].value, instr_def)
+		fields_code, asm_printer_code, seen_fields, enc_idx = fields
 
 		code_string = f'{code:#0{int(enc_idx/4)}x}'
 		mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-		# generate instruction behavior code
-		logger.debug("generating behavior code for %s", instr_def.name)
+		callback_str = generate_instruction_callback(core, instr_def, fields, static_scalars, block_end_on)
 
-		out_code = instr_def.operation.generate(context)
-		out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
-
-		# keep track of temp and memory variable names
-		if context.temp_var_count > temp_var_count:
-			temp_var_count = context.temp_var_count
-
-		if context.mem_var_count > mem_var_count:
-			mem_var_count = context.mem_var_count
-
-		logger.debug("rendering template for %s", instr_def.name)
 		# render code for whole instruction
 		templ_str = instr_template.render(
 			instr_name=instr_name,
@@ -195,13 +209,9 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 			core_name=core_name,
 			code_string=code_string,
 			mask_string=mask_string,
-			misc_code=misc_code,
 			fields_code=fields_code,
 			asm_printer_code=asm_printer_code,
-			core_default_width=core_default_width,
-			reg_dependencies=context.dependent_regs,
-			reg_affected=context.affected_regs,
-			operation=out_code
+			callback_code=callback_str
 		)
 
 		yield (instr_name, (code, mask), instr_def.ext_name, templ_str)

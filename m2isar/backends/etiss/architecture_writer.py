@@ -13,7 +13,10 @@ import pathlib
 
 from mako.template import Template
 
-from ...metamodel import arch
+from ...metamodel import arch, behav
+from . import BlockEndType
+from .instruction_generator import (generate_fields,
+                                    generate_instruction_callback)
 from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
@@ -167,12 +170,49 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
+	error_fn = None
+
+	for fn in core.functions.values():
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+			error_fn = fn
+			break
+
+	for fn in core.functions.values():
+		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+			error_fn = fn
+			break
+
+	error_callbacks: "dict[int, str]" = {}
+
+	for bitsize in core.instr_classes:
+		error_bitfield = arch.BitField("error_code", arch.RangeSpec(31, 0), arch.DataType.U)
+		error_instr = arch.Instruction(f"trap_entry {bitsize}", {arch.InstrAttribute.NO_CONT: None}, [error_bitfield], "", None)
+		error_bitfield_descr = error_instr.fields.get("error_code")
+		error_op = behav.Operation([
+			behav.Assignment(
+				behav.NamedReference(core.pc_memory),
+				behav.BinaryOperation(
+					behav.NamedReference(core.pc_memory),
+					behav.Operator("+"),
+					behav.NumberLiteral(bitsize // 8)
+				)
+			),
+			behav.ProcedureCall(error_fn, [behav.NamedReference(error_bitfield_descr)])
+		])
+		error_instr.operation = error_op
+		error_instr.throws = True
+		error_instr._size = bitsize # pylint: disable=protected-access
+
+		error_fields = generate_fields(32, error_instr)
+		error_callbacks[bitsize] = generate_instruction_callback(core, error_instr, error_fields, True, BlockEndType.NONE)
+
 	logger.info("writing architecture specific file")
 
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
-		main_reg=core.main_reg_file
+		main_reg=core.main_reg_file,
+		error_callbacks=error_callbacks
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w") as f:

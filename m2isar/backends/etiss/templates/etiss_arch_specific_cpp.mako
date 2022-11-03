@@ -89,6 +89,17 @@ void ${core_name}Arch::initInstrSet(etiss::instr::ModedInstructionSet & mis) con
 
 	etiss::instr::VariableInstructionSet * vis = mis.get(1);
 
+	using namespace etiss;
+	using namespace etiss::instr;
+
+	% for bitsize, callback in error_callbacks.items():
+	vis->get(${bitsize})->getInvalid().addCallback(
+${callback},
+	0
+	);
+
+	%endfor
+
 	/**************************************************************************
 	*		      vis->length_updater_ should be replaced here	         	  *
 	***************************************************************************/

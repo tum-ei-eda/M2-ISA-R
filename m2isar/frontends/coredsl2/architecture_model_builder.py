@@ -190,6 +190,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			if len(f2.operation.statements) > 0:
 				raise M2DuplicateError(f"function \"{name}\" already defined")
 
+			self._functions.pop(name)
+
 		self._functions[name] = f
 		return f
 
