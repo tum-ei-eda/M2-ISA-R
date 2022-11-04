@@ -148,7 +148,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			context.generates_exception = True
 			exc_code = "cpu->exception = "
 		else:
-			exc_code = ""
+			exc_code = "cpu->exception = 0; "
 
 		code_str += context.wrap_codestring(f'{exc_code}{fn.name}({arg_str});')
 
