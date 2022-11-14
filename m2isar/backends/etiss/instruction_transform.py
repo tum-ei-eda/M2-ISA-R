@@ -15,8 +15,9 @@ from string import Template
 from ... import M2NameError, M2SyntaxError, M2ValueError
 from ...metamodel import arch, behav
 from . import replacements
-from .instruction_utils import (MEM_VAL_REPL, CodeString, MemID, StaticType,
-                                TransformerContext, data_type_map)
+from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodeString, FnID,
+                                MemID, StaticType, TransformerContext,
+                                data_type_map)
 
 # pylint: disable=unused-argument
 
@@ -33,6 +34,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 	# only generate return statements if not in a function
 	if not context.ignore_static:
+		code_str += '\npartInit.code() += "instr_exit_" + std::to_string(ic.current_address_) + ":\\n";'
 		code_str += '\npartInit.code() += "cpu->instructionPointer = cpu->nextPc;\\n";'# + code_str
 		return_conditions = []
 		return_needed = any((
@@ -119,7 +121,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			context.used_arch_data = True
 			for arg in fn_args:
 				if arg.static and not arg.is_literal:
-					arg.code = context.make_static(arg.code)
+					arg.code = context.make_static(arg.code, arg.signed)
 
 		# generate argument string, add ETISS arch data if required
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
@@ -144,13 +146,21 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 				code_str += context.wrap_codestring(f'cpu->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
 
 		# add special behavior if this function is an exception entry point
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes and fn.size is not None:
-			context.generates_exception = True
-			exc_code = "cpu->exception = "
-		else:
-			exc_code = "cpu->exception = 0; "
+		exc_code = ""
+		goto_code = ""
 
-		code_str += context.wrap_codestring(f'{exc_code}{fn.name}({arg_str});')
+		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+			context.generates_exception = True
+
+			if fn.size is not None:
+				exc_code = "cpu->exception = "
+			else:
+				exc_code = "cpu->exception = 0; "
+
+		if fn.throws and not context.ignore_static:
+			goto_code = ' goto instr_exit_" + std::to_string(ic.current_address_) + ";'
+
+		code_str += context.wrap_codestring(f'{exc_code}{fn.name}({arg_str});{goto_code}')
 
 		return code_str
 
@@ -161,7 +171,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		context.used_arch_data = True
 
 		name = name.removeprefix("dispatch_")
-		arg_str = ', '.join([context.make_static(arg.code) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
+		arg_str = ', '.join([context.make_static(arg.code, arg.signed) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
 
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
@@ -210,11 +220,11 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		static = StaticType.NONE not in [x.static for x in fn_args]
 		if not static:
 			if cond.static and not cond.is_literal:
-				cond.code = context.make_static(cond.code)
+				cond.code = context.make_static(cond.code, cond.signed)
 			if then_stmts.static and not then_stmts.is_literal:
-				then_stmts.code = context.make_static(then_stmts.code)
+				then_stmts.code = context.make_static(then_stmts.code, then_stmts.signed)
 			if else_stmts.static and not else_stmts.is_literal:
-				else_stmts.code = context.make_static(else_stmts.code)
+				else_stmts.code = context.make_static(else_stmts.code, else_stmts.signed)
 
 		c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size,
 			then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
@@ -234,7 +244,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			try:
 				source_size = int(fn_args[2].code.replace("L", "").replace("U", ""))
 			except ValueError:
-				source_size = context.make_static(fn_args[2].code)
+				source_size = context.make_static(fn_args[2].code, fn_args[2].signed)
 
 		if isinstance(source_size, int):
 			if source_size >= target_size:
@@ -269,9 +279,9 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code, expr.signed)
 		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code)
+			amount.code = context.make_static(amount.code, amount.signed)
 		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
 			set.union(expr.regs_affected, amount.regs_affected))
 
@@ -279,9 +289,9 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code, expr.signed)
 		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code)
+			amount.code = context.make_static(amount.code, amount.signed)
 		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
 			set.union(expr.regs_affected, amount.regs_affected))
 
@@ -289,9 +299,9 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		# obsolete, replaced by standard shift operators
 		expr, amount = fn_args
 		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code, expr.signed)
 		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code)
+			amount.code = context.make_static(amount.code, amount.signed)
 		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size,
 			expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
@@ -308,7 +318,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			context.used_arch_data = True
 			for arg in fn_args:
 				if arg.static and not arg.is_literal:
-					arg.code = context.make_static(arg.code)
+					arg.code = context.make_static(arg.code, arg.signed)
 
 		# generate argument string, add ETISS arch data if required
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
@@ -321,8 +331,20 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		# keep track of affected registers
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
+		#goto_code = ""
+
+		#if fn.throws and not context.ignore_static:
+		#	goto_code = '; goto instr_exit_" + std::to_string(ic.current_address_) + "'
+
 		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
 		c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
+
+		if fn.throws and not context.ignore_static:
+			fn_id = FnID(fn, context.fn_var_count, c)
+			repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, mem_access, regs_affected)
+			repl_c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
+			repl_c.function_calls.append(fn_id)
+			return repl_c
 
 		return c
 
@@ -334,7 +356,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 		name = name.removeprefix("fdispatch_")
-		arg_str = ', '.join([context.make_static(arg.code) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
+		arg_str = ', '.join([context.make_static(arg.code, arg.signed) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
 
 		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
 		return c
@@ -430,11 +452,11 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 	# convert singular static sub-components
 	if not static:
 		if cond.static and not cond.is_literal:
-			cond.code = context.make_static(cond.code)
+			cond.code = context.make_static(cond.code, cond.signed)
 		if then_expr.static and not then_expr.is_literal:
-			then_expr.code = context.make_static(then_expr.code)
+			then_expr.code = context.make_static(then_expr.code, then_expr.signed)
 		if else_expr.static and not else_expr.is_literal:
-			else_expr.code = context.make_static(else_expr.code)
+			else_expr.code = context.make_static(else_expr.code, else_expr.signed)
 
 	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size,
 		then_expr.signed or else_expr.signed, any((cond.is_mem_access, then_expr.is_mem_access, else_expr.is_mem_access)),
@@ -481,7 +503,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 				expr.code = Template(f'{expr.code}').safe_substitute(**replacements.rename_static)
 
 		else:
-			expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code, expr.signed)
 
 	# convert target staticness
 	if bool(target.static & StaticType.READ):
@@ -491,7 +513,13 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
 
-	# mask of unneeded bits
+	if len(target.function_calls) or len(expr.function_calls):
+		for f_id in expr.function_calls:
+			code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]} {FN_VAL_REPL}{f_id.fn_id};'))
+			code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};'))
+			code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";'))
+
+	# mask off unneeded bits
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
 			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
@@ -500,6 +528,14 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	else:
 		context.generates_exception = True
+
+		raise_fn_call = behav.Conditional(
+			[behav.CodeLiteral('cpu->exception')],
+			[[behav.ProcedureCall(
+				context.mem_raise_fn,
+				[behav.CodeLiteral("cpu->exception")]
+			)]]
+		).generate(context)
 
 		# generate any memory (read) accesses in the assignment value expression
 		for m_id in expr.mem_ids:
@@ -510,8 +546,8 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};'))
 			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
-			raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_lines.append(context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};'))
+			#raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
+			code_lines.append(raise_fn_call)
 
 		# generate target memory (write) access
 		if target.is_mem_access:
@@ -526,8 +562,8 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};'))
 			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
-			raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_lines.append(context.wrap_codestring(f'if (cpu->exception) {raise_fn_call.code};'))
+			#raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
+			code_lines.append(raise_fn_call)
 		else:
 			code_lines.append(context.wrap_codestring(f'{target.code} = {expr.code};'))
 
@@ -543,9 +579,9 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 
 	# convert staticness if needed
 	if not left.static and right.static and not right.is_literal:
-		right.code = context.make_static(right.code)
+		right.code = context.make_static(right.code, right.signed)
 	if not right.static and left.static and not left.is_literal:
-		left.code = context.make_static(left.code)
+		left.code = context.make_static(left.code, left.signed)
 
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
 		left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
@@ -573,11 +609,11 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 
 	if not static:
 		if expr.static and not expr.is_literal:
-			expr.code = context.make_static(expr.code)
+			expr.code = context.make_static(expr.code, expr.signed)
 		if left.static and not left.is_literal:
-			left.code = context.make_static(left.code)
+			left.code = context.make_static(left.code, left.signed)
 		if right.static and not right.is_literal:
-			right.code = context.make_static(right.code)
+			right.code = context.make_static(right.code, right.signed)
 
 	# slice with fixed integers if slice bounds are integers
 	try:
@@ -602,9 +638,9 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 	right = self.right.generate(context)
 
 	if not left.static and right.static and not right.is_literal:
-		right.code = context.make_static(right.code)
+		right.code = context.make_static(right.code, right.signed)
 	if not right.static and left.static and not left.is_literal:
-		left.code = context.make_static(left.code)
+		left.code = context.make_static(left.code, left.signed)
 
 	new_size = left.size + right.size
 	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
@@ -692,7 +728,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 	# convert static index expression
 	index_code = index.code
 	if index.static and not context.ignore_static and not index.is_literal:
-		index.code = context.make_static(index.code)
+		index.code = context.make_static(index.code, index.signed)
 
 	if context.ignore_static:
 		static = StaticType.RW

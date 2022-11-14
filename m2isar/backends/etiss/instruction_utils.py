@@ -25,6 +25,7 @@ data_type_map = {
 
 
 MEM_VAL_REPL = 'mem_val_'
+FN_VAL_REPL = "fn_val_"
 
 def actual_size(size, min_=8, max_=128):
 	"""Calculate a fitting c datatype width for any arbitrary size."""
@@ -41,6 +42,8 @@ class CodeString:
 	"""
 
 	mem_ids: "list[MemID]"
+	function_calls: "list[FnID]"
+
 	def __init__(self, code, static, size, signed, is_mem_access, regs_affected=None):
 		self.code = code
 		self.static = StaticType(static)
@@ -52,6 +55,7 @@ class CodeString:
 		self.scalar = None
 		self.mem_corrected = False
 		self.is_literal = False
+		self.function_calls = []
 
 	@property
 	def actual_size(self):
@@ -70,6 +74,12 @@ class MemID:
 	mem_id: int
 	index: CodeString
 	access_size: int
+
+@dataclass
+class FnID:
+	fn_call: arch.Function
+	fn_id: int
+	args: CodeString
 
 class TransformerContext:
 	"""Track miscellaneous information throughout the code generation process. Also
@@ -117,16 +127,20 @@ class TransformerContext:
 		self.is_exception = False
 		self.temp_var_count = 0
 		self.mem_var_count = 0
+		self.fn_var_count = 0
 		self.affected_regs = set()
 		self.dependent_regs = set()
 		self.used_arch_data = False
 
-	def make_static(self, val):
+	def make_static(self, val, signed=False):
 		"""Wrap a static expression."""
+
+		sign = {False: "U", True: ""}
 
 		if self.ignore_static:
 			return val
-		return Template(f'" + std::to_string({val}) + "').safe_substitute(**replacements.rename_static)
+
+		return Template(f'" + std::to_string({val}) + "{sign[signed]}').safe_substitute(**replacements.rename_static)
 
 	def wrap_codestring(self, val, static=False):
 		"""Wrap an entire static line."""
