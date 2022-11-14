@@ -13,7 +13,7 @@ from string import Template as strfmt
 
 from mako.template import Template
 
-from ...metamodel import arch, patch_model
+from ...metamodel import arch, patch_model, behav
 from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
 
@@ -182,6 +182,12 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 	instr_template = Template(filename=str(template_dir/'etiss_instruction.mako'))
 
+	error_fn = None
+	for fn in core.functions.values():
+		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+			error_fn = fn
+			break
+
 	core_name = core.name
 
 	for (code, mask), instr_def in core.instructions.items():
@@ -198,6 +204,20 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 		code_string = f'{code:#0{int(enc_idx/4)}x}'
 		mask_string = f'{mask:#0{int(enc_idx/4)}x}'
+
+		if arch.InstrAttribute.ENABLE in instr_def.attributes:
+			cond = instr_def.attributes[arch.InstrAttribute.ENABLE]
+			new_op = behav.Operation([
+				behav.Conditional(
+					[cond[0]],
+					[
+						instr_def.operation.statements,
+						[behav.ProcedureCall(error_fn, [behav.IntLiteral(-11)])]
+					]
+				)
+			])
+			instr_def.operation = new_op
+			instr_def.throws = True
 
 		callback_str = generate_instruction_callback(core, instr_def, fields, static_scalars, block_end_on)
 

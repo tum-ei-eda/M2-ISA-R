@@ -149,6 +149,9 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		exc_code = ""
 		goto_code = ""
 
+		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+			context.generates_exception = True
+
 		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
 			context.generates_exception = True
 

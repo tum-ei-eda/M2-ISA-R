@@ -191,14 +191,6 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		error_instr = arch.Instruction(f"trap_entry {bitsize}", {arch.InstrAttribute.NO_CONT: None}, [error_bitfield], "", None)
 		error_bitfield_descr = error_instr.fields.get("error_code")
 		error_op = behav.Operation([
-			behav.Assignment(
-				behav.NamedReference(core.pc_memory),
-				behav.BinaryOperation(
-					behav.NamedReference(core.pc_memory),
-					behav.Operator("+"),
-					behav.NumberLiteral(bitsize // 8)
-				)
-			),
 			behav.ProcedureCall(error_fn, [behav.NamedReference(error_bitfield_descr)])
 		])
 		error_instr.operation = error_op
