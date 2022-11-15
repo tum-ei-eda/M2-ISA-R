@@ -210,7 +210,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 	raise M2NameError(f'Function {name} not recognized!')
 
 def conditional(self: behav.Conditional, context: TransformerContext):
-	"""Generate a conditional ('if' with optional 'else if' and 'else' blocks"""
+	"""Generate a conditional ('if' with optional 'else if' and 'else' blocks)"""
 
 	# generate conditions and statement blocks
 	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
@@ -467,7 +467,7 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
 
 	# slice with actual lower and upper bound code if not possible to slice with integers
-	except Exception:
+	except ValueError:
 		new_size = expr.size
 		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
@@ -480,8 +480,8 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 	"""Generate a concatenation expression"""
 
 	# generate LHS and RHS operands
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	left: CodeString = self.left.generate(context)
+	right: CodeString = self.right.generate(context)
 
 	if not left.static and right.static and not right.is_literal:
 		right.code = context.make_static(right.code, right.signed)
