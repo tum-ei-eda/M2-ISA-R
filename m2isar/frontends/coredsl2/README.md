@@ -13,15 +13,22 @@ Technical University of Munich
 This parser understands the preliminary version 2 of CoreDSL. Its grammar is implemented after the [original XText grammar](https://github.com/Minres/CoreDSL/blob/master/com.minres.coredsl/src/com/minres/coredsl/CoreDsl.xtext) and the [accompanying programmer's manual](https://github.com/Minres/CoreDSL/wiki/CoreDSL-2-programmer's-manual), as the reference grammar is not complete.
 
 ## Parser generation
-This parser uses the ANTLR parsing toolkit internally, the parser component needs to be generated before use. A current parser is provided in this repo, if you change the grammar file, you need to regenerate the parser as follows:
+The actual text parser for the CoreDSL 2 language is generated from [](CoreDSL2.g4) using the ANTLR4 parser generator. This repository provides up-to-date generation outputs for ease of use. If you want to change the main grammar, you have to regenerate the parser as follows:
 
-Download the ANTLR parser generator from [here](https://www.antlr.org/download.html), then execute:
-```
-cd /path/to/M2-ISA-R/m2isar/frontends/coredsl2
-java -jar /path/to/antlr-4.10.1-complete.jar -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
-```
+1) Install `antlr-tools` in your venv:
 
-A VSCode task for parser generation is already created for this project. To use it, put the ANTLR binary in the `/path/to/M2-ISA-R/ext` folder, then select `Terminal` -> `Run Task...` -> `Generate CoreDSL2 ANTLR parser`.
+    ```
+    pip install antlr-tools
+    ```
+
+2) Run ANTLR4 parser generator:
+
+    ```
+    cd /path/to/M2-ISA-R/m2isar/frontends/coredsl2
+    antlr4 -v 4.11.1 -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
+    ```
+
+A VSCode task for parser generation is already created for this project. To use it, install `antlr-tools` as shown in 1), then select `Terminal` -> `Run Task...` -> `Generate CoreDSL2 ANTLR parser`.
 
 ## Limitations
 This parser should be considered as in active development, so bugs will most likely occur. In addition, this parser (but also the metamodel and therefore the code generator) do not implement the following CoreDSL 2 features (at the moment):
