@@ -16,8 +16,8 @@ from ... import M2NameError, M2SyntaxError, M2ValueError
 from ...metamodel import arch, behav
 from . import replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodeString, FnID,
-                                MemID, StaticType, TransformerContext,
-                                data_type_map)
+								MemID, StaticType, TransformerContext,
+								data_type_map)
 
 # pylint: disable=unused-argument
 
@@ -95,20 +95,6 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 	ref = self.ref_or_name if isinstance(self.ref_or_name, arch.Function) else None
 	name = ref.name if isinstance(self.ref_or_name, arch.Function) else self.ref_or_name
 
-	if name == 'wait':
-		# obsolete
-		context.generates_exception = True
-		return 'partInit.code() += "cpu->exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
-
-	# elif name == 'raise':
-	# 	sender, code = fn_args
-	# 	exc_id = tuple([int(x.code.replace("U", "").replace("L", "")) for x in (sender, code)])
-	# 	if exc_id not in replacements.exception_mapping:
-	# 		raise ValueError(f'Exception {exc_id} not defined!')
-
-	# 	context.generates_exception = True
-	# 	return f'partInit.code() += "cpu->exception = {replacements.exception_mapping[exc_id]};\\n";'
-
 	if ref is not None:
 		# if there is a function object, use its information
 		fn = ref
@@ -167,30 +153,6 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 		return code_str
 
-	if name.startswith('dispatch_'):
-		if fn_args is None:
-			fn_args = []
-
-		context.used_arch_data = True
-
-		name = name.removeprefix("dispatch_")
-		arg_str = ', '.join([context.make_static(arg.code, arg.signed) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
-
-		mem_access = True in [arg.is_mem_access for arg in fn_args]
-		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
-		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-		context.dependent_regs.update(regs_affected)
-
-		code_str = ''
-		if mem_access:
-			context.generates_exception = True
-			for m_id in mem_ids:
-				code_str += f'partInit.code() += "etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};\\n";\n'
-				code_str += f'partInit.code() += "cpu->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});\\n";\n'
-
-		code_str += f'partInit.code() += "{name}({arg_str});";'
-		return code_str
-
 	raise M2NameError(f'Function {name} not recognized!')
 
 def function_call(self: behav.FunctionCall, context: TransformerContext):
@@ -201,112 +163,6 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 	# extract function object reference
 	ref = self.ref_or_name if isinstance(self.ref_or_name, arch.Function) else None
 	name = ref.name if isinstance(self.ref_or_name, arch.Function) else self.ref_or_name
-
-	if name == 'wait':
-		# obsolete
-		context.generates_exception = True
-		return 'partInit.code() += "cpu->exception = ETISS_RETURNCODE_CPUFINISHED;\\n";'
-
-	if name == 'raise':
-		# obsolete, should not happen as raise should only ever be used as a procedure
-		sender, code = fn_args
-		exc_id = (int(sender.code), int(code.code))
-		if exc_id not in replacements.exception_mapping:
-			raise M2ValueError(f'Exception {exc_id} not defined!')
-
-		context.generates_exception = True
-		return f'partInit.code() += "cpu->exception = {replacements.exception_mapping[exc_id]};\\n";'
-
-	if name == 'choose':
-		# obsolete, old implementation of ternary
-		cond, then_stmts, else_stmts = fn_args
-		static = StaticType.NONE not in [x.static for x in fn_args]
-		if not static:
-			if cond.static and not cond.is_literal:
-				cond.code = context.make_static(cond.code, cond.signed)
-			if then_stmts.static and not then_stmts.is_literal:
-				then_stmts.code = context.make_static(then_stmts.code, then_stmts.signed)
-			if else_stmts.static and not else_stmts.is_literal:
-				else_stmts.code = context.make_static(else_stmts.code, else_stmts.signed)
-
-		c = CodeString(f'({cond}) ? ({then_stmts}) : ({else_stmts})', static, then_stmts.size if then_stmts.size > else_stmts.size else else_stmts.size,
-			then_stmts.signed or else_stmts.signed, False, set.union(cond.regs_affected, then_stmts.regs_affected, else_stmts.regs_affected))
-		c.mem_ids = cond.mem_ids + then_stmts.mem_ids + else_stmts.mem_ids
-
-		return c
-
-	if name == 'sext':
-		# obsolete, sign extensions are handled via type casts (unfortunately)
-		expr = fn_args[0]
-		target_size = context.native_size
-		source_size = expr.size
-
-		if len(fn_args) >= 2:
-			target_size = int(fn_args[1].code.replace("L", "").replace("U", ""))
-		if len(fn_args) >= 3:
-			try:
-				source_size = int(fn_args[2].code.replace("L", "").replace("U", ""))
-			except ValueError:
-				source_size = context.make_static(fn_args[2].code, fn_args[2].signed)
-
-		if isinstance(source_size, int):
-			if source_size >= target_size:
-				code_str = f'(etiss_int{target_size})({expr.code})'
-			else:
-				if source_size & (source_size - 1) == 0: # power of two
-					code_str = f'(etiss_int{target_size})((etiss_int{source_size})({expr.code}))'
-				else:
-					code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size - source_size})) >> ({target_size - source_size})'
-		else:
-			code_str = f'((etiss_int{target_size})({expr.code}) << ({target_size} - {source_size})) >> ({target_size} - {source_size})'
-
-		c = CodeString(code_str, expr.static, target_size, True, expr.is_mem_access, expr.regs_affected)
-		c.mem_ids = expr.mem_ids
-
-		return c
-
-	if name == 'zext':
-		# obsolete, effectively does nothing in our context
-		expr = fn_args[0]
-		target_size = context.native_size
-
-		if len(fn_args) >= 2:
-			target_size = int(fn_args[1].code.replace("L", "").replace("U", ""))
-
-		c = CodeString(f'(etiss_uint{target_size})({expr.code})', expr.static, target_size, expr.signed, expr.is_mem_access, expr.regs_affected)
-		c.mem_ids = expr.mem_ids
-
-		return c
-
-	if name == 'shll':
-		# obsolete, replaced by standard shift operators
-		expr, amount = fn_args
-		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code, expr.signed)
-		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code, amount.signed)
-		return CodeString(f'({expr.code}) << ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
-			set.union(expr.regs_affected, amount.regs_affected))
-
-	if name == 'shrl':
-		# obsolete, replaced by standard shift operators
-		expr, amount = fn_args
-		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code, expr.signed)
-		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code, amount.signed)
-		return CodeString(f'({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size, expr.signed, expr.is_mem_access,
-			set.union(expr.regs_affected, amount.regs_affected))
-
-	if name == 'shra':
-		# obsolete, replaced by standard shift operators
-		expr, amount = fn_args
-		if expr.static and not expr.is_literal and not amount.static:
-			expr.code = context.make_static(expr.code, expr.signed)
-		if amount.static and not amount.is_literal and not expr.static:
-			amount.code = context.make_static(amount.code, amount.signed)
-		return CodeString(f'(etiss_int{expr.actual_size})({expr.code}) >> ({amount.code})', expr.static and amount.static, expr.size,
-			expr.signed, expr.is_mem_access, set.union(expr.regs_affected, amount.regs_affected))
 
 	if ref is not None:
 		# if there is a function object, use its information
@@ -349,19 +205,6 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			repl_c.function_calls.append(fn_id)
 			return repl_c
 
-		return c
-
-	if name.startswith('fdispatch_'):
-		# obsolete, replaced by 'extern' functions
-		if fn_args is None:
-			fn_args = []
-
-		mem_access = True in [arg.is_mem_access for arg in fn_args]
-		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
-		name = name.removeprefix("fdispatch_")
-		arg_str = ', '.join([context.make_static(arg.code, arg.signed) if arg.static and not arg.is_literal else arg.code for arg in fn_args])
-
-		c = CodeString(f'{name}({arg_str})', StaticType.NONE, 64, False, mem_access, regs_affected)
 		return c
 
 	raise M2NameError(f'Function {name} not recognized!')
