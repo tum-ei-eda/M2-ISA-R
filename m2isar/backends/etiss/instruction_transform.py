@@ -78,7 +78,6 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	else:
 		static = StaticType.NONE
 
-	context.scalars[self.scalar.name] = self.scalar
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	actual_size = max(actual_size, 8)
 
@@ -322,19 +321,6 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
 
 	code_lines = []
-
-	# TODO: should not be needed any more
-	if target.scalar and not context.ignore_static:
-		if expr.static:
-			if target.scalar.static == StaticType.WRITE and context.static_scalars:
-				code_lines.append(f'partInit.code() += "{target.code};\\n";')
-			target.scalar.static |= StaticType.READ
-		else:
-			#if target.scalar.static == StaticType.RW:
-			#	target.code = f'{data_type_map[target.scalar.data_type]}{target.scalar.actual_size} {target.code}'
-
-			target.scalar.static = StaticType.NONE
-			target.static = StaticType.NONE
 
 	# error out if a static target should be assigned a non-static value
 	if not expr.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:

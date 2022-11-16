@@ -51,7 +51,6 @@ class CodeString:
 		self.signed = signed
 		self.mem_ids = []
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
-		self.scalar = None
 		self.mem_corrected = False
 		self.is_literal = False
 		self.function_calls = []
@@ -75,6 +74,7 @@ class CodeString:
 		for m in self.mem_ids:
 			if m.write == False:
 				yield m
+
 	def __str__(self):
 		return self.code
 
@@ -109,7 +109,6 @@ class TransformerContext:
 		self.memory_aliases = memory_aliases
 		self.fields = fields
 		self.attributes = attributes if attributes else []
-		self.scalars = {}
 		self.functions = functions
 		self.instr_size = instr_size
 		self.native_size = native_size
