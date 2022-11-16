@@ -31,15 +31,6 @@ SIGNEDNESS = {
 	"unsigned": False
 }
 
-def flatten_list(l: list):
-	ret = []
-	for item in l:
-		if isinstance(item, list):
-			ret += flatten_list(item)
-		else:
-			ret.append(item)
-	return ret
-
 class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 	def __init__(self, filename=None) -> None:
 		self.filename = filename

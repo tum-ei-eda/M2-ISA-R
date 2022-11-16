@@ -15,6 +15,8 @@
   CoreDSL 2 ISA models.
 """
 
+from collections.abc import Iterable
+
 class M2Error(Exception):
 	pass
 
@@ -32,3 +34,10 @@ class M2TypeError(TypeError, M2Error):
 
 class M2SyntaxError(SyntaxError, M2Error):
 	pass
+
+def flatten(xs):
+	for x in xs:
+		if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+			yield from flatten(x)
+		else:
+			yield x

@@ -8,11 +8,11 @@
 
 import logging
 
-from ... import M2NameError, M2SyntaxError, M2TypeError
+from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
 from ...metamodel import arch, behav
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
+from .utils import RADIX, SHORTHANDS, SIGNEDNESS
 
 logger = logging.getLogger("behav_builder")
 
@@ -92,7 +92,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		"""Generate a block of statements, return a list."""
 
 		items = [self.visit(obj) for obj in ctx.items]
-		items = flatten_list(items)
+		items = list(flatten(items))
 		return items
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):

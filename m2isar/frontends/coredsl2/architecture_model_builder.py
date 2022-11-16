@@ -10,10 +10,10 @@ import itertools
 import logging
 from typing import Union
 
-from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError
+from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError, flatten
 from ...metamodel import arch, behav
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import RADIX, SHORTHANDS, SIGNEDNESS, flatten_list
+from .utils import RADIX, SHORTHANDS, SIGNEDNESS
 
 logger = logging.getLogger("arch_builder")
 
@@ -75,7 +75,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			extension = [obj.text for obj in ctx.extension]
 
 		# generate flat list of instruction set contents
-		contents = flatten_list([self.visit(obj) for obj in ctx.sections])
+		contents = flatten([self.visit(obj) for obj in ctx.sections])
 
 		constants = {}
 		memories = {}
