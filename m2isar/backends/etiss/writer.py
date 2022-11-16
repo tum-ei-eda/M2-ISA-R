@@ -38,7 +38,7 @@ class BooleanOptionalAction(argparse.Action):
 				 type_=None,
 				 choices=None,
 				 required=False,
-				 help_=None,
+				 help=None,
 				 metavar=None):
 
 		_option_strings = []
@@ -49,8 +49,8 @@ class BooleanOptionalAction(argparse.Action):
 				option_string = '--no-' + option_string[2:]
 				_option_strings.append(option_string)
 
-		if help_ is not None and default is not None and default is not argparse.SUPPRESS:
-			help_ += " (default: %(default)s)"
+		if help is not None and default is not None and default is not argparse.SUPPRESS:
+			help += " (default: %(default)s)"
 
 		super().__init__(
 			option_strings=_option_strings,
@@ -60,7 +60,7 @@ class BooleanOptionalAction(argparse.Action):
 			type=type_,
 			choices=choices,
 			required=required,
-			help=help_,
+			help=help,
 			metavar=metavar)
 
 	def __call__(self, parser, namespace, values, option_string=None):
@@ -78,9 +78,9 @@ def setup():
 
 	# read command line arguments
 	parser = argparse.ArgumentParser()
+	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('--separate', action=BooleanOptionalAction, default=True, help="Generate separate .cpp files for each instruction set.")
 	parser.add_argument("--static-scalars", action=BooleanOptionalAction, default=True, help="Enable static detection for scalars.")
-	parser.add_argument("--static-scalars", action="store_true", help="Enable crude static detection for scalars. WARNING: known to break!")
 	parser.add_argument("--block-end-on", default="none", choices=[x.name.lower() for x in BlockEndType],
 		help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
