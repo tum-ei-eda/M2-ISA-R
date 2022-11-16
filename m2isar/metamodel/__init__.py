@@ -22,6 +22,7 @@ or the main code generation module :mod:`m2isar.backends.etiss.instruction_trans
 
 import inspect
 import logging
+from . import behav
 
 def patch_model(module):
 	"""Monkey patch transformation functions inside `module`
@@ -41,11 +42,11 @@ def patch_model(module):
 		sig = inspect.signature(fn)
 		param = sig.parameters.get("self")
 		if not param:
-			logger.warning("no self parameter found in %s", fn)
 			continue
 		if not param.annotation:
-			logger.warning("self parameter not annotated correctly for %s", fn)
-			continue
+			raise ValueError(f"self parameter not annotated correctly for {fn}")
+		if not issubclass(param.annotation, behav.BaseNode):
+			raise TypeError(f"self parameter for {fn} has wrong subclass")
 
 		logger.debug("patching %s with fn %s", param.annotation, fn)
 		param.annotation.generate = fn
