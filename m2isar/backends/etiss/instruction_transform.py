@@ -203,6 +203,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 			repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, mem_access, regs_affected)
 			repl_c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 			repl_c.function_calls.append(fn_id)
+			context.fn_var_count += 1
 			return repl_c
 
 		return c
