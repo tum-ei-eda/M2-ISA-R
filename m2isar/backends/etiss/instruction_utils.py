@@ -54,6 +54,7 @@ class CodeString:
 		self.mem_corrected = False
 		self.is_literal = False
 		self.function_calls = []
+		self.check_trap = False
 
 	@property
 	def actual_size(self):
@@ -88,6 +89,7 @@ class MemID:
 	mem_id: int
 	index: CodeString
 	access_size: int
+	write: bool = None
 
 @dataclass
 class FnID:

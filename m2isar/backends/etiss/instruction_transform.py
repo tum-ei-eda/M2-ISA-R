@@ -12,7 +12,7 @@ import logging
 from itertools import chain
 from string import Template
 
-from ... import M2NameError, M2SyntaxError, M2ValueError
+from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
 from ...metamodel import arch, behav
 from . import replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodeString, FnID,
@@ -28,9 +28,54 @@ def operation(self: behav.Operation, context: TransformerContext):
 	concatenate their code, and add exception behavior if needed.
 	"""
 
-	args = [stmt.generate(context) for stmt in self.statements]
+	args: "list[CodeString]" = []
+	code_lines = []
 
-	code_str = '\n'.join(args)
+	for stmt in self.statements:
+		c = stmt.generate(context)
+
+		if isinstance(c, list):
+			args.extend(c)
+		else:
+			args.append(c)
+
+	for arg in args:
+		if arg.is_mem_access:
+			raise_fn_call = behav.Conditional(
+				[behav.CodeLiteral('cpu->exception')],
+				[[behav.ProcedureCall(
+					context.mem_raise_fn,
+					[behav.CodeLiteral("cpu->exception")]
+				)]]
+			).generate(context)
+
+			raise_fn_str = [context.wrap_codestring(c.code) for c in raise_fn_call]
+
+
+		for f_id in arg.function_calls:
+			code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{f_id.fn_call.actual_size} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
+			code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};', arg.static))
+			code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";', arg.static))
+
+		for m_id in arg.read_mem_ids:
+			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};'))
+			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
+			code_lines.extend(raise_fn_str)
+
+		for m_id in arg.write_mem_ids:
+			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};'))
+
+		code_lines.append(context.wrap_codestring(f'{arg.code}', arg.static))
+
+		#if arg.check_trap:
+		#	code_lines.append(context.wrap_codestring('goto instr_exit_" + std::to_string(ic.current_address_) + ";'))
+
+		for m_id in arg.write_mem_ids:
+			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
+			code_lines.extend(raise_fn_str)
+
+
+	code_str = '\n'.join(code_lines)
 
 	# only generate return statements if not in a function
 	if not context.ignore_static:
@@ -64,7 +109,9 @@ def operation(self: behav.Operation, context: TransformerContext):
 	return code_str
 
 def return_(self: behav.Return, context: TransformerContext):
-	return f'return {self.expr.generate(context).code};'
+	c = self.expr.generate(context)
+	c.code = f'return {c.code};'
+	return c
 
 def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext):
 	"""Generate a scalar definition. Calculates the actual required data width and generates
@@ -120,19 +167,8 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 		context.dependent_regs.update(regs_affected)
 
-		code_str = ''
-
-		# generate a memory access if required
-		# TODO: refactor memory access generation into function
-		if mem_access:
-			context.generates_exception = True
-			for m_id in mem_ids:
-				code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
-				code_str += context.wrap_codestring(f'cpu->exception = (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
-
 		# add special behavior if this function is an exception entry point
 		exc_code = ""
-		goto_code = ""
 
 		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
 			context.generates_exception = True
@@ -145,12 +181,14 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			else:
 				exc_code = "cpu->exception = 0; "
 
+		c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None)
+		c.mem_ids = mem_ids
 		if fn.throws and not context.ignore_static:
-			goto_code = ' goto instr_exit_" + std::to_string(ic.current_address_) + ";'
+			c.check_trap = True
+			c2 = CodeString('goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
+			return [c, c2]
 
-		code_str += context.wrap_codestring(f'{exc_code}{fn.name}({arg_str});{goto_code}')
-
-		return code_str
+		return c
 
 	raise M2NameError(f'Function {name} not recognized!')
 
@@ -214,76 +252,101 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	# generate conditions and statement blocks
 	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
-	stmts: "list[list[str]]" = [[y.generate(context) for y in x] for x in self.stmts]
+	stmts: "list[list[CodeString]]" = [] #= [[y.generate(context) for y in x] for x in self.stmts]
+
+	for stmt_block in self.stmts:
+		block_statements = []
+		for stmt in stmt_block:
+			if isinstance(stmt, list):
+				for stmt2 in stmt:
+					block_statements.append(stmt2.generate(context))
+			else:
+				block_statements.append(stmt.generate(context))
+
+		stmts.append(block_statements)
 
 	# check if all conditions are static
 	static = all(x.static for x in conds)
 
-	code_str = ""
+	outputs: "list[CodeString]" = []
 
-	# generate memory accesses for any conditions that require one
+
+
 	for cond in conds:
-		if cond.is_mem_access:
-			context.generates_exception = True
+		for m_id in cond.mem_ids:
+			m_id.write = False
 
-			for m_id in cond.mem_ids:
-				code_str += context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};') + '\n'
-				code_str += context.wrap_codestring(f'((${{ARCH_NAME}}*)cpu)->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});') + '\n'
+		if cond.static and not static:
+			cond.code = context.make_static(cond.code)
+			cond.static = False
 
-	# generate the opening 'if' statement
-	cond_str = f'if ({conds[0]}) {{'
+	# generate initial if
+	#c = conds[0]
+	conds[0].code = f'if ({conds[0].code}) {{'
+	outputs.append(conds[0])
 	if not static:
-		cond_str = f'partInit.code() += "{cond_str}\\n";'
 		context.dependent_regs.update(conds[0].regs_affected)
 
-	code_str += cond_str + '\n'
-	code_str += '\n'.join(stmts[0])
-	code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
+	# generate first statement block
+	outputs.extend(flatten(stmts[0]))
 
-	# generate any 'else if' blocks
+	# generate closing brace
+	outputs.append(CodeString("}", static, None, None))
+
 	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
-		elif_str = f' else if ({elif_cond}) {{'
+		elif_cond.code = f' else if ({elif_cond.code}) {{'
+		outputs.append(elif_cond)
 		if not static:
-			elif_str = f'\npartInit.code() += "{elif_str}\\n";'
 			context.dependent_regs.update(elif_cond.regs_affected)
 
-		code_str += elif_str + '\n'
-		code_str += '\n'.join(elif_stmts)
-		code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
+		outputs.extend(flatten(elif_stmts))
 
-	# generate a closing 'else' statement
+		outputs.append(CodeString("}", static, None, None))
+
 	if len(conds) < len(stmts):
-		code_str += ' else {\n' if static else '\npartInit.code() += " else {\\n";\n'
-		code_str += '\n'.join(stmts[-1])
-		code_str += '\n}' if static else '\npartInit.code() += "}\\n";'
+		outputs.append(CodeString("else {", static, None, None))
 
-	return code_str
+		outputs.extend(flatten(stmts[-1]))
+
+		outputs.append(CodeString("}", static, None, None))
+
+	return outputs
 
 def loop(self: behav.Loop, context: TransformerContext):
 	"""Generate 'while' and 'do .. while' loops."""
 
 	# generate the loop condition and body
-	cond = self.cond.generate(context)
-	stmts = [stmt.generate(context) for stmt in self.stmts]
+	cond: CodeString = self.cond.generate(context)
+	stmts: "list[CodeString]" = [] #[stmt.generate(context) for stmt in self.stmts]
 
-	# generate loop begin
-	code_str = f"while ({cond}) {{" if not self.post_test else "do {"
+	for stmt in self.stmts:
+		if isinstance(stmt, list):
+			for stmt2 in stmt:
+				stmts.append(stmt2.generate(context))
+		else:
+			stmts.append(stmt.generate(context))
+
 	if not cond.static:
-		code_str = f'partInit.code() += "{code_str}\\n";'
 		context.dependent_regs.update(cond.regs_affected)
 
-	# generate loop body
-	code_str += '\n'
-	code_str += '\n'.join(stmts)
-	code_str += '\n'
+	outputs: "list[CodeString]" = []
 
-	end_code = "}" if not self.post_test else f"}} while({cond});"
-	if not cond.static:
-		end_code = f'partInit.code() += "{end_code}\\n";'
+	if self.post_test:
+		start_c = CodeString("do {", cond.static, None, None)
+		end_c = cond
+		end_c.code = f'}} while ({end_c.code})'
+	else:
+		start_c = cond
+		start_c.code = f'while ({start_c.code}) {{'
+		end_c = CodeString("}", cond.static, None, None)
 
-	code_str += end_code
+	outputs.append(start_c)
 
-	return code_str
+	outputs.extend(flatten(stmts))
+
+	outputs.append(end_c)
+
+	return outputs
 
 def ternary(self: behav.Ternary, context: TransformerContext):
 	"""Generate a ternary expression."""
@@ -345,61 +408,39 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
 
-	if len(target.function_calls) or len(expr.function_calls):
-		for f_id in expr.function_calls:
-			code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]} {FN_VAL_REPL}{f_id.fn_id};'))
-			code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};'))
-			code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";'))
-
-	# mask off unneeded bits
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
 			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
-		code_lines.append(context.wrap_codestring(f'{target.code} = {expr.code};', static))
-
 	else:
 		context.generates_exception = True
 
-		raise_fn_call = behav.Conditional(
-			[behav.CodeLiteral('cpu->exception')],
-			[[behav.ProcedureCall(
-				context.mem_raise_fn,
-				[behav.CodeLiteral("cpu->exception")]
-			)]]
-		).generate(context)
-
-		# generate any memory (read) accesses in the assignment value expression
 		for m_id in expr.mem_ids:
-			# if no explicit memory access size was given, determine from the target size
+			m_id.write = False
+
 			if not expr.mem_corrected:
 				logger.debug("assuming mem read size at %d", target.size)
 				m_id.access_size = target.size
 
-			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id};'))
-			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dread))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
-			#raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_lines.append(raise_fn_call)
-
-		# generate target memory (write) access
 		if target.is_mem_access:
 			if len(target.mem_ids) != 1:
 				raise M2SyntaxError('Only one memory access is allowed as assignment target!')
+
+			target.mem_ids[0].write = True
 
 			if not target.mem_corrected:
 				logger.debug("assuming mem write size at %d", expr.size)
 				target.mem_ids[0].access_size = expr.size
 
-			m_id = target.mem_ids[0]
+	c = CodeString(f"{target.code} = {expr.code};", static, None, None)
 
-			code_lines.append(context.wrap_codestring(f'etiss_uint{m_id.access_size} {MEM_VAL_REPL}{m_id.mem_id} = {expr.code};'))
-			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
-			#raise_fn_call = behav.FunctionCall(context.mem_raise_fn, [behav.CodeLiteral("cpu->exception")]).generate(context)
-			code_lines.append(raise_fn_call)
-		else:
-			code_lines.append(context.wrap_codestring(f'{target.code} = {expr.code};'))
+	c.function_calls.extend(target.function_calls)
+	c.function_calls.extend(expr.function_calls)
 
-	return '\n'.join(code_lines)
+	c.mem_ids.extend(target.mem_ids)
+	c.mem_ids.extend(expr.mem_ids)
+
+	return c
 
 def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	"""Generate a binary expression"""
