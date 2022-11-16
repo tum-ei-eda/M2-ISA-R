@@ -82,7 +82,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	actual_size = max(actual_size, 8)
 
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S, False)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S)
 	#c.scalar = self.scalar
 	return c
 
@@ -195,12 +195,12 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		#if fn.throws and not context.ignore_static:
 		#	goto_code = '; goto instr_exit_" + std::to_string(ic.current_address_) + "'
 
-		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, mem_access, regs_affected)
+		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected)
 		c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
 		if fn.throws and not context.ignore_static:
 			fn_id = FnID(fn, context.fn_var_count, c)
-			repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, mem_access, regs_affected)
+			repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, regs_affected)
 			repl_c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 			repl_c.function_calls.append(fn_id)
 			context.fn_var_count += 1
@@ -306,8 +306,7 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 			else_expr.code = context.make_static(else_expr.code, else_expr.signed)
 
 	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size,
-		then_expr.signed or else_expr.signed, any((cond.is_mem_access, then_expr.is_mem_access, else_expr.is_mem_access)),
-		set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
+		then_expr.signed or else_expr.signed, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
 	c.mem_ids = cond.mem_ids + then_expr.mem_ids + else_expr.mem_ids
 
 	return c
@@ -431,7 +430,7 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 		left.code = context.make_static(left.code, left.signed)
 
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
-		left.signed or right.signed, left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected))
 	# keep track of any memory accesses
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
@@ -440,7 +439,7 @@ def unary_operation(self: behav.UnaryOperation, context: TransformerContext):
 	op = self.op
 	right = self.right.generate(context)
 
-	c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.is_mem_access, right.regs_affected)
+	c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.regs_affected)
 	c.mem_ids = right.mem_ids
 	return c
 
@@ -473,7 +472,7 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
 	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed,
-		expr.is_mem_access or left.is_mem_access or right.is_mem_access, set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
+		set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
 	return c
 
@@ -491,7 +490,7 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 
 	new_size = left.size + right.size
 	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
-		left.is_mem_access or right.is_mem_access, set.union(left.regs_affected, right.regs_affected))
+		set.union(left.regs_affected, right.regs_affected))
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
@@ -553,7 +552,7 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	if context.ignore_static:
 		static = StaticType.RW
 
-	c = CodeString(name, static, size, signed, False)
+	c = CodeString(name, static, size, signed)
 	#c.scalar = scalar
 	return c
 
@@ -584,7 +583,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 
 	if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 		# generate memory access if main memory is accessed
-		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, True)
+		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False)
 		c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 		context.mem_var_count += 1
 		return c
@@ -595,7 +594,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 		code_str = '*' + code_str
 	if size != referred_mem.size:
 		code_str = f'(etiss_uint{size})' + code_str
-	c = CodeString(code_str, static, size, False, False)
+	c = CodeString(code_str, static, size, False)
 	if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
 		c.regs_affected.add(index_code)
 	return c
@@ -640,7 +639,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 	else:
 		code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
 
-	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.is_mem_access, expr.regs_affected)
+	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.regs_affected)
 	c.mem_ids = expr.mem_ids
 	c.mem_corrected = expr.mem_corrected
 
@@ -662,7 +661,7 @@ def int_literal(self: behav.IntLiteral, context: TransformerContext):
 	if size > 64:
 		postfix += "L"
 
-	ret = CodeString(str(lit) + postfix, True, size, sign, False)
+	ret = CodeString(str(lit) + postfix, True, size, sign)
 	ret.is_literal = True
 	return ret
 
@@ -681,7 +680,7 @@ def number_literal(self: behav.NumberLiteral, context: TransformerContext):
 	if size > 64:
 		postfix += "L"
 
-	return CodeString(str(twocomp_lit) + postfix, True, size, sign, False)
+	return CodeString(str(twocomp_lit) + postfix, True, size, sign)
 
 def group(self: behav.Group, context: TransformerContext):
 	"""Generate a group of expressions."""
@@ -697,4 +696,4 @@ def operator(self: behav.Operator, context: TransformerContext):
 	return self.op
 
 def code_literal(self: behav.CodeLiteral, context: TransformerContext):
-	return CodeString(self.val, False, context.native_size, False, False)
+	return CodeString(self.val, False, context.native_size, False)

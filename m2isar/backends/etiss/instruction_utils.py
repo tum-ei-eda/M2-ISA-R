@@ -44,12 +44,11 @@ class CodeString:
 	mem_ids: "list[MemID]"
 	function_calls: "list[FnID]"
 
-	def __init__(self, code, static, size, signed, is_mem_access, regs_affected=None):
+	def __init__(self, code, static, size, signed, regs_affected=None):
 		self.code = code
 		self.static = StaticType(static)
 		self.size = size
 		self.signed = signed
-		self.is_mem_access = is_mem_access
 		self.mem_ids = []
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
 		self.scalar = None
@@ -61,6 +60,21 @@ class CodeString:
 	def actual_size(self):
 		return actual_size(self.size)
 
+	@property
+	def is_mem_access(self):
+		return len(self.mem_ids) > 0
+
+	@property
+	def write_mem_ids(self):
+		for m in self.mem_ids:
+			if m.write:
+				yield m
+
+	@property
+	def read_mem_ids(self):
+		for m in self.mem_ids:
+			if m.write == False:
+				yield m
 	def __str__(self):
 		return self.code
 
