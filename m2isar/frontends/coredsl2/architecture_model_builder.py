@@ -107,6 +107,17 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instruction_sets[name] = i
 		return i
 
+	def visitSection_instructions(self, ctx: CoreDSL2Parser.Section_instructionsContext):
+		attributes = dict([self.visit(obj) for obj in ctx.attributes])
+		instructions: "list[arch.Instruction]" = [self.visit(obj) for obj in ctx.instructions]
+
+		for attr, val in attributes.items():
+			for instr in instructions:
+				if attr not in instr.attributes:
+					instr.attributes[attr] = val
+
+		return instructions
+
 	def visitCore_def(self, ctx: CoreDSL2Parser.Core_defContext):
 		"""Generate a top-level CoreDef object."""
 
