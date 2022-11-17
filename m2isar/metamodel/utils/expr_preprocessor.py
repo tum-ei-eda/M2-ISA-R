@@ -27,6 +27,11 @@ def process_functions(core: arch.CoreDef):
 		logger.debug("simplifying expressions for fn %s", fn_name)
 		fn_def.operation.generate(None)
 
+		for attr_name, attr_defs in fn_def.attributes.items():
+			logger.debug("simplifying expressions for attr %s", attr_name)
+			for attr_def in attr_defs:
+				attr_def.generate(None)
+
 		patch_model(function_throws)
 		logger.debug("checking throws for fn %s", fn_name)
 		throws = fn_def.operation.generate(None)
@@ -61,6 +66,11 @@ def process_instructions(core: arch.CoreDef):
 		patch_model(expr_simplifier)
 		logger.debug("simplifying expressions for instr %s", instr_def.name)
 		instr_def.operation.generate(None)
+
+		for attr_name, attr_defs in instr_def.attributes.items():
+			logger.debug("simplifying expressions for attr %s", attr_name)
+			for attr_def in attr_defs:
+				attr_def.generate(None)
 
 		patch_model(function_throws)
 		logger.debug("checking throws for instr %s", instr_def.name)
