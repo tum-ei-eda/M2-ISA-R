@@ -676,8 +676,12 @@ def int_literal(self: behav.IntLiteral, context: TransformerContext):
 	"""Generate an integer literal."""
 
 	lit = int(self.value)
-	size = min(self.bit_size, 64)
+	size = min(self.bit_size, 128)
 	sign = self.signed
+
+	minus = ""
+	if lit > 0 and sign and (lit >> (size - 1)) & 1:
+		minus = "-"
 
 	twocomp_lit = (lit + (1 << size)) % (1 << size)
 
@@ -688,7 +692,7 @@ def int_literal(self: behav.IntLiteral, context: TransformerContext):
 	if size > 64:
 		postfix += "L"
 
-	ret = CodeString(str(lit) + postfix, True, size, sign)
+	ret = CodeString(minus + str(lit) + postfix, True, size, sign)
 	ret.is_literal = True
 	return ret
 
