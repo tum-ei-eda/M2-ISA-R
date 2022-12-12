@@ -91,10 +91,14 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 		if context.generates_exception:
 			return_conditions.append("cpu->return_pending")
+			return_conditions.append("cpu->exception")
+
 		if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
 			return_conditions.append(f'cpu->nextPc != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
+
 		elif arch.InstrAttribute.NO_CONT in context.attributes:
 			return_conditions.clear()
+
 		if arch.InstrAttribute.FLUSH in context.attributes:
 			code_str = 'partInit.code() += "cpu->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
 			return_conditions.clear()
