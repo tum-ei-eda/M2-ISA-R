@@ -80,9 +80,10 @@ def ternary(self: behav.Ternary, context):
 	return all([cond, then_expr, else_expr])
 
 def return_(self: behav.Return, context):
-	expr = self.expr.generate(context)
+	if self.expr is not None:
+		return self.expr.generate(context)
 
-	return expr
+	return True
 
 def unary_operation(self: behav.UnaryOperation, context):
 	right = self.right.generate(context)

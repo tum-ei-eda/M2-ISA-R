@@ -113,8 +113,12 @@ def operation(self: behav.Operation, context: TransformerContext):
 	return code_str
 
 def return_(self: behav.Return, context: TransformerContext):
-	c = self.expr.generate(context)
-	c.code = f'return {c.code};'
+	if self.expr is not None:
+		c = self.expr.generate(context)
+		c.code = f'return {c.code};'
+	else:
+		c = CodeString("return;", StaticType.RW, None, None)
+
 	return c
 
 def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext):

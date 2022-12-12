@@ -93,9 +93,10 @@ def ternary(self: behav.Ternary, context: ScalarStaticnessContext):
 	return min(cond, then_expr, else_expr)
 
 def return_(self: behav.Return, context: ScalarStaticnessContext):
-	expr = self.expr.generate(context)
+	if self.expr is not None:
+		return self.expr.generate(context)
 
-	return expr
+	return StaticType.RW
 
 def unary_operation(self: behav.UnaryOperation, context: ScalarStaticnessContext):
 	right = self.right.generate(context)

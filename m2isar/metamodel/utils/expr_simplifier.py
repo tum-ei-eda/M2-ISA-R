@@ -141,7 +141,8 @@ def ternary(self: behav.Ternary, context):
 	return self
 
 def return_(self: behav.Return, context):
-	self.expr = self.expr.generate(context)
+	if self.expr is not None:
+		self.expr = self.expr.generate(context)
 
 	return self
 
