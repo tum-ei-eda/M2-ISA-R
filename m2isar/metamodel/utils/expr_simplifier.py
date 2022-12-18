@@ -81,6 +81,7 @@ def scalar_definition(self: behav.ScalarDefinition, context):
 	return self
 
 def assignment(self: behav.Assignment, context):
+	self.target = self.target.generate(context)
 	self.expr = self.expr.generate(context)
 
 	if isinstance(self.expr, behav.IntLiteral) and isinstance(self.target, (behav.NamedReference, behav.IndexedReference)):
@@ -179,8 +180,7 @@ def type_conv(self: behav.TypeConv, context):
 	return self
 
 def callable_(self: behav.Callable, context):
-	for stmt in self.args:
-		stmt = stmt.generate(context)
+	self.args = [stmt.generate(context) for stmt in self.args]
 
 	return self
 
