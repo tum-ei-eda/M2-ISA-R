@@ -15,9 +15,9 @@ from string import Template
 from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
 from ...metamodel import arch, behav
 from . import replacements
-from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodeString, FnID,
-								MemID, StaticType, TransformerContext,
-								data_type_map)
+from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
+                                CodeString, FnID, MemID, StaticType,
+                                TransformerContext, data_type_map)
 
 # pylint: disable=unused-argument
 
@@ -74,13 +74,14 @@ def operation(self: behav.Operation, context: TransformerContext):
 			code_lines.append(context.wrap_codestring(f'cpu->exception |= (*(system->dwrite))(system->handle, cpu, {m_id.index.code}, (etiss_uint8*)&{MEM_VAL_REPL}{m_id.mem_id}, {int(m_id.access_size / 8)});'))
 			code_lines.extend(raise_fn_str)
 
+	container = CodePartsContainer()
 
-	code_str = '\n'.join(code_lines)
+	container.initial_required = '\n'.join(code_lines)
 
 	# only generate return statements if not in a function
 	if not context.ignore_static:
-		code_str += '\npartInit.code() += "instr_exit_" + std::to_string(ic.current_address_) + ":\\n";'
-		code_str += '\npartInit.code() += "cpu->instructionPointer = cpu->nextPc;\\n";'# + code_str
+		container.initial_required += '\ncp.code() += "instr_exit_" + std::to_string(ic.current_address_) + ":\\n";'
+		container.initial_required += '\ncp.code() += "cpu->instructionPointer = cpu->nextPc;\\n";'# + code_str
 		return_conditions = []
 		return_needed = any((
 			context.generates_exception,
@@ -100,17 +101,17 @@ def operation(self: behav.Operation, context: TransformerContext):
 			return_conditions.clear()
 
 		if arch.InstrAttribute.FLUSH in context.attributes:
-			code_str = 'partInit.code() += "cpu->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + code_str
+			container.initial_required = 'cp.code() += "cpu->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + container.initial_required
 			return_conditions.clear()
 
 		if return_needed:
 			cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
-			code_str += f'\npartInit.code() += "{cond_str}return cpu->exception;\\n";'
+			container.appended_returning_required = f'cp.code() += "{cond_str}return cpu->exception;\\n";'
 
 	elif arch.FunctionAttribute.ETISS_EXC_ENTRY in context.attributes:
-		code_str = "cpu->return_pending = 1;\n" + code_str
+		container.initial_required = "cpu->return_pending = 1;\n" + container.initial_required
 
-	return code_str
+	return container
 
 def return_(self: behav.Return, context: TransformerContext):
 	if self.expr is not None:
