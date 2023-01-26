@@ -31,6 +31,11 @@ SIGNEDNESS = {
 	"unsigned": False
 }
 
+BOOLCONST = {
+	"true": 1,
+	"false": 0
+}
+
 class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 	def __init__(self, filename=None) -> None:
 		self.filename = filename

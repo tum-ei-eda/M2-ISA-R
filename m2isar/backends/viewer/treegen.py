@@ -131,9 +131,10 @@ def ternary(self: behav.Ternary, context: "TreeGenContext"):
 def return_(self: behav.Return, context: "TreeGenContext"):
 	context.push(context.tree.insert(context.parent, tk.END, text="Return"))
 
-	context.push(context.tree.insert(context.parent, tk.END, text="Expression"))
-	self.expr.generate(context)
-	context.pop()
+	if self.expr is not None:
+		context.push(context.tree.insert(context.parent, tk.END, text="Expression"))
+		self.expr.generate(context)
+		context.pop()
 
 	context.pop()
 

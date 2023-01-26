@@ -12,7 +12,7 @@ from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
 from ...metamodel import arch, behav
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import RADIX, SHORTHANDS, SIGNEDNESS
+from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
 
 logger = logging.getLogger("behav_builder")
 
@@ -324,6 +324,22 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			width = value.bit_length()
 
 		return behav.IntLiteral(value, width)
+
+	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
+		"""Generate a character literal. Converts directly to uint8."""
+
+		text: str = ctx.value.text
+
+		value = min(ord(text.replace("'", "")), 255)
+
+		return behav.IntLiteral(value, 8)
+
+	def visitBool_constant(self, ctx: CoreDSL2Parser.Bool_constantContext):
+		"""Generate a boolean literal. Converts directly to uint1."""
+
+		text: str = ctx.value.text
+
+		return behav.IntLiteral(BOOLCONST[text], 1)
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
 		"""Generate a type cast."""
