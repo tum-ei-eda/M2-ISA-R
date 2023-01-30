@@ -77,7 +77,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 			fn_name=fn_name,
 			args_list=fn_args,
 			static=fn_def.static,
-			operation=out_code
+			operation=out_code.initial_required
 		)
 
 		yield (fn_name, templ_str)
