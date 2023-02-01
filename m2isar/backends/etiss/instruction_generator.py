@@ -184,7 +184,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 	error_fn = None
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 

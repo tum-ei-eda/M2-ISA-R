@@ -175,12 +175,12 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	error_fn = None
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 			error_fn = fn
 			break
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 

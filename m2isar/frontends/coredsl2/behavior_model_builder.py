@@ -80,7 +80,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if ref is None:
 			raise M2NameError(f"function \"{name}\" is not defined")
 
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in ref.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in ref.attributes:
 			raise M2SyntaxError(f"exception entry function \"{name}\" must be called as procedure")
 
 		# generate method arguments

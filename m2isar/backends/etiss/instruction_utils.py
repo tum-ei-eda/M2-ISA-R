@@ -133,9 +133,9 @@ class TransformerContext:
 		self.mem_raise_fn: arch.Function = None
 
 		for fn_name, fn_def in self.functions.items():
-			if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn_def.attributes:
+			if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
 				self.raise_fn = fn_def
-			if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn_def.attributes:
+			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
 				self.mem_raise_fn = fn_def
 
 		self.generates_exception = False

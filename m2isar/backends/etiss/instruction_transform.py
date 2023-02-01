@@ -107,7 +107,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 			cond_str = ("if (" + " | ".join(return_conditions) + ") ") if return_conditions else ""
 			code_str += f'\npartInit.code() += "{cond_str}return cpu->exception;\\n";'
 
-	elif arch.FunctionAttribute.ETISS_EXC_ENTRY in context.attributes:
+	elif arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
 		code_str = "cpu->return_pending = 1;\n" + code_str
 
 	return code_str
@@ -178,10 +178,10 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		# add special behavior if this function is an exception entry point
 		exc_code = ""
 
-		if arch.FunctionAttribute.ETISS_MEM_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			context.generates_exception = True
 
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in fn.attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 			context.generates_exception = True
 
 			if fn.size is not None:
