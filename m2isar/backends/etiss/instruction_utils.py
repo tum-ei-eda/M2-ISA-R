@@ -8,7 +8,7 @@
 
 """Utility classes and functions for instruction generation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from itertools import chain
 from string import Template
 
@@ -97,6 +97,28 @@ class FnID:
 	fn_id: int
 	args: CodeString
 
+@dataclass
+class CodePartsContainer:
+	pre_initial_debug_returning: str = None
+	initial_required: str = None
+	optional_middle: str = None
+	appended_required: str = None
+	appended_optional: str = None
+	appended_returning_required: str = None
+
+	def generate(self):
+		return {name.replace("_", "").upper(): part for name, part in asdict(self).items() if part is not None}
+
+	def format(self, mapping={}, **kwargs):
+		for name in asdict(self):
+			part = getattr(self, name)
+			if not part:
+				continue
+
+			formatted = Template(part).safe_substitute(mapping, **kwargs)
+			setattr(self, name, formatted)
+
+
 class TransformerContext:
 	"""Track miscellaneous information throughout the code generation process. Also
 	provides helper functions for staticness conversion etc.
@@ -163,7 +185,7 @@ class TransformerContext:
 		if self.ignore_static or static:
 			return val
 
-		return f'partInit.code() += "{val}\\n";'
+		return f'cp.code() += "{val}\\n";'
 
 	def get_constant_or_val(self, name_or_val):
 		"""Convenience accessor for constant values."""

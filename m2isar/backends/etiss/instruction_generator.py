@@ -9,13 +9,16 @@
 """Functions for generating function and instruction behavior."""
 
 import logging
-from string import Template as strfmt
+from typing import TYPE_CHECKING
 
 from mako.template import Template
 
-from ...metamodel import arch, patch_model, behav
+from ...metamodel import arch, behav, patch_model
 from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
+
+if TYPE_CHECKING:
+	from .instruction_utils import CodePartsContainer
 
 logger = logging.getLogger("instruction_generator")
 
@@ -52,8 +55,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 
 		logger.debug("generating code for %s", fn_name)
 
-		out_code = fn_def.operation.generate(context)
-		out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
+		out_code: "CodePartsContainer" = fn_def.operation.generate(context)
+		out_code.format(ARCH_NAME=core_name)
 
 		#fn_def.static = not context.used_arch_data
 
@@ -74,7 +77,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 			fn_name=fn_name,
 			args_list=fn_args,
 			static=fn_def.static,
-			operation=out_code
+			operation=out_code.initial_required
 		)
 
 		yield (fn_name, templ_str)
@@ -159,7 +162,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	logger.debug("generating behavior code for %s", instr_def.name)
 
 	out_code = instr_def.operation.generate(context)
-	out_code = strfmt(out_code).safe_substitute(ARCH_NAME=core_name)
+	out_code.format(ARCH_NAME=core_name)
 
 	logger.debug("rendering template for %s", instr_def.name)
 

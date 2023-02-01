@@ -9,21 +9,26 @@ ${'\n'.join(misc_code)}
 ${fields_code}
 // -----------------------------------------------------------------------------
 
-		CodePart & partInit = cs.append(CodePart::INITIALREQUIRED);
+	% for name, part in operation.generate().items():
+	{
+		CodePart & cp = cs.append(CodePart::${name});
 
-		partInit.code() = std::string("//${instr_name}\n");
+		cp.code() = std::string("//${instr_name}\n");
 
 // -----------------------------------------------------------------------------
-${operation}
+${part}
 // -----------------------------------------------------------------------------
-
+		% if name == "INITIALREQUIRED":
 		% for reg in sorted(reg_dependencies):
-		partInit.getRegisterDependencies().add(reg_name[${reg}], ${core_default_width});
+		cp.getRegisterDependencies().add(reg_name[${reg}], ${core_default_width});
 		% endfor
 		% for reg in sorted(reg_affected):
-		partInit.getAffectedRegisters().add(reg_name[${reg}], ${core_default_width});
+		cp.getAffectedRegisters().add(reg_name[${reg}], ${core_default_width});
 		% endfor
-		partInit.getAffectedRegisters().add("instructionPointer", 32);
+		cp.getAffectedRegisters().add("instructionPointer", 32);
+		% endif
+	}
+	%endfor
 
 		return true;
 	}
