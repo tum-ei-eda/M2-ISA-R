@@ -213,8 +213,8 @@ class InstrAttribute(Enum):
 class FunctionAttribute(Enum):
 	ETISS_STATICFN = auto()
 	ETISS_NEEDS_ARCH = auto()
-	ETISS_EXC_ENTRY = auto()
-	ETISS_MEM_EXC_ENTRY = auto()
+	ETISS_TRAP_ENTRY_FN = auto()
+	ETISS_TRAP_TRANSLATE_FN = auto()
 
 class DataType(Enum):
 	NONE = auto()

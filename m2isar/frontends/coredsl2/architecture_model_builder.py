@@ -169,7 +169,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# decode attributes
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 
-		if arch.FunctionAttribute.ETISS_EXC_ENTRY in attributes:
+		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in attributes:
 			attributes[arch.FunctionAttribute.ETISS_NEEDS_ARCH] = []
 
 		# decode return type and name
