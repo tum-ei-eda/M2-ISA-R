@@ -77,6 +77,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 			fn_name=fn_name,
 			args_list=fn_args,
 			static=fn_def.static,
+			extern=fn_def.extern,
 			operation=out_code.initial_required
 		)
 
