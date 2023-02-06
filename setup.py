@@ -28,7 +28,7 @@ setuptools.setup(
     },
     entry_points={
         "console_scripts": [
-            "etiss_writer=m2isar.backends.etiss.writer:main"
+            "etiss_writer=m2isar.backends.etiss.writer:main",
             "coredsl2_parser=m2isar.frontends.coredsl2.parser:main",
             "m2isar_viewer=m2isar.backends.viewer.viewer:main"
         ]
