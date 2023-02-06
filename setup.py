@@ -14,18 +14,13 @@ setuptools.setup(
     use_scm_version=True,
     packages=setuptools.find_packages(),
     package_data={
-        "": ["*.mako", "*.lark"]
+        "": ["*.mako"]
     },
     setup_requires=["setuptools_scm"],
     install_requires=[
         "mako",
         "antlr4-python3-runtime ~= 4.10"
     ],
-    extras_require={
-        "lark": [
-            "lark-parser ~= 0.11"
-        ]
-    },
     entry_points={
         "console_scripts": [
             "etiss_writer=m2isar.backends.etiss.writer:main",
