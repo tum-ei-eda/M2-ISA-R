@@ -411,8 +411,49 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	"""Generate an assignment expression"""
 
 	# generate target and value expressions
-	target: CodeString = self.target.generate(context)
-	expr: CodeString = self.expr.generate(context)
+	if isinstance(self.target, behav.SliceOperation):
+
+		# generate expression to be sliced and lower and upper slice bound
+		expr = self.target.expr.generate(context)
+		left = self.target.left.generate(context)
+		right = self.target.right.generate(context)
+
+		static = StaticType.NONE not in [x.static for x in (expr, left, right)]
+
+		if not static:
+			if expr.static and not expr.is_literal:
+				expr.code = context.make_static(expr.code, expr.signed)
+			if left.static and not left.is_literal:
+				left.code = context.make_static(left.code, left.signed)
+			if right.static and not right.is_literal:
+				right.code = context.make_static(right.code, right.signed)
+
+		# slice with fixed integers if slice bounds are integers
+		try:
+			new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
+			mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
+			shifted_mask = mask << int(right.code.replace("U", "").replace("L", ""))
+			# The following only works for up to 64 bit targets
+			inv_shifted_mask = f"({~shifted_mask & 0xffffffffffffffff}U)"
+
+		# slice with actual lower and upper bound code if not possible to slice with integers
+		except ValueError:
+			new_size = expr.size
+			mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
+			shifted_mask = f"({mask} << ({right.code}))"
+			inv_shifted_mask = f"(~{shifted_mask})"
+
+		c = CodeString(expr.code, static, new_size, expr.signed,
+			set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
+		c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
+		###
+		target: CodeString = c
+		expr_ = self.expr.generate(context)
+
+		expr: CodeString = CodeString(f"((({target.code}) & {inv_shifted_mask}) | (({expr_} << {right}) & {shifted_mask}U))", static and expr_.static, max(target.size, expr_.size), False, set())
+	else:
+		target: CodeString = self.target.generate(context)
+		expr: CodeString = self.expr.generate(context)
 
 	# check staticness
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
