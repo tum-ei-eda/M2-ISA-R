@@ -383,6 +383,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
+					if arch.MemoryAttribute.IS_FLOAT_REG in attributes:
+						self._float_reg_file = m
 
 					self._memories[name] = m
 					ret_decls.append(m)

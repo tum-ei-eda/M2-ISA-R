@@ -71,6 +71,53 @@ protected:
 	}
 };
 
+% if float_reg:
+class FloatRegField_${core_name} : public etiss::VirtualStruct::Field{
+private:
+	const unsigned gprid_;
+public:
+	FloatRegField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
+		: Field(parent,
+			std::string("${float_reg.name}")+etiss::toString(gprid),
+			std::string("${float_reg.name}")+etiss::toString(gprid),
+			R|W,
+			${int(float_reg.size / 8)}
+		),
+		gprid_(gprid)
+	{}
+
+	FloatRegField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
+		: Field(parent,
+			name,
+			name,
+			R|W,
+			${int(float_reg.size / 8)}
+		),
+		gprid_(gprid)
+	{}
+
+	virtual ~FloatRegField_${core_name}(){}
+
+protected:
+	virtual uint64_t _read() const {
+		% if len(main_reg.children) > 0:
+		return (uint64_t) *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_];
+		% else:
+		return (uint64_t) ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_];
+		% endif
+	}
+
+	virtual void _write(uint64_t val) {
+		etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+		% if len(main_reg.children) > 0:
+		*((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+		% else:
+		((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+		% endif
+	}
+};
+% endif
+
 class pcField_${core_name} : public etiss::VirtualStruct::Field{
 public:
 	pcField_${core_name}(etiss::VirtualStruct & parent)

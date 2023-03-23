@@ -122,11 +122,13 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 
 	# generate main register file names for ETISS's 'char* reg_name[]'
 	reg_names = [f"{core.main_reg_file.name}{n}" for n in range(core.main_reg_file.data_range.length)]
+	# TODO(annnnna42): add float reg names (F0-F31) here
 
 	# if main register file entries have aliases optionally use these for 'char* reg_name[]'
 	if aliased_regnames:
 		for child in core.main_reg_file.children:
 			reg_names[child.range.lower] = child.name
+	# TODO(annnnna42): add float reg aliases here
 
 	txt = arch_header_template.render(
 		start_time=start_time,
@@ -165,7 +167,8 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 	txt = arch_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
-		main_reg=core.main_reg_file
+		main_reg=core.main_reg_file,
+		float_reg=core.float_reg_file
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
