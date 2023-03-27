@@ -1,4 +1,4 @@
-# Generated from CoreDSL2.g4 by ANTLR 4.11.1
+# Generated from CoreDSL2.g4 by ANTLR 4.12.0
 # encoding: utf-8
 from antlr4 import *
 from io import StringIO
@@ -524,7 +524,7 @@ class CoreDSL2Parser ( Parser ):
 
     def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
         super().__init__(input, output)
-        self.checkVersion("4.11.1")
+        self.checkVersion("4.12.0")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -812,7 +812,7 @@ class CoreDSL2Parser ( Parser ):
                     self.state = 125 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not (((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0)):
                         break
 
                 self.state = 127
@@ -854,7 +854,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 146
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while ((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0:
+                while (((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0):
                     self.state = 143
                     localctx._section = self.section()
                     localctx.sections.append(localctx._section)
@@ -1045,7 +1045,7 @@ class CoreDSL2Parser ( Parser ):
                     self.state = 160 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not (((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543581549592576) != 0 or (((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543581549592576) != 0) or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0)):
                         break
 
                 self.state = 162
@@ -1068,7 +1068,7 @@ class CoreDSL2Parser ( Parser ):
                     self.state = 169 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not (((_la) & ~0x3f) == 0 and ((1 << _la) & 562675076038656) != 0 or _la==89 or _la==90):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 562675076038656) != 0) or _la==89 or _la==90):
                         break
 
                 self.state = 171
@@ -1527,7 +1527,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 243
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0:
+                if ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0):
                     self.state = 242
                     localctx.params = self.parameter_list()
 
@@ -1559,7 +1559,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 258
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0:
+                if ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0):
                     self.state = 257
                     localctx.params = self.parameter_list()
 
@@ -2136,7 +2136,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 296
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                     self.state = 288
                     localctx._expression = self.expression(0)
                     localctx.args.append(localctx._expression)
@@ -2308,7 +2308,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 362
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                     self.state = 361
                     localctx.expr = self.expression(0)
 
@@ -2438,7 +2438,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 384 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417960802517024) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
+                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417960802517024) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0)):
                     break
 
         except RecognitionException as re:
@@ -2566,7 +2566,7 @@ class CoreDSL2Parser ( Parser ):
             self.state = 398
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while ((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543585831976992) != 0 or (((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0:
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543585831976992) != 0) or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0):
                 self.state = 395
                 localctx._block_item = self.block_item()
                 localctx.items.append(localctx._block_item)
@@ -2711,7 +2711,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 409
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                     self.state = 408
                     localctx.start_expr = self.expression(0)
 
@@ -2725,7 +2725,7 @@ class CoreDSL2Parser ( Parser ):
             self.state = 415
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                 self.state = 414
                 localctx.end_expr = self.expression(0)
 
@@ -2735,7 +2735,7 @@ class CoreDSL2Parser ( Parser ):
             self.state = 426
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                 self.state = 418
                 localctx._expression = self.expression(0)
                 localctx.loop_exprs.append(localctx._expression)
@@ -2841,7 +2841,7 @@ class CoreDSL2Parser ( Parser ):
             self.state = 433
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==19 or _la==49 or (((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 15) != 0:
+            while _la==19 or _la==49 or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 15) != 0):
                 self.state = 431
                 self._errHandler.sync(self)
                 token = self._input.LA(1)
@@ -3292,7 +3292,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 474
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while (((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 7177611906123775) != 0:
+                while ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 7177611906123775) != 0):
                     self.state = 471
                     localctx._struct_declaration = self.struct_declaration()
                     localctx.declarations.append(localctx._struct_declaration)
@@ -3449,7 +3449,7 @@ class CoreDSL2Parser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 499
             _la = self._input.LA(1)
-            if not(((_la) & ~0x3f) == 0 and ((1 << _la) & 131941395333120) != 0):
+            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 131941395333120) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -4847,7 +4847,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 638
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0 or (((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0:
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
                     self.state = 630
                     localctx._expression = self.expression(0)
                     localctx.args.append(localctx._expression)
@@ -4893,7 +4893,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 643
                 localctx.prefix = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not(((_la) & ~0x3f) == 0 and ((1 << _la) & 216172833653391360) != 0):
+                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 216172833653391360) != 0)):
                     localctx.prefix = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -4968,7 +4968,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 658
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not(((_la) & ~0x3f) == 0 and ((1 << _la) & 3458764531000410112) != 0):
+                        if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 3458764531000410112) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5028,7 +5028,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 667
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not((((_la - 36)) & ~0x3f) == 0 and ((1 << (_la - 36)) & 805306371) != 0):
+                        if not(((((_la - 36)) & ~0x3f) == 0 and ((1 << (_la - 36)) & 805306371) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5170,7 +5170,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 697
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not((((_la - 50)) & ~0x3f) == 0 and ((1 << (_la - 50)) & 17171480577) != 0):
+                        if not(((((_la - 50)) & ~0x3f) == 0 and ((1 << (_la - 50)) & 17171480577) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5895,7 +5895,7 @@ class CoreDSL2Parser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 750
             _la = self._input.LA(1)
-            if not((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 70368744179707) != 0):
+            if not(((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 70368744179707) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
