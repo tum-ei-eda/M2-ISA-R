@@ -177,7 +177,7 @@ class TransformerContext:
 		if self.ignore_static:
 			return val
 
-		return Template(f'" + std::to_string({val}) + "{sign[signed]}').safe_substitute(**replacements.rename_static)
+		return Template(f'" + std::to_string({val}) + "{sign[signed]}LL').safe_substitute(**replacements.rename_static)
 
 	def wrap_codestring(self, val, static=False):
 		"""Wrap an entire static line."""

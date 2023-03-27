@@ -696,10 +696,12 @@ def int_literal(self: behav.IntLiteral, context: TransformerContext):
 
 	# add c postfix for large numbers
 	postfix = "U" if not sign else ""
-	if size > 32:
-		postfix += "L"
-	if size > 64:
-		postfix += "L"
+	postfix += "LL"
+	#postfix = "ULL"
+	#if size > 32:
+	#	postfix += "L"
+	#if size > 64:
+	#	postfix += "L"
 
 	ret = CodeString(minus + str(lit) + postfix, True, size, sign)
 	ret.is_literal = True
@@ -715,10 +717,12 @@ def number_literal(self: behav.NumberLiteral, context: TransformerContext):
 	twocomp_lit = (lit + (1 << 64)) % (1 << 64)
 
 	postfix = "U" if not sign else ""
-	if size > 32:
-		postfix += "L"
-	if size > 64:
-		postfix += "L"
+	postfix += "LL"
+	#postfix = "ULL"
+	#if size > 32:
+	#	postfix += "L"
+	#if size > 64:
+	#	postfix += "L"
 
 	return CodeString(str(twocomp_lit) + postfix, True, size, sign)
 
