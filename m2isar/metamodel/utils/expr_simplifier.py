@@ -56,6 +56,32 @@ def binary_operation(self: behav.BinaryOperation, context):
 		res: int = int(eval(f"{self.left.value}{self.op.value}{self.right.value}"))
 		return behav.IntLiteral(res, max(self.left.bit_size, self.right.bit_size, res.bit_length()))
 
+	if self.op.value == "&&":
+		if isinstance(self.left, behav.IntLiteral):
+			if self.left.value:
+				return self.right
+			else:
+				return self.left
+
+		if isinstance(self.right, behav.IntLiteral):
+			if self.right.value:
+				return self.left
+			else:
+				return self.right
+
+	if self.op.value == "||":
+		if isinstance(self.left, behav.IntLiteral):
+			if self.left.value:
+				return self.left
+			else:
+				return self.right
+
+		if isinstance(self.right, behav.IntLiteral):
+			if self.right.value:
+				return self.right
+			else:
+				return self.left
+
 	return self
 
 def slice_operation(self: behav.SliceOperation, context):
