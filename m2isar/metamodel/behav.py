@@ -147,6 +147,9 @@ class Return(BaseNode):
 	def __init__(self, expr: BaseNode):
 		self.expr = expr
 
+class Break(BaseNode):
+	"""A break statement."""
+
 class UnaryOperation(BaseNode):
 	"""An unary operation, whith an operator and a right hand operand."""
 

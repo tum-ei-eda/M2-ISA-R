@@ -134,6 +134,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return ret_decls
 
+	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
+		return behav.Break()
+
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
 
