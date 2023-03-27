@@ -59,7 +59,7 @@ def assignment(self: behav.Assignment, context):
 
 def conditional(self: behav.Conditional, context):
 	conds = [x.generate(context) for x in self.conds]
-	stmts = [any(y.generate(context) for y in x) for x in self.stmts]
+	stmts = [x.generate(context) for x in self.stmts]
 
 	conds.extend(stmts)
 

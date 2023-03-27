@@ -219,7 +219,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 					[cond[0]],
 					[
 						instr_def.operation.statements,
-						[behav.ProcedureCall(error_fn, [behav.IntLiteral(-11)])]
+						behav.ProcedureCall(error_fn, [behav.IntLiteral(-11)])
 					]
 				)
 			])

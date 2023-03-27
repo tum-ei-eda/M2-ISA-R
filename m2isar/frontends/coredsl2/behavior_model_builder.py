@@ -93,7 +93,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		items = [self.visit(obj) for obj in ctx.items]
 		items = list(flatten(items))
-		return items
+		return behav.Block(items)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration statement. Can be multiple declarations of
@@ -203,7 +203,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		conds = [self.visit(x) for x in ctx.cond]
 		stmts = [self.visit(x) for x in ctx.stmt]
 
-		stmts = [[x] if not isinstance(x, list) else x for x in stmts]
+		stmts = [x if not isinstance(x, list) else None for x in stmts]
+
+		if None in stmts:
+			raise Exception("meep")
 
 		return behav.Conditional(conds, stmts)
 

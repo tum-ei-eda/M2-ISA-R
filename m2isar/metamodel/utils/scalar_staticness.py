@@ -78,7 +78,7 @@ def assignment(self: behav.Assignment, context: ScalarStaticnessContext):
 def conditional(self: behav.Conditional, context: ScalarStaticnessContext):
 	conds = [x.generate(context) for x in self.conds]
 	stmt_context = dataclasses.replace(context, context_is_static=min(conds))
-	_ = [[y.generate(stmt_context) for y in x] for x in self.stmts]
+	_ = [x.generate(stmt_context) for x in self.stmts]
 
 def loop(self: behav.Loop, context: ScalarStaticnessContext):
 	cond = self.cond.generate(context)

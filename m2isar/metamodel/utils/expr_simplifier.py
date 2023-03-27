@@ -121,7 +121,7 @@ def assignment(self: behav.Assignment, context):
 
 def conditional(self: behav.Conditional, context):
 	self.conds = [x.generate(context) for x in self.conds]
-	self.stmts = [[y.generate(context) for y in x] for x in self.stmts]
+	self.stmts = [x.generate(context) for x in self.stmts]
 
 	eval_false = True
 

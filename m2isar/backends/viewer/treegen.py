@@ -23,6 +23,14 @@ def operation(self: behav.Operation, context: "TreeGenContext"):
 
 	context.pop()
 
+def block(self: behav.Block, context: "TreeGenContext"):
+	context.push(context.tree.insert(context.parent, tk.END, text="Block"))
+
+	for stmt in self.statements:
+		stmt.generate(context)
+
+	context.pop()
+
 def binary_operation(self: behav.BinaryOperation, context: "TreeGenContext"):
 	context.push(context.tree.insert(context.parent, tk.END, text="Binary Operation"))
 
@@ -99,11 +107,11 @@ def conditional(self: behav.Conditional, context: "TreeGenContext"):
 	context.pop()
 
 	context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
-	for op in self.stmts:
-		context.push(context.tree.insert(context.parent, tk.END, text="Statement"))
-		for stmt in op:
+	for stmt in self.stmts:
+		#context.push(context.tree.insert(context.parent, tk.END, text="Statement"))
+		#for stmt in op:
 			stmt.generate(context)
-		context.pop()
+		#context.pop()
 	context.pop()
 
 	context.pop()

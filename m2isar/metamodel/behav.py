@@ -45,6 +45,9 @@ class Operation(BaseNode):
 	def __init__(self, statements: "list[BaseNode]") -> None:
 		self.statements = statements
 
+class Block(Operation):
+	"""A seperated code block"""
+
 class BinaryOperation(BaseNode):
 	"""A binary operation with a left-hand and a right-hand operand as well
 	as an operator."""
@@ -108,7 +111,7 @@ class Conditional(BaseNode):
 	condition is present is treated as an else statement.
 	"""
 
-	def __init__(self, conds: "list[BaseNode]", stmts: "list[list[BaseNode]]"):
+	def __init__(self, conds: "list[BaseNode]", stmts: "list[BaseNode]"):
 		self.conds = conds
 		self.stmts = stmts
 

@@ -35,7 +35,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 		c = stmt.generate(context)
 
 		if isinstance(c, list):
-			args.extend(c)
+			args.extend(flatten(c))
 		else:
 			args.append(c)
 
@@ -43,14 +43,13 @@ def operation(self: behav.Operation, context: TransformerContext):
 		if arg.is_mem_access:
 			raise_fn_call = behav.Conditional(
 				[behav.CodeLiteral('cpu->exception')],
-				[[behav.ProcedureCall(
+				[behav.ProcedureCall(
 					context.mem_raise_fn,
 					[behav.CodeLiteral("cpu->exception")]
-				)]]
+				)]
 			).generate(context)
 
-			raise_fn_str = [context.wrap_codestring(c.code) for c in raise_fn_call]
-
+			raise_fn_str = [context.wrap_codestring(c.code, c.static) for c in raise_fn_call]
 
 		for f_id in arg.function_calls:
 			code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{f_id.fn_call.actual_size} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
@@ -95,7 +94,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 			return_conditions.append("cpu->exception")
 
 		if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
-			return_conditions.append(f'cpu->nextPc != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "')
+			return_conditions.append(f'cpu->nextPc != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "ULL')
 
 		elif arch.InstrAttribute.NO_CONT in context.attributes:
 			return_conditions.clear()
@@ -109,9 +108,21 @@ def operation(self: behav.Operation, context: TransformerContext):
 			container.appended_returning_required = f'cp.code() += "{cond_str}return cpu->exception;\\n";'
 
 	elif arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
-		container.initial_required = "cpu->return_pending = 1;\n" + container.initial_required
+		container.initial_required = "cpu->return_pending = 1;\ncpu->exception = 0;\n" + container.initial_required
 
 	return container
+
+def block(self: behav.Block, context: TransformerContext):
+	stmts = [stmt.generate(context) for stmt in self.statements]
+
+	pre = [CodeString("{", StaticType.READ, None, None)]
+	post = [CodeString("}", StaticType.READ, None, None)]
+
+	if not context.ignore_static:
+		pre.append(CodeString("{", StaticType.NONE, None, None))
+		post.insert(0, CodeString("}", StaticType.NONE, None, None))
+
+	return pre + stmts + post
 
 def return_(self: behav.Return, context: TransformerContext):
 	if self.expr is not None:
@@ -187,15 +198,18 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 
 			if fn.size is not None:
 				exc_code = "cpu->exception = "
-			else:
-				exc_code = "cpu->exception = 0; "
 
 		c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None)
 		c.mem_ids = mem_ids
 		if fn.throws and not context.ignore_static:
 			c.check_trap = True
 			c2 = CodeString('goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
-			return [c, c2]
+
+			pre = [CodeString("{", StaticType.READ, None, None), CodeString("{", StaticType.NONE, None, None)]
+			post = [CodeString("}", StaticType.NONE, None, None), CodeString("}", StaticType.READ, None, None)]
+
+			return pre + [c, c2] + post
+
 
 		return c
 
@@ -263,16 +277,24 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
 	stmts: "list[list[CodeString]]" = [] #= [[y.generate(context) for y in x] for x in self.stmts]
 
-	for stmt_block in self.stmts:
-		block_statements = []
-		for stmt in stmt_block:
-			if isinstance(stmt, list):
-				for stmt2 in stmt:
-					block_statements.append(stmt2.generate(context))
-			else:
-				block_statements.append(stmt.generate(context))
+	for stmt in self.stmts:
+		ret = stmt.generate(context)
 
-		stmts.append(block_statements)
+		if isinstance(ret, list):
+			stmts.append(ret)
+		else:
+			stmts.append([ret])
+
+	#for stmt_block in self.stmts:
+	#	block_statements = []
+	#	for stmt in stmt_block:
+	#		if isinstance(stmt, list):
+	#			for stmt2 in stmt:
+	#				block_statements.append(stmt2.generate(context))
+	#		else:
+	#			block_statements.append(stmt.generate(context))
+
+	#	stmts.append(block_statements)
 
 	# check if all conditions are static
 	static = all(x.static for x in conds)
@@ -341,13 +363,13 @@ def loop(self: behav.Loop, context: TransformerContext):
 	outputs: "list[CodeString]" = []
 
 	if self.post_test:
-		start_c = CodeString("do {", cond.static, None, None)
+		start_c = CodeString("do", cond.static, None, None)
 		end_c = cond
-		end_c.code = f'}} while ({end_c.code})'
+		end_c.code = f'while ({end_c.code})'
 	else:
 		start_c = cond
-		start_c.code = f'while ({start_c.code}) {{'
-		end_c = CodeString("}", cond.static, None, None)
+		start_c.code = f'while ({start_c.code})'
+		end_c = CodeString("", cond.static, None, None)
 
 	outputs.append(start_c)
 

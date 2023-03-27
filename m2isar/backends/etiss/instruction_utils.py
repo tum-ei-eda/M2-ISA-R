@@ -61,6 +61,10 @@ class CodeString:
 		return actual_size(self.size)
 
 	@property
+	def needs_fn_call(self):
+		return len(self.function_calls) > 0
+
+	@property
 	def is_mem_access(self):
 		return len(self.mem_ids) > 0
 
