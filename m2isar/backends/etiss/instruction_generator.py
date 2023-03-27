@@ -26,7 +26,7 @@ def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
 	return f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size}{arg_name}'
 
-def generate_functions(core: arch.CoreDef, static_scalars: bool):
+def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool):
 	"""Return a generator object to generate function behavior code. Uses function
 	definitions in the core object.
 	"""
@@ -42,8 +42,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 	for fn_name, fn_def in core.functions.items():
 		logger.debug("setting up function generator for %s", fn_name)
 
-		#if fn_def.extern:
-		#	continue
+		if fn_def.extern and not decls_only:
+			continue
 
 		return_type = instruction_utils.data_type_map[fn_def.data_type]
 		if fn_def.size:
@@ -55,8 +55,11 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool):
 
 		logger.debug("generating code for %s", fn_name)
 
-		out_code: "CodePartsContainer" = fn_def.operation.generate(context)
-		out_code.format(ARCH_NAME=core_name)
+		out_code = instruction_utils.CodePartsContainer()
+
+		if not decls_only:
+			out_code = fn_def.operation.generate(context)
+			out_code.format(ARCH_NAME=core_name)
 
 		#fn_def.static = not context.used_arch_data
 

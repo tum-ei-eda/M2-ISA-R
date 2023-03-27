@@ -40,9 +40,14 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 		funcs_f.write(fn_set_str)
 
-		# generate and write function bodies
-		for fn_name, templ_str in generate_functions(core, static_scalars):
-			logger.debug("writing function %s", fn_name)
+		# generate and write function declarations
+		for fn_name, templ_str in generate_functions(core, static_scalars, True):
+			logger.debug("writing function decl %s", fn_name)
+			funcs_f.write(templ_str)
+
+		# generate and write function definitions
+		for fn_name, templ_str in generate_functions(core, static_scalars, False):
+			logger.debug("writing function def %s", fn_name)
 			funcs_f.write(templ_str)
 
 		fn_set_str = fn_set_footer_template.render()
