@@ -666,7 +666,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 		target_size = self.actual_size
 
 		if isinstance(self.size, int):
-			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
+			code_str = f'((etiss_int{target_size})(((etiss_int{target_size}){expr.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
 		else:
 			code_str = f'((etiss_int{target_size})(({expr.code}) << ({target_size} - {expr.size})) >> ({target_size} - {expr.size}))'
 
