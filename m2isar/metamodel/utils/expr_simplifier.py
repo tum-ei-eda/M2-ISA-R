@@ -106,6 +106,9 @@ def int_literal(self: behav.IntLiteral, context):
 def scalar_definition(self: behav.ScalarDefinition, context):
 	return self
 
+def break_(self: behav.Break, context):
+	return self
+
 def assignment(self: behav.Assignment, context):
 	self.target = self.target.generate(context)
 	self.expr = self.expr.generate(context)
