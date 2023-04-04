@@ -124,13 +124,11 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			# initialization to the scalar
 			if decl.init:
 				init = self.visit(decl.init)
-
-				a = behav.Assignment(sd, init)
-				ret_decls.append(a)
-
-			# if not only generate the declaration
 			else:
-				ret_decls.append(sd)
+				init = behav.IntLiteral(0)
+
+			a = behav.Assignment(sd, init)
+			ret_decls.append(a)
 
 		return ret_decls
 
