@@ -133,6 +133,9 @@ def return_(self: behav.Return, context: TransformerContext):
 
 	return c
 
+def break_(self: behav.Break, context: TransformerContext):
+	return CodeString("break;", StaticType.RW, None, None)
+
 def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext):
 	"""Generate a scalar definition. Calculates the actual required data width and generates
 	a variable instantiation."""
