@@ -483,9 +483,10 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
 
-	if not target.is_mem_access and not expr.is_mem_access:
-		if target.actual_size > target.size:
-			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
+	if not isinstance(self.target, behav.SliceOperation):
+		if not target.is_mem_access and not expr.is_mem_access:
+			if target.actual_size > target.size:
+				expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
 	else:
 		context.generates_exception = True
