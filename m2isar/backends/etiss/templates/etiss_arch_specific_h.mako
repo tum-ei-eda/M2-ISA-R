@@ -101,18 +101,18 @@ public:
 protected:
 	virtual uint64_t _read() const {
 		% if len(main_reg.children) > 0:
-		return (uint64_t) *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_];
+		return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
 		% else:
-		return (uint64_t) ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_];
+		return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
 		% endif
 	}
 
 	virtual void _write(uint64_t val) {
 		etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
 		% if len(main_reg.children) > 0:
-		*((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+		*((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
 		% else:
-		((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+		((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
 		% endif
 	}
 };
