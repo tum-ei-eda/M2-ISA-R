@@ -396,6 +396,8 @@ class InstructionTransformVisitor(ExprVisitor):
 		context.affected_regs.update(target.regs_affected)
 		context.dependent_regs.update(expr_str.regs_affected)
 
+		# TODO: check if required
+		# if not isinstance(expr.target, behav.SliceOperation):
 		if not target.is_mem_access and not expr_str.is_mem_access:
 			if target.actual_size > target.size:
 				if target.signed:
