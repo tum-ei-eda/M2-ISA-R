@@ -27,7 +27,11 @@ section
 	: type_='architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
 	| type_='functions' '{' functions+=function_definition+ '}' # section_functions
 	| type_='instructions' attributes+=attribute* '{' instructions+=instruction+ '}' # section_instructions
+	| type_='always' attributes+=attribute* '{' always_blocks+=always_block+ '}' # section_always
 	;
+
+always_block
+	: name=IDENTIFIER attributes+=attribute* behavior=block;
 
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'

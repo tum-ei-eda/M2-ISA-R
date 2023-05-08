@@ -503,6 +503,16 @@ def extract_memory_alias(memories: "list[Memory]"):
 
 	return parents, aliases
 
+class AlwaysBlock(Named):
+	attributes: "dict[FunctionAttribute, list[BaseNode]]"
+	operation: "Operation"
+
+	def __init__(self, name: str, attributes, operation):
+		self.attributes = attributes
+		self.operation = operation
+
+		super().__init__(name)
+
 class InstructionSet(Named):
 	"""A class representing an InstructionSet collection. Bundles constants, memories, functions
 	and instructions under a common name.

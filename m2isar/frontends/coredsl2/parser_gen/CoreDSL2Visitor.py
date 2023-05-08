@@ -44,6 +44,16 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#section_always.
+    def visitSection_always(self, ctx:CoreDSL2Parser.Section_alwaysContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#always_block.
+    def visitAlways_block(self, ctx:CoreDSL2Parser.Always_blockContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#instruction.
     def visitInstruction(self, ctx:CoreDSL2Parser.InstructionContext):
         return self.visitChildren(ctx)

@@ -151,6 +151,39 @@ def main():
 				else:
 					fn_def.operation = behav.Operation([op])
 
+		logger.debug("generating always blocks")
+
+		always_block_statements = []
+
+		for block_def in arch_builder._always_blocks.values():
+			logger.debug("generating always block %s", block_def.name)
+			logger.debug("generating attributes")
+
+			for attr_name, attr_ops in block_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							{}, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of instruction \"%s\": %s", attr_name, block_def.name, e)
+						sys.exit(1)
+
+				block_def.attributes[attr_name] = ops
+
+			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+				{}, core_def.functions, warned_fns)
+
+			try:
+				op = behav_builder.visit(block_def.operation)
+			except M2Error as e:
+				logger.critical("error building behavior for always block %s: %s", block_def.name, e)
+				sys.exit(1)
+
+			always_block_statements.append(op)
+
 		logger.debug("generating instruction behavior")
 
 		for instr_def in core_def.instructions.values():
@@ -197,6 +230,7 @@ def main():
 			)
 
 			op.statements.insert(0, pc_inc)
+			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
 
 	logger.info("dumping model")

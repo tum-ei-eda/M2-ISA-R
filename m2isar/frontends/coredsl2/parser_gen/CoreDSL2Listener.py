@@ -71,6 +71,24 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#section_always.
+    def enterSection_always(self, ctx:CoreDSL2Parser.Section_alwaysContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#section_always.
+    def exitSection_always(self, ctx:CoreDSL2Parser.Section_alwaysContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#always_block.
+    def enterAlways_block(self, ctx:CoreDSL2Parser.Always_blockContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#always_block.
+    def exitAlways_block(self, ctx:CoreDSL2Parser.Always_blockContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#instruction.
     def enterInstruction(self, ctx:CoreDSL2Parser.InstructionContext):
         pass
