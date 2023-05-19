@@ -132,8 +132,11 @@ def main():
 			# decode instruction operands
 			else:
 				operands = decode(ii, found_ins)
+				disass = found_ins.disass
+				if disass is None:
+					disass = ""
 				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
-				ins_str = f"{found_ins.name} [{op_str}]"
+				ins_str = f"{found_ins.name}\t{disass} [{op_str}]"
 				step = found_ins.size // 8
 
 			# print decoded instruction mnemonic
