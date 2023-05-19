@@ -164,9 +164,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
-		disass = ctx.disass.text if ctx.disass is not None else None
+		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
+		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
 
-		i = arch.Instruction(ctx.name.text, attributes, encoding, disass, ctx.behavior)
+		i = arch.Instruction(ctx.name.text, attributes, encoding, mnemonic, assembly, ctx.behavior)
 		self._instr_classes.add(i.size)
 
 		instr_id = (i.code, i.mask)
