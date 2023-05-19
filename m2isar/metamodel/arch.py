@@ -410,7 +410,7 @@ class Instruction(SizedRefOrConst):
 
 	attributes: "dict[InstrAttribute, list[BaseNode]]"
 	encoding: "list[Union[BitField, BitVal]]"
-	disass: str
+	assembly: str
 	operation: Operation
 
 	ext_name: str
@@ -422,14 +422,14 @@ class Instruction(SizedRefOrConst):
 	code: int
 
 	def __init__(self, name, attributes: "dict[InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]",
-			disass: str, operation: Operation, function_info: "FunctionInfo"):
+			assembly: str, operation: Operation, function_info: "FunctionInfo"):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
 		self.scalars = {}
-		self.disass = disass
+		self.assembly = assembly
 		self.operation = operation if operation is not None else Operation([])
 		self.throws = False
 		self.function_info = function_info
