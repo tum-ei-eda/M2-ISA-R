@@ -36,7 +36,7 @@ always_block
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'
 	'encoding' ':' encoding+=encoding_entry ('::' encoding+=encoding_entry)*';'
-	(('args_disass' | 'assembly') ':' disass=STRING ';')?
+	('assembly' ':' disass=STRING ';')?
 	'behavior' ':' behavior=statement
 	'}'
 	;
