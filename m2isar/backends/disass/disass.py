@@ -132,9 +132,9 @@ def main():
 			# decode instruction operands
 			else:
 				operands = decode(ii, found_ins)
-				disass = found_ins.disass
-				if disass is None:
-					disass = ""
+				assembly = found_ins.assembly
+				if assembly is None:
+					assembly = ""
 				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
 				ins_str = f"{found_ins.name}\t{disass} [{op_str}]"
 				step = found_ins.size // 8
