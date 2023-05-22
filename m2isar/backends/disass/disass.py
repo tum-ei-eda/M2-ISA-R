@@ -18,6 +18,7 @@ from collections import defaultdict
 from io import SEEK_CUR
 
 from ...metamodel import arch
+from .asm_formatter import AsmFormatter
 
 logger = logging.getLogger("viewer")
 
@@ -68,6 +69,7 @@ def main():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument("core_name")
 	parser.add_argument('bin')
+	parser.add_argument("--format", action="store_true", help="Use assembly formatting string and mnemonic")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -132,11 +134,18 @@ def main():
 			# decode instruction operands
 			else:
 				operands = decode(ii, found_ins)
-				assembly = found_ins.assembly
-				if assembly is None:
-					assembly = ""
-				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
-				ins_str = f"{found_ins.name}\t{disass} [{op_str}]"
+				if args.format:
+					asm_name = found_ins.mnemonic
+					assembly = found_ins.assembly
+					fmt = AsmFormatter()
+					if assembly is None:
+						assembly = ""
+					asm_args = fmt.format(assembly, **operands)
+				else:
+					asm_name = found_ins.name
+					op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
+					asm_args = f"[{op_str}]"
+				ins_str = f"{asm_name}\t{asm_args}"
 				step = found_ins.size // 8
 
 			# print decoded instruction mnemonic
