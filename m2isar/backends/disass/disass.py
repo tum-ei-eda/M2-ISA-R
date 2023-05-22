@@ -113,6 +113,8 @@ def main():
 
 	instrs_by_size = dict(sorted(instrs_by_size.items()))
 
+	prev_count = 0
+
 	with open(args.bin, "rb") as f:
 		# read at most XLEN bytes at a time
 		while iw_read := f.peek(readlen):
@@ -131,8 +133,23 @@ def main():
 				ins_str = "unknown"
 				step = steplen
 
+				if prev_count > 2:
+					print(f"\trepeated {prev_count-2} times.")
+				prev_count = 0
+
 			# decode instruction operands
 			else:
+				if found_ins and found_ins.name == "DII":
+					prev_count += 1
+					if prev_count > 1:
+						bla = f.tell()
+						f.seek(step, SEEK_CUR)
+						continue
+				else:
+					if prev_count > 2:
+						print(f"\trepeated {prev_count-2} times.")
+					prev_count = 0
+
 				operands = decode(ii, found_ins)
 				if args.format:
 					asm_name = found_ins.mnemonic
