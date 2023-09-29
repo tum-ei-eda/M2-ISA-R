@@ -206,7 +206,9 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		c.mem_ids = mem_ids
 		if fn.throws and not context.ignore_static:
 			c.check_trap = True
-			c2 = CodeString('goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
+
+			cond = "if (cpu->return_pending) " if fn.throws == arch.FunctionThrows.MAYBE else ""
+			c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
 			pre = [CodeString("{", StaticType.READ, None, None), CodeString("{", StaticType.NONE, None, None)]
 			post = [CodeString("}", StaticType.NONE, None, None), CodeString("}", StaticType.READ, None, None)]

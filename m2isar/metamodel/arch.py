@@ -14,7 +14,7 @@ behavior of functions and instructions.
 import dataclasses
 import itertools
 from collections import defaultdict
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from typing import Any, Union
 
 from .. import M2TypeError
@@ -215,6 +215,11 @@ class FunctionAttribute(Enum):
 	ETISS_NEEDS_ARCH = auto()
 	ETISS_TRAP_ENTRY_FN = auto()
 	ETISS_TRAP_TRANSLATE_FN = auto()
+
+class FunctionThrows(IntEnum):
+	NO = 0
+	YES = 1
+	MAYBE = 2
 
 class DataType(Enum):
 	NONE = auto()
