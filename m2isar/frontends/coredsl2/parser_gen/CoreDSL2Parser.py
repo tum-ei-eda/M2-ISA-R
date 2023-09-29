@@ -319,49 +319,49 @@ class CoreDSL2Parser ( Parser ):
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'import'", "'InstructionSet'", "'extends'",
-                     "','", "'{'", "'}'", "'Core'", "'provides'", "'architectural_state'",
-                     "';'", "'functions'", "'instructions'", "'always'",
-                     "'encoding'", "':'", "'::'", "'args_disass'", "'assembly'",
-                     "'behavior'", "'extern'", "'('", "')'", "'if'", "'else'",
-                     "'for'", "'while'", "'do'", "'switch'", "'return'",
-                     "'break'", "'continue'", "'spawn'", "'case'", "'default'",
-                     "'*'", "'&'", "'<'", "'>'", "'bool'", "'void'", "'enum'",
-                     "'unsigned'", "'signed'", "'char'", "'short'", "'int'",
-                     "'long'", "'float'", "'double'", "'[['", "'='", "']]'",
-                     "'.'", "'->'", "'++'", "'--'", "'+'", "'-'", "'~'",
-                     "'!'", "'/'", "'%'", "'<<'", "'>>'", "'<='", "'>='",
-                     "'=='", "'!='", "'^'", "'|'", "'&&'", "'||'", "'?'",
-                     "'+='", "'-='", "'*='", "'/='", "'&='", "'|='", "'^='",
-                     "'>>='", "'>>>='", "'<<='", "'%='", "'alias'", "'const'",
-                     "'volatile'", "'static'", "'register'", "'struct'",
+    literalNames = [ "<INVALID>", "'import'", "'InstructionSet'", "'extends'", 
+                     "','", "'{'", "'}'", "'Core'", "'provides'", "'architectural_state'", 
+                     "';'", "'functions'", "'instructions'", "'always'", 
+                     "'encoding'", "':'", "'::'", "'args_disass'", "'assembly'", 
+                     "'behavior'", "'extern'", "'('", "')'", "'if'", "'else'", 
+                     "'for'", "'while'", "'do'", "'switch'", "'return'", 
+                     "'break'", "'continue'", "'spawn'", "'case'", "'default'", 
+                     "'*'", "'&'", "'<'", "'>'", "'bool'", "'void'", "'enum'", 
+                     "'unsigned'", "'signed'", "'char'", "'short'", "'int'", 
+                     "'long'", "'float'", "'double'", "'[['", "'='", "']]'", 
+                     "'.'", "'->'", "'++'", "'--'", "'+'", "'-'", "'~'", 
+                     "'!'", "'/'", "'%'", "'<<'", "'>>'", "'<='", "'>='", 
+                     "'=='", "'!='", "'^'", "'|'", "'&&'", "'||'", "'?'", 
+                     "'+='", "'-='", "'*='", "'/='", "'&='", "'|='", "'^='", 
+                     "'>>='", "'>>>='", "'<<='", "'%='", "'alias'", "'const'", 
+                     "'volatile'", "'static'", "'register'", "'struct'", 
                      "'union'", "'['", "']'" ]
 
-    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
-                      "LEFT_BR", "RIGHT_BR", "BOOLEAN", "FLOAT", "INTEGER",
-                      "IDENTIFIER", "CHARCONST", "ENCSTRINGCONST", "STRING",
+    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
+                      "LEFT_BR", "RIGHT_BR", "BOOLEAN", "FLOAT", "INTEGER", 
+                      "IDENTIFIER", "CHARCONST", "ENCSTRINGCONST", "STRING", 
                       "ML_COMMENT", "SL_COMMENT", "WS" ]
 
     RULE_description_content = 0
@@ -413,20 +413,20 @@ class CoreDSL2Parser ( Parser ):
     RULE_storage_class_specifier = 46
     RULE_struct_or_union = 47
 
-    ruleNames =  [ "description_content", "import_file", "isa", "section",
-                   "always_block", "instruction", "rule_encoding", "encoding_entry",
-                   "function_definition", "parameter_list", "parameter_declaration",
-                   "statement", "switch_block_statement_group", "switch_label",
-                   "block", "block_item", "for_condition", "declaration",
-                   "type_specifier", "value_type_specifier", "integer_signedness",
-                   "integer_shorthand", "float_shorthand", "attribute",
-                   "bit_size_specifier", "enumerator_list", "enumerator",
-                   "struct_declaration", "struct_declaration_specifier",
-                   "declarator", "initializer", "initializerList", "designated_initializer",
-                   "designator", "expression", "primary", "string_literal",
-                   "constant", "integer_constant", "floating_constant",
-                   "bool_constant", "character_constant", "double_left_bracket",
-                   "double_right_bracket", "data_types", "type_qualifier",
+    ruleNames =  [ "description_content", "import_file", "isa", "section", 
+                   "always_block", "instruction", "rule_encoding", "encoding_entry", 
+                   "function_definition", "parameter_list", "parameter_declaration", 
+                   "statement", "switch_block_statement_group", "switch_label", 
+                   "block", "block_item", "for_condition", "declaration", 
+                   "type_specifier", "value_type_specifier", "integer_signedness", 
+                   "integer_shorthand", "float_shorthand", "attribute", 
+                   "bit_size_specifier", "enumerator_list", "enumerator", 
+                   "struct_declaration", "struct_declaration_specifier", 
+                   "declarator", "initializer", "initializerList", "designated_initializer", 
+                   "designator", "expression", "primary", "string_literal", 
+                   "constant", "integer_constant", "floating_constant", 
+                   "bool_constant", "character_constant", "double_left_bracket", 
+                   "double_right_bracket", "data_types", "type_qualifier", 
                    "storage_class_specifier", "struct_or_union" ]
 
     EOF = Token.EOF
@@ -606,14 +606,14 @@ class CoreDSL2Parser ( Parser ):
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
 
-            self.state = 103
+            self.state = 103 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 102
                 localctx._isa = self.isa()
                 localctx.definitions.append(localctx._isa)
-                self.state = 105
+                self.state = 105 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==2 or _la==7):
@@ -689,7 +689,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_isa
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -814,17 +814,17 @@ class CoreDSL2Parser ( Parser ):
 
                 self.state = 123
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 125
+                self.state = 125 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
                     self.state = 124
                     localctx._section = self.section()
                     localctx.sections.append(localctx._section)
-                    self.state = 127
+                    self.state = 127 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0)):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 14848) != 0)):
                         break
 
                 self.state = 129
@@ -866,8 +866,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 148
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while (((_la) & ~0x3f) == 0 and ((1 << _la) & 6656) != 0):
-                    self.state = 143
+                while (((_la) & ~0x3f) == 0 and ((1 << _la) & 14848) != 0):
+                    self.state = 145
                     localctx._section = self.section()
                     localctx.sections.append(localctx._section)
                     self.state = 150
@@ -900,7 +900,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_section
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -1071,7 +1071,7 @@ class CoreDSL2Parser ( Parser ):
                 localctx.type_ = self.match(CoreDSL2Parser.T__8)
                 self.state = 155
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 160
+                self.state = 160 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
@@ -1093,10 +1093,10 @@ class CoreDSL2Parser ( Parser ):
                     else:
                         raise NoViableAltException(self)
 
-                    self.state = 162
+                    self.state = 162 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543581549592576) != 0) or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0)):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 2299087163099185152) != 0) or ((((_la - 86)) & ~0x3f) == 0 and ((1 << (_la - 86)) & 32575) != 0)):
                         break
 
                 self.state = 164
@@ -1109,17 +1109,17 @@ class CoreDSL2Parser ( Parser ):
                 localctx.type_ = self.match(CoreDSL2Parser.T__10)
                 self.state = 167
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 169
+                self.state = 169 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
                     self.state = 168
                     localctx._function_definition = self.function_definition()
                     localctx.functions.append(localctx._function_definition)
-                    self.state = 171
+                    self.state = 171 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
-                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 562675076038656) != 0) or _la==89 or _la==90):
+                    if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 1125350152077312) != 0) or _la==90 or _la==91):
                         break
 
                 self.state = 173
@@ -1143,14 +1143,14 @@ class CoreDSL2Parser ( Parser ):
 
                 self.state = 182
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 184
+                self.state = 184 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
                     self.state = 183
                     localctx._instruction = self.instruction()
                     localctx.instructions.append(localctx._instruction)
-                    self.state = 186
+                    self.state = 186 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
                     if not (_la==97):
@@ -1177,14 +1177,14 @@ class CoreDSL2Parser ( Parser ):
 
                 self.state = 197
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 199
+                self.state = 199 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
                     self.state = 198
                     localctx._always_block = self.always_block()
                     localctx.always_blocks.append(localctx._always_block)
-                    self.state = 201
+                    self.state = 201 
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
                     if not (_la==97):
@@ -1498,7 +1498,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_encoding_entry
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -1688,8 +1688,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 269
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0):
-                    self.state = 242
+                if ((((_la - 39)) & ~0x3f) == 0 and ((1 << (_la - 39)) & 6755399441057791) != 0):
+                    self.state = 268
                     localctx.params = self.parameter_list()
 
 
@@ -1720,8 +1720,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 284
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 6755399441057791) != 0):
-                    self.state = 257
+                if ((((_la - 39)) & ~0x3f) == 0 and ((1 << (_la - 39)) & 6755399441057791) != 0):
+                    self.state = 283
                     localctx.params = self.parameter_list()
 
 
@@ -1907,7 +1907,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_statement
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -2297,8 +2297,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 322
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                    self.state = 288
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                    self.state = 314
                     localctx._expression = self.expression(0)
                     localctx.args.append(localctx._expression)
                     self.state = 319
@@ -2355,7 +2355,7 @@ class CoreDSL2Parser ( Parser ):
                         self.match(CoreDSL2Parser.T__21)
                         self.state = 336
                         localctx._statement = self.statement()
-                        localctx.stmt.append(localctx._statement)
+                        localctx.stmt.append(localctx._statement) 
                     self.state = 342
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,33,self._ctx)
@@ -2442,7 +2442,7 @@ class CoreDSL2Parser ( Parser ):
                     if _alt==1:
                         self.state = 372
                         localctx._switch_block_statement_group = self.switch_block_statement_group()
-                        localctx.items.append(localctx._switch_block_statement_group)
+                        localctx.items.append(localctx._switch_block_statement_group) 
                     self.state = 377
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,35,self._ctx)
@@ -2469,8 +2469,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 388
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                    self.state = 361
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                    self.state = 387
                     localctx.expr = self.expression(0)
 
 
@@ -2576,30 +2576,30 @@ class CoreDSL2Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 403
+            self.state = 403 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 402
                 localctx._switch_label = self.switch_label()
                 localctx.labels.append(localctx._switch_label)
-                self.state = 405
+                self.state = 405 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==33 or _la==34):
                     break
 
-            self.state = 408
+            self.state = 408 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 407
                 localctx._statement = self.statement()
                 localctx.statements.append(localctx._statement)
-                self.state = 410
+                self.state = 410 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417960802517024) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0)):
+                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835921605034016) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0)):
                     break
 
         except RecognitionException as re:
@@ -2727,8 +2727,8 @@ class CoreDSL2Parser ( Parser ):
             self.state = 424
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 1149543585831976992) != 0) or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 32575) != 0):
-                self.state = 395
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 2299087171663953952) != 0) or ((((_la - 86)) & ~0x3f) == 0 and ((1 << (_la - 86)) & 32575) != 0):
+                self.state = 421
                 localctx._block_item = self.block_item()
                 localctx.items.append(localctx._block_item)
                 self.state = 426
@@ -2872,8 +2872,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 435
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                    self.state = 408
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                    self.state = 434
                     localctx.start_expr = self.expression(0)
 
 
@@ -2886,8 +2886,8 @@ class CoreDSL2Parser ( Parser ):
             self.state = 441
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                self.state = 414
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                self.state = 440
                 localctx.end_expr = self.expression(0)
 
 
@@ -2896,8 +2896,8 @@ class CoreDSL2Parser ( Parser ):
             self.state = 452
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                self.state = 418
+            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                self.state = 444
                 localctx._expression = self.expression(0)
                 localctx.loop_exprs.append(localctx._expression)
                 self.state = 449
@@ -3002,8 +3002,8 @@ class CoreDSL2Parser ( Parser ):
             self.state = 459
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==19 or _la==49 or ((((_la - 85)) & ~0x3f) == 0 and ((1 << (_la - 85)) & 15) != 0):
-                self.state = 431
+            while _la==20 or _la==50 or ((((_la - 86)) & ~0x3f) == 0 and ((1 << (_la - 86)) & 15) != 0):
+                self.state = 457
                 self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [20, 88, 89]:
@@ -3139,7 +3139,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_value_type_specifier
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -3453,8 +3453,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 500
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                while ((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 7177611906123775) != 0):
-                    self.state = 471
+                while ((((_la - 39)) & ~0x3f) == 0 and ((1 << (_la - 39)) & 7177611906123775) != 0):
+                    self.state = 497
                     localctx._struct_declaration = self.struct_declaration()
                     localctx.declarations.append(localctx._struct_declaration)
                     self.state = 502
@@ -3610,7 +3610,7 @@ class CoreDSL2Parser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 525
             _la = self._input.LA(1)
-            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 131941395333120) != 0)):
+            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 263882790666240) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -3907,7 +3907,7 @@ class CoreDSL2Parser ( Parser ):
                     self.match(CoreDSL2Parser.T__3)
                     self.state = 563
                     localctx._enumerator = self.enumerator()
-                    localctx.enumerators.append(localctx._enumerator)
+                    localctx.enumerators.append(localctx._enumerator) 
                 self.state = 568
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,63,self._ctx)
@@ -4416,7 +4416,7 @@ class CoreDSL2Parser ( Parser ):
                         self.initializer()
                         pass
 
-
+             
                 self.state = 633
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,74,self._ctx)
@@ -4478,14 +4478,14 @@ class CoreDSL2Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 635
+            self.state = 635 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 634
                 localctx._designator = self.designator()
                 localctx.designators.append(localctx._designator)
-                self.state = 637
+                self.state = 637 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==53 or _la==92):
@@ -4593,7 +4593,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_expression
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -5008,8 +5008,8 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 664
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 1148417956520132608) != 0) or ((((_la - 93)) & ~0x3f) == 0 and ((1 << (_la - 93)) & 127) != 0):
-                    self.state = 630
+                if (((_la) & ~0x3f) == 0 and ((1 << _la) & 2296835913040265216) != 0) or ((((_la - 94)) & ~0x3f) == 0 and ((1 << (_la - 94)) & 127) != 0):
+                    self.state = 656
                     localctx._expression = self.expression(0)
                     localctx.args.append(localctx._expression)
                     self.state = 661
@@ -5054,7 +5054,7 @@ class CoreDSL2Parser ( Parser ):
                 self.state = 669
                 localctx.prefix = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 216172833653391360) != 0)):
+                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 432345667306782720) != 0)):
                     localctx.prefix = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -5129,7 +5129,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 684
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 3458764531000410112) != 0)):
+                        if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 6917529062000820224) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5189,7 +5189,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 693
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not(((((_la - 36)) & ~0x3f) == 0 and ((1 << (_la - 36)) & 805306371) != 0)):
+                        if not(((((_la - 37)) & ~0x3f) == 0 and ((1 << (_la - 37)) & 805306371) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5331,7 +5331,7 @@ class CoreDSL2Parser ( Parser ):
                         self.state = 723
                         localctx.bop = self._input.LT(1)
                         _la = self._input.LA(1)
-                        if not(((((_la - 50)) & ~0x3f) == 0 and ((1 << (_la - 50)) & 17171480577) != 0)):
+                        if not(((((_la - 51)) & ~0x3f) == 0 and ((1 << (_la - 51)) & 17171480577) != 0)):
                             localctx.bop = self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5384,7 +5384,7 @@ class CoreDSL2Parser ( Parser ):
                             self.consume()
                         pass
 
-
+             
                 self.state = 740
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,83,self._ctx)
@@ -5409,7 +5409,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_primary
 
-
+     
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -5546,7 +5546,7 @@ class CoreDSL2Parser ( Parser ):
             elif token in [99, 100]:
                 localctx = CoreDSL2Parser.Literal_expressionContext(self, localctx)
                 self.enterOuterAlt(localctx, 3)
-                self.state = 744
+                self.state = 744 
                 self._errHandler.sync(self)
                 _alt = 1
                 while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
@@ -5557,7 +5557,7 @@ class CoreDSL2Parser ( Parser ):
 
                     else:
                         raise NoViableAltException(self)
-                    self.state = 746
+                    self.state = 746 
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,84,self._ctx)
 
@@ -6056,7 +6056,7 @@ class CoreDSL2Parser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 776
             _la = self._input.LA(1)
-            if not(((((_la - 38)) & ~0x3f) == 0 and ((1 << (_la - 38)) & 70368744179707) != 0)):
+            if not(((((_la - 39)) & ~0x3f) == 0 and ((1 << (_la - 39)) & 70368744179707) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -6237,63 +6237,63 @@ class CoreDSL2Parser ( Parser ):
     def expression_sempred(self, localctx:ExpressionContext, predIndex:int):
             if predIndex == 0:
                 return self.precpred(self._ctx, 13)
-
+         
 
             if predIndex == 1:
                 return self.precpred(self._ctx, 12)
-
+         
 
             if predIndex == 2:
                 return self.precpred(self._ctx, 11)
-
+         
 
             if predIndex == 3:
                 return self.precpred(self._ctx, 10)
-
+         
 
             if predIndex == 4:
                 return self.precpred(self._ctx, 9)
-
+         
 
             if predIndex == 5:
                 return self.precpred(self._ctx, 8)
-
+         
 
             if predIndex == 6:
                 return self.precpred(self._ctx, 7)
-
+         
 
             if predIndex == 7:
                 return self.precpred(self._ctx, 6)
-
+         
 
             if predIndex == 8:
                 return self.precpred(self._ctx, 5)
-
+         
 
             if predIndex == 9:
                 return self.precpred(self._ctx, 4)
-
+         
 
             if predIndex == 10:
                 return self.precpred(self._ctx, 3)
-
+         
 
             if predIndex == 11:
                 return self.precpred(self._ctx, 2)
-
+         
 
             if predIndex == 12:
                 return self.precpred(self._ctx, 1)
-
+         
 
             if predIndex == 13:
                 return self.precpred(self._ctx, 20)
-
+         
 
             if predIndex == 14:
                 return self.precpred(self._ctx, 18)
-
+         
 
 
 
