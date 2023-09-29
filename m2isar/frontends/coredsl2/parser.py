@@ -83,6 +83,8 @@ def main():
 	for core_name, core_def in models.items():
 		logger.info('building behavior model for core %s', core_name)
 
+		warned_fns = set()
+
 		logger.debug("checking core constants")
 		unassigned_const = False
 		for const in core_def.constants.values():
@@ -103,6 +105,20 @@ def main():
 			mem_def.range._lower_base = mem_def.range.lower_base
 			mem_def.range._upper_base = mem_def.range.upper_base
 
+			for attr_name, attr_ops in mem_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							{}, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of memory \"%s\": %s", attr_name, fn_def.name, e)
+						sys.exit(1)
+
+				mem_def.attributes[attr_name] = ops
+
 		for fn_def in core_def.functions.values():
 			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
@@ -113,8 +129,6 @@ def main():
 				fn_arg._width = fn_arg.width
 
 		logger.debug("generating function behavior")
-
-		warned_fns = set()
 
 		for fn_name, fn_def in core_def.functions.items():
 			logger.debug("generating function %s", fn_name)
