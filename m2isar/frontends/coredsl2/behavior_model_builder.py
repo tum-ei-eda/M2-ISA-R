@@ -9,7 +9,7 @@
 import logging
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, intrinsics
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
@@ -304,7 +304,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			self._fields.get(name) or \
 			self._constants.get(name) or \
 			self._memory_aliases.get(name) or \
-			self._memories.get(name)
+			self._memories.get(name) or \
+			intrinsics.get(name)
 
 		if var is None:
 			raise M2NameError(f"Named reference \"{name}\" does not exist!")

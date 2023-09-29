@@ -303,6 +303,16 @@ class Scalar(SizedRefOrConst):
 		self.data_type = data_type
 		super().__init__(name, size)
 
+class Intrinsic(SizedRefOrConst):
+
+	value: int
+	data_type: DataType
+
+	def __init__(self, name, size: ValOrConst, data_type: DataType, value: int = None):
+		self.data_type = data_type
+		self.value = value
+		super().__init__(name, size)
+
 class Memory(SizedRefOrConst):
 	"""A generic memory object. Can have children, which alias to specific indices
 	of their parent memory. Has a variable array size, can therefore represent both
@@ -539,7 +549,7 @@ class CoreDef(Named):
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, constants: "dict[str, Constant]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Memory]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]",
-			instr_classes: "set[int]"):
+			instr_classes: "set[int]", intrinsics: "dict[str, Intrinsic]"):
 
 		self.contributing_types = contributing_types
 		self.template = template
@@ -552,6 +562,7 @@ class CoreDef(Named):
 		self.main_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
+		self.intrinsics = intrinsics
 
 		self.instructions_by_ext = defaultdict(dict)
 		self.functions_by_ext = defaultdict(dict)

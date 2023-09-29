@@ -22,7 +22,7 @@ or the main code generation module :mod:`m2isar.backends.etiss.instruction_trans
 
 import inspect
 import logging
-from . import behav
+from . import behav, arch
 
 def patch_model(module):
 	"""Monkey patch transformation functions inside `module`
@@ -50,3 +50,13 @@ def patch_model(module):
 
 		logger.debug("patching %s with fn %s", param.annotation, fn)
 		param.annotation.generate = fn
+
+intrinsic_defs = [
+	arch.Intrinsic("__encoding_size", 16, arch.DataType.U)
+]
+
+intrinsics = {x.name: x for x in intrinsic_defs}
+
+#@property
+#def intrinsics():
+#	return {x.name: x for x in intrinsic_defs}

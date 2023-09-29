@@ -51,7 +51,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 
 		# set up a transformer context and generate code
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
-			core.functions, 0, core_default_width, core_name, static_scalars, True)
+			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -154,7 +154,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
 	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
-		core.functions, enc_idx, core_default_width, core_name, static_scalars)
+		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics)
 
 	# force a block end if necessary
 	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)

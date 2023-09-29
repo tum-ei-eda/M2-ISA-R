@@ -11,7 +11,7 @@ import logging
 from typing import Union
 
 from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, intrinsics
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
 
@@ -131,7 +131,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._constants, self._memories, self._memory_aliases,
-			self._functions, self._instructions, self._instr_classes)
+			self._functions, self._instructions, self._instr_classes,
+			intrinsics)
 
 		return c
 

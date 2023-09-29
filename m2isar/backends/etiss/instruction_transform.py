@@ -13,7 +13,7 @@ from itertools import chain
 from string import Template
 
 from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, intrinsics
 from . import replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
                                 CodeString, FnID, MemID, StaticType,
@@ -608,7 +608,19 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 		size = referred_var.size
 		static = StaticType.RW
 
+	elif isinstance(referred_var, arch.Intrinsic):
+		if context.ignore_static:
+			raise TypeError("intrinsic not allowed in function")
+
+		signed = referred_var.data_type == arch.DataType.S
+		size = referred_var.size
+		static = StaticType.READ
+
+		if referred_var == context.intrinsics["__encoding_size"]:
+			name = str(context.instr_size // 8)
+
 	else:
+		raise TypeError("wrong type")
 		# should not happen
 		signed = False
 
