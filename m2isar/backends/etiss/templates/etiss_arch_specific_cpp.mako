@@ -21,6 +21,11 @@
 #include "${core_name}Arch.h"
 #include "${core_name}ArchSpecificImp.h"
 
+#define ETISS_ARCH_STATIC_FN_ONLY
+extern "C" {
+#include "${core_name}Funcs.h"
+}
+
 /**
 	@brief This function will be called automatically in order to handling exceptions such as interrupt, system call, illegal instructions
 
@@ -37,13 +42,10 @@
 */
 etiss::int32 ${core_name}Arch::handleException(etiss::int32 cause, ETISS_CPU * cpu)
 {
-	etiss_uint32 handledCause = cause;
+    translate_exc_code(cpu, nullptr, nullptr, cause);
+	cpu->instructionPointer = cpu->nextPc;
 
-	/**************************************************************************
-	*		 Exception handling machanism should be implemented here		  *
-	***************************************************************************/
-
-	return handledCause;
+	return 0;
 }
 
 /**
