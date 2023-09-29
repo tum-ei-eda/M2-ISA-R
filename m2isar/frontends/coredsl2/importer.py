@@ -94,7 +94,8 @@ class VisitImporter(CoreDSL2Visitor):
 		constructs a new parser and parses the next file.
 		"""
 
-		filename = ctx.uri.text.replace('"', '')
+		import_name = ctx.uri.text.replace('"', '')
+		filename = str(pathlib.Path(import_name).resolve())
 
 		# only import each file once
 		if filename not in self.imported:
