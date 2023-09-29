@@ -197,6 +197,9 @@ class MemoryAttribute(Enum):
 	IS_MAIN_REG = auto()
 	DELETE = auto()
 	ETISS_CAN_FAIL = auto()
+	ETISS_IS_GLOBAL_IRQ_EN = auto()
+	ETISS_IS_IRQ_EN = auto()
+	ETISS_IS_IRQ_PENDING = auto()
 
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
@@ -562,6 +565,10 @@ class CoreDef(Named):
 		self.main_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
+		self.global_irq_en_memory = None
+		self.global_irq_en_mask = None
+		self.irq_en_memory = None
+		self.irq_pending_memory = None
 		self.intrinsics = intrinsics
 
 		self.instructions_by_ext = defaultdict(dict)
@@ -580,5 +587,11 @@ class CoreDef(Named):
 				self.pc_memory = mem
 			elif MemoryAttribute.IS_MAIN_MEM in mem.attributes:
 				self.main_memory = mem
+			elif MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+				self.global_irq_en_memory = mem
+			elif MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+				self.irq_en_memory = mem
+			elif MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+				self.irq_pending_memory = mem
 
 		super().__init__(name)

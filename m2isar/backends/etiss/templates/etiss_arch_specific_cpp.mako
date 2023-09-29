@@ -166,20 +166,36 @@ etiss::InterruptVector * ${core_name}Arch::createInterruptVector(ETISS_CPU * cpu
 	if (cpu == 0)
 		return 0;
 
-	/**************************************************************************
-	*		            Implementation of interrupt vector              	  *
-	***************************************************************************/
+	% if irq_en_reg is not None and irq_pending_reg is not None:
+<% en_ref = "" if len(irq_en_reg.children) > 0 else "&" %> \
+<% pending_ref = "" if len(irq_pending_reg.children) > 0 else "&" %> \
+	std::vector<etiss::uint${irq_en_reg.size} *> vec;
+	std::vector<etiss::uint${irq_en_reg.size} *> mask;
 
-	// This is a default vector, implemented to avoid segfaults. Replace
-	// with actual implementation if necessary.
+	vec.push_back(${en_ref}((${core_name}*)cpu)->${irq_en_reg.name});
+	mask.push_back(${pending_ref}((${core_name}*)cpu)->${irq_pending_reg.name});
 
-	std::vector<etiss::uint32 *> vec;
-	std::vector<etiss::uint32 *> mask;
+	return new etiss::MappedInterruptVector<etiss::uint${irq_en_reg.size}>(vec, mask);
+	% else:
+	std::vector<etiss::uint${main_reg.size} *> vec;
+	std::vector<etiss::uint${main_reg.size} *> mask;
 
-	return new etiss::MappedInterruptVector<etiss::uint32>(vec, mask);
+	return new etiss::MappedInterruptVector<etiss::uint${main_reg.size}>(vec, mask);
+	% endif
 }
 
 void ${core_name}Arch::deleteInterruptVector(etiss::InterruptVector * vec, ETISS_CPU * cpu)
 {
 	delete vec;
 }
+
+% if global_irq_en_reg is not None:
+etiss::InterruptEnable* ${core_name}Arch::createInterruptEnable(ETISS_CPU* cpu) {
+<% ref = "" if len(global_irq_en_reg.children) > 0 else "&" %> \
+	return new etiss::MappedInterruptEnable<etiss::uint${main_reg.size}>(${ref}((${core_name}*)cpu)->${global_irq_en_reg.name}, ${global_irq_en_mask});
+}
+
+void ${core_name}Arch::deleteInterruptEnable(etiss::InterruptEnable* en, ETISS_CPU* cpu) {
+	delete en;
+}
+% endif
