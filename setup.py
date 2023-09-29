@@ -19,7 +19,7 @@ setuptools.setup(
     setup_requires=["setuptools_scm"],
     install_requires=[
         "mako",
-        "antlr4-python3-runtime == 4.11.1"
+        "antlr4-python3-runtime == 4.13.1"
     ],
     extras_require={
         "lark": [

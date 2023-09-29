@@ -7,4 +7,5 @@
 # Technical University of Munich
 
 mako
-antlr4-python3-runtime~=4.11.1
+antlr4-python3-runtime~=4.13.1
+antlr4-tools

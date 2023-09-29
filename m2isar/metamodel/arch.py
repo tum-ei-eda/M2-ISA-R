@@ -156,7 +156,7 @@ class RangeSpec:
 		return get_const_or_val(self._lower_base)
 
 	@property
-	def upper(self) -> int | None:
+	def upper(self) -> "int | None":
 		"""Returns the resolved upper power."""
 		if self.upper_base is None or self.upper_power is None:
 			return None
