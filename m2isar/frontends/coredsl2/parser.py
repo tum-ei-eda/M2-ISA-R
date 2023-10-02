@@ -243,7 +243,7 @@ def main():
 				)
 			)
 
-			op.statements.insert(0, pc_inc)
+			#op.statements.insert(0, pc_inc)
 			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
 
