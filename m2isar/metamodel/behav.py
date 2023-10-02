@@ -20,7 +20,8 @@ on which translation module is loaded using :func:`patch_model`.
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-	from .arch import BitFieldDescr, Constant, FnParam, Function, Memory, Scalar
+	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
+	                   Memory, Scalar)
 
 # pylint: disable=abstract-method
 
@@ -164,7 +165,7 @@ class UnaryOperation(BaseNode):
 class NamedReference(BaseNode):
 	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Scalar, Constant or FnParam."""
 
-	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Scalar", "Constant", "FnParam"]):
+	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Scalar", "Constant", "FnParam", "Intrinsic"]):
 		self.reference = reference
 
 class IndexedReference(BaseNode):
