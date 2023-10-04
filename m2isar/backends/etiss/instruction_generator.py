@@ -175,8 +175,8 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 		misc_code=misc_code,
 		fields_code=fields_code,
 		operation=out_code,
-		reg_dependencies=context.dependent_regs,
-		reg_affected=context.affected_regs,
+		reg_dependencies=[],	#context.dependent_regs,
+		reg_affected=[],		#context.affected_regs,
 		core_default_width=core_default_width,
 	)
 
