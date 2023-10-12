@@ -125,6 +125,9 @@ def block(self: behav.Block, context: TransformerContext):
 	return pre + stmts + post
 
 def return_(self: behav.Return, context: TransformerContext):
+	if context.instr_size != 0:
+		raise M2SyntaxError('Return statements are not allowed in instruction behavior!')
+
 	if self.expr is not None:
 		c = self.expr.generate(context)
 		c.code = f'return {c.code};'
