@@ -219,7 +219,8 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		irq_pending_reg=core.irq_pending_memory,
 		global_irq_en_reg=core.global_irq_en_memory,
 		global_irq_en_mask=global_irq_en_mask,
-		error_callbacks=error_callbacks
+		error_callbacks=error_callbacks,
+		error_fn=error_fn
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w", encoding="utf-8") as f:

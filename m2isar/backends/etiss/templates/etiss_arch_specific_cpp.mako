@@ -42,8 +42,10 @@ extern "C" {
 */
 etiss::int32 ${core_name}Arch::handleException(etiss::int32 cause, ETISS_CPU * cpu)
 {
-    translate_exc_code(cpu, nullptr, nullptr, cause);
+	% if error_fn is not None:
+	${error_fn.name}(cpu, nullptr, nullptr, cause);
 	cpu->instructionPointer = cpu->nextPc;
+	% endif \
 
 	return 0;
 }
