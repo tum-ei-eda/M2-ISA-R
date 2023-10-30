@@ -169,6 +169,7 @@ def main():
 
 		always_block_statements = []
 
+		arch_builder = temp_save[core_name][1]
 		for block_def in arch_builder._always_blocks.values():
 			logger.debug("generating always block %s", block_def.name)
 			logger.debug("generating attributes")
