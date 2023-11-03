@@ -7,7 +7,7 @@
 ## Technical University of Munich
 \
 
-${'extern' if extern else 'static inline'} ${return_type} ${fn_name}(${args_list})${';' if not operation else ''}
+${return_type} ${fn_name}(${args_list})${';' if not operation else ''}
 % if operation:
 {
 ${operation}

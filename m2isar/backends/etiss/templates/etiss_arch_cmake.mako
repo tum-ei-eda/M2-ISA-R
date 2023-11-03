@@ -19,6 +19,7 @@ ADD_LIBRARY($${}{PROJECT_NAME} SHARED
 	${core_name}Arch.cpp
 	${core_name}ArchLib.cpp
 	${core_name}ArchSpecificImp.cpp
+	${core_name}Funcs.c
 	% for f in arch_files:
 	${f}
 	% endfor
