@@ -133,6 +133,18 @@ def main():
 		process_instructions(core)
 		process_attributes(core)
 
+		renamed_fns = {}
+
+		for fn_name, fn_def in core.functions.items():
+			if fn_def.extern:
+				renamed_fns[fn_name] = fn_def
+			else:
+				new_name = f"{core_name}_{fn_def.name}"
+				fn_def.name = new_name
+				renamed_fns[new_name] = fn_def
+
+		core.functions = renamed_fns
+
 	# generate each core in the model
 	for core_name, core in models.items():
 		logger.info("processing model %s", core_name)
