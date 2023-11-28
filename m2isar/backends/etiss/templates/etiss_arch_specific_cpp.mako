@@ -174,8 +174,8 @@ etiss::InterruptVector * ${core_name}Arch::createInterruptVector(ETISS_CPU * cpu
 	std::vector<etiss::uint${irq_en_reg.size} *> vec;
 	std::vector<etiss::uint${irq_en_reg.size} *> mask;
 
-	vec.push_back(${en_ref}((${core_name}*)cpu)->${irq_en_reg.name});
-	mask.push_back(${pending_ref}((${core_name}*)cpu)->${irq_pending_reg.name});
+	vec.push_back(${en_ref}((${core_name}*)cpu)->${irq_pending_reg.name});
+	mask.push_back(${pending_ref}((${core_name}*)cpu)->${irq_en_reg.name});
 
 	return new etiss::MappedInterruptVector<etiss::uint${irq_en_reg.size}>(vec, mask);
 	% else:
