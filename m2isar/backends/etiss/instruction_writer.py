@@ -26,6 +26,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 	fn_set_header_template = Template(filename=str(template_dir/'etiss_function_set_header.mako'))
 	fn_set_footer_template = Template(filename=str(template_dir/'etiss_function_set_footer.mako'))
+	fn_impl_template = Template(filename=str(template_dir/"etiss_functions_c.mako"))
 
 	core_name = core.name
 
@@ -45,14 +46,22 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 			logger.debug("writing function decl %s", fn_name)
 			funcs_f.write(templ_str)
 
+		fn_set_str = fn_set_footer_template.render()
+
+		funcs_f.write(fn_set_str)
+
+	with open(output_path / f'{core_name}Funcs.c', 'w', encoding="utf-8") as funcs_f:
+		fn_impl_str = fn_impl_template.render(
+			start_time=start_time,
+			core_name=core_name
+		)
+
+		funcs_f.write(fn_impl_str)
+
 		# generate and write function definitions
 		for fn_name, templ_str in generate_functions(core, static_scalars, False):
 			logger.debug("writing function def %s", fn_name)
 			funcs_f.write(templ_str)
-
-		fn_set_str = fn_set_footer_template.render()
-
-		funcs_f.write(fn_set_str)
 
 def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool, static_scalars: bool,
 	block_end_on: BlockEndType):

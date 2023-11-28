@@ -20,11 +20,7 @@
 
 #include "${core_name}Arch.h"
 #include "${core_name}ArchSpecificImp.h"
-
-#define ETISS_ARCH_STATIC_FN_ONLY
-extern "C" {
 #include "${core_name}Funcs.h"
-}
 
 /**
 	@brief This function will be called automatically in order to handling exceptions such as interrupt, system call, illegal instructions
