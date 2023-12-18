@@ -1,8 +1,8 @@
 """
 Template for new Operations
 The Dict values need to be Callables that take 
-    the operands('Dict[str, mm.IndexedReference]') as argument
-    and return any Metamodel BaseNode
+	the operands('Dict[str, mm.IndexedReference]') as argument
+	and return any Metamodel BaseNode
 """
 
 from functools import partial

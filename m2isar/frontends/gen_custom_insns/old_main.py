@@ -65,7 +65,7 @@ def main():
 				m2isar.metamodel.behav.IndexedReference(
 					memories["X"],
 					m2isar.metamodel.behav.NamedReference(rd_desc),
-            	),
+				),
 				m2isar.metamodel.behav.BinaryOperation(
 					m2isar.metamodel.behav.IndexedReference(
 						memories["X"],
