@@ -55,7 +55,8 @@ def main():
 	imm = m2isar.metamodel.arch.BitField("imm", m2isar.metamodel.arch.RangeSpec(11, 0), m2isar.metamodel.arch.DataType.U)
 	encoding = [imm, rs1, func3, rd, opcode]
 	# assembly
-	disass = "{name(rd)}, {name(rs1)}, {imm}"# FIXME: specify mnemonic
+	assembly = "{name(rd)}, {name(rs1)}, {imm}"
+	mnemonic = "my.inst"
 	# operation
 	rd_desc = m2isar.metamodel.arch.BitField("rd", 5, m2isar.metamodel.arch.DataType.U)
 	rs1_desc = m2isar.metamodel.arch.BitField("rs1", 5, m2isar.metamodel.arch.DataType.U)
@@ -77,7 +78,7 @@ def main():
 			)
 		]
 	)
-	insn = m2isar.metamodel.arch.Instruction("MyInst", attributes={}, encoding=encoding, disass=disass, operation=op)
+	insn = m2isar.metamodel.arch.Instruction("MyInst", attributes={}, encoding=encoding, mnemonic=mnemonic, assembly=assembly, operation=op)
 	insn.ext_name = "MySet"
 	instructions = {(insn.mask, insn.code): insn}
 
