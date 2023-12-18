@@ -83,19 +83,12 @@ def main():
 	instructions = {(insn.mask, insn.code): insn}
 
 	# Create new instruction set (single instruction)
-	# i = arch.InstructionSet("MySet", [], constants, memories, functions, instructions)
+	i = arch.InstructionSet("MySet", [], constants, memories, functions, instructions)
 	# FIXME: The actual instruction sets usually get merged into the CoreDef while parsing which is not great
 
-	# Create dummy core (32-bit)
-	name = "MyCore"
-	contributing_types = ["MySet"]
-	template = None
-	memory_aliases = {}
-	instr_classes = {32}
-	core = m2isar.metamodel.arch.CoreDef(name, contributing_types, template, constants, memories, memory_aliases, functions, instructions, instr_classes, intrinsics)
-
 	# Export metamodel
-	models = {"MyCore": core}
+	sets = {i.name: i}
+	models = {"sets": sets}
 	logger.info("dumping model")
 	with open(model_path, 'wb') as f:
 		pickle.dump(models, f)
