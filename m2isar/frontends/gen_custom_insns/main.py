@@ -5,7 +5,6 @@ from typing import List, Dict, Tuple
 
 from .input_parser import parse
 from .instructions_classes import Instruction
-import m2isar
 from ...metamodel import arch, behav
 
 

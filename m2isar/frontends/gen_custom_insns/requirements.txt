@@ -1,0 +1,4 @@
+# Requirements for the custom instruction generation
+
+pyyaml
+pytest

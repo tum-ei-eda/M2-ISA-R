@@ -2,95 +2,10 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Union
-from copy import deepcopy
 
-
-from ...metamodel import arch, behav
+from ...metamodel import arch
 from .op_parsing import parse_op
-
-
-@dataclass(init=False)
-class ComplexOperand:
-	"""A Operand with a list of bitwidths and signs"""
-
-	def __init__(
-		self,
-		width: Union[Union[int, str], List[Union[int, str]]],
-		sign: Union[str, List[str]],
-		immediate: bool = False,
-	) -> None:
-		self.width = width if isinstance(width, list) else [width]
-		self.sign: List[str] = sign if isinstance(sign, list) else [sign]
-		self.immediate: bool = immediate
-
-
-@dataclass
-class Operand:
-	"""A simple operand used in the Instruction Class"""
-
-	# width can only be str when the references havn't been resolved yet
-	width: Union[int, str]
-	sign: str
-	immediate: bool = False
-
-
-def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
-	"""Simplifying the operands, returns a list where
-	the ComplexOperands have been turned into simple Operands
-	with only 1 sign and width
-	Width or sign references need to be resolved once the operands are put into groups
-	"""
-	operand_lists: Dict[str, List[Operand]] = {}
-	for operand_name, operand in operands.items():
-		operand_lists[operand_name] = []
-		for index, w in enumerate(operand.width):
-			# option 1: sign is specified per width
-			if len(operand.sign) == len(operand.width):
-				if operand.sign[index] in ("us", "su"):
-					operand_lists[operand_name].extend(
-						[Operand(w, "u"), Operand(w, "s")]
-					)
-				else:
-					operand_lists[operand_name].append(Operand(w, operand.sign[index]))
-				continue
-			elif len(operand.sign) > 1:
-				raise ValueError(
-					"Number of specified signs neither matches the number of widths nor is 1"
-				)
-			# option 2: only 1 sign, so its the same for all widths
-			if operand.sign[0] in ("us", "su"):
-				operand_lists[operand_name].extend([Operand(w, "u"), Operand(w, "s")])
-			else:
-				operand_lists[operand_name].append(Operand(w, operand.sign[0]))
-	return operand_lists
-
-
-def create_operand_combinations(
-	operand_lists: Dict[str, List[Operand]]
-) -> List[Dict[str, Operand]]:
-	"""Create every posible combination of the supplied operands"""
-	operand_combinations: List[Dict[str, Operand]] = []
-	for operand_name, operand_variants in operand_lists.items():
-		if len(operand_combinations) == 0:
-			# if the list is empty we need to create a first set of operands
-			operand_combinations.extend(
-				[{operand_name: oper} for oper in operand_variants]
-			)
-		else:
-			# if we allready added the first operand,
-			# we create a copy for each variant of the next operand
-			list_copy = deepcopy(operand_combinations)
-			for d in operand_combinations:
-				# adding the first operand_variant to current list
-				d[operand_name] = deepcopy(operand_variants[0])
-			# if len == 1 the for loop wont get executed
-			for i in range(1, len(operand_variants)):
-				# adding copies with the remaining operator variants
-				new_list = deepcopy(list_copy)
-				for d in new_list:
-					d[operand_name] = deepcopy(operand_variants[i])
-				operand_combinations.extend(new_list)
-	return operand_combinations
+from .operands import Operand, ComplexOperand, simplify_operands, create_operand_combinations
 
 
 @dataclass
@@ -123,24 +38,6 @@ class Instruction:
 					raise TypeError("Referencing another reference is not implemented!")
 				operand.width = self.operands[operand.width].width  # type: ignore
 
-	def _reg_indexed_ref(self, reg_name: str) -> behav.IndexedReference:
-		# TODO get memories of the dummy core from main.py
-		registers = arch.Memory(
-			"X", arch.RangeSpec(32), 32, {arch.MemoryAttribute.IS_MAIN_MEM: []}
-		)
-		return behav.IndexedReference(
-			reference=registers,
-			index=behav.NamedReference(
-				arch.BitFieldDescr(
-					reg_name,
-					5,
-					arch.DataType.S
-					if self.operands[reg_name].sign == "s"
-					else arch.DataType.U,
-				)
-			),
-		)
-
 	def to_metamodel(self) -> arch.Instruction:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		name = self.name
@@ -149,32 +46,23 @@ class Instruction:
 
 		## Registers
 		# currently no load and store support so we need only the registers, not main mem
-		# TODO immediates
-		registers = {
-			reg_name: self._reg_indexed_ref(reg_name)
-			for reg_name in self.operands.keys()
-		}
 
-		operands: Dict[str, Union[behav.IndexedReference, behav.NamedReference]] = {}
+		extension_name = ""  # TODO pass extension name as argument
+		mnemonic = extension_name + "." + self.name
 
-		for opr_name, opr in self.operands.items():
-			if opr.immediate:
-				operands[opr_name] = behav.NamedReference(
-					behav.BitFieldDescr(
-						opr_name,
-						opr.width,  # type: ignore
-						arch.DataType.S if opr.sign == "s" else arch.DataType.U,
-					)
-				)
-			else:
-				operands[opr_name] = self._reg_indexed_ref(opr_name)
-		operation = parse_op(operands=registers, name=self.op)
+		assembly = ""
+		for n in self.operands.keys():
+			assembly += "{name(" + n + ")}, "
+		assembly = assembly[0:-2]  # removing the trailing ", "
+
+		operation = parse_op(operands=self.operands, name=self.op)
 
 		return arch.Instruction(
 			name=name,
 			attributes={},
 			encoding=encoding,
-			disass=disass,
+			mnemonic=mnemonic,
+			assembly=assembly,
 			operation=operation,
 		)
 
