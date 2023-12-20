@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from ...metamodel import behav, arch
 
+XLEN = 32  # Could be changed later to support rv64
 
 @dataclass(init=False)
 class ComplexOperand:
@@ -20,25 +21,29 @@ class ComplexOperand:
 		self.sign: List[str] = sign if isinstance(sign, list) else [sign]
 		self.immediate: bool = immediate
 
+
 @dataclass
 class Operand:
 	"""A simple operand used in the Instruction Class"""
 
-	# width can only be str when the references havn't been resolved yet
-	width: Union[int, str]
+	# width can only be str when operands references havn't been resolved yet
+	width: int
 	sign: str
 	immediate: bool = False
 
 	def to_metemodel_ref(
 		self, name: str
 	) -> Union[behav.IndexedReference, behav.NamedReference, behav.SliceOperation]:
-		"""creating a Reference for use with the m2isar Metamodel
-			if the operands width is smaller than the register a slice will be returned instead"""
+		"""
+		creating a Reference for use with the m2isar Metamodel
+		if the operands width is smaller than the register a sliceOperations will be returned instead
+		For this reason this should not be used for SIMD instructions as the
+		"""
 		if self.immediate:
 			return behav.NamedReference(
 				behav.BitFieldDescr(
 					name,
-					self.width,  # type: ignore
+					self.width,
 					arch.DataType.S if self.sign == "s" else arch.DataType.U,
 				)
 			)
@@ -57,13 +62,31 @@ class Operand:
 			),
 		)
 
-		XLEN = 32 # Could be changed later to support rv64
-		if self.width < XLEN: # type: ignore
-			ref = behav.SliceOperation(ref, behav.IntLiteral(self.width-1), behav.IntLiteral(0)) # type: ignore
+		
+		if self.width < XLEN:
+			ref = behav.SliceOperation(ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0))
 		return ref
-	
+
+	def to_simd_slices(self, name: str) -> List[behav.SliceOperation]:
+		"""Returns a list of SliceOperations on register['name']"""
+		if XLEN % self.width != 0:
+			raise ValueError(f"Operands width(={self.width}) can't be packed into XLEN(={XLEN})!")
+		if self.immediate:
+			raise TypeError("Immediate slicing is not supported!")
+
+		lanes = XLEN // self.width
+		slices = []
+		for l in range(lanes):
+			left_index = behav.IntLiteral(self.width * (1 + l) - 1)
+			right_index = behav.IntLiteral(self.width * l)
+			slices.append(behav.SliceOperation(self.to_metemodel_ref(name), left_index, right_index))
+
+		return slices
+
+
 def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
-	"""Simplifying the operands, returns a list where
+	"""
+	Simplifying the operands, returns a list where
 	the ComplexOperands have been turned into simple Operands
 	with only 1 sign and width
 	Width or sign references need to be resolved once the operands are put into groups

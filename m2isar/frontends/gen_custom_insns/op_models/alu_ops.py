@@ -2,7 +2,7 @@
 
 from functools import partial
 from typing import Callable, Dict
-from ....metamodel import arch, behav
+from ....metamodel import behav
 from ..operands import Operand
 
 

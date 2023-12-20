@@ -8,9 +8,9 @@ They need to return any subclass of behav.Basenode, but not behav.assignment
 The reasoning behind it, is that this way they can be chained to create new instructions
 """
 
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Union
 
-from .op_models import alu_ops
+from .op_models import alu_ops, simd
 from ...metamodel import behav, arch
 from .operands import Operand
 
@@ -38,7 +38,21 @@ def parse_op(operands: Dict[str, Operand], name: str) -> behav.Operation:
 		expr = OPS[name](operands)
 	except KeyError as exc:
 		raise KeyError(f"Instruction '{name}' not implemented!") from exc
-	return behav.Operation([mm_assignment(operands, expr)])
+
+	if isinstance(expr, behav.Operation):
+		return expr
+	elif isinstance(expr, behav.Assignment):
+		return behav.Operation([expr])
+	elif isinstance(expr, list) and isinstance(expr[0], behav.BaseNode):
+		# assuming simd instr
+		return behav.Operation(expr)
+	elif isinstance(expr, behav.BaseNode):
+		# if its not an operation or assignment,
+		# i just assume for now that we need to put it in an assignment
+		# this would need to be changed to allow for e.g. load/store
+		return behav.Operation([mm_assignment(operands, expr)])
+
+	raise TypeError(f"The entry for Key '{name}' produces an unsupported type!")
 
 
 def mm_assignment(
@@ -50,7 +64,9 @@ def mm_assignment(
 
 
 # operations without assignment or behav.Operations()
-OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {}
+OPS: Dict[str, Callable[[Dict[str, Operand]], Union[behav.BaseNode, List[behav.BaseNode]]]] = {}
 
 # TODO This could maybe be done automaticly for all the files in the instructions folder
 OPS.update(alu_ops.OPS)
+OPS.update(simd.OPS)
+

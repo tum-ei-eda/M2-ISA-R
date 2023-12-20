@@ -62,7 +62,7 @@ def main():
 	parser = argparse.ArgumentParser(description="Instruction generator", add_help=True)
 	parser.add_argument("filename", help="Name of the input file")
 	parser.add_argument(
-		"-o", "--output", default="instructions.m2isarmodel", help="Output path"
+		"-o", "--output", default="instructions", help="Output path"
 	)
 	parser.add_argument(
 		"-m",
@@ -98,7 +98,7 @@ def main():
 		# output/save generated instructions
 		core_def = create_dummy_core(memories, instrucitons_dict, constants)
 		models = {core_def.name: core_def}
-		with open(args.output, "wb") as file:
+		with open(args.output + ".m2isarmodel", "wb") as file:
 			pickle.dump(models, file)
 
 		sys.exit(0)
