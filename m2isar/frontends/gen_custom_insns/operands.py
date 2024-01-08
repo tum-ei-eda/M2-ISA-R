@@ -62,7 +62,6 @@ class Operand:
 			),
 		)
 
-		
 		if self.width < XLEN:
 			ref = behav.SliceOperation(ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0))
 		return ref
