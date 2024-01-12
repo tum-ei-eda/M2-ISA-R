@@ -9,7 +9,7 @@ XLEN = 32  # Could be changed later to support rv64
 
 @dataclass(init=False)
 class ComplexOperand:
-	"""A Operand with a list of bitwidths and signs"""
+	"""A Operand with a list of bitwidths and signs."""
 
 	def __init__(
 		self,
@@ -35,9 +35,8 @@ class Operand:
 		self, name: str
 	) -> Union[behav.IndexedReference, behav.NamedReference, behav.SliceOperation]:
 		"""
-		creating a Reference for use with the m2isar Metamodel
-		if the operands width is smaller than the register a sliceOperations will be returned instead
-		For this reason this should not be used for SIMD instructions as the
+		Creating a M2-ISA-R Metamodel Reference or SliceOperation use in modeling operations
+		If the operands width is smaller than XLEN a SliceOperation will be returned instead
 		"""
 		if self.immediate:
 			return behav.NamedReference(
@@ -86,8 +85,7 @@ class Operand:
 def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
 	"""
 	Simplifying the operands, returns a list where
-	the ComplexOperands have been turned into simple Operands
-	with only 1 sign and width
+	the ComplexOperands have been turned into simple Operands with only 1 sign and width
 	Width or sign references need to be resolved once the operands are put into groups
 	"""
 	operand_lists: Dict[str, List[Operand]] = {}
@@ -117,7 +115,7 @@ def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Ope
 def create_operand_combinations(
 	operand_lists: Dict[str, List[Operand]]
 ) -> List[Dict[str, Operand]]:
-	"""Create every posible combination of the supplied operands"""
+	"""Create every possible combination of the supplied operands"""
 	operand_combinations: List[Dict[str, Operand]] = []
 	for operand_name, operand_variants in operand_lists.items():
 		if len(operand_combinations) == 0:

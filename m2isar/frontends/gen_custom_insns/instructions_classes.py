@@ -7,6 +7,8 @@ from ...metamodel import arch
 from .op_parsing import parse_op
 from .operands import Operand, ComplexOperand, simplify_operands, create_operand_combinations
 
+from .instr_encodings import get_mm_encoding
+
 
 @dataclass
 class Instruction:
@@ -41,11 +43,12 @@ class Instruction:
 	def to_metamodel(self) -> arch.Instruction:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		name = self.name
-		encoding: List[Union[arch.BitField, arch.BitVal]] = []  # TODO
-		disass = self.name  # TODO
 
-		## Registers
-		# currently no load and store support so we need only the registers, not main mem
+		try:
+			encoding = get_mm_encoding(self.operands)
+		except NotImplementedError as e:
+			print(f"Could not find a fitting encoding for instruction {self.name}!")
+			raise RuntimeError() from e
 
 		extension_name = ""  # TODO pass extension name as argument
 		mnemonic = extension_name + "." + self.name
