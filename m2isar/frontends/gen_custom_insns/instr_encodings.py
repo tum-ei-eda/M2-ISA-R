@@ -81,34 +81,54 @@ def get_mm_encoding(
 	Currently only works with instructions following the RISC-V Instructions Format
 	"""
 	# figure out the format
-	if len(operands) == 3:
-		if any(opr.immediate for opr in operands.values()):
-			# I-Format: imm | rs1 | func3 | rd | opcode
-			funct3, major = i_opcodes.get()
 
-			return [
-				arch.BitField("imm12", arch.RangeSpec(11, 0), arch.DataType.S),
-				reg_bitfield("rs1"),
-				arch.BitVal(3, funct3),
-				reg_bitfield("rd"),
-				arch.BitVal(7, major),
-			]
-		else:
-			# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
-			minor, major = r_opcodes.get()
-			funct7 = minor | 0b11_1111_1000
-			funct3 = minor | 0b111
+	if contains_imm_operand(operands):
+		# I-Format: imm | rs1 | func3 | rd | opcode
+		funct3, major = i_opcodes.get()
 
-			return [
-				arch.BitVal(7, funct7),
-				reg_bitfield("rs2"),
-				reg_bitfield("rs1"),
-				arch.BitVal(3, funct3),
-				reg_bitfield("rd"),
-				arch.BitVal(7, major),
-			]
-	else:
-		raise NotImplementedError("Unknown instruction format!")
+		return [
+			arch.BitField("imm12", arch.RangeSpec(11, 0), arch.DataType.S),
+			reg_bitfield("rs1"),
+			arch.BitVal(3, funct3),
+			reg_bitfield("rd"),
+			arch.BitVal(7, major),
+		]
+	elif len(operands) == 3:
+		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
+		minor, major = r_opcodes.get()
+		funct7 = minor | 0b11_1111_1000
+		funct3 = minor | 0b111
+
+		return [
+			arch.BitVal(7, funct7),
+			reg_bitfield("rs2"),
+			reg_bitfield("rs1"),
+			arch.BitVal(3, funct3),
+			reg_bitfield("rd"),
+			arch.BitVal(7, major),
+		]
+	elif len(operands) == 2:
+		# no imm's and only 2 regs, e.g. cv.abs
+		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
+		minor, major = r_opcodes.get()
+		funct7 = minor | 0b11_1111_1000
+		funct3 = minor | 0b111
+
+		return [
+			arch.BitVal(7, funct7),
+			reg_bitfield("rs2"),
+			reg_bitfield("rs1"),
+			arch.BitVal(3, funct3),
+			reg_bitfield("rd"),
+			arch.BitVal(7, major),
+		]
+
+	raise NotImplementedError("Unknown instruction format!")
+
+def contains_imm_operand(operands: Dict[str, Operand]) -> bool:
+	"""returns True if any operand is an immediate, False otherwise"""
+	return any(opr.immediate for opr in operands.values())
+
 
 
 def reg_bitfield(name: str) -> arch.BitField:
