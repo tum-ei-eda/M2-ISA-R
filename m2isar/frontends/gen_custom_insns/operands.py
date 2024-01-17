@@ -82,6 +82,11 @@ class Operand:
 		return slices
 
 
+def get_immediates(operands: Dict[str, Operand]) -> List[Operand]:
+	"""returns a subset of the given operands that are immediates"""
+	return [operand for operand in operands.values() if operand.immediate]
+
+
 def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
 	"""
 	Simplifying the operands, returns a list where
