@@ -46,7 +46,7 @@ class Instruction:
 
 		try:
 			encoding = get_mm_encoding(self.operands)
-		except NotImplementedError as e:
+		except (NotImplementedError, ValueError) as e:
 			print(f"Could not find a fitting encoding for instruction {self.name}!")
 			raise RuntimeError() from e
 

@@ -35,7 +35,7 @@ class Operand:
 		self, name: str
 	) -> Union[behav.IndexedReference, behav.NamedReference, behav.SliceOperation]:
 		"""
-		Creating a M2-ISA-R Metamodel Reference or SliceOperation use in modeling operations
+		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations
 		If the operands width is smaller than XLEN a SliceOperation will be returned instead
 		"""
 		if self.immediate:
