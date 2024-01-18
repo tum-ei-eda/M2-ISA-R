@@ -1,5 +1,6 @@
 """
 This module will create Objects on import which are used to generate Opcodes for custom instructions
+In Python an Imports will only create the import Object once, so they act like a singleton
 
 Currently this only includes Greenfield instructions and
 only uses the major opcodes Custom[0-3] as specified by the RISC-V standard
@@ -7,7 +8,7 @@ only uses the major opcodes Custom[0-3] as specified by the RISC-V standard
 This could be changed in the future by adding a function which adds unused opcodes to the list
 """
 
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 from ...metamodel import arch
 from .operands import Operand, get_immediates
@@ -22,11 +23,13 @@ If the opcodes dont need to be standard compatible,
 this list could be extended at runtime with the opcodes of the unused extensions
 """
 
-class BaseOpcode:
-	"""Class to store and get the next free opcode and funct3"""
+
+class OpcodeGenerator:
+	"""Class to store and get the next free opcode and funct3
+	This should never be used outside of this module, and only be instantiated once"""
 
 	def __init__(self):
-		self.opcode: int = 0
+		self.opcode: Optional[int] = None
 		self.funct3: int = 0
 
 	def get(self) -> tuple[int, int]:
@@ -35,9 +38,10 @@ class BaseOpcode:
 		Returns (funct3, opcode)
 		"""
 		# checking if there are minor opcodes left or the major opcode is unset
-		if self.funct3 > 0b111 or self.opcode == 0:
+		if self.funct3 > 0b111 or self.opcode is None:
 			try:
 				self.opcode = unused_opcodes.pop()
+				self.funct3 = 0
 			except IndexError as e:
 				raise RuntimeError("No Major opcode left!") from e
 
@@ -46,43 +50,39 @@ class BaseOpcode:
 		return (funct3, self.opcode)
 
 
-class FunctNOpcode(BaseOpcode):
-	"""Extending the Base Opcode class to generate opcodes with an additional funct field,
-	like the standard R-Format"""
+class FunctNOpcodeGenerator:
+	"""Class to generate opcodes with an additional funct field, like the standard R-Format
+	gets a reference to a basic opcode generator"""
 
-	def __init__(self, funct_size: int):
-		super().__init__()
-		self.funct_size: int = funct_size
-		self.current_funct3: Union[int, None] = None
+	def __init__(self, opcode_gen: OpcodeGenerator, funct_size: int):
+		self.opcode_generator = opcode_gen
+		self.opcode: int = 0
+		self.funct3: Optional[int] = None
+		self.n: int = funct_size
 		self.funct_n: int = 0
 
 	def get(self) -> tuple[int, int, int]:
-		if self.current_funct3 is None or self.funct_n > 2**self.funct_size - 1:
-			self.funct3, self.opcode = super().get()
+		"""returns (functN, funct3, opcode)"""
+		if self.funct3 is None or self.funct_n >= 2**self.n:
+			self.funct3, self.opcode = self.opcode_generator.get()
 			self.funct_n = 0
 		funct_n = self.funct_n
 		self.funct_n += 1
 		return (funct_n, self.funct3, self.opcode)
 
 
-i_opcodes = BaseOpcode()
-"""
-I-Format: imm   | rs1 | func3 | rd | opcode
-		  31:20 |19:15| 14:12 |11:7| 6:0
-"""
+i_opcodes = OpcodeGenerator()
+"""I-Format: imm   | rs1 | func3 | rd | opcode
+		  	 31:20 |19:15| 14:12 |11:7| 6:0"""
 
-r_opcodes = FunctNOpcode(funct_size=7)
-"""
-R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
-		   31:25 |24:20|19:15| 14:12  |11:7| 6:0
-"""
+r_opcodes = FunctNOpcodeGenerator(opcode_gen=i_opcodes, funct_size=7)
+"""R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
+		   	  31:25 |24:20|19:15| 14:12  |11:7| 6:0"""
 
-f2_opcodes = FunctNOpcode(funct_size=2)
-"""
-Simmilar to the std R-Format, but with 2 instead of 7 additional funct bits.
+f2_opcodes = FunctNOpcodeGenerator(opcode_gen=i_opcodes, funct_size=2)
+"""Simmilar to the std R-Format, but with 2 instead of 7 additional funct bits.
 Allows for 3 registers and a 5 bit immediate.
-Used by e.g. Core-V cv.addN
-"""
+Used by e.g. Core-V cv.addN"""
 
 
 def get_mm_encoding(
@@ -101,7 +101,9 @@ def get_mm_encoding(
 			"Currently instructions with more than two immediates are not supported!"
 		)
 	if reg_count > 3:
-		raise NotImplementedError("No format available with more than 3 Register sources!")
+		raise NotImplementedError(
+			"No format available with more than 3 Register sources!"
+		)
 	# TODO: possible bugs if the imm size is different in the encoding and the behaviour metamodel(NamedReference)
 	# should either be set here or in "to_metamodel"
 	if imm_count == 1:
@@ -128,7 +130,9 @@ def get_mm_encoding(
 		# 3 register and an immediate => max bitwidth = 5; e.g. cv.addN
 		if reg_count == 3:
 			if immediates[0].width > 5:
-				raise ValueError("Instructions with 3 registers can only have an immediate of 5 bits or smaller!")
+				raise ValueError(
+					"Instructions with 3 registers can only have an immediate of 5 bits or smaller!"
+				)
 			# Format: funct2 | imm5 | rs2 | rs1 | funct3 | rD | opcode
 			funct2, funct3, opcode = f2_opcodes.get()
 			imm_sign = arch.DataType.S if immediates[0].sign == "s" else arch.DataType.U
