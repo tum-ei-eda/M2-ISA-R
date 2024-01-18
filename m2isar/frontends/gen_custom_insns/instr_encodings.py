@@ -104,21 +104,23 @@ def get_mm_encoding(
 		raise NotImplementedError(
 			"No format available with more than 3 Register sources!"
 		)
-	# TODO: possible bugs if the imm size is different in the encoding and the behaviour metamodel(NamedReference)
-	# should either be set here or in "to_metamodel"
+
+	# TODO: clean up the if statements to find the correct format
 	if imm_count == 1:
-		if immediates[0].width > 12:
+		immediate = immediates[0]
+		if immediate.width > 12:
 			raise ValueError(
-				f"Bitwidth(={immediates[0].width}) of the immediate is too large!"
+				f"Bitwidth(={immediate.width}) of the immediate is too large!"
 			)
 
 		# If its 5 bits or smaller we can use the R-Format and
 		# use rs2 to encode the immediate to save encoding space
 		# This is the encoding for e.g. cv.clip
-		if reg_count == 2 and immediates[0].width <= 5:
-			# R-Format: funct7 | imm5 | rs1 | funct3 | rd | opcode
+		if reg_count == 2 and immediate.width <= 5:
 			funct7, funct3, opcode = r_opcodes.get()
-			imm_sign = arch.DataType.S if immediates[0].sign == "s" else arch.DataType.U
+			update_imm_width(immediate, 5)
+			imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+			# R-Format: funct7 | imm5 | rs1 | funct3 | rd | opcode
 			return [
 				arch.BitVal(7, funct7),
 				arch.BitField("imm5", arch.RangeSpec(11, 0), imm_sign),
@@ -129,13 +131,14 @@ def get_mm_encoding(
 			]
 		# 3 register and an immediate => max bitwidth = 5; e.g. cv.addN
 		if reg_count == 3:
-			if immediates[0].width > 5:
+			if immediate.width > 5:
 				raise ValueError(
 					"Instructions with 3 registers can only have an immediate of 5 bits or smaller!"
 				)
-			# Format: funct2 | imm5 | rs2 | rs1 | funct3 | rD | opcode
 			funct2, funct3, opcode = f2_opcodes.get()
-			imm_sign = arch.DataType.S if immediates[0].sign == "s" else arch.DataType.U
+			update_imm_width(immediate, 5)
+			imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+			# Format: funct2 | imm5 | rs2 | rs1 | funct3 | rD | opcode
 			return [
 				arch.BitVal(2, funct2),
 				arch.BitField("imm5", arch.RangeSpec(4, 0), imm_sign),
@@ -147,9 +150,10 @@ def get_mm_encoding(
 			]
 
 		# otherwise we just use the I-Format
-		# I-Format: imm12 | rs1 | funct3 | rd | opcode
 		funct3, major = i_opcodes.get()
-		imm_sign = arch.DataType.S if immediates[0].sign == "s" else arch.DataType.U
+		update_imm_width(immediate, 12)
+		imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+		# I-Format: imm12 | rs1 | funct3 | rd | opcode
 		return [
 			arch.BitField("imm12", arch.RangeSpec(11, 0), imm_sign),
 			reg_bitfield("rs1"),
@@ -159,8 +163,8 @@ def get_mm_encoding(
 		]
 
 	if reg_count == 3:
-		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
 		funct7, funct3, major = r_opcodes.get()
+		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
 		return [
 			arch.BitVal(7, funct7),
 			reg_bitfield("rs2"),
@@ -171,8 +175,8 @@ def get_mm_encoding(
 		]
 	if reg_count == 2:
 		# no imm's and only 2 regs, e.g. cv.abs -> just set rs2 to 0
-		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
 		funct7, funct3, major = r_opcodes.get()
+		# R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
 		return [
 			arch.BitVal(7, funct7),
 			arch.BitVal(5, 0),
@@ -190,3 +194,16 @@ def reg_bitfield(name: str) -> arch.BitField:
 	Helper funtion to reduce boilerplate code
 	Returns a BitField Object with the specified name"""
 	return arch.BitField(name, arch.RangeSpec(4, 0), arch.DataType.U)
+
+
+def update_imm_width(immediate: Operand, width: int) -> None:
+	"""Adjust the width of an immediate to fit the encoding"""
+	if not immediate.immediate:
+		raise ValueError("This functions should only be called on immediate operands!")
+
+	if immediate.width != width:
+		# I should propably use a logger for this
+		print(
+			f"Increasing Operand width from {immediate.width} to {width} to fit encoding."
+		)
+		immediate.width = width
