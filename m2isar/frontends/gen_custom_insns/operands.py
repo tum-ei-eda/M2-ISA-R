@@ -41,7 +41,7 @@ class Operand:
 		"""
 		if self.immediate:
 			return behav.NamedReference(
-				behav.BitFieldDescr(
+				arch.BitFieldDescr(
 					name,
 					self.width,
 					arch.DataType.S if self.sign == "s" else arch.DataType.U,
