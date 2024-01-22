@@ -146,7 +146,7 @@ def return_(self: behav.Return, writer):
 
 def unary_operation(self: behav.UnaryOperation, writer):
     # print("unary_operation")
-    writer.write(self.op.name)
+    writer.write(self.op.value)
     self.right.generate(writer)
 
 
