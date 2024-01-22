@@ -30,7 +30,10 @@ the hierarchy.
 
 import inspect
 import logging
-from . import behav, arch
+from dataclasses import dataclass
+
+from . import arch, behav
+
 
 def patch_model(module):
 	"""Monkey patch transformation functions inside `module`
@@ -69,3 +72,9 @@ intrinsics = {x.name: x for x in intrinsic_defs}
 #@property
 #def intrinsics():
 #	return {x.name: x for x in intrinsic_defs}
+
+@dataclass
+class LineInfo:
+	file_path: str
+	start_chr: int
+	stop_chr: int

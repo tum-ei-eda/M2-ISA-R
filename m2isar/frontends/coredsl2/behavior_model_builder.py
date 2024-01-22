@@ -9,7 +9,7 @@
 import logging
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
-from ...metamodel import arch, behav, intrinsics
+from ...metamodel import LineInfo, arch, behav, intrinsics
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
@@ -67,7 +67,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		# generate method arguments
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
-		return behav.ProcedureCall(ref, args)
+		return behav.ProcedureCall(ref, args, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitMethod_call(self, ctx: "CoreDSL2Parser.Method_callContext"):
 		"""Generate a function (method call with return value) call."""
@@ -86,14 +86,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		# generate method arguments
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
-		return behav.FunctionCall(ref, args)
+		return behav.FunctionCall(ref, args, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitBlock(self, ctx: CoreDSL2Parser.BlockContext):
 		"""Generate a block of statements, return a list."""
 
 		items = [self.visit(obj) for obj in ctx.items]
 		items = list(flatten(items))
-		return behav.Block(items)
+		return behav.Block(items, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration statement. Can be multiple declarations of
@@ -127,19 +127,19 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			else:
 				init = behav.IntLiteral(0)
 
-			a = behav.Assignment(sd, init)
+			a = behav.Assignment(sd, init, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 			ret_decls.append(a)
 
 		return ret_decls
 
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
-		return behav.Break()
+		return behav.Break(LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
 
 		expr = self.visit(ctx.expr) if ctx.expr else None
-		return behav.Return(expr)
+		return behav.Return(expr, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitWhile_statement(self, ctx: CoreDSL2Parser.While_statementContext):
 		"""Generate a while loop."""
@@ -150,7 +150,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if not isinstance(stmt, list):
 			stmt = [stmt]
 
-		return behav.Loop(cond, stmt, False)
+		return behav.Loop(cond, stmt, False, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitDo_statement(self, ctx: CoreDSL2Parser.Do_statementContext):
 		"""Generate a do .. while loop."""
@@ -161,7 +161,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if not isinstance(stmt, list):
 			stmt = [stmt]
 
-		return behav.Loop(cond, stmt, True)
+		return behav.Loop(cond, stmt, True, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
 		"""Generate a for loop. Currently hacky, untested and mostly broken."""
@@ -182,7 +182,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if loop_exprs:
 			stmt.extend(loop_exprs)
 
-		ret.append(behav.Loop(end_expr, stmt, False))
+		ret.append(behav.Loop(end_expr, stmt, False, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop)))
 
 		return ret
 
@@ -209,7 +209,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if None in stmts:
 			raise Exception("meep")
 
-		return behav.Conditional(conds, stmts)
+		return behav.Conditional(conds, stmts, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitConditional_expression(self, ctx: CoreDSL2Parser.Conditional_expressionContext):
 		"""Generate a ternary expression."""
@@ -218,7 +218,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		then_expr = self.visit(ctx.then_expr)
 		else_expr = self.visit(ctx.else_expr)
 
-		return behav.Ternary(cond, then_expr, else_expr)
+		return behav.Ternary(cond, then_expr, else_expr, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""
@@ -227,7 +227,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		op =  behav.Operator(ctx.bop.text)
 		right = self.visit(ctx.right)
 
-		return behav.BinaryOperation(left, op, right)
+		return behav.BinaryOperation(left, op, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
 		"""Generate a pre-increment expression. Not yet supported, throws
@@ -247,13 +247,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		op = behav.Operator(ctx.prefix.text)
 		right = self.visit(ctx.right)
 
-		return behav.UnaryOperation(op, right)
+		return behav.UnaryOperation(op, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitParens_expression(self, ctx: CoreDSL2Parser.Parens_expressionContext):
 		"""Generate a parenthesized expression."""
 
 		expr = self.visit(ctx.expr)
-		return behav.Group(expr)
+		return behav.Group(expr, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		"""Generate a slice expression. Depending on context, this is translated
@@ -268,9 +268,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		right = self.visit(ctx.right) if ctx.right else left
 
 		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, arch.Memory) and expr.reference.data_range.length > 1:
-			return behav.IndexedReference(expr.reference, left, right)
+			return behav.IndexedReference(expr.reference, left, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 		else:
-			return behav.SliceOperation(expr, left, right)
+			return behav.SliceOperation(expr, left, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
 		"""Generate a concatenation expression."""
@@ -278,7 +278,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
 
-		return behav.ConcatOperation(left, right)
+		return behav.ConcatOperation(left, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. If a combined arithmetic-assignment is present,
@@ -293,7 +293,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			op2 = behav.Operator(op[:-1])
 			right = behav.BinaryOperation(left, op2, right)
 
-		return behav.Assignment(left, right)
+		return behav.Assignment(left, right, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
 		"""Generate a simple reference."""
@@ -310,7 +310,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if var is None:
 			raise M2NameError(f"Named reference \"{name}\" does not exist!")
 
-		return behav.NamedReference(var)
+		return behav.NamedReference(var, LineInfo(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop))
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
 		"""Generate an integer literal."""
