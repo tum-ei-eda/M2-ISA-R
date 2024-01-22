@@ -61,6 +61,13 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Custom Instruction Gen",
+            "type": "python",
+            "request": "launch",
+            "module": "m2isar.frontends.gen_custom_insns.instructions_classes",
+            "justMyCode": false
         }
     ],
     "inputs": [
