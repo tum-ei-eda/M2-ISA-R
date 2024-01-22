@@ -1,7 +1,7 @@
 """Classes used to turn the parsed input into M2-ISA-R Metamodel"""
 
 from dataclasses import dataclass
-from typing import List, Dict, Union
+from typing import List, Dict, Optional, Union
 
 from ...metamodel import arch
 from .op_parsing import parse_op
@@ -40,18 +40,16 @@ class Instruction:
 					raise TypeError("Referencing another reference is not implemented!")
 				operand.width = self.operands[operand.width].width  # type: ignore
 
-	def to_metamodel(self) -> arch.Instruction:
+	def to_metamodel(self, instruction_prefix: Optional[str] = None) -> arch.Instruction:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
-		name = self.name
-
 		try:
 			encoding = get_mm_encoding(self.operands)
 		except (NotImplementedError, ValueError) as e:
 			print(f"Could not find a fitting encoding for instruction {self.name}!")
 			raise RuntimeError() from e
 
-		extension_name = ""  # TODO pass extension name as argument
-		mnemonic = extension_name + "." + self.name
+		prefix =  instruction_prefix + '.' if instruction_prefix else ''
+		mnemonic =  prefix + self.name
 
 		assembly = ""
 		for n in self.operands.keys():
@@ -61,7 +59,7 @@ class Instruction:
 		operation = parse_op(operands=self.operands, name=self.op)
 
 		return arch.Instruction(
-			name=name,
+			name=self.name,
 			attributes={},
 			encoding=encoding,
 			mnemonic=mnemonic,
