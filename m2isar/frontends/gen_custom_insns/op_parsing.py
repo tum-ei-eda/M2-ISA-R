@@ -33,7 +33,7 @@ def _reg_indexed_ref(operands: Dict[str, Operand], reg_name: str) -> behav.Index
 	)
 
 def parse_op(operands: Dict[str, Operand], name: str) -> behav.Operation:
-	"""Looksup the op name and puts it into an assignment"""
+	"""Looks up the op name and puts it into an assignment"""
 	try:
 		expr = OPS[name](operands)
 	except KeyError as exc:
@@ -41,12 +41,12 @@ def parse_op(operands: Dict[str, Operand], name: str) -> behav.Operation:
 
 	if isinstance(expr, behav.Operation):
 		return expr
-	elif isinstance(expr, behav.Assignment):
+	if isinstance(expr, behav.Assignment):
 		return behav.Operation([expr])
-	elif isinstance(expr, list) and isinstance(expr[0], behav.BaseNode):
+	if isinstance(expr, list) and isinstance(expr[0], behav.BaseNode):
 		# assuming simd instr
 		return behav.Operation(expr)
-	elif isinstance(expr, behav.BaseNode):
+	if isinstance(expr, behav.BaseNode):
 		# if its not an operation or assignment,
 		# i just assume for now that we need to put it in an assignment
 		# this would need to be changed to allow for e.g. load/store

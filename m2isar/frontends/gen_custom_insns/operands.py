@@ -32,11 +32,12 @@ class Operand:
 	immediate: bool = False
 
 	def to_metemodel_ref(
-		self, name: str
+		self, name: str, slicing: bool = True
 	) -> Union[behav.IndexedReference, behav.NamedReference, behav.SliceOperation]:
 		"""
-		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations
+		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations\n
 		If the operands width is smaller than XLEN a SliceOperation will be returned instead
+		This can be turned off, by setting "slicing" to False, which is needed when creating simd slices
 		"""
 		if self.immediate:
 			return behav.NamedReference(
@@ -61,7 +62,7 @@ class Operand:
 			),
 		)
 
-		if self.width < XLEN:
+		if self.width < XLEN and slicing is True:
 			ref = behav.SliceOperation(ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0))
 		return ref
 
@@ -77,7 +78,7 @@ class Operand:
 		for l in range(lanes):
 			left_index = behav.IntLiteral(self.width * (1 + l) - 1)
 			right_index = behav.IntLiteral(self.width * l)
-			slices.append(behav.SliceOperation(self.to_metemodel_ref(name), left_index, right_index))
+			slices.append(behav.SliceOperation(self.to_metemodel_ref(name, False), left_index, right_index))
 
 		return slices
 
@@ -101,19 +102,19 @@ def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Ope
 			if len(operand.sign) == len(operand.width):
 				if operand.sign[index] in ("us", "su"):
 					operand_lists[operand_name].extend(
-						[Operand(w, "u"), Operand(w, "s")]
+						[Operand(w, "u"), Operand(w, "s")] # type: ignore
 					)
 				else:
-					operand_lists[operand_name].append(Operand(w, operand.sign[index]))
+					operand_lists[operand_name].append(Operand(w, operand.sign[index])) # type: ignore
 			elif len(operand.sign) > 1:
 				raise ValueError(
 					"Number of specified signs neither matches the number of widths nor is 1"
 				)
 			# option 2: only 1 sign, so its the same for all widths
 			elif operand.sign[0] in ("us", "su"):
-				operand_lists[operand_name].extend([Operand(w, "u"), Operand(w, "s")])
+				operand_lists[operand_name].extend([Operand(w, "u"), Operand(w, "s")]) # type: ignore
 			else:
-				operand_lists[operand_name].append(Operand(w, operand.sign[0]))
+				operand_lists[operand_name].append(Operand(w, operand.sign[0])) # type: ignore
 	return operand_lists
 
 

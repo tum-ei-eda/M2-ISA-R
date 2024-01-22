@@ -112,15 +112,15 @@ class InstructionCollection:
 if __name__ == "__main__":
 	# Just used for debuging
 	instr = Instruction(
-		name="adds32",
-		op="add",
+		name="simd_test",
+		op="simd_add",
 		operands={
-			"rs1": Operand(width=32, sign="s"),
-			"rs2": Operand(width=32, sign="s"),
-			"rd": Operand(32, "s"),
+			"rs1": Operand(width=8, sign="s"),
+			"rs2": Operand(width=8, sign="s"),
+			"rd": Operand(8, "s"),
 		},
 	)
 
-	test = instr.to_metamodel()
+	test = instr.to_metamodel("test")
 
 	print(test)
