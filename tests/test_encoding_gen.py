@@ -1,4 +1,9 @@
-"""Unittests for the encoding generation"""
+"""
+Unittests for the encoding generation
+These tests currently only work when executed independently, and not when running all at once
+This happens due to the fact that the encoding generator gets instantiated on import
+and produces different results when calling it repeatedly
+"""
 
 import m2isar.frontends.gen_custom_insns.instr_encodings as enc_gen
 from m2isar.frontends.gen_custom_insns.operands import Operand
@@ -7,6 +12,7 @@ from m2isar.metamodel import arch
 
 def test_r_format_encoding():
 	"""Testing if R-Format instructions generate a correct encoding"""
+	enc_gen._reset_enc_generators()
 	operands = {
 		"rs1": Operand(width=16, sign="s"),
 		"rs2": Operand(width=16, sign="s"),
@@ -23,6 +29,7 @@ def test_r_format_encoding():
 
 def test_multiple_r_formats():
 	"""Testing if multiple R-Format instructions generate a correct encoding"""
+	enc_gen._reset_enc_generators()
 	operands = {
 		"rs1": Operand(width=16, sign="s"),
 		"rs2": Operand(width=16, sign="s"),
@@ -40,6 +47,7 @@ def test_multiple_r_formats():
 
 def test_mixed_formats():
 	"""Testing if mixed encoding formats get generated correctly"""
+	enc_gen._reset_enc_generators()
 	operands1 = {
 		"rs1": Operand(width=16, sign="s"),
 		"rs2": Operand(width=16, sign="s"),
@@ -65,6 +73,7 @@ def test_mixed_formats():
 
 def test_r_format_encodings_count():
 	"""Testing if the correct amount of R-Format encodings are available"""
+	enc_gen._reset_enc_generators()
 	count = 0
 	operands = {
 		"rs1": Operand(width=16, sign="s"),
@@ -83,6 +92,7 @@ def test_r_format_encodings_count():
 
 def test_i_format_encoding():
 	"""Testing if I-Format encodings get generated correctly"""
+	enc_gen._reset_enc_generators()
 	operands = {
 		"rs1": Operand(width=16, sign="s"),
 		"imm12": Operand(width=12, sign="s", immediate=True),
@@ -100,6 +110,7 @@ def test_i_format_encoding():
 
 def test_i_format_encodings_count():
 	"""Testing if the correct amount of I-Format encodings are available"""
+	enc_gen._reset_enc_generators()
 	count = 0
 	operands = {
 		"rs1": Operand(width=16, sign="s"),

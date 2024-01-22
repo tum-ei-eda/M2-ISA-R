@@ -53,11 +53,11 @@ def test_metamodel_translation():
 		operands={
 			"rs1": Operand(width=32, sign="s"),
 			"rs2": Operand(width=32, sign="s"),
-			"ls3": Operand(width=3, sign="u"),
+			"ls3": Operand(width=3, sign="u", immediate=True),
 			"rd": Operand(32, "s"),
 		},
 	)
 
-	mm = instr.to_metamodel()
+	mm = instr.to_metamodel("Test")
 
 	assert isinstance(mm.operation, behav.Operation)

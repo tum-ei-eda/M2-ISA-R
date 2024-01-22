@@ -85,6 +85,21 @@ Allows for 3 registers and a 5 bit immediate.
 Used by e.g. Core-V cv.addN"""
 
 
+def _reset_enc_generators():
+	"""
+	This function should only be used in the unit tests!
+	It resets the encoding generators, so tests can run independently or in succession
+	"""
+	global unused_opcodes
+	global i_opcodes
+	global r_opcodes
+	global f2_opcodes
+
+	unused_opcodes = [0b000_1011, 0b010_1011, 0b101_1011, 0b111_1011]
+	i_opcodes = OpcodeGenerator()
+	r_opcodes = FunctNOpcodeGenerator(opcode_gen=i_opcodes, funct_size=7)
+	f2_opcodes = FunctNOpcodeGenerator(opcode_gen=i_opcodes, funct_size=2)
+
 def get_mm_encoding(
 	operands: Dict[str, Operand]
 ) -> List[Union[arch.BitField, arch.BitVal]]:
