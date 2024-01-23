@@ -573,9 +573,11 @@ class CoreDef(Named):
 
 		self.instructions_by_ext = defaultdict(dict)
 		self.functions_by_ext = defaultdict(dict)
+		self.instructions_by_class = defaultdict(dict)
 
 		for (code, mask), instr_def in self.instructions.items():
 			self.instructions_by_ext[instr_def.ext_name][(code, mask)] = instr_def
+			self.instructions_by_class[instr_def.size][(code, mask)] = instr_def
 
 		for fn_name, fn_def in self.functions.items():
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
