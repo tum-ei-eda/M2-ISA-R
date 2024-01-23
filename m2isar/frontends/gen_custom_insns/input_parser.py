@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+import pathlib
 import warnings
 
 import yaml
@@ -17,11 +18,11 @@ class Metadata:
 	prefix: Optional[str]
 	version: Optional[str]
 	used_extensions: Optional[str]
-	extends: str
-	xlen: int
+	extends: Optional[str]
+	xlen: int = 32
 
 
-def parse(path: str):
+def parse(path: pathlib.Path):
 	"""Parses the yaml file and returns a list of Instructions for further processing as well as metadata about the instructions"""
 	with open(path, "r", encoding="utf-8") as f:
 		yml: Dict = yaml.safe_load(f)
@@ -35,8 +36,8 @@ def parse(path: str):
 		prefix=metadata_input.get("prefix"),
 		version=metadata_input.get("version"),
 		used_extensions=metadata_input.get("extensions"),
-		extends=metadata_input.get("extends", ""),
-		xlen=int(metadata_input.get("XLEN", 32)),
+		extends=metadata_input.get("extends"),
+		#xlen=int(metadata_input.get("XLEN", 32)),
 	)
 
 	defaults = {}
