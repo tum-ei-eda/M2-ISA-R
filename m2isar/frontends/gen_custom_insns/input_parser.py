@@ -15,23 +15,27 @@ class Metadata:
 
 	ext_name: str
 	prefix: Optional[str]
-	extensions: Optional[str]
+	version: Optional[str]
+	used_extensions: Optional[str]
+	extends: str
 	xlen: int
 
 
 def parse(path: str):
 	"""Parses the yaml file and returns a list of Instructions for further processing as well as metadata about the instructions"""
 	with open(path, "r", encoding="utf-8") as f:
-		yml: Dict = yaml.load(f, yaml.Loader)
+		yml: Dict = yaml.safe_load(f)
 
 	try:
 		metadata_input: Dict[str, str] = yml.pop("metadata")
 	except KeyError as exc:
 		raise RuntimeError("No metadata Specified!") from exc
 	metadata = Metadata(
-		ext_name=metadata_input.get("name", ""),
-		prefix=metadata_input.get("prefix", None),
-		extensions=metadata_input.get("extension", None),
+		ext_name=metadata_input.pop("name"),
+		prefix=metadata_input.get("prefix"),
+		version=metadata_input.get("version"),
+		used_extensions=metadata_input.get("extensions"),
+		extends=metadata_input.get("extends", ""),
 		xlen=int(metadata_input.get("XLEN", 32)),
 	)
 

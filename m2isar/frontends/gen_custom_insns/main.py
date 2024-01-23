@@ -57,7 +57,7 @@ def create_memories() -> Dict[str, arch.Memory]:
 
 
 def generate_m2isar_sets(
-	instructions: List[arch.Instruction], ext_name: str, extensions
+	instructions: List[arch.Instruction], ext_name: str, extends: List[str]
 ) -> dict[str, arch.InstructionSet]:
 	"""Create an M2isar metamodel Instruction set"""
 	constants = {
@@ -68,7 +68,7 @@ def generate_m2isar_sets(
 	instructions_dict = {(inst.mask, inst.code): inst for inst in instructions}
 	inst_set = arch.InstructionSet(
 		name=ext_name,
-		extension=extensions,
+		extension=extends,
 		constants=constants,
 		memories=memories,
 		functions={},
@@ -104,13 +104,33 @@ def main():
 
 	# output generated instructions
 	if args.model == "m2isar":
-		# TODO make sure Extensions do match the coredsl names
-		mm_instructions = [i.to_metamodel(metadata.prefix) for i in processed_instructions]
-		sets = generate_m2isar_sets(mm_instructions, metadata.ext_name, metadata.extensions)
+		mm_instructions = [
+			i.to_metamodel(metadata.prefix) for i in processed_instructions
+		]
+
+		# parse required extension into the coredsl equivalent
+		cdsl_extensions = {
+			"f": "RV32F",
+			"m": "RV32M",
+			"a": "RV32A",
+			"d": "RV32D",
+			"c": "RV32IC",
+			"i": "RV32I",
+		}
+		extends = [
+			cdsl_extensions.pop(ext)
+			for ext in metadata.extends
+			if ext in cdsl_extensions
+		]
+		if len(extends) == 0:
+			extends.append("RISCVBase")
+
+		sets = generate_m2isar_sets(mm_instructions, metadata.ext_name, extends)
 		models = {"sets": sets}
-		with open(
-			args.output + ".m2isarmodel", "wb"
-		) as file:  # TODO append ".m2isarmodel" only if its missing
+
+		if ".m2isarmodel" not in args.ouput:
+			args.output += ".m2isarmodel"
+		with open(args.output, "wb") as file:
 			pickle.dump(models, file)
 
 	if args.model == "cdsl2":
