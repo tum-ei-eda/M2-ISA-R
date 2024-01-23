@@ -3,7 +3,7 @@
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 import pathlib
-import warnings
+import logging
 
 import yaml
 
@@ -22,6 +22,9 @@ class Metadata:
 	xlen: int = 32
 
 
+logger = logging.getLogger("Instruction Gen")
+
+
 def parse(path: pathlib.Path):
 	"""Parses the yaml file and returns a list of Instructions for further processing as well as metadata about the instructions"""
 	with open(path, "r", encoding="utf-8") as f:
@@ -37,14 +40,14 @@ def parse(path: pathlib.Path):
 		version=metadata_input.get("version"),
 		used_extensions=metadata_input.get("extensions"),
 		extends=metadata_input.get("extends"),
-		#xlen=int(metadata_input.get("XLEN", 32)),
+		# xlen=int(metadata_input.get("XLEN", 32)),
 	)
 
 	defaults = {}
 	try:
 		defaults = yml.pop("defaults")
 	except KeyError:
-		warnings.warn("No Defaults specified!", RuntimeWarning)
+		logger.warning("No Defaults specified!")
 
 	instructions: List[InstructionCollection] = []
 	for group in yml:

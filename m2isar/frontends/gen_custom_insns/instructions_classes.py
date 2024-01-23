@@ -5,7 +5,12 @@ from typing import List, Dict, Optional, Union
 
 from ...metamodel import arch
 from .op_parsing import parse_op
-from .operands import Operand, ComplexOperand, simplify_operands, create_operand_combinations
+from .operands import (
+	Operand,
+	ComplexOperand,
+	simplify_operands,
+	create_operand_combinations,
+)
 
 from .instr_encodings import get_mm_encoding
 
@@ -40,16 +45,19 @@ class Instruction:
 					raise TypeError("Referencing another reference is not implemented!")
 				operand.width = self.operands[operand.width].width  # type: ignore
 
-	def to_metamodel(self, instruction_prefix: Optional[str] = None) -> arch.Instruction:
+	def to_metamodel(
+		self, instruction_prefix: Optional[str] = None
+	) -> arch.Instruction:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		try:
 			encoding = get_mm_encoding(self.operands)
 		except (NotImplementedError, ValueError) as e:
-			print(f"Could not find a fitting encoding for instruction {self.name}!")
-			raise RuntimeError() from e
+			raise RuntimeError(
+				f"Could not find a fitting encoding for instruction {self.name}!"
+			) from e
 
-		prefix =  instruction_prefix + '.' if instruction_prefix else ''
-		mnemonic =  prefix + self.name
+		prefix = instruction_prefix + "." if instruction_prefix else ""
+		mnemonic = prefix + self.name
 
 		assembly = ""
 		for n in self.operands.keys():
