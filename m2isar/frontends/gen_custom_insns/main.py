@@ -1,14 +1,15 @@
 """Generate a set of M2-ISA-R metamodel Instructions from a yaml file"""
 import argparse
-import pickle
-import pathlib
 import logging
-from typing import List, Dict, Tuple
+import pathlib
+import pickle
+import subprocess
+from typing import Dict, List, Tuple
 
-from .input_parser import parse
-from .instructions_classes import Instruction
+from m2isar.frontends.gen_custom_insns import input_parser
+
 from ...metamodel import arch
-
+from .instructions_classes import Instruction
 
 logger = logging.getLogger("Instruction Gen")
 
@@ -61,18 +62,38 @@ def create_memories() -> Dict[str, arch.Memory]:
 	return {"X": main_reg, "MEM": main_mem, "PC": pc}
 
 
-def generate_m2isar_sets(
-	instructions: List[arch.Instruction], ext_name: str, extends: List[str]
-) -> dict[str, arch.InstructionSet]:
+CDSL_EXTENSIONS = {
+	"f": "RV32F",
+	"m": "RV32M",
+	"a": "RV32A",
+	"d": "RV32D",
+	"c": "RV32IC",
+	"i": "RV32I",
+}
+
+
+def generate_m2isar_instr_set(
+	metadata: input_parser.Metadata, processed_instructions: List[Instruction]
+):
 	"""Create an M2isar metamodel Instruction set"""
+	mm_instructions = [i.to_metamodel(metadata.prefix) for i in processed_instructions]
+
+	# parse required extension into the coredsl equivalent
+
+	if metadata.extends is not None:
+		extends = [
+			CDSL_EXTENSIONS[ext] for ext in metadata.extends if ext in CDSL_EXTENSIONS
+		]
+	else:
+		extends = ["RISCVBase"]
 	constants = {
 		"XLEN": arch.Constant("XLEN", value=32, attributes={}, size=None, signed=False)
 	}
 	memories = create_memories()
 
-	instructions_dict = {(inst.mask, inst.code): inst for inst in instructions}
+	instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
 	inst_set = arch.InstructionSet(
-		name=ext_name,
+		name=metadata.ext_name,
 		extension=extends,
 		constants=constants,
 		memories=memories,
@@ -110,7 +131,7 @@ def main():
 	# parse input
 	logger.info("Parsing input...")
 	filename = pathlib.Path(args.filename)
-	metadata, raw_instructions = parse(filename)
+	metadata, raw_instructions = input_parser.parse(filename)
 	# generating instruction objects
 	processed_instructions: List[Instruction] = []
 	for inst in raw_instructions:
@@ -125,42 +146,32 @@ def main():
 
 	# output generated instructions
 	if args.model == "m2isar":
-		mm_instructions = [
-			i.to_metamodel(metadata.prefix) for i in processed_instructions
-		]
-
-		# parse required extension into the coredsl equivalent
-		cdsl_extensions = {
-			"f": "RV32F",
-			"m": "RV32M",
-			"a": "RV32A",
-			"d": "RV32D",
-			"c": "RV32IC",
-			"i": "RV32I",
+		instr_sets = {
+			"sets": generate_m2isar_instr_set(metadata, processed_instructions)
 		}
-		if metadata.extends:
-			extends = [
-				cdsl_extensions.pop(ext)
-				for ext in metadata.extends
-				if ext in cdsl_extensions
-			]
-		else:
-			extends = ["RISCVBase"]
-
-		sets = generate_m2isar_sets(mm_instructions, metadata.ext_name, extends)
-		models = {"sets": sets}
-
 		if out_path.suffix != ".m2isarmodel":
 			out_path = out_path.with_suffix(".m2isarmodel")
 		with open(out_path, "wb") as file:
 			logger.info("Saving instructions to '%s'", out_path.name)
-			pickle.dump(models, file)
+			pickle.dump(instr_sets, file)
 
-	if args.model == "cdsl2":
-		raise NotImplementedError("Not currently supported!")
+	if args.model == "cdsl":
 		# generate metamodel
-
+		instr_sets = {
+			"sets": generate_m2isar_instr_set(metadata, processed_instructions)
+		}
+		modelpath = out_path.with_suffix(".m2isarmodel")
+		with open(modelpath, "wb") as file:
+			logger.info("Saving instructions to '%s'", modelpath.name)
+			pickle.dump(instr_sets, file)
+		if out_path.suffix != ".core_desc":
+			out_path = out_path.with_suffix(".core_desc")
 		# run cdsl2 backend
+		subprocess.run(
+			["python", "-m", "m2isar.backends.coredsl2_set.writer", modelpath.name],
+			check=True,
+			text=True,
+		)
 
 
 if __name__ == "__main__":

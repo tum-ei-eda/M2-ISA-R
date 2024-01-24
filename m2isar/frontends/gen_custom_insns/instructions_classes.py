@@ -1,18 +1,17 @@
 """Classes used to turn the parsed input into M2-ISA-R Metamodel"""
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from ...metamodel import arch
+from .instr_encodings import get_mm_encoding
 from .op_parsing import parse_op
 from .operands import (
-	Operand,
 	ComplexOperand,
-	simplify_operands,
+	Operand,
 	create_operand_combinations,
+	simplify_operands,
 )
-
-from .instr_encodings import get_mm_encoding
 
 
 @dataclass
@@ -60,10 +59,20 @@ class Instruction:
 		mnemonic = prefix + self.name
 
 		# Registers Assembly strings
-		operand_names = [f"{{name({name})}}" for name, operand in self.operands.items() if not operand.immediate]
+		operand_names = [
+			f"{{name({name})}}"
+			for name, operand in self.operands.items()
+			if not operand.immediate
+		]
 		operand_names.sort()
 		# Immediates
-		operand_names += [f"{{{name}}}" for name, operand in self.operands.items() if operand.immediate]
+		operand_names.extend(
+			[
+				f"{{{name}}}"
+				for name, operand in self.operands.items()
+				if operand.immediate
+			]
+		)
 		assembly = ", ".join(operand_names)
 
 		operation = parse_op(operands=self.operands, name=self.op)

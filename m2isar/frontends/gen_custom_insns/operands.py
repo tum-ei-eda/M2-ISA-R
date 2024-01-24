@@ -1,9 +1,9 @@
 """Operands used in parsing the instructions"""
-from typing import Tuple, Union, List, Dict
-from dataclasses import dataclass
 from copy import deepcopy
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Union
 
-from ...metamodel import behav, arch
+from ...metamodel import arch, behav
 
 XLEN = 32  # Could be changed later to support rv64
 
