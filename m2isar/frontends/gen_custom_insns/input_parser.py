@@ -1,13 +1,13 @@
 """Parsing the instructions from the specified yaml file"""
 
-from typing import Dict, List, Optional
-from dataclasses import dataclass
-import pathlib
 import logging
+import pathlib
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 import yaml
 
-from .instructions_classes import InstructionCollection, ComplexOperand
+from .instructions_classes import ComplexOperand, InstructionCollection
 
 
 @dataclass
@@ -34,13 +34,18 @@ def parse(path: pathlib.Path):
 		metadata_input: Dict[str, str] = yml.pop("metadata")
 	except KeyError as exc:
 		raise RuntimeError("No metadata Specified!") from exc
+
+	xlen: int = metadata_input.get("XLEN", 32)  # type: ignore
+	if xlen not in (32, 64):
+		raise ValueError("XLEN can only be set to 32 or 64! Default=32")
+
 	metadata = Metadata(
 		ext_name=metadata_input.pop("name"),
 		prefix=metadata_input.get("prefix"),
 		version=metadata_input.get("version"),
 		used_extensions=metadata_input.get("extensions"),
 		extends=metadata_input.get("extends"),
-		# xlen=int(metadata_input.get("XLEN", 32)),
+		xlen=xlen,
 	)
 
 	defaults = {}
@@ -55,7 +60,9 @@ def parse(path: pathlib.Path):
 			name: str = entry.pop("name")
 			ops = entry.pop("op")
 			operands = {
-				name: ComplexOperand(operand["width"], operand["sign"], operand.get("immediate", False))
+				name: ComplexOperand(
+					operand["width"], operand["sign"], operand.get("immediate", False)
+				)
 				for (name, operand) in entry["operands"].items()
 			}
 
