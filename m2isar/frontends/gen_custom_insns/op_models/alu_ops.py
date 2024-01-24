@@ -3,7 +3,7 @@
 from functools import partial
 from typing import Callable, Dict
 from ....metamodel import behav
-from ..operands import Operand
+from ..operands import Operand, get_immediates_with_name
 
 
 def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
@@ -14,6 +14,16 @@ def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperat
 		operands["rs2"].to_metemodel_ref("rs2"),
 	)
 
+
+def alu_imm(operands: Dict[str, Operand], operator: str):
+	"""rs1 {operator} immediate"""
+	# just assuming that there is only 1 imm, could raise an exception if not
+	name, immediate = get_immediates_with_name(operands)[0]
+	return behav.BinaryOperation(
+		operands["rs1"].to_metemodel_ref("rs1"),
+		behav.Operator(operator),
+		immediate.to_metemodel_ref(name),
+	)
 
 def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	"""(rs1 {operator} rs2) >> ls3"""
@@ -59,7 +69,7 @@ def slet(operands: Dict[str, Operand]) -> behav.Conditional:
 	)
 
 
-def comparison(operands: Dict[str, Operand], operator: str = "<") -> behav.Conditional:
+def min_max(operands: Dict[str, Operand], operator: str = "<") -> behav.Conditional:
 	"""min/max(rs1, rs2)"""  # TODO this is not yet sign dependant
 	return behav.Conditional(
 		[binary_op(operands, operator)],
@@ -89,9 +99,10 @@ OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {
 	"abs": partial(mm_abs),
 	"addN": partial(alu_n, operator="+"),
 	"subN": partial(alu_n, operator="-"),
-	"min": partial(comparison, operator="<"),
-	"max": partial(comparison, operator=">"),
+	"min": partial(min_max, operator="<"),
+	"max": partial(min_max, operator=">"),
 	"addRN": partial(alu_rn, operator="+"),
 	"subRN": partial(alu_rn, operator="-"),
 	"add": partial(binary_op, operator="+"),
+	"addI": partial(alu_imm, operator="+")
 }

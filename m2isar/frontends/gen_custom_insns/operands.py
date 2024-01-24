@@ -1,11 +1,12 @@
 """Operands used in parsing the instructions"""
-from typing import Union, List, Dict
+from typing import Tuple, Union, List, Dict
 from dataclasses import dataclass
 from copy import deepcopy
 
 from ...metamodel import behav, arch
 
 XLEN = 32  # Could be changed later to support rv64
+
 
 @dataclass(init=False)
 class ComplexOperand:
@@ -63,13 +64,17 @@ class Operand:
 		)
 
 		if self.width < XLEN and slicing is True:
-			ref = behav.SliceOperation(ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0))
+			ref = behav.SliceOperation(
+				ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0)
+			)
 		return ref
 
 	def to_simd_slices(self, name: str) -> List[behav.SliceOperation]:
 		"""Returns a list of SliceOperations on register['name']"""
 		if XLEN % self.width != 0:
-			raise ValueError(f"Operands width(={self.width}) can't be packed into XLEN(={XLEN})!")
+			raise ValueError(
+				f"Operands width(={self.width}) can't be packed into XLEN(={XLEN})!"
+			)
 		if self.immediate:
 			raise TypeError("Immediate slicing is not supported!")
 
@@ -78,7 +83,11 @@ class Operand:
 		for l in range(lanes):
 			left_index = behav.IntLiteral(self.width * (1 + l) - 1)
 			right_index = behav.IntLiteral(self.width * l)
-			slices.append(behav.SliceOperation(self.to_metemodel_ref(name, False), left_index, right_index))
+			slices.append(
+				behav.SliceOperation(
+					self.to_metemodel_ref(name, False), left_index, right_index
+				)
+			)
 
 		return slices
 
@@ -86,6 +95,11 @@ class Operand:
 def get_immediates(operands: Dict[str, Operand]) -> List[Operand]:
 	"""returns a subset of the given operands that are immediates"""
 	return [operand for operand in operands.values() if operand.immediate]
+
+
+def get_immediates_with_name(operands: Dict[str, Operand]) -> List[Tuple[str, Operand]]:
+	"""returns a list of tuples, with immediate operands and their name"""
+	return [(name, operand) for name, operand in operands.items() if operand.immediate]
 
 
 def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
@@ -97,24 +111,25 @@ def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Ope
 	operand_lists: Dict[str, List[Operand]] = {}
 	for operand_name, operand in operands.items():
 		operand_lists[operand_name] = []
+		imm = operand.immediate
 		for index, w in enumerate(operand.width):
 			# option 1: sign is specified per width
 			if len(operand.sign) == len(operand.width):
 				if operand.sign[index] in ("us", "su"):
 					operand_lists[operand_name].extend(
-						[Operand(w, "u"), Operand(w, "s")] # type: ignore
+						[Operand(w, "u", imm), Operand(w, "s", imm)]  # type: ignore
 					)
 				else:
-					operand_lists[operand_name].append(Operand(w, operand.sign[index])) # type: ignore
+					operand_lists[operand_name].append(Operand(w, operand.sign[index], imm))  # type: ignore
 			elif len(operand.sign) > 1:
 				raise ValueError(
 					"Number of specified signs neither matches the number of widths nor is 1"
 				)
 			# option 2: only 1 sign, so its the same for all widths
 			elif operand.sign[0] in ("us", "su"):
-				operand_lists[operand_name].extend([Operand(w, "u"), Operand(w, "s")]) # type: ignore
+				operand_lists[operand_name].extend([Operand(w, "u", imm), Operand(w, "s", imm)])  # type: ignore
 			else:
-				operand_lists[operand_name].append(Operand(w, operand.sign[0])) # type: ignore
+				operand_lists[operand_name].append(Operand(w, operand.sign[0], imm))  # type: ignore
 	return operand_lists
 
 

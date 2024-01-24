@@ -55,8 +55,8 @@ def parse(path: pathlib.Path):
 			name: str = entry.pop("name")
 			ops = entry.pop("op")
 			operands = {
-				name: ComplexOperand(d["width"], d["sign"], False)
-				for (name, d) in entry["operands"].items()
+				name: ComplexOperand(operand["width"], operand["sign"], operand.get("immediate", False))
+				for (name, operand) in entry["operands"].items()
 			}
 
 			# TODO inserting other default operators, depends on the op!
