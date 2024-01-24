@@ -59,10 +59,12 @@ class Instruction:
 		prefix = instruction_prefix + "." if instruction_prefix else ""
 		mnemonic = prefix + self.name
 
-		assembly = ""
-		for n in self.operands.keys():
-			assembly += "{name(" + n + ")}, "
-		assembly = assembly[0:-2]  # removing the trailing ", "
+		# Registers Assembly strings
+		operand_names = [f"{{name({name})}}" for name, operand in self.operands.items() if not operand.immediate]
+		operand_names.sort()
+		# Immediates
+		operand_names += [f"{{{name}}}" for name, operand in self.operands.items() if operand.immediate]
+		assembly = ", ".join(operand_names)
 
 		operation = parse_op(operands=self.operands, name=self.op)
 
