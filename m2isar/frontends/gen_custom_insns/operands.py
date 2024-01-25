@@ -33,40 +33,43 @@ class Operand:
 	immediate: bool = False
 
 	def to_metemodel_ref(
-		self, name: str, slicing: bool = True
-	) -> Union[behav.IndexedReference, behav.NamedReference, behav.SliceOperation]:
+		self, name: str
+	) -> Union[behav.IndexedReference, behav.NamedReference, behav.TypeConv]:
 		"""
 		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations\n
 		If the operands width is smaller than XLEN a SliceOperation will be returned instead
 		This can be turned off, by setting "slicing" to False, which is needed when creating simd slices
 		"""
-		if self.immediate:
-			return behav.NamedReference(
-				arch.BitFieldDescr(
-					name,
-					self.width,
-					arch.DataType.S if self.sign == "s" else arch.DataType.U,
-				)
-			)
-
 		registers = arch.Memory(
 			"X", arch.RangeSpec(32), 32, {arch.MemoryAttribute.IS_MAIN_MEM: []}
 		)
-		ref = behav.IndexedReference(
-			reference=registers,
-			index=behav.NamedReference(
+		sign = arch.DataType.S if self.sign == "s" else arch.DataType.U
+
+		if self.immediate:
+			ref = behav.NamedReference(
 				arch.BitFieldDescr(
 					name,
-					5,
-					arch.DataType.S if self.sign == "s" else arch.DataType.U,
+					self.width,
+					sign,
 				)
-			),
-		)
-
-		if self.width < XLEN and slicing is True:
-			ref = behav.SliceOperation(
-				ref, behav.IntLiteral(self.width - 1), behav.IntLiteral(0)
 			)
+		else:
+			ref = behav.IndexedReference(
+				reference=registers,
+				index=behav.NamedReference(
+					arch.BitFieldDescr(
+						name,
+						5,
+						sign,
+					)
+				),
+			)
+
+		# The destination register is not typecast in CoreDSL as it gets deduced from the operands
+		if name not in ("rd", "rD"):
+			if self.width < XLEN or sign is arch.DataType.S:
+				ref = behav.TypeConv(sign, self.width, ref)
+
 		return ref
 
 	def to_simd_slices(self, name: str) -> List[behav.SliceOperation]:
@@ -85,7 +88,7 @@ class Operand:
 			right_index = behav.IntLiteral(self.width * l)
 			slices.append(
 				behav.SliceOperation(
-					self.to_metemodel_ref(name, False), left_index, right_index
+					self.to_metemodel_ref(name), left_index, right_index
 				)
 			)
 

@@ -26,11 +26,11 @@ def parse_op(operands: Dict[str, Operand], name: str) -> behav.Operation:
 		return expr
 	if isinstance(expr, behav.Assignment):
 		return behav.Operation([expr])
-	if isinstance(expr, list) and isinstance(expr[0], behav.BaseNode):
+	if isinstance(expr, list) and isinstance(expr[0], behav.Assignment):
 		# assuming simd instr
 		return behav.Operation(expr)
 	if isinstance(expr, behav.BaseNode):
-		# if its not an operation, list of basenodes, or assignment
+		# if its not an operation, list of assignment, or assignment
 		# i just assume for now that we need to put it in an assignment
 		# this would need to be changed to allow for e.g. load/store
 		return behav.Operation([mm_assignment(operands, expr)])
