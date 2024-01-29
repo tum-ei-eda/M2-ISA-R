@@ -243,6 +243,25 @@ class CoreDSL2Writer:
     #     # input("CONT1")
 
 
+    def write_core(self, core_def: arch.CoreDef):
+        self.write(f"Core {core_def.name} provides {', '.join(core_def.contributing_types)}")
+        self.enter_block()
+        self.write("architectural_state")
+        self.enter_block()
+        self.write(f"""CSR[0x000] = 0x0000000B; // ustatus
+        CSR[RV_CSR_SSTATUS] = 0x0000000B; // sstatus
+        CSR[RV_CSR_MSTATUS] = 0x0000000B; // mstatus
+
+        CSR[RV_CSR_MISA] = {'0x800000000014112D' if core_def.constants["XLEN"].value == 64 else '0x4014112D'}; // misa
+
+        CSR[0xC10] = 0x00000003;
+
+        CSR[RV_CSR_MIE] = 0xFFFFFBBB; // mie
+        CSR[RV_CSR_SIE] = CSR[0x304] & (~(0x888)); // sie
+        CSR[0x004] = CSR[0x304] & (~(0xAAA)); // uie""")
+        self.leave_block()
+        self.leave_block()
+
 def main():
     """Main app entrypoint."""
 
@@ -272,12 +291,22 @@ def main():
     # load models
     with open(top_level, "rb") as f:
         # models: "dict[str, arch.CoreDef]" = pickle.load(f)
-        model = pickle.load(f)
+        model: dict = pickle.load(f)
         assert "sets" in model
 
     # preprocess model
     # print("model", model["sets"]["XCoreVMac"].keys())
     writer = CoreDSL2Writer()
+
+    # check if a core is specified
+    core_defs = [core for core in model.values() if isinstance(core, arch.CoreDef)]
+    if core_defs:
+        # Write core(s)
+        for core_def in core_defs:
+            writer.write_core(core_def)
+            print("Core Found!")
+
+
     for set_name, set_def in model["sets"].items():
         logger.debug("writing set %s", set_def.name)
         patch_model(visitor)
