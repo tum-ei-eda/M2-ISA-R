@@ -13,7 +13,7 @@ from itertools import chain
 from string import Template
 
 from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, intrinsics
 from . import replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
                                 CodeString, FnID, MemID, StaticType,
@@ -115,16 +115,19 @@ def operation(self: behav.Operation, context: TransformerContext):
 def block(self: behav.Block, context: TransformerContext):
 	stmts = [stmt.generate(context) for stmt in self.statements]
 
-	pre = [CodeString("{", StaticType.READ, None, None)]
-	post = [CodeString("}", StaticType.READ, None, None)]
+	pre = [CodeString("{ // block", StaticType.READ, None, None)]
+	post = [CodeString("} // block", StaticType.READ, None, None)]
 
 	if not context.ignore_static:
-		pre.append(CodeString("{", StaticType.NONE, None, None))
-		post.insert(0, CodeString("}", StaticType.NONE, None, None))
+		pre.append(CodeString("{ // block", StaticType.NONE, None, None))
+		post.insert(0, CodeString("} // block", StaticType.NONE, None, None))
 
 	return pre + stmts + post
 
 def return_(self: behav.Return, context: TransformerContext):
+	if context.instr_size != 0:
+		raise M2SyntaxError('Return statements are not allowed in instruction behavior!')
+
 	if self.expr is not None:
 		c = self.expr.generate(context)
 		c.code = f'return {c.code};'
@@ -206,10 +209,12 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		c.mem_ids = mem_ids
 		if fn.throws and not context.ignore_static:
 			c.check_trap = True
-			c2 = CodeString('goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
-			pre = [CodeString("{", StaticType.READ, None, None), CodeString("{", StaticType.NONE, None, None)]
-			post = [CodeString("}", StaticType.NONE, None, None), CodeString("}", StaticType.READ, None, None)]
+			cond = "if (cpu->return_pending) " if fn.throws == arch.FunctionThrows.MAYBE else ""
+			c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
+
+			pre = [CodeString("{ // procedure", StaticType.READ, None, None), CodeString("{ // procedure", StaticType.NONE, None, None)]
+			post = [CodeString("} // procedure", StaticType.NONE, None, None), CodeString("} // procedure", StaticType.READ, None, None)]
 
 			return pre + [c, c2] + post
 
@@ -316,7 +321,7 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	# generate initial if
 	#c = conds[0]
-	conds[0].code = f'if ({conds[0].code}) {{'
+	conds[0].code = f'if ({conds[0].code}) {{ // conditional'
 	outputs.append(conds[0])
 	if not static:
 		context.dependent_regs.update(conds[0].regs_affected)
@@ -325,24 +330,24 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	outputs.extend(flatten(stmts[0]))
 
 	# generate closing brace
-	outputs.append(CodeString("}", static, None, None))
+	outputs.append(CodeString("} // conditional", static, None, None))
 
 	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
-		elif_cond.code = f' else if ({elif_cond.code}) {{'
+		elif_cond.code = f' else if ({elif_cond.code}) {{ // conditional'
 		outputs.append(elif_cond)
 		if not static:
 			context.dependent_regs.update(elif_cond.regs_affected)
 
 		outputs.extend(flatten(elif_stmts))
 
-		outputs.append(CodeString("}", static, None, None))
+		outputs.append(CodeString("} // conditional", static, None, None))
 
 	if len(conds) < len(stmts):
-		outputs.append(CodeString("else {", static, None, None))
+		outputs.append(CodeString("else { // conditional", static, None, None))
 
 		outputs.extend(flatten(stmts[-1]))
 
-		outputs.append(CodeString("}", static, None, None))
+		outputs.append(CodeString("} // conditional", static, None, None))
 
 	return outputs
 
@@ -606,7 +611,19 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 		size = referred_var.size
 		static = StaticType.RW
 
+	elif isinstance(referred_var, arch.Intrinsic):
+		if context.ignore_static:
+			raise TypeError("intrinsic not allowed in function")
+
+		signed = referred_var.data_type == arch.DataType.S
+		size = referred_var.size
+		static = StaticType.READ
+
+		if referred_var == context.intrinsics["__encoding_size"]:
+			name = str(context.instr_size // 8)
+
 	else:
+		raise TypeError("wrong type")
 		# should not happen
 		signed = False
 

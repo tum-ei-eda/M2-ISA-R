@@ -17,12 +17,20 @@ Any model traversal should use the :func:`patch_model` function and a module inc
 transformations. :func:`patch_model` monkey patches transformation functions into the classes of the
 behavior model, therefore separating model code from transformation code. For examples on how
 these transformation functions look like, see either the modules in :mod:`m2isar.metamodel.utils`
-or the main code generation module :mod:`m2isar.backends.etiss.instruction_transform`.
+or the main code generation module :mod:`m2isar.backends.etiss.instruction_transform`. For a description
+of the monkey patching, see :func:`patch_model`.
+
+Usually a M2-ISA-R behavioral model is traversed from top to bottom. Necessary contextual
+information is passed to lower levels by a user-defined `context` object. Each object should then
+generate a piece of output (e.g. c-code for ETISS) and return it to its parent. Value passing between
+generation functions is completely user-defined, :mod:`m2isar.backends.etiss.instruction_transform`
+uses complex objects in lower levels of translation and switches to strings for the two highest levels of
+the hierarchy.
 """
 
 import inspect
 import logging
-from . import behav
+from . import behav, arch
 
 def patch_model(module):
 	"""Monkey patch transformation functions inside `module`
@@ -33,7 +41,8 @@ def patch_model(module):
 	`def transform(self: <behav Class>, context: Any)`
 
 	where `<behav Class>` is the class in :mod:`m2isar.metamodel.behav` which this
-	transformation is associated with.
+	transformation is associated with. Context can be any user-defined object to keep track
+	of additional contextual information, if needed.
 	"""
 
 	logger = logging.getLogger("patch_model")
@@ -50,3 +59,13 @@ def patch_model(module):
 
 		logger.debug("patching %s with fn %s", param.annotation, fn)
 		param.annotation.generate = fn
+
+intrinsic_defs = [
+	arch.Intrinsic("__encoding_size", 16, arch.DataType.U)
+]
+
+intrinsics = {x.name: x for x in intrinsic_defs}
+
+#@property
+#def intrinsics():
+#	return {x.name: x for x in intrinsic_defs}

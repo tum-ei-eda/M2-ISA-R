@@ -52,8 +52,9 @@ For parsers, see [m2isar/frontends/coredsl](m2isar/frontends/coredsl) or [m2isar
 	- [ ] Bit-wise aliasing
 	- [ ] Spawn blocks
 - [X] Detection and evaluation of generation-time static expressions
-- [ ] Better support for translation-time static expressions, see #5 and #6
+- [X] Better support for translation-time static expressions, see #5 and #6
 - [ ] Full generation of ETISS architecture models:
 	- [ ] Variable width instruction decoding
 	- [X] Exception handling
 	- [X] Privilege levels
+	- [X] Interrupts

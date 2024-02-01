@@ -17,14 +17,15 @@ import time
 
 from m2isar.metamodel.arch import CoreDef
 
-from ...metamodel.utils.expr_preprocessor import (process_functions,
-												  process_instructions)
+from ...metamodel.utils.expr_preprocessor import (process_attributes,
+                                                  process_functions,
+                                                  process_instructions)
 from . import BlockEndType
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
-								  write_arch_gdbcore, write_arch_header,
-								  write_arch_lib, write_arch_specific_cpp,
-								  write_arch_specific_header,
-								  write_arch_struct)
+                                  write_arch_gdbcore, write_arch_header,
+                                  write_arch_lib, write_arch_specific_cpp,
+                                  write_arch_specific_header,
+                                  write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
 
 
@@ -130,6 +131,19 @@ def main():
 		logger.info("preprocessing model %s", core_name)
 		process_functions(core)
 		process_instructions(core)
+		process_attributes(core)
+
+		renamed_fns = {}
+
+		for fn_name, fn_def in core.functions.items():
+			if fn_def.extern:
+				renamed_fns[fn_name] = fn_def
+			else:
+				new_name = f"{core_name}_{fn_def.name}"
+				fn_def.name = new_name
+				renamed_fns[new_name] = fn_def
+
+		core.functions = renamed_fns
 
 	# generate each core in the model
 	for core_name, core in models.items():

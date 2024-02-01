@@ -1,6 +1,6 @@
-# Generated from CoreDSL2.g4 by ANTLR 4.12.0
+# Generated from CoreDSL2.g4 by ANTLR 4.13.1
 from antlr4 import *
-if __name__ is not None and "." in __name__:
+if "." in __name__:
     from .CoreDSL2Parser import CoreDSL2Parser
 else:
     from CoreDSL2Parser import CoreDSL2Parser

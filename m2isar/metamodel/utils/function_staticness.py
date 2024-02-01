@@ -102,7 +102,8 @@ def named_reference(self: behav.NamedReference, context):
 		arch.BitFieldDescr: True,
 		arch.Constant: True,
 		arch.FnParam: True,
-		arch.Scalar: True
+		arch.Scalar: True,
+		arch.Intrinsic: False
 	}
 
 	return static_map.get(type(self.reference), False)

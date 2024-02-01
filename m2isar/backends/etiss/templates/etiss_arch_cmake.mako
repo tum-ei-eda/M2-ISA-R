@@ -12,10 +12,14 @@
 
 PROJECT(${core_name})
 
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+SET(CMAKE_INSTALL_RPATH "\$ORIGIN/../../include/jit/etiss/jit")
+
 ADD_LIBRARY($${}{PROJECT_NAME} SHARED
 	${core_name}Arch.cpp
 	${core_name}ArchLib.cpp
 	${core_name}ArchSpecificImp.cpp
+	${core_name}Funcs.c
 	% for f in arch_files:
 	${f}
 	% endfor
