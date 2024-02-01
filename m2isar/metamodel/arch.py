@@ -14,7 +14,7 @@ behavior of functions and instructions.
 import dataclasses
 import itertools
 from collections import defaultdict
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from typing import Any, Union
 
 from .. import M2TypeError
@@ -197,6 +197,9 @@ class MemoryAttribute(Enum):
 	IS_MAIN_REG = auto()
 	DELETE = auto()
 	ETISS_CAN_FAIL = auto()
+	ETISS_IS_GLOBAL_IRQ_EN = auto()
+	ETISS_IS_IRQ_EN = auto()
+	ETISS_IS_IRQ_PENDING = auto()
 
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
@@ -215,6 +218,11 @@ class FunctionAttribute(Enum):
 	ETISS_NEEDS_ARCH = auto()
 	ETISS_TRAP_ENTRY_FN = auto()
 	ETISS_TRAP_TRANSLATE_FN = auto()
+
+class FunctionThrows(IntEnum):
+	NO = 0
+	YES = 1
+	MAYBE = 2
 
 class DataType(Enum):
 	NONE = auto()
@@ -296,6 +304,16 @@ class Scalar(SizedRefOrConst):
 		self.value = value
 		self.static = static
 		self.data_type = data_type
+		super().__init__(name, size)
+
+class Intrinsic(SizedRefOrConst):
+
+	value: int
+	data_type: DataType
+
+	def __init__(self, name, size: ValOrConst, data_type: DataType, value: int = None):
+		self.data_type = data_type
+		self.value = value
 		super().__init__(name, size)
 
 class Memory(SizedRefOrConst):
@@ -503,6 +521,16 @@ def extract_memory_alias(memories: "list[Memory]"):
 
 	return parents, aliases
 
+class AlwaysBlock(Named):
+	attributes: "dict[FunctionAttribute, list[BaseNode]]"
+	operation: "Operation"
+
+	def __init__(self, name: str, attributes, operation):
+		self.attributes = attributes
+		self.operation = operation
+
+		super().__init__(name)
+
 class InstructionSet(Named):
 	"""A class representing an InstructionSet collection. Bundles constants, memories, functions
 	and instructions under a common name.
@@ -524,7 +552,7 @@ class CoreDef(Named):
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, constants: "dict[str, Constant]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Memory]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]",
-			instr_classes: "set[int]"):
+			instr_classes: "set[int]", intrinsics: "dict[str, Intrinsic]"):
 
 		self.contributing_types = contributing_types
 		self.template = template
@@ -537,12 +565,19 @@ class CoreDef(Named):
 		self.main_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
+		self.global_irq_en_memory = None
+		self.global_irq_en_mask = None
+		self.irq_en_memory = None
+		self.irq_pending_memory = None
+		self.intrinsics = intrinsics
 
 		self.instructions_by_ext = defaultdict(dict)
 		self.functions_by_ext = defaultdict(dict)
+		self.instructions_by_class = defaultdict(dict)
 
 		for (code, mask), instr_def in self.instructions.items():
 			self.instructions_by_ext[instr_def.ext_name][(code, mask)] = instr_def
+			self.instructions_by_class[instr_def.size][(code, mask)] = instr_def
 
 		for fn_name, fn_def in self.functions.items():
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
@@ -554,5 +589,11 @@ class CoreDef(Named):
 				self.pc_memory = mem
 			elif MemoryAttribute.IS_MAIN_MEM in mem.attributes:
 				self.main_memory = mem
+			elif MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+				self.global_irq_en_memory = mem
+			elif MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+				self.irq_en_memory = mem
+			elif MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+				self.irq_pending_memory = mem
 
 		super().__init__(name)

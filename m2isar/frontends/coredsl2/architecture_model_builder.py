@@ -11,7 +11,7 @@ import logging
 from typing import Union
 
 from ... import M2DuplicateError, M2NameError, M2TypeError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, intrinsics
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
 
@@ -24,6 +24,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_constants: "dict[str, arch.Constant]"
 	_instructions: "dict[str, arch.Instruction]"
 	_functions: "dict[str, arch.Function]"
+	_always_blocks: "dict[str, arch.AlwaysBlock]"
 	_instruction_sets: "dict[str, arch.InstructionSet]"
 	_read_types: "dict[str, str]"
 	_memories: "dict[str, arch.Memory]"
@@ -37,6 +38,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._constants = {}
 		self._instructions = {}
 		self._functions = {}
+		self._always_blocks = {}
 		self._instruction_sets = {}
 		self._read_types = {}
 		self._memories = {}
@@ -94,6 +96,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			elif isinstance(item, arch.Instruction):
 				instructions[(item.code, item.mask)] = item
 				item.ext_name = name
+			elif isinstance(item, arch.AlwaysBlock):
+				pass
 			else:
 				raise M2ValueError("unexpected item encountered")
 
@@ -127,7 +131,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._constants, self._memories, self._memory_aliases,
-			self._functions, self._instructions, self._instr_classes)
+			self._functions, self._instructions, self._instr_classes,
+			intrinsics)
 
 		return c
 
@@ -140,6 +145,18 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			self.visit(obj)
 
 		return decls
+
+	def visitAlways_block(self, ctx: CoreDSL2Parser.Always_blockContext):
+		"""Generate always block"""
+
+		name = ctx.name.text
+		attributes = dict([self.visit(obj) for obj in ctx.attributes])
+
+		a = arch.AlwaysBlock(name, attributes, ctx.behavior)
+
+		self._always_blocks[name] = a
+
+		return a
 
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		"""Generate non-behavioral parts of an instruction."""

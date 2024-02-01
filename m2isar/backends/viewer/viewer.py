@@ -19,7 +19,8 @@ from tkinter import ttk
 from m2isar.backends.viewer.utils import TreeGenContext
 
 from ...metamodel import arch, patch_model
-from ...metamodel.utils.expr_preprocessor import (process_functions,
+from ...metamodel.utils.expr_preprocessor import (process_attributes,
+                                                  process_functions,
                                                   process_instructions)
 from . import treegen
 
@@ -74,6 +75,7 @@ def main():
 		logger.info("preprocessing model %s", core_name)
 		process_functions(core)
 		process_instructions(core)
+		process_attributes(core)
 
 	# load Ttk TreeView transformer functions
 	patch_model(treegen)

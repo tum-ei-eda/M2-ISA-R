@@ -6,7 +6,7 @@
         {
             "label": "Generate CoreDSL2 ANTLR parser",
             "type": "shell",
-            "command": "antlr4 -v 4.11.1 -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4",
+            "command": "${workspaceFolder}/venv/bin/antlr4 -v 4.13.1 -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4",
             "options": {
                 "cwd": "${workspaceFolder}/m2isar/frontends/coredsl2/"
             },

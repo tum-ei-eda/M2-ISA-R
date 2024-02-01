@@ -1,6 +1,6 @@
-# Generated from CoreDSL2.g4 by ANTLR 4.12.0
+# Generated from CoreDSL2.g4 by ANTLR 4.13.1
 from antlr4 import *
-if __name__ is not None and "." in __name__:
+if "." in __name__:
     from .CoreDSL2Parser import CoreDSL2Parser
 else:
     from CoreDSL2Parser import CoreDSL2Parser
@@ -41,6 +41,16 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#section_instructions.
     def visitSection_instructions(self, ctx:CoreDSL2Parser.Section_instructionsContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#section_always.
+    def visitSection_always(self, ctx:CoreDSL2Parser.Section_alwaysContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#always_block.
+    def visitAlways_block(self, ctx:CoreDSL2Parser.Always_blockContext):
         return self.visitChildren(ctx)
 
 

@@ -83,6 +83,8 @@ def main():
 	for core_name, core_def in models.items():
 		logger.info('building behavior model for core %s', core_name)
 
+		warned_fns = set()
+
 		logger.debug("checking core constants")
 		unassigned_const = False
 		for const in core_def.constants.values():
@@ -103,6 +105,20 @@ def main():
 			mem_def.range._lower_base = mem_def.range.lower_base
 			mem_def.range._upper_base = mem_def.range.upper_base
 
+			for attr_name, attr_ops in mem_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							{}, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of memory \"%s\": %s", attr_name, fn_def.name, e)
+						sys.exit(1)
+
+				mem_def.attributes[attr_name] = ops
+
 		for fn_def in core_def.functions.values():
 			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
@@ -113,8 +129,6 @@ def main():
 				fn_arg._width = fn_arg.width
 
 		logger.debug("generating function behavior")
-
-		warned_fns = set()
 
 		for fn_name, fn_def in core_def.functions.items():
 			logger.debug("generating function %s", fn_name)
@@ -150,6 +164,40 @@ def main():
 					fn_def.operation = behav.Operation(op)
 				else:
 					fn_def.operation = behav.Operation([op])
+
+		logger.debug("generating always blocks")
+
+		always_block_statements = []
+
+		arch_builder = temp_save[core_name][1]
+		for block_def in arch_builder._always_blocks.values():
+			logger.debug("generating always block %s", block_def.name)
+			logger.debug("generating attributes")
+
+			for attr_name, attr_ops in block_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+							{}, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of instruction \"%s\": %s", attr_name, block_def.name, e)
+						sys.exit(1)
+
+				block_def.attributes[attr_name] = ops
+
+			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+				{}, core_def.functions, warned_fns)
+
+			try:
+				op = behav_builder.visit(block_def.operation)
+			except M2Error as e:
+				logger.critical("error building behavior for always block %s: %s", block_def.name, e)
+				sys.exit(1)
+
+			always_block_statements.append(op)
 
 		logger.debug("generating instruction behavior")
 
@@ -196,7 +244,8 @@ def main():
 				)
 			)
 
-			op.statements.insert(0, pc_inc)
+			#op.statements.insert(0, pc_inc)
+			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
 
 	logger.info("dumping model")

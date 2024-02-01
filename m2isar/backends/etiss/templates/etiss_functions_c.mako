@@ -6,9 +6,10 @@
 ## Chair of Electrical Design Automation
 ## Technical University of Munich
 \
+/**
+ * Generated on ${start_time}.
+ *
+ * This file contains the function implementations for the ${core_name} core architecture.
+ */
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#include "${core_name}Funcs.h"
