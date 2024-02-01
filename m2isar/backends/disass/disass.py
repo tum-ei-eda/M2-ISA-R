@@ -18,6 +18,7 @@ from collections import defaultdict
 from io import SEEK_CUR
 
 from ...metamodel import arch
+from .asm_formatter import AsmFormatter
 
 logger = logging.getLogger("viewer")
 
@@ -68,6 +69,7 @@ def main():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument("core_name")
 	parser.add_argument('bin')
+	parser.add_argument("--format", action="store_true", help="Use assembly formatting string and mnemonic")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -111,6 +113,8 @@ def main():
 
 	instrs_by_size = dict(sorted(instrs_by_size.items()))
 
+	prev_count = 0
+
 	with open(args.bin, "rb") as f:
 		# read at most XLEN bytes at a time
 		while iw_read := f.peek(readlen):
@@ -129,11 +133,36 @@ def main():
 				ins_str = "unknown"
 				step = steplen
 
+				if prev_count > 2:
+					print(f"\trepeated {prev_count-2} times.")
+				prev_count = 0
+
 			# decode instruction operands
 			else:
+				if found_ins and found_ins.name == "DII":
+					prev_count += 1
+					if prev_count > 1:
+						bla = f.tell()
+						f.seek(step, SEEK_CUR)
+						continue
+				else:
+					if prev_count > 2:
+						print(f"\trepeated {prev_count-2} times.")
+					prev_count = 0
+
 				operands = decode(ii, found_ins)
-				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
-				ins_str = f"{found_ins.name} [{op_str}]"
+				if args.format:
+					asm_name = found_ins.mnemonic
+					assembly = found_ins.assembly
+					fmt = AsmFormatter()
+					if assembly is None:
+						assembly = ""
+					asm_args = fmt.format(assembly, **operands)
+				else:
+					asm_name = found_ins.name
+					op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
+					asm_args = f"[{op_str}]"
+				ins_str = f"{asm_name}\t{asm_args}"
 				step = found_ins.size // 8
 
 			# print decoded instruction mnemonic

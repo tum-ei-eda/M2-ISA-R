@@ -190,7 +190,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	if error_fn is not None:
 		for bitsize in core.instr_classes:
 			error_bitfield = arch.BitField("error_code", arch.RangeSpec(31, 0), arch.DataType.U)
-			error_instr = arch.Instruction(f"trap_entry {bitsize}", {arch.InstrAttribute.NO_CONT: None}, [error_bitfield], "", None)
+			error_instr = arch.Instruction(f"trap_entry {bitsize}", {arch.InstrAttribute.NO_CONT: None}, [error_bitfield], "", "", None)
 			error_bitfield_descr = error_instr.fields.get("error_code")
 			error_op = behav.Operation([
 				behav.ProcedureCall(error_fn, [behav.NamedReference(error_bitfield_descr)])
