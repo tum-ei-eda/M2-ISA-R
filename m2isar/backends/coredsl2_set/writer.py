@@ -36,7 +36,6 @@ class DropUnusedContext:
 
 
 class CoreDSL2Writer:
-
     def __init__(self):
         self.text = ""
         self.indent_str = "    "
@@ -185,11 +184,11 @@ class CoreDSL2Writer:
         assembly = instruction.assembly
         if mnemonic:
             self.write("{")
-            self.write(f"\"{mnemonic}\"")
+            self.write(f'"{mnemonic}"')
             self.write(", ")
         if assembly is None:
             assembly = ""
-        self.write(f"\"{assembly}\"")
+        self.write(f'"{assembly}"')
         if mnemonic:
             self.write("}")
         self.write(";", nl=True)
@@ -224,7 +223,7 @@ class CoreDSL2Writer:
         # TODO: scalars, memories,...
         self.leave_block()
 
-    def write_set(self, set_def):
+    def write_set(self, set_def: arch.InstructionSet):
         # self.write_architectural_state()
         self.write("InstructionSet ")
         self.write(set_def.name)
@@ -234,41 +233,54 @@ class CoreDSL2Writer:
             self.write(" extends ")
             self.write(", ".join(set_def.extension))
         self.enter_block()
-        self.write_functions(set_def.functions)
+        if set_def.functions:
+            self.write_functions(set_def.functions)
         self.write_instructions(set_def.instructions)
         self.leave_block()
+
     #     for instr_name, instr_def in set_def.instructions.items():
     #         logger.debug("writing instr %s", instr_def.name)
     #         # instr_def.operation.generate(context)
     #     # input("CONT1")
 
-
     def write_core(self, core_def: arch.CoreDef):
-        self.write(f"Core {core_def.name} provides {', '.join(core_def.contributing_types)}")
+        self.write(
+            f"Core {core_def.name} provides {', '.join(core_def.contributing_types)}"
+        )
         self.enter_block()
         self.write("architectural_state")
         self.enter_block()
-        self.write(f"""CSR[0x000] = 0x0000000B; // ustatus
-        CSR[RV_CSR_SSTATUS] = 0x0000000B; // sstatus
-        CSR[RV_CSR_MSTATUS] = 0x0000000B; // mstatus
-
-        CSR[RV_CSR_MISA] = {'0x800000000014112D' if core_def.constants["XLEN"].value == 64 else '0x4014112D'}; // misa
-
-        CSR[0xC10] = 0x00000003;
-
-        CSR[RV_CSR_MIE] = 0xFFFFFBBB; // mie
-        CSR[RV_CSR_SIE] = CSR[0x304] & (~(0x888)); // sie
-        CSR[0x004] = CSR[0x304] & (~(0xAAA)); // uie""")
+        self.write(
+            "CSR[0x000] = 0x0000000B; // ustatus\n"
+            "CSR[RV_CSR_SSTATUS] = 0x0000000B; // sstatus\n"
+            "CSR[RV_CSR_MSTATUS] = 0x0000000B; // mstatus\n"
+            "\n"
+            f"CSR[RV_CSR_MISA] = {'0x800000000014112D' if core_def.constants['XLEN'].value == 64 else '0x4014112D'}; // misa\n"
+            "\n"
+            "CSR[0xC10] = 0x00000003;\n"
+            "\n"
+            "CSR[RV_CSR_MIE] = 0xFFFFFBBB; // mie\n"
+            "CSR[RV_CSR_SIE] = CSR[0x304] & (~(0x888)); // sie\n"
+            "CSR[0x004] = CSR[0x304] & (~(0xAAA)); // uie",
+            True,
+        )
         self.leave_block()
         self.leave_block()
+
 
 def main():
     """Main app entrypoint."""
 
     # read command line args
     parser = argparse.ArgumentParser()
-    parser.add_argument("top_level", help="A .m2isarmodel or .m2isarmodel (SET only) file.")
-    parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+    parser.add_argument(
+        "top_level", help="A .m2isarmodel or .m2isarmodel (SET only) file."
+    )
+    parser.add_argument(
+        "--log",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug"],
+    )
     parser.add_argument("--output", "-o", type=str, default=None)
     args = parser.parse_args()
 
@@ -298,20 +310,47 @@ def main():
     # print("model", model["sets"]["XCoreVMac"].keys())
     writer = CoreDSL2Writer()
 
-    # check if a core is specified
+    # write imports
     core_defs = [core for core in model.values() if isinstance(core, arch.CoreDef)]
+    ## gather needed imports
     if core_defs:
-        # Write core(s)
+        used_extensions = set()
         for core_def in core_defs:
-            writer.write_core(core_def)
-            print("Core Found!")
+            used_extensions.update(core_def.contributing_types)
 
+        if "RV32I" in used_extensions:
+            writer.write('import "rv_base/RV32I.core_desc"', nl=True)
+        if "RV64I" in used_extensions:
+            writer.write('import "rv_base/RV64I.core_desc"', nl=True)
+        if "RV32M" in used_extensions or "RV64M" in used_extensions:
+            writer.write('import "rv_base/RVM.core_desc"', nl=True)
+        if "RV32IC" in used_extensions or "RV64IC" in used_extensions:
+            writer.write('import "rv_base/RVC.core_desc"', nl=True)
+        if "RV32F" in used_extensions or "RV64F" in used_extensions:
+            writer.write('import "rv_base/RVF.core_desc"', nl=True)
+        if "RV32D" in used_extensions or "RV64D" in used_extensions:
+            writer.write('import "rv_base/RVD.core_desc"', nl=True)
+
+        # add tum extensions at the end
+        writer.write('import "tum_mod.core_desc"', nl=True)
+        writer.write('import "tum_rva.core_desc"', nl=True)
+        writer.write('import "tum_rvm.core_desc"', nl=True)
+        writer.write("\n")
 
     for set_name, set_def in model["sets"].items():
         logger.debug("writing set %s", set_def.name)
         patch_model(visitor)
         writer.write_set(set_def)
         # context = DropUnusedContext(list(set_def.constants.keys()))
+
+    # if a core is specified write it after we wrote the instructionSet
+    if core_defs:
+        # Write core(s)
+        for core_def in core_defs:
+            logger.info("Writing Core: %s", core_def.name)
+            writer.write("\n")
+            writer.write_core(core_def)
+
     content = writer.text
     with open(out_path, "w") as f:
         f.write(content)
