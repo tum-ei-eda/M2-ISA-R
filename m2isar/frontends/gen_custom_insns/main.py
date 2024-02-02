@@ -4,7 +4,7 @@ import logging
 import pathlib
 import pickle
 import subprocess
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 from m2isar.frontends.gen_custom_insns import input_parser
 
@@ -37,53 +37,6 @@ def create_memories(xlen: int) -> Dict[str, arch.Memory]:
 	return {"X": main_reg, "MEM": main_mem, "PC": pc}
 
 
-# TODO this needs to be adapted for rv64
-CDSL_EXTENSIONS = {
-	"f": "RV32F",
-	"m": "RV32M",
-	"a": "RV32A",
-	"d": "RV32D",
-	"c": "RV32IC",  # FIXME add "RV32FC" etc, depending on the other used extensions
-	"i": "RV32I", # TODO RV32I is obligatory, can always be added
-}
-
-
-def generate_m2isar_instr_set(
-	metadata: input_parser.Metadata, processed_instructions: List[Instruction]
-):
-	"""Create an M2isar metamodel Instruction set"""
-	mm_instructions = [i.to_metamodel(metadata.prefix) for i in processed_instructions]
-
-	# parse required extension into the coredsl equivalent
-	if metadata.extends is not None:
-		extends = [
-			CDSL_EXTENSIONS[ext.lower()]
-			for ext in metadata.extends
-			if ext.lower() in CDSL_EXTENSIONS
-		]
-	else:
-		extends = ["RISCVBase"]
-
-	constants = {
-		"XLEN": arch.Constant(
-			"XLEN", value=metadata.xlen, attributes={}, size=None, signed=False
-		)
-	}
-	memories = create_memories(metadata.xlen)
-
-	instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
-	inst_set = arch.InstructionSet(
-		name=metadata.ext_name,
-		extension=extends,
-		constants=constants,
-		memories=memories,
-		functions={},
-		instructions=instructions_dict,
-	)
-
-	return {inst_set.name: inst_set}
-
-
 def main():
 	"""Main app entrypoint"""
 	# argument parsing
@@ -106,7 +59,7 @@ def main():
 		"--backend",
 		default="cdsl",
 		choices=["cdsl"],
-		help="""Directly calls the coredsl backend""", # Could add the other in the future
+		help="""Directly calls the coredsl backend""",  # Could add the other backends in the future
 	)
 	args = parser.parse_args()
 
@@ -135,13 +88,9 @@ def main():
 	# Generating m2isar models
 	## parse required extension into the coredsl equivalent
 	if metadata.extends is None:
-		extends = ["RISCVBase"]  # TODO Remove
+		extends = []
 	else:
-		extends = [
-			CDSL_EXTENSIONS[ext.lower()]
-			for ext in metadata.extends
-			if ext.lower() in CDSL_EXTENSIONS
-		]
+		extends = to_coredsl_name(metadata.extends, metadata.xlen)
 
 	constants = {
 		"XLEN": arch.Constant(
@@ -169,23 +118,33 @@ def main():
 	if args.core:
 		assert metadata.core_name is not None
 
-		if metadata.used_extensions is None:
-			used_extensions = []
-		else:
-			used_extensions = [
-				CDSL_EXTENSIONS[ext.lower()]
-				for ext in metadata.used_extensions
-				if ext.lower() in CDSL_EXTENSIONS
-			]
-		TUM_MOD = ["tum_csr", "tum_ret", "tum_rva"]
-		contributing_types = [*used_extensions, metadata.ext_name, *TUM_MOD]
+		# std extensions
+		contributing_types = to_coredsl_name(metadata.used_extensions, metadata.xlen)
+		# generated instructions
+		contributing_types.append(metadata.ext_name)
+		# etiss extensions
+		if metadata.xlen == 32:
+			contributing_types.extend(
+				["Zifencei", "tum_csr", "tum_ret", "tum_rva", "tum_semihosting"]
+			)
+		if metadata.xlen == 64:
+			contributing_types.extend(
+				[
+					"Zifencei",
+					"tum_csr",
+					"tum_ret",
+					"tum_rva64",
+					"tum_rvm",
+					"tum_semihosting",
+				]
+			)
 
 		instr_classes = set()
-		if constants["XLEN"].value == 32:
+		if metadata.xlen == 32:
 			instr_classes.add(32)
-		if constants["XLEN"].value == 64:
+		if metadata.xlen == 64:
 			instr_classes.add(64)
-		if "RV32IC" in extends:
+		if "c" in metadata.used_extensions:
 			instr_classes.add(16)
 
 		core = arch.CoreDef(
@@ -200,7 +159,7 @@ def main():
 			instr_classes=instr_classes,
 			intrinsics={},
 		)
-		model[core.name] = core # type: ignore , could add a 'TypedDict' to prevent this
+		model[core.name] = core  # type: ignore , could add a 'TypedDict' to prevent this
 
 	# output generated instructions
 	if out_path.suffix != ".m2isarmodel":
@@ -211,18 +170,42 @@ def main():
 
 	if args.backend == "cdsl":
 		# create model
-		modelpath = out_path.with_suffix(".m2isarmodel")
-		with open(modelpath, "wb") as file:
-			logger.info("Saving instructions to '%s'", modelpath.name)
-			pickle.dump(model, file)
 		if out_path.suffix != ".core_desc":
 			out_path = out_path.with_suffix(".core_desc")
 		# run cdsl2 backend
 		subprocess.run(
-			["python", "-m", "m2isar.backends.coredsl2_set.writer", modelpath.name],
+			[
+				"python",
+				"-m",
+				"m2isar.backends.coredsl2_set.writer",
+				out_path.with_suffix(".m2isarmodel").name,
+			],
 			check=True,
 			text=True,
 		)
+
+
+def to_coredsl_name(extensions: str, xlen: int) -> List[str]:
+	"""Turns a string with standard extension names into a list with their CoreDSL2 equivalent"""
+	extensions_list = []
+	if "i" in extensions:
+		extensions_list.append(f"RV{xlen}I")
+		if "c" in extensions:
+			extensions_list.append(f"RV{xlen}IC")
+	if "m" in extensions:
+		extensions_list.append(f"RV{xlen}M")
+	if "a" in extensions:
+		extensions_list.append(f"RV{xlen}A")
+	if "f" in extensions:
+		extensions_list.append(f"RV{xlen}F")
+		if "c" in extensions:
+			extensions_list.append("RV32FC")
+	if "d" in extensions:
+		extensions_list.append(f"RV{xlen}D")
+		if "c" in extensions:
+			extensions_list.append("RV32DC")
+
+	return extensions_list
 
 
 if __name__ == "__main__":

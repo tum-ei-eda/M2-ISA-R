@@ -17,7 +17,7 @@ class Metadata:
 	ext_name: str
 	prefix: Optional[str]
 	version: Optional[str]
-	used_extensions: Optional[str]
+	used_extensions: str
 	extends: Optional[str]
 	core_name: Optional[str]
 	"""Only needed if '-c' is used"""
@@ -45,7 +45,7 @@ def parse(path: pathlib.Path):
 		ext_name=metadata_input.pop("name"),
 		prefix=metadata_input.get("prefix"),
 		version=metadata_input.get("version"),
-		used_extensions=metadata_input.get("extensions"),
+		used_extensions=metadata_input.get("extensions", "i").lower(),
 		extends=metadata_input.get("extends"),
 		core_name=metadata_input.get("core_name"),
 		xlen=xlen,
