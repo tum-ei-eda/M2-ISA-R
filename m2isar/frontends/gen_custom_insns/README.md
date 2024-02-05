@@ -15,6 +15,9 @@ metadata:
   extends: # Required Risc-V extensions, 
   xlen: # Defaults to 32 if unspecified
   core_name: # Only needs to be specified if a core will be generated(flag -c)
+  core_template:  # Default CoreDSL file imports, Options:
+                  #   None: only specified extensions
+                  #   "etiss": imports etiss specific CoreDSL files
 
 
 

@@ -21,6 +21,7 @@ class Metadata:
 	extends: Optional[str]
 	core_name: Optional[str]
 	"""Only needed if '-c' is used"""
+	core_template: Optional[str]
 	xlen: int = 32
 
 
@@ -48,6 +49,7 @@ def parse(path: pathlib.Path):
 		used_extensions=metadata_input.get("extensions", "i").lower(),
 		extends=metadata_input.get("extends"),
 		core_name=metadata_input.get("core_name"),
+		core_template=metadata_input.get("core_template"),
 		xlen=xlen,
 	)
 

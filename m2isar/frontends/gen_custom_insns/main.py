@@ -70,6 +70,7 @@ def main():
 	logger.info("Parsing input...")
 	filename = pathlib.Path(args.filename)
 	metadata, raw_instructions = input_parser.parse(filename)
+	logger.debug(metadata)
 
 	# generating instruction objects
 	processed_instructions: List[Instruction] = []
@@ -123,21 +124,22 @@ def main():
 		# generated instructions
 		contributing_types.append(metadata.ext_name)
 		# etiss extensions
-		if metadata.xlen == 32:
-			contributing_types.extend(
-				["Zifencei", "tum_csr", "tum_ret", "tum_rva", "tum_semihosting"]
-			)
-		if metadata.xlen == 64:
-			contributing_types.extend(
-				[
-					"Zifencei",
-					"tum_csr",
-					"tum_ret",
-					"tum_rva64",
-					"tum_rvm",
-					"tum_semihosting",
-				]
-			)
+		if metadata.core_template == "etiss":
+			if metadata.xlen == 32:
+				contributing_types.extend(
+					["Zifencei", "tum_csr", "tum_ret", "tum_rva", "tum_semihosting"]
+				)
+			if metadata.xlen == 64:
+				contributing_types.extend(
+					[
+						"Zifencei",
+						"tum_csr",
+						"tum_ret",
+						"tum_rva64",
+						"tum_rvm",
+						"tum_semihosting",
+					]
+				)
 
 		instr_classes = set()
 		if metadata.xlen == 32:
