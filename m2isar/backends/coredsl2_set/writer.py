@@ -237,6 +237,7 @@ class CoreDSL2Writer:
             self.write_functions(set_def.functions)
         self.write_instructions(set_def.instructions)
         self.leave_block()
+        self.write("\n")
 
     #     for instr_name, instr_def in set_def.instructions.items():
     #         logger.debug("writing instr %s", instr_def.name)
@@ -312,9 +313,9 @@ def main():
 
     # write imports
     core_defs = [core for core in model.values() if isinstance(core, arch.CoreDef)]
-    ## gather needed imports
-    if core_defs:
+    if core_defs: # TODO add imports if an instruction set extends another set
         used_extensions = set()
+        ## gather needed imports
         for core_def in core_defs:
             used_extensions.update(core_def.contributing_types)
 
@@ -332,9 +333,10 @@ def main():
             writer.write('import "rv_base/RVD.core_desc"', nl=True)
 
         # add tum extensions at the end
-        writer.write('import "tum_mod.core_desc"', nl=True)
-        writer.write('import "tum_rva.core_desc"', nl=True)
-        writer.write('import "tum_rvm.core_desc"', nl=True)
+        if "tum_csr" in used_extensions:
+            writer.write('import "tum_mod.core_desc"', nl=True)
+            writer.write('import "tum_rva.core_desc"', nl=True)
+            writer.write('import "tum_rvm.core_desc"', nl=True)
         writer.write("\n")
 
     for set_name, set_def in model["sets"].items():
@@ -343,12 +345,9 @@ def main():
         writer.write_set(set_def)
         # context = DropUnusedContext(list(set_def.constants.keys()))
 
-    # if a core is specified write it after we wrote the instructionSet
     if core_defs:
-        # Write core(s)
         for core_def in core_defs:
             logger.info("Writing Core: %s", core_def.name)
-            writer.write("\n")
             writer.write_core(core_def)
 
     content = writer.text
