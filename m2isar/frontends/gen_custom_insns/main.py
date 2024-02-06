@@ -6,10 +6,9 @@ import pickle
 import subprocess
 from typing import Dict, List
 
-from m2isar.frontends.gen_custom_insns import input_parser
+from . import input_parser
 
 from ...metamodel import arch
-from .instructions_classes import Instruction
 
 logger = logging.getLogger("Instruction Gen")
 
@@ -69,16 +68,19 @@ def main():
 	# parse input
 	logger.info("Parsing input...")
 	filename = pathlib.Path(args.filename)
-	metadata, raw_instructions = input_parser.parse(filename)
+	metadata, raw_instruction_sets = input_parser.parse(filename)
 	logger.debug(metadata)
 
 	# generating instruction objects
-	processed_instructions: List[Instruction] = []
-	for inst in raw_instructions:
-		processed_instructions.extend(inst.generate())
-	logger.info("Created %i instructions.", len(processed_instructions))
-	# transforming into metamodel
-	mm_instructions = [i.to_metamodel(metadata.prefix) for i in processed_instructions]
+	inst_sets: dict[str, list[arch.Instruction]] = {}
+	inst_count = 0
+	for set_name, inst_set in raw_instruction_sets.items():
+		for inst in inst_set:
+			expanded_insts = inst.generate()
+			inst_count += len(expanded_insts)
+			inst_sets[set_name] = list(map(lambda i : i.to_metamodel(metadata.prefix), expanded_insts))
+
+	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
 
 	# parsing output path
 	if args.output is None:
@@ -100,19 +102,22 @@ def main():
 	}
 	memories = create_memories(metadata.xlen)
 
-	instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
-
-	model = {
-		"sets": {
-			metadata.ext_name: arch.InstructionSet(
-				name=metadata.ext_name,
+	m2_inst_sets = {}
+	for set_name, mm_instructions in inst_sets.items():
+		instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
+		name = metadata.ext_name + '_' + set_name
+		m2_inst_sets[name] = arch.InstructionSet(
+				name=name,
 				extension=extends,
 				constants=constants,
 				memories=memories,
 				functions={},
 				instructions=instructions_dict,
 			)
-		}
+
+
+	model = {
+		"sets": m2_inst_sets
 	}
 
 	# if enabled add a core to the dumped model
@@ -122,7 +127,7 @@ def main():
 		# std extensions
 		contributing_types = to_coredsl_name(metadata.used_extensions, metadata.xlen)
 		# generated instructions
-		contributing_types.append(metadata.ext_name)
+		contributing_types.extend(m2_inst_sets.keys())
 		# etiss extensions
 		if metadata.core_template == "etiss":
 			if metadata.xlen == 32:
@@ -157,7 +162,7 @@ def main():
 			memories=memories,
 			memory_aliases={},
 			functions={},
-			instructions=instructions_dict,
+			instructions={}, # is currently not used by the cdsl2 writer
 			instr_classes=instr_classes,
 			intrinsics={},
 		)

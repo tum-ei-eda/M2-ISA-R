@@ -59,16 +59,17 @@ def parse(path: pathlib.Path):
 	except KeyError:
 		logger.warning("No Defaults specified!")
 
-	instructions: List[InstructionCollection] = []
-	for group in yml:
-		for entry in yml[group]:
-			name: str = entry.pop("name")
-			ops = entry.pop("op")
+	instructions_sets: Dict[str, List[InstructionCollection]] = {}
+	for set_name in yml:
+		instructions_sets[set_name] = []
+		for inst in yml[set_name]:
+			name: str = inst.pop("name")
+			ops = inst.pop("op")
 			operands = {
 				name: ComplexOperand(
 					operand["width"], operand["sign"], operand.get("immediate", False)
 				)
-				for (name, operand) in entry["operands"].items()
+				for (name, operand) in inst["operands"].items()
 			}
 
 			# TODO inserting other default operators, depends on the op!
@@ -86,6 +87,6 @@ def parse(path: pathlib.Path):
 						"Operand 'rd' not specified and no default available!"
 					) from e
 
-			instructions.append(InstructionCollection(name, ops, operands))
+			instructions_sets[set_name].append(InstructionCollection(name, ops, operands))
 
-	return (metadata, instructions)
+	return (metadata, instructions_sets)

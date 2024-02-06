@@ -64,10 +64,10 @@
         },
         {
             "name": "Custom Instruction Gen",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "module": "m2isar.frontends.gen_custom_insns.main",
-            "args": ["test.yaml"],
+            "module": "m2isar.frontends.gen_custom_insns",
+            "args": ["test.yaml", "-b",  "cdsl"],
             "justMyCode": false
         }
     ],

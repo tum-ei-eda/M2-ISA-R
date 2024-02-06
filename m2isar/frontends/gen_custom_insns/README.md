@@ -8,7 +8,7 @@ This format should be placed into a yaml file
 
 ```yaml
 metadata: 
-  name: # Name of the ISA extension, is used as the name in CoreDSL
+  name: # Name of the ISA extension, is used as the name in CoreDSL(+ the name of the instruction group)
   prefix: # Prefix for every instruction without '.' (e.g. cv.XXX), can be ommited
   version: # Version of the specification file, currently not used
   extensions: # Used Risc-V Extensions, could be used in  the future to expand opcode space
@@ -30,8 +30,9 @@ defaults:
       width: 32
       sign: s
 
-
-instruction_group:
+# All following Sections get parsed as individual Instruction Sets.
+# The name of the the individual sets is the name from the "metadata.name'_'sectionName"
+instruction_group: # Name of the instructions set
 - name: "{op}{rsX.sign}{rsX.width}" # assembly mnemonic of the instruction
   op: [op1, op2, op3] # only instructions which use the same set of operands are allowed, so sci and sc cant be mixed
   operands: # list of operands
