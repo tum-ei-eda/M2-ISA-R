@@ -8,12 +8,12 @@
 
 """Utility classes and functions for instruction generation."""
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from itertools import chain
 from string import Template
 
 from ... import M2ValueError
-from ...metamodel import arch
+from ...metamodel import LineInfo, arch
 from ...metamodel.utils import StaticType
 from . import replacements
 
@@ -43,8 +43,9 @@ class CodeString:
 
 	mem_ids: "list[MemID]"
 	function_calls: "list[FnID]"
+	line_infos: "list[LineInfo]"
 
-	def __init__(self, code, static, size, signed, regs_affected=None):
+	def __init__(self, code, static, size, signed, regs_affected=None, line_infos=[]):
 		self.code = code
 		self.static = StaticType(static)
 		self.size = size
@@ -55,6 +56,13 @@ class CodeString:
 		self.is_literal = False
 		self.function_calls = []
 		self.check_trap = False
+
+		if isinstance(line_infos, LineInfo):
+			self.line_infos = [line_infos]
+		elif isinstance(line_infos, list):
+			self.line_infos = line_infos
+		else:
+			self.line_infos = []
 
 	@property
 	def actual_size(self):

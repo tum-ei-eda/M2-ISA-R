@@ -556,7 +556,7 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 
 	new_size = left.size + right.size
 	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
-		set.union(left.regs_affected, right.regs_affected))
+		set.union(left.regs_affected, right.regs_affected), line_infos=[self.line_info, left.line_info, right.line_info])
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
@@ -630,7 +630,7 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 	if context.ignore_static:
 		static = StaticType.RW
 
-	c = CodeString(name, static, size, signed)
+	c = CodeString(name, static, size, signed, line_infos=self.line_info)
 	#c.scalar = scalar
 	return c
 
@@ -661,7 +661,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 
 	if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 		# generate memory access if main memory is accessed
-		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False)
+		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[self.line_info, index.line_info])
 		c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 		context.mem_var_count += 1
 		return c
@@ -672,7 +672,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 		code_str = '*' + code_str
 	if size != referred_mem.size:
 		code_str = f'(etiss_uint{size})' + code_str
-	c = CodeString(code_str, static, size, False)
+	c = CodeString(code_str, static, size, False, line_infos=[self.line_info, index.line_info])
 	if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
 		c.regs_affected.add(index_code)
 	return c
@@ -717,7 +717,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 	else:
 		code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
 
-	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.regs_affected)
+	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.regs_affected, line_infos=[self.line_info, expr.line_info])
 	c.mem_ids = expr.mem_ids
 	c.mem_corrected = expr.mem_corrected
 
@@ -745,7 +745,7 @@ def int_literal(self: behav.IntLiteral, context: TransformerContext):
 	#if size > 64:
 	#	postfix += "L"
 
-	ret = CodeString(minus + str(lit) + postfix, True, size, sign)
+	ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=self.line_info)
 	ret.is_literal = True
 	return ret
 
@@ -766,7 +766,7 @@ def number_literal(self: behav.NumberLiteral, context: TransformerContext):
 	#if size > 64:
 	#	postfix += "L"
 
-	return CodeString(str(twocomp_lit) + postfix, True, size, sign)
+	return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=self.line_info)
 
 def group(self: behav.Group, context: TransformerContext):
 	"""Generate a group of expressions."""
@@ -782,4 +782,4 @@ def operator(self: behav.Operator, context: TransformerContext):
 	return self.op
 
 def code_literal(self: behav.CodeLiteral, context: TransformerContext):
-	return CodeString(self.val, False, context.native_size, False)
+	return CodeString(self.val, False, context.native_size, False, line_infos=self.line_info)

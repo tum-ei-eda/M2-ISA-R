@@ -30,7 +30,7 @@ the hierarchy.
 
 import inspect
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import arch, behav
 
@@ -75,6 +75,13 @@ intrinsics = {x.name: x for x in intrinsic_defs}
 
 @dataclass
 class LineInfo:
+	id: int = field(init=False)
 	file_path: str
 	start_chr: int
 	stop_chr: int
+
+	__id_counter = 0
+
+	def __post_init__(self):
+		self.id = LineInfo.__id_counter
+		LineInfo.__id_counter += 1
