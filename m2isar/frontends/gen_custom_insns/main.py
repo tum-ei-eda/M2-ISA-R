@@ -91,7 +91,7 @@ def main():
 	# Generating m2isar models
 	## parse required extension into the coredsl equivalent
 	if metadata.extends is None:
-		extends = []
+		extends = to_coredsl_name("i", metadata.xlen)
 	else:
 		extends = to_coredsl_name(metadata.extends, metadata.xlen)
 
