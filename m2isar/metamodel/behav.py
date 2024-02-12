@@ -33,6 +33,7 @@ class BaseNode:
 
 	def __init__(self, line_info: "LineInfo"=None) -> None:
 		self.line_info = line_info
+		self.inferred_type = None
 
 	def generate(self, context):
 		raise NotImplementedError()
