@@ -10,4 +10,4 @@ from typing import Callable, Dict
 from ....metamodel import arch, behav
 from ..operands import Operand
 
-OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]]
+OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {}

@@ -32,7 +32,7 @@ class Operand:
 	sign: str
 	immediate: bool = False
 
-	def to_metemodel_ref(
+	def to_metamodel_ref(
 		self, name: str
 	) -> Union[behav.IndexedReference, behav.NamedReference, behav.TypeConv]:
 		"""
@@ -88,7 +88,7 @@ class Operand:
 			right_index = behav.IntLiteral(self.width * l)
 			slices.append(
 				behav.SliceOperation(
-					self.to_metemodel_ref(name), left_index, right_index
+					self.to_metamodel_ref(name), left_index, right_index
 				)
 			)
 

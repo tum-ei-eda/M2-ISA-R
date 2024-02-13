@@ -42,7 +42,7 @@ def mm_assignment(
 	operands: Dict[str, Operand], expr: behav.BaseNode
 ) -> behav.Assignment:
 	"""rd = expr"""
-	rd_ref = operands["rd"].to_metemodel_ref("rd")
+	rd_ref = operands["rd"].to_metamodel_ref("rd")
 	return behav.Assignment(rd_ref, expr)
 
 

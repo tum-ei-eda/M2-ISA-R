@@ -9,9 +9,9 @@ from ..operands import Operand, get_immediates_with_name
 def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	"""rs1 {operator} rs2"""
 	return behav.BinaryOperation(
-		operands["rs1"].to_metemodel_ref("rs1"),
+		operands["rs1"].to_metamodel_ref("rs1"),
 		behav.Operator(operator),
-		operands["rs2"].to_metemodel_ref("rs2"),
+		operands["rs2"].to_metamodel_ref("rs2"),
 	)
 
 
@@ -20,9 +20,9 @@ def alu_imm(operands: Dict[str, Operand], operator: str):
 	# just assuming that there is only 1 imm, could raise an exception if not
 	name, immediate = get_immediates_with_name(operands)[0]
 	return behav.BinaryOperation(
-		operands["rs1"].to_metemodel_ref("rs1"),
+		operands["rs1"].to_metamodel_ref("rs1"),
 		behav.Operator(operator),
-		immediate.to_metemodel_ref(name),
+		immediate.to_metamodel_ref(name),
 	)
 
 def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
@@ -30,7 +30,7 @@ def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	return behav.BinaryOperation(
 		binary_op(operands, operator),
 		behav.Operator(">>"),
-		operands["ls3"].to_metemodel_ref("ls3"),
+		operands["ls3"].to_metamodel_ref("ls3"),
 	)
 
 
@@ -41,7 +41,7 @@ def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation
 		behav.IntLiteral(2),
 		behav.Operator("^"),
 		behav.BinaryOperation(
-			operands["ls3"].to_metemodel_ref("ls3"),
+			operands["ls3"].to_metamodel_ref("ls3"),
 			behav.Operator("-"),
 			behav.IntLiteral(1),
 		),
@@ -51,7 +51,7 @@ def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation
 			binary_op(operands, operator), behav.Operator("+"), pow2_part
 		),
 		behav.Operator(">>"),
-		operands["ls3"].to_metemodel_ref("ls3"),
+		operands["ls3"].to_metamodel_ref("ls3"),
 	)
 
 
@@ -60,9 +60,9 @@ def slet(operands: Dict[str, Operand]) -> behav.Conditional:
 	return behav.Conditional(
 		[
 			behav.BinaryOperation(
-				operands["rs1"].to_metemodel_ref("rs1"),
+				operands["rs1"].to_metamodel_ref("rs1"),
 				behav.Operator("<="),
-				operands["rs2"].to_metemodel_ref("rs2"),
+				operands["rs2"].to_metamodel_ref("rs2"),
 			)
 		],
 		[behav.IntLiteral(1), behav.IntLiteral(0)],
@@ -74,8 +74,8 @@ def min_max(operands: Dict[str, Operand], operator: str = "<") -> behav.Conditio
 	return behav.Conditional(
 		[binary_op(operands, operator)],
 		[
-			operands["rs1"].to_metemodel_ref("rs1"),
-			operands["rs2"].to_metemodel_ref("rs2"),
+			operands["rs1"].to_metamodel_ref("rs1"),
+			operands["rs2"].to_metamodel_ref("rs2"),
 		],
 	)
 
@@ -84,14 +84,14 @@ def mm_abs(operands: Dict[str, Operand]) -> behav.Ternary:
 	"""rs1 < 0 ? -rs1 : rs1"""
 	return behav.Ternary(
 		behav.BinaryOperation(
-			operands["rs1"].to_metemodel_ref("rs1"),
+			operands["rs1"].to_metamodel_ref("rs1"),
 			behav.Operator("<"),
 			behav.IntLiteral(0),
 		),
 		behav.UnaryOperation(
-			behav.Operator("-"), operands["rs1"].to_metemodel_ref("rs1")
+			behav.Operator("-"), operands["rs1"].to_metamodel_ref("rs1")
 		),
-		operands["rs1"].to_metemodel_ref("rs1"),
+		operands["rs1"].to_metamodel_ref("rs1"),
 	)
 
 

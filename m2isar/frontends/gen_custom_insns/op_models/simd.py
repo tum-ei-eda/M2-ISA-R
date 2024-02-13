@@ -13,9 +13,9 @@ XLEN = 32
 def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	"""rs1 {operator} rs2"""
 	return behav.BinaryOperation(
-		operands["rs1"].to_metemodel_ref("rs1"),
+		operands["rs1"].to_metamodel_ref("rs1"),
 		behav.Operator(operator),
-		operands["rs2"].to_metemodel_ref("rs2"),
+		operands["rs2"].to_metamodel_ref("rs2"),
 	)
 
 
@@ -69,7 +69,7 @@ def simd_arithmetics(
 		left_index = behav.IntLiteral(rs2.width - 1)
 		right_index = behav.IntLiteral(0)
 		rs2_slice = behav.SliceOperation(
-			rs2.to_metemodel_ref("rs2"), left_index, right_index
+			rs2.to_metamodel_ref("rs2"), left_index, right_index
 		)
 		for i, rd in enumerate(rd_slices):
 			op = behav.BinaryOperation(
