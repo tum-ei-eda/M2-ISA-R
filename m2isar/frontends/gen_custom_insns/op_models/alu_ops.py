@@ -2,6 +2,7 @@
 
 from functools import partial
 from typing import Callable, Dict
+
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
 
@@ -19,7 +20,9 @@ def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperat
 def alu_imm(operands: Dict[str, Operand], operator: str):
 	"""rs1 {operator} immediate"""
 	mm_operands = to_metamodel_operands(operands)
-	immediate = next(imm for imm in mm_operands.values() if isinstance(imm, behav.NamedReference))
+	immediate = next(
+		imm for imm in mm_operands.values() if isinstance(imm, behav.NamedReference)
+	)
 
 	return behav.BinaryOperation(
 		mm_operands["rs1"],
@@ -27,24 +30,26 @@ def alu_imm(operands: Dict[str, Operand], operator: str):
 		immediate,
 	)
 
+
 def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
-	"""(rs1 {operator} rs2) >> ls3"""
+	"""(rs1 {operator} rs2) >> Is3"""
+	mm_operands = to_metamodel_operands(operands)
 	return behav.BinaryOperation(
 		binary_op(operands, operator),
 		behav.Operator(">>"),
-		operands["ls3"].to_metamodel_ref("ls3"),
+		mm_operands["Is3"],
 	)
 
 
 def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
-	"""(rs1 {operator} rs2 + 2^(ls3-1)) >> ls3"""
+	"""(rs1 {operator} rs2 + 2^(Is3-1)) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
 	pow2_part = behav.BinaryOperation(
 		behav.IntLiteral(2),
 		behav.Operator("^"),
 		behav.BinaryOperation(
-			mm_operands["ls3"],
+			mm_operands["Is3"],
 			behav.Operator("-"),
 			behav.IntLiteral(1),
 		),
@@ -54,7 +59,7 @@ def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation
 			binary_op(operands, operator), behav.Operator("+"), pow2_part
 		),
 		behav.Operator(">>"),
-		mm_operands["ls3"],
+		mm_operands["Is3"],
 	)
 
 
@@ -94,9 +99,7 @@ def mm_abs(operands: Dict[str, Operand]) -> behav.Ternary:
 			behav.Operator("<"),
 			behav.IntLiteral(0),
 		),
-		behav.UnaryOperation(
-			behav.Operator("-"), mm_operands["rs1"]
-		),
+		behav.UnaryOperation(behav.Operator("-"), mm_operands["rs1"]),
 		mm_operands["rs1"],
 	)
 
@@ -110,5 +113,5 @@ OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {
 	"addRN": partial(alu_rn, operator="+"),
 	"subRN": partial(alu_rn, operator="-"),
 	"add": partial(binary_op, operator="+"),
-	"addI": partial(alu_imm, operator="+")
+	"addI": partial(alu_imm, operator="+"),
 }
