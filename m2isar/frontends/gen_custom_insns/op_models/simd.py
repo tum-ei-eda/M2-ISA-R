@@ -7,17 +7,7 @@ from enum import Enum, auto
 from ....metamodel import arch, behav
 from ..operands import Operand
 
-XLEN = 32
-
-
-def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
-	"""rs1 {operator} rs2"""
-	return behav.BinaryOperation(
-		operands["rs1"].to_metamodel_ref("rs1"),
-		behav.Operator(operator),
-		operands["rs2"].to_metamodel_ref("rs2"),
-	)
-
+XLEN = 32 # TODO enable xlen 64 support
 
 # Simd ops can be modeled in 2 ways,
 # 1.: A list of assignments for each of the lanes

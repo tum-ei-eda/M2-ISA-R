@@ -1,4 +1,5 @@
 """Operands used in parsing the instructions"""
+
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
@@ -6,6 +7,8 @@ from typing import Dict, List, Tuple, Union
 from ...metamodel import arch, behav
 
 XLEN = 32  # Could be changed later to support rv64
+
+MetamodelRef = Union[behav.IndexedReference, behav.NamedReference, behav.TypeConv]
 
 
 @dataclass(init=False)
@@ -32,9 +35,7 @@ class Operand:
 	sign: str
 	immediate: bool = False
 
-	def to_metamodel_ref(
-		self, name: str
-	) -> Union[behav.IndexedReference, behav.NamedReference, behav.TypeConv]:
+	def to_metamodel_ref(self, name: str) -> MetamodelRef:
 		"""
 		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations\n
 		If the operands width is smaller than XLEN a SliceOperation will be returned instead
@@ -93,6 +94,14 @@ class Operand:
 			)
 
 		return slices
+
+
+def to_metamodel_operands(operands: Dict[str, Operand]) -> Dict[str, MetamodelRef]:
+	"""Converts a dict of operands to dict with metamodel references"""
+	mm_operands = {
+		opr_name: opr.to_metamodel_ref(opr_name) for opr_name, opr in operands.items()
+	}
+	return mm_operands
 
 
 def get_immediates(operands: Dict[str, Operand]) -> List[Operand]:

@@ -3,26 +3,28 @@
 from functools import partial
 from typing import Callable, Dict
 from ....metamodel import behav
-from ..operands import Operand, get_immediates_with_name
+from ..operands import Operand, to_metamodel_operands
 
 
 def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	"""rs1 {operator} rs2"""
+	mm_operands = to_metamodel_operands(operands)
 	return behav.BinaryOperation(
-		operands["rs1"].to_metamodel_ref("rs1"),
+		mm_operands["rs1"],
 		behav.Operator(operator),
-		operands["rs2"].to_metamodel_ref("rs2"),
+		mm_operands["rs2"],
 	)
 
 
 def alu_imm(operands: Dict[str, Operand], operator: str):
 	"""rs1 {operator} immediate"""
-	# just assuming that there is only 1 imm, could raise an exception if not
-	name, immediate = get_immediates_with_name(operands)[0]
+	mm_operands = to_metamodel_operands(operands)
+	immediate = next(imm for imm in mm_operands.values() if isinstance(imm, behav.NamedReference))
+
 	return behav.BinaryOperation(
-		operands["rs1"].to_metamodel_ref("rs1"),
+		mm_operands["rs1"],
 		behav.Operator(operator),
-		immediate.to_metamodel_ref(name),
+		immediate,
 	)
 
 def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
@@ -37,11 +39,12 @@ def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
 	"""(rs1 {operator} rs2 + 2^(ls3-1)) >> ls3"""
+	mm_operands = to_metamodel_operands(operands)
 	pow2_part = behav.BinaryOperation(
 		behav.IntLiteral(2),
 		behav.Operator("^"),
 		behav.BinaryOperation(
-			operands["ls3"].to_metamodel_ref("ls3"),
+			mm_operands["ls3"],
 			behav.Operator("-"),
 			behav.IntLiteral(1),
 		),
@@ -51,18 +54,19 @@ def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation
 			binary_op(operands, operator), behav.Operator("+"), pow2_part
 		),
 		behav.Operator(">>"),
-		operands["ls3"].to_metamodel_ref("ls3"),
+		mm_operands["ls3"],
 	)
 
 
 def slet(operands: Dict[str, Operand]) -> behav.Conditional:
 	"""rs1 <= rs2 ? 1:0"""
+	mm_operands = to_metamodel_operands(operands)
 	return behav.Conditional(
 		[
 			behav.BinaryOperation(
-				operands["rs1"].to_metamodel_ref("rs1"),
+				mm_operands["rs1"],
 				behav.Operator("<="),
-				operands["rs2"].to_metamodel_ref("rs2"),
+				mm_operands["rs2"],
 			)
 		],
 		[behav.IntLiteral(1), behav.IntLiteral(0)],
@@ -71,27 +75,29 @@ def slet(operands: Dict[str, Operand]) -> behav.Conditional:
 
 def min_max(operands: Dict[str, Operand], operator: str = "<") -> behav.Conditional:
 	"""min/max(rs1, rs2)"""  # TODO this is not yet sign dependant
+	mm_operands = to_metamodel_operands(operands)
 	return behav.Conditional(
 		[binary_op(operands, operator)],
 		[
-			operands["rs1"].to_metamodel_ref("rs1"),
-			operands["rs2"].to_metamodel_ref("rs2"),
+			mm_operands["rs1"],
+			mm_operands["rs2"],
 		],
 	)
 
 
 def mm_abs(operands: Dict[str, Operand]) -> behav.Ternary:
 	"""rs1 < 0 ? -rs1 : rs1"""
+	mm_operands = to_metamodel_operands(operands)
 	return behav.Ternary(
 		behav.BinaryOperation(
-			operands["rs1"].to_metamodel_ref("rs1"),
+			mm_operands["rs1"],
 			behav.Operator("<"),
 			behav.IntLiteral(0),
 		),
 		behav.UnaryOperation(
-			behav.Operator("-"), operands["rs1"].to_metamodel_ref("rs1")
+			behav.Operator("-"), mm_operands["rs1"]
 		),
-		operands["rs1"].to_metamodel_ref("rs1"),
+		mm_operands["rs1"],
 	)
 
 
