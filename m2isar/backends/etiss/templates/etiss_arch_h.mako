@@ -36,7 +36,7 @@ extern etiss::instr::InstructionCollection ${core_name}ISA;
 class ${core_name}Arch : public etiss::CPUArch {
 
 public:
-	${core_name}Arch();
+	${core_name}Arch(unsigned int);
 
 	virtual const std::set<std::string> & getListenerSupportedRegisters();
 
@@ -112,5 +112,6 @@ private:
 	std::set<std::string> listenerSupportedRegisters_;
 	std::set<std::string> headers_;
 	${core_name}GDBCore gdbcore_;
+	unsigned int coreno_;
 };
 #endif

@@ -137,7 +137,8 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		ptr_regs=ptr_regs,
 		actual_regs=actual_regs,
 		alias_regs=alias_regs,
-		initval_regs=initval_regs
+		initval_regs=initval_regs,
+		procno_memory=core.procno_memory
 	)
 
 	with open(output_path / f"{core.name}Arch.cpp", "w", encoding="utf-8") as f:

@@ -200,6 +200,7 @@ class MemoryAttribute(Enum):
 	ETISS_IS_GLOBAL_IRQ_EN = auto()
 	ETISS_IS_IRQ_EN = auto()
 	ETISS_IS_IRQ_PENDING = auto()
+	ETISS_IS_PROCNO = auto()
 
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
@@ -567,6 +568,7 @@ class CoreDef(Named):
 		self.pc_memory = None
 		self.global_irq_en_memory = None
 		self.global_irq_en_mask = None
+		self.procno_memory = None
 		self.irq_en_memory = None
 		self.irq_pending_memory = None
 		self.intrinsics = intrinsics
@@ -591,6 +593,8 @@ class CoreDef(Named):
 				self.main_memory = mem
 			elif MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 				self.global_irq_en_memory = mem
+			elif MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
+				self.procno_memory = mem
 			elif MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
 				self.irq_en_memory = mem
 			elif MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:

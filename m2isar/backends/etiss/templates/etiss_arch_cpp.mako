@@ -49,7 +49,7 @@
 using namespace etiss ;
 using namespace etiss::instr ;
 
-${core_name}Arch::${core_name}Arch():CPUArch("${core_name}")
+${core_name}Arch::${core_name}Arch(unsigned int coreno):CPUArch("${core_name}"), coreno_(coreno)
 {
 	headers_.insert("Arch/${core_name}/${core_name}.h");
 }
@@ -132,6 +132,11 @@ void ${core_name}Arch::resetCPU(ETISS_CPU * cpu,etiss::uint64 * startpointer)
 	${ref}${core_name.lower()}cpu->${reg.name} = ${reg._initval[None]};
 	% endif
 	% endfor
+
+	% if procno_memory is not None:
+<% ref = "*" if len(reg.children) > 0 else "" %> \
+	${ref}${core_name.lower()}cpu->${procno_memory.name} = procno_;
+	% endif
 }
 
 void ${core_name}Arch::deleteCPU(ETISS_CPU *cpu)
