@@ -132,12 +132,12 @@ def return_(self: behav.Return, context: TransformerContext):
 		c = self.expr.generate(context)
 		c.code = f'return {c.code};'
 	else:
-		c = CodeString("return;", StaticType.RW, None, None)
+		c = CodeString("return;", StaticType.RW, None, None, line_infos=[self.line_info])
 
 	return c
 
 def break_(self: behav.Break, context: TransformerContext):
-	return CodeString("break;", StaticType.RW, None, None)
+	return CodeString("break;", StaticType.RW, None, None, line_infos=[self.line_info])
 
 def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext):
 	"""Generate a scalar definition. Calculates the actual required data width and generates
@@ -154,7 +154,7 @@ def scalar_definition(self: behav.ScalarDefinition, context: TransformerContext)
 	actual_size = 1 << (self.scalar.size - 1).bit_length()
 	actual_size = max(actual_size, 8)
 
-	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S)
+	c = CodeString(f'{data_type_map[self.scalar.data_type]}{actual_size} {self.scalar.name}', static, self.scalar.size, self.scalar.data_type == arch.DataType.S, line_infos=self.line_info)
 	#c.scalar = self.scalar
 	return c
 
@@ -205,7 +205,7 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			if fn.size is not None:
 				exc_code = "cpu->exception = "
 
-		c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None)
+		c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None, line_infos=self.line_info)
 		c.mem_ids = mem_ids
 		if fn.throws and not context.ignore_static:
 			c.check_trap = True
@@ -263,7 +263,7 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		#if fn.throws and not context.ignore_static:
 		#	goto_code = '; goto instr_exit_" + std::to_string(ic.current_address_) + "'
 
-		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected)
+		c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected, self.line_info)
 		c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
 		if fn.throws and not context.ignore_static:
@@ -407,7 +407,7 @@ def ternary(self: behav.Ternary, context: TransformerContext):
 			else_expr.code = context.make_static(else_expr.code, else_expr.signed)
 
 	c = CodeString(f'({cond}) ? ({then_expr}) : ({else_expr})', static, then_expr.size if then_expr.size > else_expr.size else else_expr.size,
-		then_expr.signed or else_expr.signed, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected))
+		then_expr.signed or else_expr.signed, set.union(cond.regs_affected, then_expr.regs_affected, else_expr.regs_affected), [self.line_info, self.cond.line_info, self.then_expr.line_info, self.else_expr.line_info])
 	c.mem_ids = cond.mem_ids + then_expr.mem_ids + else_expr.mem_ids
 
 	return c
@@ -471,7 +471,7 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 				logger.debug("assuming mem write size at %d", expr.size)
 				target.mem_ids[0].access_size = expr.size
 
-	c = CodeString(f"{target.code} = {expr.code};", static, None, None)
+	c = CodeString(f"{target.code} = {expr.code};", static, None, None, line_infos=[self.line_info, self.target.line_info, self.expr.line_info])
 
 	c.function_calls.extend(target.function_calls)
 	c.function_calls.extend(expr.function_calls)
@@ -496,7 +496,7 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 		left.code = context.make_static(left.code, left.signed)
 
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
-		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected))
+		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected), [self.line_info, self.left.line_info, self.right.line_info])
 	# keep track of any memory accesses
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
@@ -505,7 +505,7 @@ def unary_operation(self: behav.UnaryOperation, context: TransformerContext):
 	op = self.op
 	right = self.right.generate(context)
 
-	c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.regs_affected)
+	c = CodeString(f'{op.value}({right.code})', right.static, right.size, right.signed, right.regs_affected, [self.line_info, self.right.line_info])
 	c.mem_ids = right.mem_ids
 	return c
 
@@ -538,7 +538,7 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 
 	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed,
-		set.union(expr.regs_affected, left.regs_affected, right.regs_affected))
+		set.union(expr.regs_affected, left.regs_affected, right.regs_affected), [self.line_info, self.left.line_info, self.right.line_info])
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
 	return c
 
@@ -556,7 +556,7 @@ def concat_operation(self: behav.ConcatOperation, context: TransformerContext):
 
 	new_size = left.size + right.size
 	c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
-		set.union(left.regs_affected, right.regs_affected), line_infos=[self.line_info, left.line_info, right.line_info])
+		set.union(left.regs_affected, right.regs_affected), [self.line_info, self.left.line_info, self.right.line_info])
 	c.mem_ids = left.mem_ids + right.mem_ids
 	return c
 
@@ -661,7 +661,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 
 	if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 		# generate memory access if main memory is accessed
-		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[self.line_info, index.line_info])
+		c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[self.line_info, self.index.line_info])
 		c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 		context.mem_var_count += 1
 		return c
@@ -672,7 +672,7 @@ def indexed_reference(self: behav.IndexedReference, context: TransformerContext)
 		code_str = '*' + code_str
 	if size != referred_mem.size:
 		code_str = f'(etiss_uint{size})' + code_str
-	c = CodeString(code_str, static, size, False, line_infos=[self.line_info, index.line_info])
+	c = CodeString(code_str, static, size, False, line_infos=[self.line_info, self.index.line_info])
 	if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
 		c.regs_affected.add(index_code)
 	return c
@@ -717,7 +717,7 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 	else:
 		code_str = f'({data_type_map[self.data_type]}{self.actual_size})({code_str})'
 
-	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.regs_affected, line_infos=[self.line_info, expr.line_info])
+	c = CodeString(code_str, expr.static, self.size, self.data_type == arch.DataType.S, expr.regs_affected, line_infos=[self.line_info, self.expr.line_info])
 	c.mem_ids = expr.mem_ids
 	c.mem_corrected = expr.mem_corrected
 
