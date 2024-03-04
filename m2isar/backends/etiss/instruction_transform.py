@@ -66,6 +66,10 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 		code_lines.append(context.wrap_codestring(f'{arg.code}', arg.static))
 
+		line_infos = [str(x.id) for x in flatten(arg.line_infos) if x is not None]
+		if len(line_infos) > 0:
+			code_lines.append(context.wrap_codestring(f"etiss_coverage_count({len(line_infos)}, {', '.join(line_infos)});"))
+
 		#if arg.check_trap:
 		#	code_lines.append(context.wrap_codestring('goto instr_exit_" + std::to_string(ic.current_address_) + ";'))
 
