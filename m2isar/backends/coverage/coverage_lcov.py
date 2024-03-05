@@ -23,8 +23,9 @@ def main():
 	# read command line args
 	parser = argparse.ArgumentParser()
 	parser.add_argument('top_level', help="A .lineinfo file containing the line info database.")
-	parser.add_argument('line_data', help="The CSV line data file matching the model.")
+	parser.add_argument('line_data', help="The CSV line data file matching the model.", nargs="+")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+	parser.add_argument("-o", "--outfile", required=True)
 	args = parser.parse_args()
 
 	# initialize logging
@@ -50,45 +51,39 @@ def main():
 	with open(model_fname, 'rb') as f:
 		lineinfos: "dict[int, LineInfo]" = pickle.load(f)
 
-	line_data_path = pathlib.Path(args.line_data)
-	abs_line_data = line_data_path.resolve()
-	output_base_path = abs_line_data.parent
-
-
-	linedata: "dict[LineInfo, int]" = {}
-	with open(line_data_path, 'r') as f:
-		f.readline()
-		for line in f:
-			l_id, count = line.strip().split(";")
-			linedata[lineinfos[int(l_id)]] = int(count)
 
 	linedata_by_file = defaultdict(dict)
-
-	checked_lineinfo = {}
-
-	def already_checked(l: LineInfo, count):
-		for l2, count2 in checked_lineinfo.items():
-			if l.line_eq(l2):
-				return True
-		return False
-
-	for lineinfo, count in tqdm(linedata.items()):
-		if already_checked(lineinfo, count):
-			continue
-
-		checked_lineinfo[lineinfo] = count
-
-		linedata_by_file[lineinfo.file_path][lineinfo.start_line_no] = count
-
 	for lineinfo in tqdm(lineinfos.values()):
-		if already_checked(lineinfo, 0):
-			continue
-
-		checked_lineinfo[lineinfo] = 0
-
 		linedata_by_file[lineinfo.file_path][lineinfo.start_line_no] = 0
 
-	with open(output_base_path / (abs_line_data.stem + '.info'), 'w') as f:
+
+	for line_data_fname in args.line_data:
+		line_data_path = pathlib.Path(line_data_fname)
+
+		linedata: "dict[LineInfo, int]" = {}
+		with open(line_data_path, 'r') as f:
+			f.readline()
+			for line in f:
+				l_id, count = line.strip().split(";")
+				linedata[lineinfos[int(l_id)]] = int(count)
+
+		checked_lineinfo = {}
+
+		def already_checked(l: LineInfo, count):
+			for l2, count2 in checked_lineinfo.items():
+				if l.line_eq(l2):
+					return True
+			return False
+
+		for lineinfo, count in tqdm(linedata.items()):
+			if already_checked(lineinfo, count):
+				continue
+
+			checked_lineinfo[lineinfo] = count
+
+			linedata_by_file[lineinfo.file_path][lineinfo.start_line_no] += count
+
+	with open(args.outfile, 'w') as f:
 		for filepath, lines in tqdm(linedata_by_file.items()):
 			f.write("TN:\n")
 			f.write(f"SF:{filepath}\n")
