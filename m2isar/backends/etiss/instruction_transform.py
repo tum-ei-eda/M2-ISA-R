@@ -51,7 +51,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 
 			raise_fn_str = [context.wrap_codestring(c.code, c.static) for c in raise_fn_call]
 
-		for f_id in arg.function_calls:
+		for f_id in arg.function_calls: # TODO: rework so that cascaded function calls and memory reads work properly
 			code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{f_id.fn_call.actual_size} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
 			code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};', arg.static))
 			code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";', arg.static))
@@ -288,6 +288,10 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	# generate conditions and statement blocks
 	conds: "list[CodeString]" = [x.generate(context) for x in self.conds]
 	stmts: "list[list[CodeString]]" = [] #= [[y.generate(context) for y in x] for x in self.stmts]
+
+	for cond in conds[1:]:
+		conds[0].mem_ids.extend(cond.mem_ids)
+		cond.mem_ids.clear()
 
 	for stmt in self.stmts:
 		ret = stmt.generate(context)

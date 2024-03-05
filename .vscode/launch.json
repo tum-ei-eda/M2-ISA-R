@@ -49,6 +49,7 @@
             "args": [
                 "${input:inputFile}",
                 "RV32IMACFD",
+                "../etiss_riscv_examples/install/bin/hello_world"
             ],
             "stopOnEntry": false,
             "justMyCode": false
@@ -70,6 +71,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
+            "args": ["${input:inputFile}"],
             "console": "integratedTerminal",
             "justMyCode": false
         }
