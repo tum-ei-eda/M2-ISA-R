@@ -79,9 +79,26 @@ class LineInfo:
 	file_path: str
 	start_chr: int
 	stop_chr: int
+	start_line_no: int
+	stop_line_no: int
 
 	__id_counter = 0
+	database = {}
 
 	def __post_init__(self):
 		self.id = LineInfo.__id_counter
 		LineInfo.__id_counter += 1
+		LineInfo.database[self.id] = self
+
+	def __hash__(self) -> int:
+		return hash(self.id)
+
+	def line_eq(self, other: "LineInfo"):
+		if isinstance(other, LineInfo):
+			return self.file_path == other.file_path and \
+				self.start_line_no == other.start_line_no and \
+				self.stop_line_no == other.stop_line_no
+		return NotImplemented
+
+	def line_hash(self):
+		return hash((self.file_path, self.start_line_no, self.stop_line_no))
