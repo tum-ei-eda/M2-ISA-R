@@ -14,7 +14,7 @@ import pickle
 import sys
 
 from ... import M2Error, M2SyntaxError
-from ...metamodel import arch, behav, patch_model
+from ...metamodel import arch, behav, patch_model, LineInfo
 from . import expr_interpreter
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
@@ -62,7 +62,7 @@ def main():
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
-	models: "dict[tuple(int, int), arch.CoreDef]" = {}
+	models: "dict[tuple[int, int], arch.CoreDef]" = {}
 
 	patch_model(expr_interpreter)
 
@@ -251,6 +251,8 @@ def main():
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
 		pickle.dump(models, f)
+	with open(model_path / (abs_top_level.stem + '.lineinfo'), 'wb') as f:
+		pickle.dump(LineInfo.database, f)
 
 if __name__ == '__main__':
 	main()
