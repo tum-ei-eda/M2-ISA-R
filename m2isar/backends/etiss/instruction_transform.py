@@ -119,7 +119,7 @@ def operation(self: behav.Operation, context: TransformerContext):
 def block(self: behav.Block, context: TransformerContext):
 	stmts = [stmt.generate(context) for stmt in self.statements]
 
-	pre = [CodeString("{ // block", StaticType.READ, None, None)]
+	pre = [CodeString("{ // block", StaticType.READ, None, None, line_infos=self.line_info)]
 	post = [CodeString("} // block", StaticType.READ, None, None)]
 
 	if not context.ignore_static:
