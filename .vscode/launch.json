@@ -49,9 +49,20 @@
             "args": [
                 "${input:inputFile}",
                 "RV32IMACFD",
-                "/home/wysiwyng/work/etiss-mine/install/examples/SW/riscv/build/riscv_example_s0.bin"
             ],
-            "stopOnEntry": true,
+            "stopOnEntry": false,
+            "justMyCode": false
+        },
+        {
+            "name": "Coverage",
+            "type": "python",
+            "request": "launch",
+            "module": "m2isar.backends.coverage.coverage_lcov",
+            "args": [
+                "${input:inputFile}",
+                "../etiss_dev/install/bin/coverage.csv"
+            ],
+            "stopOnEntry": false,
             "justMyCode": false
         },
         {
