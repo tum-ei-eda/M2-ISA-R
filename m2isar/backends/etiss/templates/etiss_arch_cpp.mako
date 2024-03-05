@@ -135,7 +135,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU * cpu,etiss::uint64 * startpointer)
 
 	% if procno_memory is not None:
 <% ref = "*" if len(reg.children) > 0 else "" %> \
-	${ref}${core_name.lower()}cpu->${procno_memory.name} = procno_;
+	${ref}${core_name.lower()}cpu->${procno_memory.name} = coreno_;
 	% endif
 }
 
