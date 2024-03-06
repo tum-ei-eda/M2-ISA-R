@@ -1,10 +1,13 @@
 """Generate a set of M2-ISA-R metamodel Instructions from a yaml file"""
+
 import argparse
 import logging
 import pathlib
 import pickle
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+import yaml
 
 from . import input_parser
 
@@ -67,8 +70,8 @@ def main():
 
 	# parse input
 	logger.info("Parsing input...")
-	filename = pathlib.Path(args.filename)
-	metadata, raw_instruction_sets = input_parser.parse(filename)
+	filepath = pathlib.Path(args.filename)
+	metadata, raw_instruction_sets = input_parser.parse(filepath)
 	logger.debug(metadata)
 
 	# generating instruction objects
@@ -78,13 +81,15 @@ def main():
 		for inst in inst_set:
 			expanded_insts = inst.generate()
 			inst_count += len(expanded_insts)
-			inst_sets[set_name] = list(map(lambda i : i.to_metamodel(metadata.prefix), expanded_insts))
+			inst_sets[set_name] = list(
+				map(lambda i: i.to_metamodel(metadata.prefix), expanded_insts)
+			)
 
 	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
 
 	# parsing output path
 	if args.output is None:
-		out_path = filename.parent / (filename.stem)
+		out_path = filepath.parent / (filepath.stem)
 	else:
 		out_path = pathlib.Path(args.output)
 
@@ -105,20 +110,17 @@ def main():
 	m2_inst_sets = {}
 	for set_name, mm_instructions in inst_sets.items():
 		instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
-		name = metadata.ext_name + '_' + set_name
+		name = metadata.ext_name + "_" + set_name
 		m2_inst_sets[name] = arch.InstructionSet(
-				name=name,
-				extension=extends,
-				constants=constants,
-				memories=memories,
-				functions={},
-				instructions=instructions_dict,
-			)
+			name=name,
+			extension=extends,
+			constants=constants,
+			memories=memories,
+			functions={},
+			instructions=instructions_dict,
+		)
 
-
-	model = {
-		"sets": m2_inst_sets
-	}
+	model = {"sets": m2_inst_sets}
 
 	# if enabled add a core to the dumped model
 	if args.core:
@@ -146,11 +148,10 @@ def main():
 					]
 				)
 
-		instr_classes = set()
-		if metadata.xlen == 32:
-			instr_classes.add(32)
-		if metadata.xlen == 64:
-			instr_classes.add(64)
+		instr_classes = {32}
+		# Not needed, dont support 64bit encodings
+		# if metadata.xlen == 64:
+		# 	instr_classes.add(64)
 		if "c" in metadata.used_extensions:
 			instr_classes.add(16)
 
@@ -162,7 +163,7 @@ def main():
 			memories=memories,
 			memory_aliases={},
 			functions={},
-			instructions={}, # is currently not used by the cdsl2 writer
+			instructions={},  # is currently not used by the cdsl2 writer
 			instr_classes=instr_classes,
 			intrinsics={},
 		)
@@ -190,6 +191,62 @@ def main():
 			check=True,
 			text=True,
 		)
+
+	# output config for seal5
+	# Format
+	legalizations = {
+		"riscv": {
+			"legalization": {
+				"gisel": {
+					"ops": [
+						# TODO this needs to be moved to instructions generation
+						# also not sure how to map the instructions to the gmir ops
+						{"name": ["OPName"], "types": [], "onlyif": []},
+						{"name": ["OPName"], "types": [], "onlyif": []},
+						{"name": ["OPName"], "types": [], "onlyif": []},
+					]
+				}
+			}
+		}
+	}
+
+
+def seal5_extensions_yaml(
+	extension_name: str,
+	extensions: list[str],
+	ext_prefix: Optional[str],
+	path: pathlib.Path,
+):
+	"""Create the config file needed by seal5 containing the extension information"""
+	content = {
+		"extensions": {},  # TODO use a loop or dict comprehension to add all the extensions
+		"passes": {"per_model": {}},
+	}
+	if ext_prefix is None:
+		ext_prefix = extension_name
+
+	for ext in extensions:
+		content["extensions"][ext] = {
+			"feature": ext,  # TODO replace the full name with the prefix
+			"arch": ext,
+			"version": "1.0",
+			"experimental": False,
+			"vendor": True,
+		}
+
+		content["per_model"][ext] = { # TODO currently hard code, but it should be fine
+			"skip": [
+				"riscv_features",
+				"riscv_isa_info",
+				"riscv_instr_formats",
+				"riscv_instr_info",
+				"behav_to_pat",
+			],
+			"override": {"behav_to_pat": {"patterns": False}},
+		}
+
+	with open(path / extension_name, "w", encoding="utf-8") as file:
+		yaml.safe_dump(content, file)
 
 
 def to_coredsl_name(extensions: str, xlen: int) -> List[str]:
