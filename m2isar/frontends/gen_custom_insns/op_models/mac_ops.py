@@ -1,10 +1,11 @@
 """Instructions from Core-V Mac"""
 
 from functools import partial
-from typing import Callable, Dict
+from typing import Dict
 
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
+from .template import OpcodeDict
 
 
 def mac(operands: Dict[str, Operand], operator: str = "+"):
@@ -79,7 +80,7 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 	)
 
 
-OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {
+OPS: OpcodeDict = {
 	"mac": partial(mac, operator="+"),
 	"msu": partial(mac, operator="-"),
 	"muln": partial(mul_n, hh=False, mac_mode=False),

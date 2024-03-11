@@ -5,11 +5,14 @@ import logging
 import pathlib
 import pickle
 import subprocess
-from typing import Dict, List, Optional
-
-import yaml
+from typing import Dict, List
 
 from . import input_parser
+from .seal5_support import (
+	GMIRLegalization,
+	save_extensions_yaml,
+	save_legalizations_yaml,
+)
 
 from ...metamodel import arch
 
@@ -61,7 +64,10 @@ def main():
 		"--backend",
 		default="cdsl",
 		choices=["cdsl"],
-		help="""Directly calls the coredsl backend""",  # Could add the other backends in the future
+		help="Directly calls the coredsl backend",
+	)
+	parser.add_argument(
+		"--no_seal5", action="store_true", help="Don't save legalizations for seal5"
 	)
 	args = parser.parse_args()
 
@@ -76,14 +82,19 @@ def main():
 
 	# generating instruction objects
 	inst_sets: dict[str, list[arch.Instruction]] = {}
+	legalizations: dict[str, list[GMIRLegalization]] = {}
 	inst_count = 0
-	for set_name, inst_set in raw_instruction_sets.items():
-		for inst in inst_set:
-			expanded_insts = inst.generate()
-			inst_count += len(expanded_insts)
-			inst_sets[set_name] = list(
-				map(lambda i: i.to_metamodel(metadata.prefix), expanded_insts)
-			)
+	for set_name, inst_list in raw_instruction_sets.items():
+		inst_sets[set_name] = []
+		legalizations[set_name] = []
+		for inst in inst_list:
+			expanded_instructions = inst.generate()
+			inst_count += len(expanded_instructions)
+			for i in expanded_instructions:
+				instruction, legalization = i.to_metamodel(metadata.prefix)
+				inst_sets[set_name].append(instruction)
+				if legalization:
+					legalizations[set_name].append(legalization)
 
 	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
 
@@ -192,61 +203,18 @@ def main():
 			text=True,
 		)
 
-	# output config for seal5
-	# Format
-	legalizations = {
-		"riscv": {
-			"legalization": {
-				"gisel": {
-					"ops": [
-						# TODO this needs to be moved to instructions generation
-						# also not sure how to map the instructions to the gmir ops
-						{"name": ["OPName"], "types": [], "onlyif": []},
-						{"name": ["OPName"], "types": [], "onlyif": []},
-						{"name": ["OPName"], "types": [], "onlyif": []},
-					]
-				}
-			}
-		}
-	}
-
-
-def seal5_extensions_yaml(
-	extension_name: str,
-	extensions: list[str],
-	ext_prefix: Optional[str],
-	path: pathlib.Path,
-):
-	"""Create the config file needed by seal5 containing the extension information"""
-	content = {
-		"extensions": {},  # TODO use a loop or dict comprehension to add all the extensions
-		"passes": {"per_model": {}},
-	}
-	if ext_prefix is None:
-		ext_prefix = extension_name
-
-	for ext in extensions:
-		content["extensions"][ext] = {
-			"feature": ext,  # TODO replace the full name with the prefix
-			"arch": ext,
-			"version": "1.0",
-			"experimental": False,
-			"vendor": True,
-		}
-
-		content["per_model"][ext] = { # TODO currently hard code, but it should be fine
-			"skip": [
-				"riscv_features",
-				"riscv_isa_info",
-				"riscv_instr_formats",
-				"riscv_instr_info",
-				"behav_to_pat",
-			],
-			"override": {"behav_to_pat": {"patterns": False}},
-		}
-
-	with open(path / extension_name, "w", encoding="utf-8") as file:
-		yaml.safe_dump(content, file)
+	if not args.no_seal5:
+		save_legalizations_yaml(
+			extension=metadata.ext_name,
+			legalizations=legalizations,
+			path=out_path.parent,
+		)
+		save_extensions_yaml(
+			extension_name=metadata.ext_name,
+			extensions=list(inst_sets.keys()),
+			ext_prefix=metadata.prefix,
+			path=out_path.parent,
+		)
 
 
 def to_coredsl_name(extensions: str, xlen: int) -> List[str]:

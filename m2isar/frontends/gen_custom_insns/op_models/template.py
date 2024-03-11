@@ -6,9 +6,10 @@ The Dict values need to be a Callables that take
 """
 
 from functools import partial
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Optional, Union
 
 from ....metamodel import arch, behav
 from ..operands import Operand
+from ..seal5_support import GMIRLegalization
 
-OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {}
+OpcodeDict = Dict[str, Callable[[Dict[str, Operand]], tuple[Union[behav.BaseNode, List[behav.BaseNode]], Optional[GMIRLegalization]]]]

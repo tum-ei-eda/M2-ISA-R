@@ -8,32 +8,34 @@ They need to return any subclass of behav.Basenode, but not behav.assignment
 The reasoning behind it, is that this way they can be chained to create new instructions
 """
 
-from typing import Callable, Dict, List, Union
+from typing import Dict, Optional
 
 from .op_models import alu_ops, simd
 from ...metamodel import behav
 from .operands import Operand
+from .seal5_support import GMIRLegalization
+from .op_models.template import OpcodeDict
 
 
-def parse_op(operands: Dict[str, Operand], name: str) -> behav.Operation:
+def parse_op(operands: Dict[str, Operand], name: str) -> tuple[behav.Operation, Optional[GMIRLegalization]]:
 	"""Looks up the op name and puts it into an assignment"""
 	try:
-		expr = OPS[name](operands)
+		behaviour, legalization = OPS[name](operands)
 	except KeyError as exc:
 		raise KeyError(f"Instruction '{name}' not implemented!") from exc
 
-	if isinstance(expr, behav.Operation):
-		return expr
-	if isinstance(expr, behav.Assignment):
-		return behav.Operation([expr])
-	if isinstance(expr, list) and isinstance(expr[0], behav.Assignment):
+	if isinstance(behaviour, behav.Operation):
+		return (behaviour, legalization)
+	if isinstance(behaviour, behav.Assignment):
+		return (behav.Operation([behaviour]), legalization)
+	if isinstance(behaviour, list) and isinstance(behaviour[0], behav.Assignment):
 		# assuming simd instr
-		return behav.Operation(expr)
-	if isinstance(expr, behav.BaseNode):
+		return (behav.Operation(behaviour), legalization)
+	if isinstance(behaviour, behav.BaseNode):
 		# if its not an operation, list of assignment, or assignment
 		# i just assume for now that we need to put it in an assignment
 		# this would need to be changed to allow for e.g. load/store
-		return behav.Operation([mm_assignment(operands, expr)])
+		return (behav.Operation([mm_assignment(operands, behaviour)]), legalization)
 
 	raise TypeError(f"The entry for Key '{name}' produces an unsupported type!")
 
@@ -47,9 +49,7 @@ def mm_assignment(
 
 
 # operations without assignment or behav.Operations()
-OPS: Dict[
-	str, Callable[[Dict[str, Operand]], Union[behav.BaseNode, List[behav.BaseNode]]]
-] = {}
+OPS: OpcodeDict = {}
 
 # TODO This could maybe be done automaticly for all the files in the instructions folder
 OPS.update(alu_ops.OPS)

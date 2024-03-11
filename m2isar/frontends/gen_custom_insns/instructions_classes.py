@@ -12,6 +12,7 @@ from .operands import (
 	create_operand_combinations,
 	simplify_operands,
 )
+from .seal5_support import GMIRLegalization
 
 
 @dataclass
@@ -24,7 +25,8 @@ class Instruction:
 
 	def format_name(self) -> None:
 		"""Formates the instruction name using the operands"""
-		self.name = self.name.format(**self.operands)
+		# TODO build dict for format, which has width as ".b"/".h"
+		self.name = self.name.format(**self.operands, op=self.op)
 
 	def resolve_references(self) -> None:
 		"""Resolves references to other operands"""
@@ -46,7 +48,7 @@ class Instruction:
 
 	def to_metamodel(
 		self, instruction_prefix: Optional[str] = None
-	) -> arch.Instruction:
+	) -> tuple[arch.Instruction, Optional[GMIRLegalization]]:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		try:
 			encoding = get_mm_encoding(self.operands)
@@ -75,16 +77,16 @@ class Instruction:
 		)
 		assembly = ", ".join(operand_names)
 
-		operation = parse_op(operands=self.operands, name=self.op)
+		operation, legalization = parse_op(operands=self.operands, name=self.op)
 
-		return arch.Instruction(
+		return (arch.Instruction(
 			name=self.name,
 			attributes={},
 			encoding=encoding,
 			mnemonic=mnemonic,
 			assembly=assembly,
 			operation=operation,
-		)
+		), legalization)
 
 
 class InstructionCollection:

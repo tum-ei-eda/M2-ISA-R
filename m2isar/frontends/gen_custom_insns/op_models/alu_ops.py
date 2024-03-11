@@ -1,10 +1,14 @@
 """ALU instructions of the core v extension"""
 
 from functools import partial
-from typing import Callable, Dict
+from typing import Dict
 
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
+from ..seal5_support import GMIRLegalization, operand_types
+from .template import OpcodeDict
+
+# TODO add gmir legalization to every instruction
 
 
 def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
@@ -78,15 +82,31 @@ def slet(operands: Dict[str, Operand]) -> behav.Conditional:
 	)
 
 
-def min_max(operands: Dict[str, Operand], operator: str = "<") -> behav.Conditional:
-	"""min/max(rs1, rs2)"""  # TODO this is not yet sign dependant
+def min_max(operands: Dict[str, Operand], operator: str = "<"):
+	"""min/max(rs1, rs2)"""
+	# From https://github.com/Minres/CoreDSL/wiki/Expressions#comparisons:
+	# "They perform a comparison based on the value represented by the operands,
+	# 	and do not take the operand types into account."
+	if operator not in ("<", ">"):
+		raise ValueError("Operator must be either '<' or '>'!")
+
+	if any(opr.sign == "s" for opr in operands.values()):
+		generic_opc = "G_SMIN" if operator == "<" else "G_SMAX"
+	else:
+		generic_opc = "G_UMIN" if operator == "<" else "G_UMAX"
+
+	types = operand_types(operands)
+
 	mm_operands = to_metamodel_operands(operands)
-	return behav.Conditional(
-		[binary_op(operands, operator)],
-		[
-			mm_operands["rs1"],
-			mm_operands["rs2"],
-		],
+	return (
+		behav.Conditional(
+			[binary_op(operands, operator)],
+			[
+				mm_operands["rs1"],
+				mm_operands["rs2"],
+			],
+		),
+		GMIRLegalization([generic_opc], types),
 	)
 
 
@@ -104,12 +124,19 @@ def mm_abs(operands: Dict[str, Operand]) -> behav.Ternary:
 	)
 
 
-OPS: Dict[str, Callable[[Dict[str, Operand]], behav.BaseNode]] = {
+def ext(operands: Dict[str, Operand]):
+	"""{S,Z}ext(rs1)"""
+	return operands["rs1"].to_metamodel_ref("rs1")
+
+
+OPS: OpcodeDict = {
 	"abs": partial(mm_abs),
-	"addN": partial(alu_n, operator="+"),
-	"subN": partial(alu_n, operator="-"),
+	"slet": partial(slet),
 	"min": partial(min_max, operator="<"),
 	"max": partial(min_max, operator=">"),
+	"ext": partial(ext),
+	"addN": partial(alu_n, operator="+"),
+	"subN": partial(alu_n, operator="-"),
 	"addRN": partial(alu_rn, operator="+"),
 	"subRN": partial(alu_rn, operator="-"),
 	"add": partial(binary_op, operator="+"),

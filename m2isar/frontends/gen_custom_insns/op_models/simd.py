@@ -1,13 +1,12 @@
 """SIMD ALU instructions of the core v extension"""
 
 from functools import partial
-from typing import Callable, Dict, List, Union
+from typing import Dict, List
 from enum import Enum, auto
 
 from ....metamodel import arch, behav
 from ..operands import Operand
-
-XLEN = 32 # TODO enable xlen 64 support
+from .template import OpcodeDict
 
 # Simd ops can be modeled in 2 ways,
 # 1.: A list of assignments for each of the lanes
@@ -92,9 +91,7 @@ def simd_arithmetics(
 	return assingments
 
 
-OPS: Dict[
-	str, Callable[[Dict[str, Operand]], Union[behav.BaseNode, List[behav.BaseNode]]]
-] = {
+OPS: OpcodeDict = {
 	"simd_sub": partial(simd_arithmetics, operator="-"),
 	"simd_add": partial(simd_arithmetics, operator="+"),
 	"simd_add.sc": partial(simd_arithmetics, operator="+", mode=SimdMode.SC),
