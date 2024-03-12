@@ -82,7 +82,7 @@ def alu_imm(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def alu_n(operands: Dict[str, Operand], operator: str):
+def arithmetic_n(operands: Dict[str, Operand], operator: str):
 	"""(rs1 {operator} rs2) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
 	return (
@@ -95,7 +95,7 @@ def alu_n(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def alu_rn(operands: Dict[str, Operand], operator: str):
+def arithmetic_rn(operands: Dict[str, Operand], operator: str):
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
 	"""(rs1 {operator} rs2 + 2^(Is3-1)) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
@@ -115,6 +115,54 @@ def alu_rn(operands: Dict[str, Operand], operator: str):
 			),
 			behav.Operator(">>"),
 			mm_operands["Is3"],
+		),
+		None,
+	)
+
+
+def arithmetic_nr(operands: Dict[str, Operand], operator: str):
+	"""(rd +/- rs1) >> rs2[4:0], see cv.addNr"""
+	mm_operands = to_metamodel_operands(operands)
+	return (
+		behav.BinaryOperation(
+			behav.BinaryOperation(
+				mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
+			),
+			behav.Operator(">>"),
+			behav.SliceOperation(
+				mm_operands["rs2"], behav.IntLiteral(4), behav.IntLiteral(0)
+			),
+		),
+		None,
+	)
+
+
+def arithmetic_rnr(operands: Dict[str, Operand], operator: str):
+	"""(rD + rs1 + 2^(rs2[4:0]-1)) >>> rs2[4:0]; e.g. cv.addRNr"""
+	mm_operands = to_metamodel_operands(operands)
+	rs2_slice = behav.SliceOperation(
+		mm_operands["rs2"], behav.IntLiteral(4), behav.IntLiteral(0)
+	)
+	pow2_part = behav.BinaryOperation(
+		behav.IntLiteral(2),
+		behav.Operator("^"),
+		behav.BinaryOperation(
+			rs2_slice,
+			behav.Operator("-"),
+			behav.IntLiteral(1),
+		),
+	)
+	return (
+		behav.BinaryOperation(
+			behav.BinaryOperation(
+				behav.BinaryOperation(
+					mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
+				),
+				behav.Operator("+"),
+				pow2_part,
+			),
+			behav.Operator(">>"),
+			rs2_slice,
 		),
 		None,
 	)
@@ -192,16 +240,21 @@ def ext(operands: Dict[str, Operand]):
 	return (operands["rs1"].to_metamodel_ref("rs1"), None)
 
 
+# TODO add Clip
 OPS: OpcodeDict = {
 	"abs": partial(mm_abs),
 	"slet": partial(slet),
 	"min": partial(min_max, operator="<"),
 	"max": partial(min_max, operator=">"),
 	"ext": partial(ext),
-	"addN": partial(alu_n, operator="+"),
-	"subN": partial(alu_n, operator="-"),
-	"addRN": partial(alu_rn, operator="+"),
-	"subRN": partial(alu_rn, operator="-"),
+	"addN": partial(arithmetic_n, operator="+"),
+	"subN": partial(arithmetic_n, operator="-"),
+	"addRN": partial(arithmetic_rn, operator="+"),
+	"subRN": partial(arithmetic_rn, operator="-"),
+	"addNr": partial(arithmetic_nr, operator="+"),
+	"subNr": partial(arithmetic_nr, operator="-"),
+	"addRNr": partial(arithmetic_rnr, operator="+"),
+	"subRNr": partial(arithmetic_rnr, operator="-"),
 	"add": partial(binary_op, operator="+"),
 	"addI": partial(alu_imm, operator="+"),
 }
