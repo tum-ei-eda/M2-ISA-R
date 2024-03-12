@@ -8,11 +8,10 @@ from ..operands import Operand, to_metamodel_operands
 from ..seal5_support import GMIRLegalization, operand_types
 from .template import OpcodeDict
 
-# TODO add gmir legalization to every instruction
 
-
-def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
-	"""rs1 {operator} rs2"""
+def binary_op_helper(operands: Dict[str, Operand], operator: str):
+	"""rs1 {operator} rs2\n
+	Only use this as a helper functions to reduce boilerplate code"""
 	mm_operands = to_metamodel_operands(operands)
 	return behav.BinaryOperation(
 		mm_operands["rs1"],
@@ -21,31 +20,86 @@ def binary_op(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperat
 	)
 
 
+def binary_op(operands: Dict[str, Operand], operator: str):
+	"""rs1 {operator} rs2, with legalizations\n
+	Use this function if you need legalizations"""
+	types = operand_types(operands)
+	for ty in types:
+		if "32" in ty:  # Would need to be addapted for XLEN 64 support
+			types.remove(ty)
+	op_dict = {
+		"+": ["G_ADD"],
+		"-": ["G_SUB"],
+		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
+		"|": ["G_OR"],
+		"^": ["G_XOR"],
+	}
+	if types:
+		legalization = GMIRLegalization(op_dict[operator], types)
+	else:
+		legalization = None
+
+	mm_operands = to_metamodel_operands(operands)
+	return (
+		behav.BinaryOperation(
+			mm_operands["rs1"],
+			behav.Operator(operator),
+			mm_operands["rs2"],
+		),
+		legalization,
+	)
+
+
 def alu_imm(operands: Dict[str, Operand], operator: str):
 	"""rs1 {operator} immediate"""
 	mm_operands = to_metamodel_operands(operands)
-	immediate = next(
+	immediate = [
 		imm for imm in mm_operands.values() if isinstance(imm, behav.NamedReference)
+	]
+	if len(immediate) > 1:
+		raise RuntimeError("More than 1 immediate found!")
+	immediate = immediate[0]
+
+	types = operand_types(operands)
+	for ty in types:
+		if "32" in ty:  # Would need to be addapted for XLEN 64 support
+			types.remove(ty)
+	op_dict = {
+		"+": ["G_ADD"],
+		"-": ["G_SUB"],
+		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
+		"|": ["G_OR"],
+		"^": ["G_XOR"],
+	}
+	if types:
+		legalization = GMIRLegalization(op_dict[operator], types)
+	else:
+		legalization = None
+
+	return (
+		behav.BinaryOperation(
+			mm_operands["rs1"],
+			behav.Operator(operator),
+			immediate,
+		),
+		legalization,
 	)
 
-	return behav.BinaryOperation(
-		mm_operands["rs1"],
-		behav.Operator(operator),
-		immediate,
-	)
 
-
-def alu_n(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
+def alu_n(operands: Dict[str, Operand], operator: str):
 	"""(rs1 {operator} rs2) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
-	return behav.BinaryOperation(
-		binary_op(operands, operator),
-		behav.Operator(">>"),
-		mm_operands["Is3"],
+	return (
+		behav.BinaryOperation(
+			binary_op_helper(operands, operator),
+			behav.Operator(">>"),
+			mm_operands["Is3"],
+		),
+		None,
 	)
 
 
-def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation:
+def alu_rn(operands: Dict[str, Operand], operator: str):
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
 	"""(rs1 {operator} rs2 + 2^(Is3-1)) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
@@ -58,27 +112,33 @@ def alu_rn(operands: Dict[str, Operand], operator: str) -> behav.BinaryOperation
 			behav.IntLiteral(1),
 		),
 	)
-	return behav.BinaryOperation(
+	return (
 		behav.BinaryOperation(
-			binary_op(operands, operator), behav.Operator("+"), pow2_part
+			behav.BinaryOperation(
+				binary_op_helper(operands, operator), behav.Operator("+"), pow2_part
+			),
+			behav.Operator(">>"),
+			mm_operands["Is3"],
 		),
-		behav.Operator(">>"),
-		mm_operands["Is3"],
+		None,
 	)
 
 
-def slet(operands: Dict[str, Operand]) -> behav.Conditional:
+def slet(operands: Dict[str, Operand]):
 	"""rs1 <= rs2 ? 1:0"""
 	mm_operands = to_metamodel_operands(operands)
-	return behav.Conditional(
-		[
-			behav.BinaryOperation(
-				mm_operands["rs1"],
-				behav.Operator("<="),
-				mm_operands["rs2"],
-			)
-		],
-		[behav.IntLiteral(1), behav.IntLiteral(0)],
+	return (
+		behav.Conditional(
+			[
+				behav.BinaryOperation(
+					mm_operands["rs1"],
+					behav.Operator("<="),
+					mm_operands["rs2"],
+				)
+			],
+			[behav.IntLiteral(1), behav.IntLiteral(0)],
+		),
+		None,
 	)
 
 
@@ -100,7 +160,7 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 	mm_operands = to_metamodel_operands(operands)
 	return (
 		behav.Conditional(
-			[binary_op(operands, operator)],
+			[binary_op_helper(operands, operator)],
 			[
 				mm_operands["rs1"],
 				mm_operands["rs2"],
@@ -110,23 +170,30 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 	)
 
 
-def mm_abs(operands: Dict[str, Operand]) -> behav.Ternary:
+def mm_abs(operands: Dict[str, Operand]):
 	"""rs1 < 0 ? -rs1 : rs1"""
+	types = operand_types(operands)
 	mm_operands = to_metamodel_operands(operands)
-	return behav.Ternary(
-		behav.BinaryOperation(
+	return (
+		behav.Ternary(
+			behav.BinaryOperation(
+				mm_operands["rs1"],
+				behav.Operator("<"),
+				behav.IntLiteral(0),
+			),
+			behav.UnaryOperation(behav.Operator("-"), mm_operands["rs1"]),
 			mm_operands["rs1"],
-			behav.Operator("<"),
-			behav.IntLiteral(0),
 		),
-		behav.UnaryOperation(behav.Operator("-"), mm_operands["rs1"]),
-		mm_operands["rs1"],
+		GMIRLegalization(["G_ABS"], types),
 	)
 
 
 def ext(operands: Dict[str, Operand]):
 	"""{S,Z}ext(rs1)"""
-	return operands["rs1"].to_metamodel_ref("rs1")
+	# TODO Not sure how to handle this, There is a GMIR op for this but
+	# extensions happen implicitly in CDSL2 afaik
+	# Need to ask Philipp
+	return (operands["rs1"].to_metamodel_ref("rs1"), None)
 
 
 OPS: OpcodeDict = {

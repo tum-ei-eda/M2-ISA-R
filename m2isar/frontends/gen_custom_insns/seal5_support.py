@@ -31,7 +31,7 @@ def save_legalizations_yaml(
 	for ext_name, legs in legalizations.items():
 		for leg in legs:
 			legalized_ops.append(
-				{"name": leg.name, "types": leg.types, "onlyif": [ext_name]}
+				{"name": leg.name, "types": leg.types, "onlyif": ["HasExt" + ext_name]}
 			)
 
 	content = {"riscv": {"legalization": {"gisel": {"ops": legalized_ops}}}}
