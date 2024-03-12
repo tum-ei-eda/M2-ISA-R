@@ -1,12 +1,37 @@
 """ALU instructions of the core v extension"""
 
 from functools import partial
-from typing import Dict
+from typing import Dict, Optional
 
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
 from ..seal5_support import GMIRLegalization, operand_types
 from .template import OpcodeDict
+
+
+def arithmetic_legalization(
+	operands: Dict[str, Operand], operator: str
+) -> Optional[GMIRLegalization]:
+	"""Create legalization for basic arithmetic operators"""
+	types = operand_types(operands)
+	for ty in types:
+		if "32" in ty:  # Would need to be addapted for XLEN 64 support
+			types.remove(ty)
+	sign = "S" if any("s" in ty.lower() for ty in types) else "U"
+
+	op_dict = {
+		"+": ["G_ADD"],
+		"-": ["G_SUB"],
+		"*": ["G_MUL"],
+		"/": [f"G_{sign}DIV"],
+		"%": [f"G_{sign}REM"],
+		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
+		"|": ["G_OR"],
+		"^": ["G_XOR"],
+	}
+	if types:
+		return GMIRLegalization(op_dict[operator], types)
+	return None
 
 
 def binary_op_helper(operands: Dict[str, Operand], operator: str):
@@ -23,22 +48,7 @@ def binary_op_helper(operands: Dict[str, Operand], operator: str):
 def binary_op(operands: Dict[str, Operand], operator: str):
 	"""rs1 {operator} rs2, with legalizations\n
 	Use this function if you need legalizations"""
-	types = operand_types(operands)
-	for ty in types:
-		if "32" in ty:  # Would need to be addapted for XLEN 64 support
-			types.remove(ty)
-	op_dict = {
-		"+": ["G_ADD"],
-		"-": ["G_SUB"],
-		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
-		"|": ["G_OR"],
-		"^": ["G_XOR"],
-	}
-	if types:
-		legalization = GMIRLegalization(op_dict[operator], types)
-	else:
-		legalization = None
-
+	legalization = arithmetic_legalization(operands, operator)
 	mm_operands = to_metamodel_operands(operands)
 	return (
 		behav.BinaryOperation(
@@ -60,21 +70,7 @@ def alu_imm(operands: Dict[str, Operand], operator: str):
 		raise RuntimeError("More than 1 immediate found!")
 	immediate = immediate[0]
 
-	types = operand_types(operands)
-	for ty in types:
-		if "32" in ty:  # Would need to be addapted for XLEN 64 support
-			types.remove(ty)
-	op_dict = {
-		"+": ["G_ADD"],
-		"-": ["G_SUB"],
-		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
-		"|": ["G_OR"],
-		"^": ["G_XOR"],
-	}
-	if types:
-		legalization = GMIRLegalization(op_dict[operator], types)
-	else:
-		legalization = None
+	legalization = arithmetic_legalization(operands, operator)
 
 	return (
 		behav.BinaryOperation(
@@ -150,12 +146,12 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 	if operator not in ("<", ">"):
 		raise ValueError("Operator must be either '<' or '>'!")
 
-	if any(opr.sign == "s" for opr in operands.values()):
-		generic_opc = "G_SMIN" if operator == "<" else "G_SMAX"
-	else:
-		generic_opc = "G_UMIN" if operator == "<" else "G_UMAX"
-
 	types = operand_types(operands)
+	sign = "S" if any(opr.sign in ("s", "S") for opr in operands.values()) else "U"
+	gmir_op = {
+		"<": [f"G_{sign}MIN"],
+		">": [f"G_{sign}MAX"],
+	}
 
 	mm_operands = to_metamodel_operands(operands)
 	return (
@@ -166,7 +162,7 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 				mm_operands["rs2"],
 			],
 		),
-		GMIRLegalization([generic_opc], types),
+		GMIRLegalization(gmir_op[operator], types),
 	)
 
 
