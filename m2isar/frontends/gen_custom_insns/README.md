@@ -13,6 +13,7 @@ metadata:
   version: # Version of the specification file, currently not used
   extensions: # Used Risc-V Extensions, could be used in  the future to expand opcode space
   extends: # Required Risc-V extensions, 
+  x0_guard: True # if True, `if (rd != 0) {...}` gets generated around every behaviour
   xlen: # Defaults to 32 if unspecified
   core_name: # Only needs to be specified if a core will be generated(flag -c)
   core_template:  # Default CoreDSL file imports, Options:

@@ -91,7 +91,7 @@ def main():
 			expanded_instructions = inst.generate()
 			inst_count += len(expanded_instructions)
 			for i in expanded_instructions:
-				instruction, legalization = i.to_metamodel(metadata.prefix)
+				instruction, legalization = i.to_metamodel(metadata.prefix, x0_guard=metadata.x0_guard)
 				inst_sets[name].append(instruction)
 				if legalization:
 					legalizations[name].append(legalization)

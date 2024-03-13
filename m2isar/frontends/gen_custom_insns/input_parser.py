@@ -22,7 +22,10 @@ class Metadata:
 	core_name: Optional[str]
 	"""Only needed if '-c' is used"""
 	core_template: Optional[str]
+	"""Only needed if '-c' is used"""
 	xlen: int = 32
+	x0_guard: bool = False
+	"""If `True` Generate `if (rd != 0) {...}` around every behaviour block"""
 
 
 logger = logging.getLogger("Instruction Gen")
@@ -51,6 +54,7 @@ def parse(path: pathlib.Path):
 		core_name=metadata_input.get("core_name"),
 		core_template=metadata_input.get("core_template"),
 		xlen=xlen,
+		x0_guard=metadata_input.get("x0_guard", False) # type: ignore
 	)
 
 	defaults = {}

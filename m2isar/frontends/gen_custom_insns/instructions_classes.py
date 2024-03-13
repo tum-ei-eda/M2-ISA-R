@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
-from ...metamodel import arch
+from ...metamodel import arch, behav
 from .instr_encodings import get_mm_encoding
 from .op_parsing import parse_op
 from .operands import (
@@ -47,7 +47,7 @@ class Instruction:
 				operand.width = self.operands[operand.width].width  # type: ignore
 
 	def to_metamodel(
-		self, instruction_prefix: Optional[str] = None
+		self, instruction_prefix: Optional[str] = None, x0_guard: bool = False
 	) -> tuple[arch.Instruction, Optional[GMIRLegalization]]:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		try:
@@ -78,6 +78,10 @@ class Instruction:
 			)
 			assembly = ", ".join(operand_names)
 			operation, legalization = parse_op(operands=self.operands, name=self.op)
+			if x0_guard:
+				rd_ref = self.operands["rd"].to_metamodel_ref("rd")
+				operation = behav.Conditional([behav.BinaryOperation(rd_ref, behav.Operator("!="), behav.IntLiteral(0))], [operation])
+
 		except Exception as e:
 			raise RuntimeError("Failed to generate Metamodel Instruction!\n"
 					  f"Operands: {self.operands}\n"
