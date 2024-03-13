@@ -10,7 +10,7 @@
 
 import pickle
 
-from . import instruction_generator, BlockEndType
+from . import BlockEndType, instruction_generator
 from .writer import setup
 
 

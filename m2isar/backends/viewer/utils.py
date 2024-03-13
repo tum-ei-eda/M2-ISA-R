@@ -11,7 +11,6 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-	import tkinter as tk
 	from tkinter import ttk
 
 class TreeGenContext:

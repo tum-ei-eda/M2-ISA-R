@@ -10,7 +10,7 @@
 
 import tkinter as tk
 
-from ...metamodel import arch, behav
+from ...metamodel import behav
 from .utils import TreeGenContext
 
 # pylint: disable=unused-argument
