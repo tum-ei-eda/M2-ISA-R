@@ -173,15 +173,14 @@ def slet(operands: Dict[str, Operand]):
 	"""rs1 <= rs2 ? 1:0"""
 	mm_operands = to_metamodel_operands(operands)
 	return (
-		behav.Conditional(
-			[
-				behav.BinaryOperation(
-					mm_operands["rs1"],
-					behav.Operator("<="),
-					mm_operands["rs2"],
-				)
-			],
-			[behav.IntLiteral(1), behav.IntLiteral(0)],
+		behav.Ternary(
+			behav.BinaryOperation(
+				mm_operands["rs1"],
+				behav.Operator("<="),
+				mm_operands["rs2"],
+			),
+			behav.IntLiteral(1),
+			behav.IntLiteral(0),
 		),
 		None,
 	)
@@ -204,12 +203,10 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 
 	mm_operands = to_metamodel_operands(operands)
 	return (
-		behav.Conditional(
-			[binary_op_helper(operands, operator)],
-			[
-				mm_operands["rs1"],
-				mm_operands["rs2"],
-			],
+		behav.Ternary(
+			binary_op_helper(operands, operator),
+			mm_operands["rs1"],
+			mm_operands["rs2"],
 		),
 		GMIRLegalization(gmir_op[operator], types),
 	)
