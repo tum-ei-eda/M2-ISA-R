@@ -211,7 +211,6 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 		# check if any argument is a memory access
-		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
 		# update affected and dependent registers
@@ -275,8 +274,6 @@ def function_call(self: behav.FunctionCall, context: TransformerContext):
 		arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 		arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
-		# check if any argument is a memory access
-		mem_access = True in [arg.is_mem_access for arg in fn_args]
 		# keep track of signedness of function return value
 		signed = fn.data_type == arch.DataType.S
 		# keep track of affected registers
@@ -448,8 +445,6 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	# check staticness
 	static = bool(target.static & StaticType.WRITE) and bool(expr.static)
-
-	code_lines = []
 
 	# error out if a static target should be assigned a non-static value
 	if not expr.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
@@ -650,9 +645,8 @@ def named_reference(self: behav.NamedReference, context: TransformerContext):
 			name = str(context.instr_size // 8)
 
 	else:
-		raise TypeError("wrong type")
 		# should not happen
-		signed = False
+		raise TypeError("wrong type")
 
 	if context.ignore_static:
 		static = StaticType.RW

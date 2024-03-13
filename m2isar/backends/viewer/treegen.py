@@ -10,7 +10,7 @@
 
 import tkinter as tk
 
-from ...metamodel import arch, behav
+from ...metamodel import behav
 from .utils import TreeGenContext
 
 # pylint: disable=unused-argument
@@ -111,10 +111,7 @@ def conditional(self: behav.Conditional, context: "TreeGenContext"):
 
 	context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
 	for stmt in self.stmts:
-		#context.push(context.tree.insert(context.parent, tk.END, text="Statement"))
-		#for stmt in op:
-			stmt.generate(context)
-		#context.pop()
+		stmt.generate(context)
 	context.pop()
 
 	context.pop()
