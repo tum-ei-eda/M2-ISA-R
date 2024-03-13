@@ -19,7 +19,7 @@ from ...metamodel import M2_METAMODEL_VERSION, M2Model
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
-from . import BlockEndType
+from . import BlockEndType, CodeInfoTracker
 from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_gdbcore, write_arch_header,
                                   write_arch_lib, write_arch_specific_cpp,
@@ -170,6 +170,10 @@ def main():
 		write_arch_gdbcore(core, start_time, output_path)
 		write_functions(core, start_time, output_path, args.static_scalars)
 		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()])
+
+		with open(output_path / "coverage.csv", "w") as f:
+			for c_id, c_info in sorted(CodeInfoTracker.tracker[core_name].items()):
+				f.write(f"{c_id}\n")
 
 if __name__ == "__main__":
 	main()
