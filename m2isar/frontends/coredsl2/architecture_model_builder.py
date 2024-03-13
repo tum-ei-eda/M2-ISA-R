@@ -56,8 +56,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		right = self.visit(ctx.right)
 
 		# instantiate M2-ISA-R objects
-		range = arch.RangeSpec(left.value, right.value)
-		return arch.BitField(ctx.name.text, range, arch.DataType.U)
+		range_spec = arch.RangeSpec(left.value, right.value)
+		return arch.BitField(ctx.name.text, range_spec, arch.DataType.U)
 
 	def visitBit_value(self, ctx: CoreDSL2Parser.Bit_valueContext):
 		"""Generate a fixed encoding part."""
@@ -313,13 +313,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				if decl.attributes:
 					attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-				range = arch.RangeSpec(left, right)
+				range_spec = arch.RangeSpec(left, right)
 
 				#if range.length != size[0]:
 				#	raise ValueError(f"range mismatch for \"{name}\"")
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
-				m = arch.Memory(name, range, type_._width, attributes)
+				m = arch.Memory(name, range_spec, type_._width, attributes)
 				m.parent = reference
 				m.parent.children.append(m)
 
@@ -366,8 +366,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-					range = arch.RangeSpec(size[0])
-					m = arch.Memory(name, range, type_._width, attributes)
+					range_spec = arch.RangeSpec(size[0])
+					m = arch.Memory(name, range_spec, type_._width, attributes)
 
 					# attach init value to memory object
 					if init is not None:

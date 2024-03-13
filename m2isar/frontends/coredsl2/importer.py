@@ -45,7 +45,6 @@ class Importer(CoreDSL2Listener):
 
 			self.new_children.extend(tree.children)
 			self.new_defs.extend(tree.definitions)
-		pass
 
 def recursive_import(tree, search_path):
 	"""Helper method to recursively process all import statements of a given

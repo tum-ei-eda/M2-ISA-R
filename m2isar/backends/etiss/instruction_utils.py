@@ -77,7 +77,7 @@ class CodeString:
 	@property
 	def read_mem_ids(self):
 		for m in self.mem_ids:
-			if m.write == False:
+			if not m.write:
 				yield m
 
 	def __str__(self):
@@ -97,12 +97,14 @@ class MemID:
 
 @dataclass
 class FnID:
+	"""Track a required function call across recursive code generation."""
 	fn_call: arch.Function
 	fn_id: int
 	args: CodeString
 
 @dataclass
 class CodePartsContainer:
+	"""Container class to encapsulate different ETISS JIT code snippet types."""
 	pre_initial_debug_returning: str = None
 	initial_required: str = None
 	optional_middle: str = None

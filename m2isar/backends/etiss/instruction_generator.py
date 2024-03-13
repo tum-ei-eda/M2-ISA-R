@@ -157,8 +157,14 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics)
 
 	# force a block end if necessary
-	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes and arch.InstrAttribute.COND not in instr_def.attributes and block_end_on == BlockEndType.UNCOND)
-			or (arch.InstrAttribute.NO_CONT in instr_def.attributes and block_end_on == BlockEndType.ALL)):
+	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes
+	  			and arch.InstrAttribute.COND not in instr_def.attributes
+				and block_end_on == BlockEndType.UNCOND)
+			or (
+				arch.InstrAttribute.NO_CONT in instr_def.attributes
+				and block_end_on == BlockEndType.ALL)
+			):
+
 		logger.debug("adding forced block end")
 		misc_code.append('ic.force_block_end_ = true;')
 

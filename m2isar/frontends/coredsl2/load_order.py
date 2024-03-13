@@ -6,6 +6,8 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Classes to determine model building order for CoreDSL2 models."""
+
 from antlr4 import ParserRuleContext
 
 from ... import M2DuplicateError, M2NameError
@@ -67,7 +69,6 @@ class LoadOrder(CoreDSL2Visitor):
 		for core_name, contents in self.core_defs.items():
 			container = CoreContainerContext()
 			container.children = contents
-			container.name = core_name
 			ret[core_name] = container
 
 		return ret

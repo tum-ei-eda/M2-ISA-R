@@ -30,8 +30,6 @@ def main():
 
 	args = parser.parse_args()
 
-	app_dir = pathlib.Path(__file__).parent.resolve()
-
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("parser")
 
@@ -62,12 +60,12 @@ def main():
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
-	models: "dict[tuple(int, int), arch.CoreDef]" = {}
+	models: "dict[tuple[int, int], arch.CoreDef]" = {}
 
 	patch_model(expr_interpreter)
 
 	for core_name, core_def in cores.items():
-		logger.info(f'building architecture model for core {core_name}')
+		logger.info('building architecture model for core %s', core_name)
 		try:
 			arch_builder = ArchitectureModelBuilder()
 			c = arch_builder.visit(core_def)
