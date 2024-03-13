@@ -2,6 +2,7 @@
 
 from functools import partial
 from typing import Dict, Optional
+from copy import copy
 
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
@@ -147,7 +148,7 @@ def arithmetic_rnr(operands: Dict[str, Operand], operator: str):
 		behav.IntLiteral(2),
 		behav.Operator("^"),
 		behav.BinaryOperation(
-			rs2_slice,
+			copy(rs2_slice),
 			behav.Operator("-"),
 			behav.IntLiteral(1),
 		),
@@ -162,7 +163,7 @@ def arithmetic_rnr(operands: Dict[str, Operand], operator: str):
 				pow2_part,
 			),
 			behav.Operator(">>"),
-			rs2_slice,
+			copy(rs2_slice),
 		),
 		None,
 	)

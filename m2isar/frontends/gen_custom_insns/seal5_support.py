@@ -18,8 +18,13 @@ class GMIRLegalization(NamedTuple):  # could also be a dataclass
 def operand_types(operands: dict[str, Operand]) -> list[str]:
 	"""Gather a list of types that need to be legalized, entries are unique"""
 	# TODO do i need to add gmir legalization for the destination register?
-	operands.pop("rd")
-	return list({operand.sign + str(operand.width) for operand in operands.values()})
+	return list(
+		{
+			operand.sign + str(operand.width)
+			for name, operand in operands.items()
+			if name != "rd"
+		}
+	)
 
 
 def save_legalizations_yaml(
