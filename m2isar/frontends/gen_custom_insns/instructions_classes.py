@@ -51,33 +51,37 @@ class Instruction:
 	) -> tuple[arch.Instruction, Optional[GMIRLegalization]]:
 		"""Transforms this Instruction into a M2-ISA-R Metamodel Instruction"""
 		try:
-			encoding = get_mm_encoding(self.operands)
-		except (NotImplementedError, ValueError) as e:
-			raise RuntimeError(
-				f"Could not find a fitting encoding for instruction {self.name}!"
-			) from e
+			try:
+				encoding = get_mm_encoding(self.operands)
+			except (NotImplementedError, ValueError) as e:
+				raise RuntimeError(
+					f"Could not find a fitting encoding for instruction {self.name}!"
+				) from e
 
-		prefix = instruction_prefix + "." if instruction_prefix else ""
-		mnemonic = prefix + self.name
+			prefix = instruction_prefix + "." if instruction_prefix else ""
+			mnemonic = prefix + self.name
 
-		# Registers Assembly strings
-		operand_names = [
-			f"{{name({name})}}"
-			for name, operand in self.operands.items()
-			if not operand.immediate
-		]
-		operand_names.sort()
-		# Immediates
-		operand_names.extend(
-			[
-				f"{{{name}}}"
+			# Registers Assembly strings
+			operand_names = [
+				f"{{name({name})}}"
 				for name, operand in self.operands.items()
-				if operand.immediate
+				if not operand.immediate
 			]
-		)
-		assembly = ", ".join(operand_names)
-
-		operation, legalization = parse_op(operands=self.operands, name=self.op)
+			operand_names.sort()
+			# Immediates
+			operand_names.extend(
+				[
+					f"{{{name}}}"
+					for name, operand in self.operands.items()
+					if operand.immediate
+				]
+			)
+			assembly = ", ".join(operand_names)
+			operation, legalization = parse_op(operands=self.operands, name=self.op)
+		except Exception as e:
+			raise RuntimeError("Failed to generate Metamodel Instruction!\n"
+					  f"Operands: {self.operands}\n"
+					  f"Op: {self.op}") from e
 
 		return (arch.Instruction(
 			name=self.name,
