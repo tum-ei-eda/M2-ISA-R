@@ -84,16 +84,17 @@ def main():
 	legalizations: dict[str, list[GMIRLegalization]] = {}
 	inst_count = 0
 	for set_name, inst_list in raw_instruction_sets.items():
-		inst_sets[set_name] = []
-		legalizations[set_name] = []
+		name = metadata.ext_name + "_" + set_name
+		inst_sets[name] = []
+		legalizations[name] = []
 		for inst in inst_list:
 			expanded_instructions = inst.generate()
 			inst_count += len(expanded_instructions)
 			for i in expanded_instructions:
 				instruction, legalization = i.to_metamodel(metadata.prefix)
-				inst_sets[set_name].append(instruction)
+				inst_sets[name].append(instruction)
 				if legalization:
-					legalizations[set_name].append(legalization)
+					legalizations[name].append(legalization)
 
 	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
 
@@ -118,9 +119,9 @@ def main():
 	memories = create_memories(metadata.xlen)
 
 	m2_inst_sets = {}
-	for set_name, mm_instructions in inst_sets.items():
+	for name, mm_instructions in inst_sets.items():
 		instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
-		name = metadata.ext_name + "_" + set_name
+		
 		m2_inst_sets[name] = arch.InstructionSet(
 			name=name,
 			extension=extends,
@@ -210,7 +211,7 @@ def main():
 		)
 		save_extensions_yaml(
 			extension_name=metadata.ext_name,
-			extensions=list(inst_sets.keys()),
+			extensions=list(m2_inst_sets.keys()),
 			ext_prefix=metadata.prefix,
 			path=out_path.parent,
 		)
