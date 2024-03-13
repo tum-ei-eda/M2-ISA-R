@@ -13,7 +13,8 @@ import pickle
 from collections import defaultdict
 from tqdm import tqdm
 
-from ...metamodel import LineInfo
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, patch_model
+from ...metamodel.code_info import CodeInfoBase, FunctionInfo, LineInfo
 
 logger = logging.getLogger("coverage_lcov")
 
@@ -44,20 +45,16 @@ def main():
 
 		if not model_path.exists():
 			raise FileNotFoundError('Models not generated!')
-		model_fname = model_path / (abs_top_level.stem + '.lineinfo')
+
+		model_fname = model_path / (abs_top_level.stem + '.m2isarmodel')
 
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		lineinfos: "dict[int, LineInfo]" = pickle.load(f)
+		model_obj: "M2Model" = pickle.load(f)
 
-
-	linedata_by_file = defaultdict(dict)
-	for lineinfo in tqdm(lineinfos.values()):
-		linedata_by_file[lineinfo.file_path][lineinfo.start_line_no] = 0
-
-
-	for line_data_fname in args.line_data:
+	if model_obj.model_version != M2_METAMODEL_VERSION:
+		logger.warning("Loaded model version mismatch")
 		line_data_path = pathlib.Path(line_data_fname)
 
 		linedata: "dict[LineInfo, int]" = {}

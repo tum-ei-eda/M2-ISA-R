@@ -30,9 +30,11 @@ the hierarchy.
 
 import inspect
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from . import arch, behav
+from . import arch, behav, code_info
+
+M2_METAMODEL_VERSION = 2
 
 
 def patch_model(module):
@@ -74,31 +76,17 @@ intrinsics = {x.name: x for x in intrinsic_defs}
 #	return {x.name: x for x in intrinsic_defs}
 
 @dataclass
-class LineInfo:
-	id: int = field(init=False)
-	file_path: str
-	start_chr: int
-	stop_chr: int
-	start_line_no: int
-	stop_line_no: int
-
-	__id_counter = 0
-	database = {}
+class M2Model:
+	model_version: int
+	models: dict[str, arch.CoreDef]
+	code_infos: dict[int, code_info.CodeInfoBase]
 
 	def __post_init__(self):
-		self.id = LineInfo.__id_counter
-		LineInfo.__id_counter += 1
-		LineInfo.database[self.id] = self
+		self.line_infos: dict[int, code_info.LineInfo] = {}
+		self.function_infos: dict[int, code_info.FunctionInfo] = {}
 
-	def __hash__(self) -> int:
-		return hash(self.id)
-
-	def line_eq(self, other: "LineInfo"):
-		if isinstance(other, LineInfo):
-			return self.file_path == other.file_path and \
-				self.start_line_no == other.start_line_no and \
-				self.stop_line_no == other.stop_line_no
-		return NotImplemented
-
-	def line_hash(self):
-		return hash((self.file_path, self.start_line_no, self.stop_line_no))
+		for idx, c in self.code_infos.items():
+			if isinstance(c, code_info.LineInfo):
+				self.line_infos[idx] = c
+			elif isinstance(c, code_info.FunctionInfo):
+				self.function_infos[idx] = c

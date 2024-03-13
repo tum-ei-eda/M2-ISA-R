@@ -15,8 +15,7 @@ import pickle
 import shutil
 import time
 
-from m2isar.metamodel.arch import CoreDef
-
+from ...metamodel import M2_METAMODEL_VERSION, M2Model
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -114,11 +113,14 @@ def setup():
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		models: "dict[str, CoreDef]" = pickle.load(f)
+		model_obj: M2Model = pickle.load(f)
+
+	if model_obj.model_version != M2_METAMODEL_VERSION:
+		logger.warning("Loaded model version mismatch")
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
-	return (models, logger, output_base_path, spec_name, start_time, args)
+	return (model_obj.models, logger, output_base_path, spec_name, start_time, args)
 
 def main():
 	"""etiss_writer main entrypoint function."""

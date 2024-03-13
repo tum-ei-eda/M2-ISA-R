@@ -18,7 +18,7 @@ from tkinter import ttk
 
 from m2isar.backends.viewer.utils import TreeGenContext
 
-from ...metamodel import arch, patch_model
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, patch_model
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -68,7 +68,12 @@ def main():
 
 	# load models
 	with open(model_fname, 'rb') as f:
-		models: "dict[str, arch.CoreDef]" = pickle.load(f)
+		model_obj: "M2Model" = pickle.load(f)
+
+	if model_obj.model_version != M2_METAMODEL_VERSION:
+		logger.warning("Loaded model version mismatch")
+
+	models = model_obj.models
 
 	# preprocess model
 	for core_name, core in models.items():

@@ -17,7 +17,7 @@ import pickle
 from collections import defaultdict
 from io import SEEK_CUR
 
-from ...metamodel import arch
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
 
 logger = logging.getLogger("viewer")
 
@@ -93,7 +93,12 @@ def main():
 	logger.info("loading models")
 
 	with open(model_fname, 'rb') as f:
-		models: "dict[str, arch.CoreDef]" = pickle.load(f)
+		model_obj: "M2Model" = pickle.load(f)
+
+	if model_obj.model_version != M2_METAMODEL_VERSION:
+		logger.warning("Loaded model version mismatch")
+
+	models = model_obj.models
 
 	core = models[args.core_name]
 	readlen = max(core.instr_classes) // 8
