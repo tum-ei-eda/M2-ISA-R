@@ -53,7 +53,7 @@ extern "C" {
 				else
 					etiss::log(etiss::WARNING, "no core number provided for core, using 0");
 
-				return new RV32IMACFDArch(coreno);
+				return new ${core_name}Arch(coreno);
 			}
 		default:
 			return 0;
