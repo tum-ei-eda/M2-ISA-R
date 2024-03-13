@@ -16,7 +16,11 @@ class LineInfoPlacement(Enum):
 
 @dataclass
 class CodeInfoBase:
+	"""Base class for tracking code info."""
+
 	id: int = field(init=False)
+	"""Automatically calculated unique ID for tracking purposes in consumer programs."""
+
 	file_path: str
 	start_chr: int
 	stop_chr: int
@@ -25,6 +29,7 @@ class CodeInfoBase:
 
 	__id_counter = 0
 	database = {}
+	"""A global database of all created CodeInfo objects."""
 
 	def __post_init__(self):
 		self.id = CodeInfoBase.__id_counter
@@ -53,6 +58,8 @@ class FunctionInfo(CodeInfoBase):
 	fn_name: str
 
 class LineInfoFactory:
+	"""Factory class to create non-overlapping LineInfo objects."""
+
 	tracker = {}
 
 	@classmethod
@@ -65,6 +72,8 @@ class LineInfoFactory:
 		return ret
 
 class FunctionInfoFactory:
+	"""Factory class to create non-overlapping FunctionInfo objects."""
+
 	tracker = {}
 
 	@classmethod

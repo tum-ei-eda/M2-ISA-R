@@ -202,8 +202,5 @@ def main():
 
 				f.write("end_of_record\n")
 
-
-
-
 if __name__ == "__main__":
 	main()
