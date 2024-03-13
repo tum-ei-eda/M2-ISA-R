@@ -9,16 +9,12 @@
 """Functions for generating function and instruction behavior."""
 
 import logging
-from typing import TYPE_CHECKING
 
 from mako.template import Template
 
 from ...metamodel import arch, behav, patch_model
 from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
-
-if TYPE_CHECKING:
-	from .instruction_utils import CodePartsContainer
 
 logger = logging.getLogger("instruction_generator")
 
@@ -58,6 +54,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		out_code = instruction_utils.CodePartsContainer()
 
 		if not decls_only:
+			fn_def.operation.line_info = fn_def.function_info
 			out_code = fn_def.operation.generate(context)
 			out_code.format(ARCH_NAME=core_name)
 
@@ -165,6 +162,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	# generate instruction behavior code
 	logger.debug("generating behavior code for %s", instr_def.name)
 
+	instr_def.operation.line_info = instr_def.function_info
 	out_code = instr_def.operation.generate(context)
 	out_code.format(ARCH_NAME=core_name)
 

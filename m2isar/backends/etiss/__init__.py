@@ -16,7 +16,9 @@ encapsulate the required functionality for outputting complete ETISS architectur
 plugins.
 """
 
+from collections import defaultdict
 from enum import Enum, auto
+
 
 class BlockEndType(Enum):
 	"""Denotes the conditions on which to enforce a translation block end in ETISS."""
@@ -24,3 +26,10 @@ class BlockEndType(Enum):
 	NONE = auto()
 	UNCOND = auto()
 	ALL = auto()
+
+class CodeInfoTracker:
+	tracker = defaultdict(dict)
+
+	@classmethod
+	def insert(cls, core_name, code_info):
+		cls.tracker[core_name][code_info.id] = code_info

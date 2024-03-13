@@ -13,7 +13,8 @@ from itertools import chain
 from string import Template
 
 from ... import M2ValueError
-from ...metamodel import LineInfo, arch
+from ...metamodel import arch
+from ...metamodel.code_info import LineInfo
 from ...metamodel.utils import StaticType
 from . import replacements
 
@@ -153,6 +154,8 @@ class TransformerContext:
 		self.static_scalars = static_scalars
 
 		self.ignore_static = ignore_static
+
+		self.found_code_infos = []
 
 		self.code_lines = []
 

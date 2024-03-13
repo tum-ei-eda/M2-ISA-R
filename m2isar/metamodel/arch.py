@@ -15,10 +15,13 @@ import dataclasses
 import itertools
 from collections import defaultdict
 from enum import Enum, IntEnum, auto
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from .. import M2TypeError
 from .behav import BaseNode, Operation
+
+if TYPE_CHECKING:
+	from .code_info import FunctionInfo
 
 
 def get_const_or_val(arg) -> int:
@@ -419,7 +422,7 @@ class Instruction(SizedRefOrConst):
 	code: int
 
 	def __init__(self, name, attributes: "dict[InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]",
-			disass: str, operation: Operation):
+			disass: str, operation: Operation, function_info: "FunctionInfo"):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
@@ -429,6 +432,7 @@ class Instruction(SizedRefOrConst):
 		self.disass = disass
 		self.operation = operation if operation is not None else Operation([])
 		self.throws = False
+		self.function_info = function_info
 
 		self.mask = 0
 		self.code = 0
@@ -473,7 +477,7 @@ class Function(SizedRefOrConst):
 	static: bool
 
 	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: DataType, args: "list[FnParam]",
-			operation: "Operation", extern: bool=False):
+			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
 		self.data_type = data_type
@@ -484,6 +488,8 @@ class Function(SizedRefOrConst):
 			args = []
 
 		self.args: "dict[str, FnParam]" = {}
+
+		self.function_info = function_info
 
 		for idx, arg in enumerate(args):
 			if arg.name is None:

@@ -20,9 +20,9 @@ on which translation module is loaded using :func:`patch_model`.
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-	from . import LineInfo
 	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
 	                   Memory, Scalar)
+	from .code_info import LineInfo
 
 # pylint: disable=abstract-method
 
