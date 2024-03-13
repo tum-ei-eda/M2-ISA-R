@@ -12,14 +12,17 @@ def mac(operands: Dict[str, Operand], operator: str = "+"):
 	"""rd {operator} rs1 * rs2"""
 	mm_operands = to_metamodel_operands(operands)
 
-	return behav.BinaryOperation(
-		mm_operands["rd"],
-		behav.Operator(operator),
+	return (
 		behav.BinaryOperation(
-			mm_operands["rs1"],
-			behav.Operator("*"),
-			mm_operands["rs2"],
+			mm_operands["rd"],
+			behav.Operator(operator),
+			behav.BinaryOperation(
+				mm_operands["rs1"],
+				behav.Operator("*"),
+				mm_operands["rs2"],
+			),
 		),
+		None,
 	)
 
 
@@ -37,10 +40,13 @@ def mul_n(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 		)
 	else:
 		lhs = behav.BinaryOperation(rs1, behav.Operator("*"), rs2)
-	return behav.BinaryOperation(
-		lhs,
-		behav.Operator(">>"),
-		operands["Is3"].to_metamodel_ref("Is3"),
+	return (
+		behav.BinaryOperation(
+			lhs,
+			behav.Operator(">>"),
+			operands["Is3"].to_metamodel_ref("Is3"),
+		),
+		None,
 	)
 
 
@@ -69,14 +75,17 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 	else:
 		lhs = behav.BinaryOperation(rs1, behav.Operator("*"), rs2)
 
-	return behav.BinaryOperation(
+	return (
 		behav.BinaryOperation(
-			lhs,
-			behav.Operator("+"),
-			pow2_part,
+			behav.BinaryOperation(
+				lhs,
+				behav.Operator("+"),
+				pow2_part,
+			),
+			behav.Operator(">>"),
+			operands["Is3"].to_metamodel_ref("Is3"),
 		),
-		behav.Operator(">>"),
-		operands["Is3"].to_metamodel_ref("Is3"),
+		None,
 	)
 
 

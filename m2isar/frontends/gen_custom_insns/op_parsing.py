@@ -37,7 +37,7 @@ def parse_op(operands: Dict[str, Operand], name: str) -> tuple[behav.Operation, 
 		# this would need to be changed to allow for e.g. load/store
 		return (behav.Operation([mm_assignment(operands, behaviour)]), legalization)
 
-	raise TypeError(f"The entry for Key '{name}' produces an unsupported type!")
+	raise TypeError(f"The entry for Key '{name}' returns an unsupported type!")
 
 
 def mm_assignment(
@@ -45,6 +45,7 @@ def mm_assignment(
 ) -> behav.Assignment:
 	"""rd = expr"""
 	rd_ref = operands["rd"].to_metamodel_ref("rd")
+
 	return behav.Assignment(rd_ref, expr)
 
 
