@@ -62,7 +62,6 @@ def main():
 	parser.add_argument(
 		"-b",
 		"--backend",
-		default="cdsl",
 		choices=["cdsl"],
 		help="Directly calls the coredsl backend",
 	)

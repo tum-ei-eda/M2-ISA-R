@@ -11,7 +11,8 @@
             "module": "m2isar.frontends.coredsl2.parser",
             "args": [
                 "${input:inputFile}",
-                "--log", "debug"
+                "--log",
+                "debug"
             ],
             "stopOnEntry": false,
             "justMyCode": false
@@ -24,7 +25,8 @@
             "args": [
                 //"--separate",
                 //"--static-scalars",
-                "--log", "info",
+                "--log",
+                "info",
                 "${input:inputFile}"
             ],
             "stopOnEntry": false,
@@ -67,9 +69,20 @@
             "type": "debugpy",
             "request": "launch",
             "module": "m2isar.frontends.gen_custom_insns",
-            "args": ["test.yaml", "-b",  "cdsl"],
+            "args": [
+                "test.yaml",
+                "-b",
+                "cdsl"
+            ],
             "justMyCode": false
-        }
+        },
+        {
+            "name": "CoreDSL2-Set",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "m2isar.backends.coredsl2_set.writer",
+            "args": ["all.m2isarmodel"]
+        },
     ],
     "inputs": [
         {
