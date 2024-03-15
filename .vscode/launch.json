@@ -62,6 +62,7 @@
             "args": [
                 "-o", "out.info",
                 "-a", "RV64IMACFD",
+                "--legacy",
                 "${input:inputFile}",
                 "../etiss_riscv_tests/rv64mi-p-access.csv",
                 "../etiss_riscv_tests/rv64mi-p-breakpoint.csv",

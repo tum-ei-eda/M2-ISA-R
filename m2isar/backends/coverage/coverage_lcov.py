@@ -32,6 +32,7 @@ def main():
 	parser.add_argument('top_level', help="A .m2isar file containing model.")
 	parser.add_argument('line_data', help="The CSV line data files matching the model.", nargs="+")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+	parser.add_argument("--legacy", action="store_true", help="Generate data for LOCV version < 2.0")
 	parser.add_argument("-o", "--outfile", required=True)
 	parser.add_argument("-a", "--target-arch", action="append")
 	args = parser.parse_args()
@@ -189,7 +190,10 @@ def main():
 				f.write(f"LH:{line_hit_counter}\n")
 
 				for fn_name, (fn_start, fn_stop) in fnmeta_by_core_and_file[core_name][filepath].items():
-					f.write(f"FN:{fn_start},{fn_stop},{fn_name}\n")
+					if args.legacy:
+						f.write(f"FN:{fn_start},{fn_name}\n")
+					else:
+						f.write(f"FN:{fn_start},{fn_stop},{fn_name}\n")
 
 				for fn_name, fn_count in fndata_by_core_and_file[core_name][filepath].items():
 					f.write(f"FNDA:{fn_count},{fn_name}\n")
