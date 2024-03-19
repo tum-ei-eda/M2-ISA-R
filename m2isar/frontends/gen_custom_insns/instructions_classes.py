@@ -77,10 +77,7 @@ class Instruction:
 				]
 			)
 			assembly = ", ".join(operand_names)
-			operation, legalization = parse_op(operands=self.operands, name=self.op)
-			if x0_guard:
-				rd_ref = self.operands["rd"].to_metamodel_ref("rd")
-				operation = behav.Conditional([behav.BinaryOperation(rd_ref, behav.Operator("!="), behav.IntLiteral(0))], [operation])
+			operation, legalization = parse_op(operands=self.operands, name=self.op, x0_guard=x0_guard)
 
 		except Exception as e:
 			raise RuntimeError("Failed to generate Metamodel Instruction!\n"
