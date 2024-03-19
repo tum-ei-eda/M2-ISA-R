@@ -212,6 +212,22 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 	)
 
 
+def min_max_immediate(operands: Dict[str, Operand], operator: str = "<"):
+	"""min/max(rs1, imm)"""
+	if operator not in ("<", ">"):
+		raise ValueError("Operator must be either '<' or '>'!")
+
+	mm_operands = to_metamodel_operands(operands)
+	return (
+		behav.Ternary(
+			binary_op_helper(operands, operator),
+			mm_operands["rs1"],
+			mm_operands["imm5"],
+		),
+		None
+	)
+
+
 def mm_abs(operands: Dict[str, Operand]):
 	"""rs1 < 0 ? -rs1 : rs1"""
 	types = operand_types(operands)
@@ -244,6 +260,8 @@ OPS: OpcodeDict = {
 	"slet": partial(slet),
 	"min": partial(min_max, operator="<"),
 	"max": partial(min_max, operator=">"),
+	"mini": partial(min_max_immediate, operator="<"),
+	"maxi": partial(min_max_immediate, operator=">"),
 	"ext": partial(ext),
 	"addN": partial(arithmetic_n, operator="+"),
 	"subN": partial(arithmetic_n, operator="-"),
