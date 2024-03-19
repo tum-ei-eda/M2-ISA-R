@@ -110,7 +110,7 @@ def get_immediates(operands: Dict[str, Operand]) -> List[Operand]:
 
 
 def get_immediates_with_name(operands: Dict[str, Operand]) -> List[Tuple[str, Operand]]:
-	"""returns a list of tuples, with immediate operands and their name"""
+	"""returns a list of immediates with their name; (name, operand)"""
 	return [(name, operand) for name, operand in operands.items() if operand.immediate]
 
 

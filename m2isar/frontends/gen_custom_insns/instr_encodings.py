@@ -11,7 +11,7 @@ This could be changed in the future by adding a function which adds unused opcod
 from typing import Dict, List, Union, Optional
 
 from ...metamodel import arch
-from .operands import Operand, get_immediates
+from .operands import Operand, get_immediates_with_name
 
 
 unused_opcodes = [0b000_1011, 0b010_1011, 0b101_1011, 0b111_1011]
@@ -107,7 +107,7 @@ def get_mm_encoding(
 	Finds the next available Opcode and creates the encoding for use with the m2isar metamodel
 	"""
 	# figure out the format
-	immediates = get_immediates(operands)
+	immediates = get_immediates_with_name(operands)
 	imm_count = len(immediates)
 	reg_count = len(operands) - imm_count
 
@@ -122,7 +122,7 @@ def get_mm_encoding(
 
 	# TODO: clean up the if statements to find the correct format
 	if imm_count == 1:
-		immediate = immediates[0]
+		imm_name, immediate = immediates[0]
 		if immediate.width > 12:
 			raise ValueError(
 				f"Bitwidth(={immediate.width}) of the immediate is too large!"
@@ -138,7 +138,7 @@ def get_mm_encoding(
 			# R-Format: funct7 | imm5 | rs1 | funct3 | rd | opcode
 			return [
 				arch.BitVal(7, funct7),
-				arch.BitField("imm5", arch.RangeSpec(11, 0), imm_sign),
+				arch.BitField(imm_name, arch.RangeSpec(11, 0), imm_sign),
 				reg_bitfield("rs1"),
 				arch.BitVal(3, funct3),
 				reg_bitfield("rd"),
@@ -156,7 +156,7 @@ def get_mm_encoding(
 			# Format: funct2 | imm5 | rs2 | rs1 | funct3 | rD | opcode
 			return [
 				arch.BitVal(2, funct2),
-				arch.BitField("imm5", arch.RangeSpec(4, 0), imm_sign),
+				arch.BitField(imm_name, arch.RangeSpec(4, 0), imm_sign),
 				reg_bitfield("rs2"),
 				reg_bitfield("rs1"),
 				arch.BitVal(3, funct3),
@@ -170,7 +170,7 @@ def get_mm_encoding(
 		imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
 		# I-Format: imm12 | rs1 | funct3 | rd | opcode
 		return [
-			arch.BitField("imm12", arch.RangeSpec(11, 0), imm_sign),
+			arch.BitField(imm_name, arch.RangeSpec(11, 0), imm_sign),
 			reg_bitfield("rs1"),
 			arch.BitVal(3, funct3),
 			reg_bitfield("rd"),
