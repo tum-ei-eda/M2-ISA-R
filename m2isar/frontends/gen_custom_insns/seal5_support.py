@@ -1,23 +1,30 @@
 """Named Tuple containing information about instruction legalization needed by Seal5"""
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import yaml
 
 from .operands import Operand
 
 
-class GMIRLegalization(NamedTuple):  # could also be a dataclass
-	"""NamedTuple to collect the legalization information needed by Seal5"""
+@dataclass
+class GMIRLegalization:
+	"""Class to collect the legalization information needed by Seal5"""
 
 	name: list[str]
 	types: list[str]
 
+	def __add__(self, other):
+		"""Combines two Legalizations"""
+		names = self.name + [n for n in other.name if n not in self.name]
+		types = self.types + [t for t in other.types if t not in self.types]
+		return GMIRLegalization(name=names, types=types)
+
 
 def operand_types(operands: dict[str, Operand]) -> list[str]:
 	"""Gather a list of types that need to be legalized, entries are unique"""
-	# TODO do i need to add gmir legalization for the destination register?
 	return list(
 		{
 			operand.sign + str(operand.width)
@@ -53,7 +60,7 @@ def save_extensions_yaml(
 ):
 	"""Create the config file needed by seal5 containing the extension information"""
 	content = {
-		"extensions": {},  # TODO use a loop or dict comprehension to add all the extensions
+		"extensions": {},
 		"passes": {"per_model": {}},
 	}
 	if ext_prefix is None:
