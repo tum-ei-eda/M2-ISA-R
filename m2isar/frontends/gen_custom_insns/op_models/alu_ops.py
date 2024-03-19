@@ -195,7 +195,7 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 		raise ValueError("Operator must be either '<' or '>'!")
 
 	types = operand_types(operands)
-	sign = "S" if any(opr.sign in ("s", "S") for opr in operands.values()) else "U"
+	sign = "S" if any("s" in ty.lower() for ty in types) else "U"
 	gmir_op = {
 		"<": [f"G_{sign}MIN"],
 		">": [f"G_{sign}MAX"],

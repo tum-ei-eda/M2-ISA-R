@@ -92,7 +92,7 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 OPS: OpcodeDict = {
 	"mac": partial(mac, operator="+"),
 	"msu": partial(mac, operator="-"),
-	"muln": partial(mul_n, hh=False, mac_mode=False),
+	"mulN": partial(mul_n, hh=False, mac_mode=False),
 	"mulhhN": partial(mul_n, hh=True, mac_mode=False),
 	"mulRN": partial(mul_rn, hh=False, mac_mode=False),
 	"mulhhRN": partial(mul_rn, hh=True, mac_mode=False),
