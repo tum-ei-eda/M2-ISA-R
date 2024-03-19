@@ -59,7 +59,7 @@ class Instruction:
 				) from e
 
 			prefix = instruction_prefix + "." if instruction_prefix else ""
-			mnemonic = prefix + self.name
+			name = prefix + self.name
 
 			# Registers Assembly strings
 			operand_names = [
@@ -88,10 +88,10 @@ class Instruction:
 					  f"Op: {self.op}") from e
 
 		return (arch.Instruction(
-			name=self.name,
+			name=name,
 			attributes={},
 			encoding=encoding,
-			mnemonic=mnemonic,
+			mnemonic=name,
 			assembly=assembly,
 			operation=operation,
 		), legalization)

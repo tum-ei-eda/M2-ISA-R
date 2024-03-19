@@ -57,7 +57,7 @@ def main():
 		"-c",
 		"--core",
 		action="store_true",
-		help="Generate a M2-ISA-R Core. If set 'core_name' needs to be specified in the yaml file",
+		help="Generate a M2-ISA-R Core. If set, 'core_name' needs to be specified in the yaml file",
 	)
 	parser.add_argument(
 		"-b",
@@ -66,8 +66,15 @@ def main():
 		help="Directly calls the coredsl backend",
 	)
 	parser.add_argument(
-		"--no_seal5", action="store_true", help="Don't save legalizations for seal5"
+		"--no-seal5", action="store_true", help="Ommits the legalizations for seal5"
 	)
+	parser.add_argument(
+		"--one-per-set",
+		action="store_true",
+		help="Create a single Instruction Set for each instruction.\n"
+		"Needed as a workaround for Seal5",
+	)
+
 	args = parser.parse_args()
 
 	# Setting up basic logger
@@ -83,20 +90,31 @@ def main():
 	inst_sets: dict[str, list[arch.Instruction]] = {}
 	legalizations: dict[str, list[GMIRLegalization]] = {}
 	inst_count = 0
-	for set_name, inst_list in raw_instruction_sets.items():
-		name = metadata.ext_name + "_" + set_name
-		inst_sets[name] = []
-		legalizations[name] = []
+	for name, inst_list in raw_instruction_sets.items():
+		set_name = metadata.ext_name + "_" + name
+		if not args.one_per_set:
+			inst_sets[set_name] = []
+			legalizations[set_name] = []
 		for inst in inst_list:
 			expanded_instructions = inst.generate()
 			inst_count += len(expanded_instructions)
 			for i in expanded_instructions:
-				instruction, legalization = i.to_metamodel(metadata.prefix, x0_guard=metadata.x0_guard)
+				instruction, legalization = i.to_metamodel(
+					metadata.prefix, x0_guard=metadata.x0_guard
+				)
+				if args.one_per_set:
+					name = set_name + "_" + instruction.name
+					inst_sets[name] = []
+					legalizations[name] = []
+				else:
+					name = set_name
+
 				inst_sets[name].append(instruction)
 				if legalization:
 					legalizations[name].append(legalization)
 
 	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
+
 
 	# parsing output path
 	if args.output is None:
@@ -121,7 +139,6 @@ def main():
 	m2_inst_sets = {}
 	for name, mm_instructions in inst_sets.items():
 		instructions_dict = {(inst.mask, inst.code): inst for inst in mm_instructions}
-		
 		m2_inst_sets[name] = arch.InstructionSet(
 			name=name,
 			extension=extends,
