@@ -59,7 +59,8 @@ class Instruction:
 				) from e
 
 			prefix = instruction_prefix + "." if instruction_prefix else ""
-			name = prefix + self.name
+			mnemonic = prefix + self.name
+			name = mnemonic.replace(".", "_")
 
 			# Registers Assembly strings
 			operand_names = [
@@ -71,7 +72,7 @@ class Instruction:
 			# Immediates
 			operand_names.extend(
 				[
-					f"{{{name}}}"
+					f"{{{name}}}" # => {name}
 					for name, operand in self.operands.items()
 					if operand.immediate
 				]
@@ -88,7 +89,7 @@ class Instruction:
 			name=name,
 			attributes={},
 			encoding=encoding,
-			mnemonic=name,
+			mnemonic=mnemonic,
 			assembly=assembly,
 			operation=operation,
 		), legalization)
