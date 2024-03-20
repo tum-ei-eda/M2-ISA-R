@@ -20,9 +20,10 @@ from .op_models.template import OpcodeDict
 def parse_op(operands: Dict[str, Operand], name: str, x0_guard: bool) -> tuple[behav.Operation, Optional[GMIRLegalization]]:
 	"""Looks up the op name and puts it into an Operation"""
 	try:
-		behavior, legalization = OPS[name](operands)
+		operation_template = OPS[name]
 	except KeyError as exc:
 		raise KeyError(f"Instruction '{name}' not implemented!") from exc
+	behavior, legalization = operation_template(operands)
 
 	if isinstance(behavior, behav.Operation):
 		raise ValueError("The item in the OPS dict should not be an operation!")
