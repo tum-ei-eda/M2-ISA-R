@@ -4,7 +4,7 @@ from functools import partial
 from typing import Dict, Optional
 from copy import copy
 
-from ....metamodel import behav
+from ....metamodel import behav, arch
 from ..operands import Operand, to_metamodel_operands
 from ..seal5_support import GMIRLegalization, operand_types
 from .template import OpcodeDict
@@ -220,11 +220,13 @@ def min_max_immediate(operands: Dict[str, Operand], operator: str = "<"):
 	mm_operands = to_metamodel_operands(operands)
 	return (
 		behav.Ternary(
-			binary_op_helper(operands, operator),
+			behav.BinaryOperation(
+				mm_operands["rs1"], behav.Operator(operator), mm_operands["imm5"]
+			),
 			mm_operands["rs1"],
 			mm_operands["imm5"],
 		),
-		None
+		None,
 	)
 
 
@@ -235,7 +237,7 @@ def mm_abs(operands: Dict[str, Operand]):
 	return (
 		behav.Ternary(
 			behav.BinaryOperation(
-				mm_operands["rs1"],
+				behav.TypeConv(arch.DataType.S, None, mm_operands["rs1"]),
 				behav.Operator("<"),
 				behav.IntLiteral(0),
 			),
