@@ -25,9 +25,11 @@ class GMIRLegalization:
 
 def operand_types(operands: dict[str, Operand]) -> list[str]:
 	"""Gather a list of types that need to be legalized, entries are unique"""
+	# TODO i need to adapt this for simd, maybe an optional parameter which adds vXsY
+
 	return list(
 		{
-			operand.sign + str(operand.width)
+			"s" + str(operand.width)
 			for name, operand in operands.items()
 			if name != "rd"
 		}
@@ -42,8 +44,9 @@ def save_legalizations_yaml(
 	legalized_ops: list[dict] = []
 	for ext_name, legs in legalizations.items():
 		for leg in legs:
+			fixed_name = ext_name.lower().replace("_", "")
 			legalized_ops.append(
-				{"name": leg.name, "types": leg.types, "onlyif": ["HasExt" + ext_name]}
+				{"name": leg.name, "types": leg.types, "onlyif": ["HasVendor" + fixed_name]}
 			)
 
 	content = {"riscv": {"legalization": {"gisel": {"ops": legalized_ops}}}}
@@ -63,19 +66,20 @@ def save_extensions_yaml(
 		"extensions": {},
 		"passes": {"per_model": {}},
 	}
-	if ext_prefix is None:
+
+	if ext_prefix is None: # TODO this is currently not used 
 		ext_prefix = extension_name
 
 	for ext in extensions:
 		content["extensions"][ext] = {
-			"feature": ext,  # TODO replace the full name with the prefix
-			"arch": ext,
-			"version": "1.0",
+			"arch": "x" + ext.lower().replace("_", ""),
 			"experimental": False,
+			"feature": ext.replace("_", ""),  # TODO replace the full name with the prefix
 			"vendor": True,
+			"version": "1.0",
 		}
 
-		content["passes"]["per_model"][ext] = (
+		content["passes"]["per_model"][ext.replace("_", "")] = (
 			{  # TODO currently hard code, but it should be fine
 				"skip": [
 					"riscv_features",
