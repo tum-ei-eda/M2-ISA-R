@@ -45,6 +45,31 @@ def legalization_signdness(operands: dict[str, Operand]) -> Literal["S", "U"]:
 	)
 
 
+def arithmetic_legalization(
+	operands: dict[str, Operand], operator: str
+) -> Optional[GMIRLegalization]:
+	"""Create legalization for basic arithmetic operators"""
+	types = operand_types(operands)
+	for ty in types:
+		if "32" in ty:
+			types.remove(ty)
+	sign = legalization_signdness(operands)
+
+	op_dict = {
+		"+": ["G_ADD"],
+		"-": ["G_SUB"],
+		"*": ["G_MUL"],
+		"/": [f"G_{sign}DIV"],
+		"%": [f"G_{sign}REM"],
+		"&": ["G_AND"],
+		"|": ["G_OR"],
+		"^": ["G_XOR"],
+	}
+	if types:
+		return GMIRLegalization(op_dict[operator], types)
+	return None
+
+
 def save_legalizations_yaml(
 	extension: str, legalizations: dict[str, list[GMIRLegalization]], path: Path
 ):

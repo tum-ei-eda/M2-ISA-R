@@ -1,41 +1,20 @@
 """ALU instructions of the core v extension"""
 
-from functools import partial
-from typing import Dict, Optional
 from copy import copy
+from functools import partial
 
-from ....metamodel import behav, arch
+from ....metamodel import arch, behav
 from ..operands import Operand, to_metamodel_operands
-from ..seal5_support import GMIRLegalization, legalization_signdness, operand_types
+from ..seal5_support import (
+	GMIRLegalization,
+	legalization_signdness,
+	operand_types,
+	arithmetic_legalization,
+)
 from .template import OpcodeDict
 
 
-def arithmetic_legalization(
-	operands: Dict[str, Operand], operator: str
-) -> Optional[GMIRLegalization]:
-	"""Create legalization for basic arithmetic operators"""
-	types = operand_types(operands)
-	for ty in types:
-		if "32" in ty:  # Would need to be addapted for XLEN 64 support
-			types.remove(ty)
-	sign = legalization_signdness(operands)
-
-	op_dict = {
-		"+": ["G_ADD"],
-		"-": ["G_SUB"],
-		"*": ["G_MUL"],
-		"/": [f"G_{sign}DIV"],
-		"%": [f"G_{sign}REM"],
-		"&": ["G_AND"],  # TODO make sure G_AND means bitwise and
-		"|": ["G_OR"],
-		"^": ["G_XOR"],
-	}
-	if types:
-		return GMIRLegalization(op_dict[operator], types)
-	return None
-
-
-def binary_op_helper(operands: Dict[str, Operand], operator: str):
+def binary_op_helper(operands: dict[str, Operand], operator: str):
 	"""rs1 {operator} rs2\n
 	Only use this as a helper functions to reduce boilerplate code"""
 	mm_operands = to_metamodel_operands(operands)
@@ -46,7 +25,7 @@ def binary_op_helper(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def binary_op(operands: Dict[str, Operand], operator: str):
+def binary_op(operands: dict[str, Operand], operator: str):
 	"""rs1 {operator} rs2, with legalizations\n
 	Use this function if you need legalizations"""
 	legalization = arithmetic_legalization(operands, operator)
@@ -61,7 +40,7 @@ def binary_op(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def alu_imm(operands: Dict[str, Operand], operator: str):
+def alu_imm(operands: dict[str, Operand], operator: str):
 	"""rs1 {operator} immediate"""
 	mm_operands = to_metamodel_operands(operands)
 	immediate = [
@@ -83,7 +62,7 @@ def alu_imm(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def arithmetic_n(operands: Dict[str, Operand], operator: str):
+def arithmetic_n(operands: dict[str, Operand], operator: str):
 	"""(rs1 {operator} rs2) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
 	return (
@@ -96,7 +75,7 @@ def arithmetic_n(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def arithmetic_rn(operands: Dict[str, Operand], operator: str):
+def arithmetic_rn(operands: dict[str, Operand], operator: str):
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
 	"""(rs1 {operator} rs2 + 2^(Is3-1)) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
@@ -121,7 +100,7 @@ def arithmetic_rn(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def arithmetic_nr(operands: Dict[str, Operand], operator: str):
+def arithmetic_nr(operands: dict[str, Operand], operator: str):
 	"""(rd +/- rs1) >> rs2[4:0], see cv.addNr"""
 	mm_operands = to_metamodel_operands(operands)
 	return (
@@ -138,7 +117,7 @@ def arithmetic_nr(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def arithmetic_rnr(operands: Dict[str, Operand], operator: str):
+def arithmetic_rnr(operands: dict[str, Operand], operator: str):
 	"""(rD + rs1 + 2^(rs2[4:0]-1)) >>> rs2[4:0]; e.g. cv.addRNr"""
 	mm_operands = to_metamodel_operands(operands)
 	rs2_slice = behav.SliceOperation(
@@ -169,7 +148,7 @@ def arithmetic_rnr(operands: Dict[str, Operand], operator: str):
 	)
 
 
-def slet(operands: Dict[str, Operand]):
+def slet(operands: dict[str, Operand]):
 	"""rs1 <= rs2 ? 1:0"""
 	mm_operands = to_metamodel_operands(operands)
 	return (
@@ -186,7 +165,7 @@ def slet(operands: Dict[str, Operand]):
 	)
 
 
-def min_max(operands: Dict[str, Operand], operator: str = "<"):
+def min_max(operands: dict[str, Operand], operator: str = "<"):
 	"""min/max(rs1, rs2)"""
 	# From https://github.com/Minres/CoreDSL/wiki/Expressions#comparisons:
 	# "They perform a comparison based on the value represented by the operands,
@@ -212,7 +191,7 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 	)
 
 
-def min_max_immediate(operands: Dict[str, Operand], operator: str = "<"):
+def min_max_immediate(operands: dict[str, Operand], operator: str = "<"):
 	"""min/max(rs1, imm)"""
 	if operator not in ("<", ">"):
 		raise ValueError("Operator must be either '<' or '>'!")
@@ -230,7 +209,7 @@ def min_max_immediate(operands: Dict[str, Operand], operator: str = "<"):
 	)
 
 
-def mm_abs(operands: Dict[str, Operand]):
+def mm_abs(operands: dict[str, Operand]):
 	"""rs1 < 0 ? -rs1 : rs1"""
 	types = operand_types(operands)
 	mm_operands = to_metamodel_operands(operands)
@@ -248,7 +227,7 @@ def mm_abs(operands: Dict[str, Operand]):
 	)
 
 
-def ext(operands: Dict[str, Operand], signed: bool, width: int):
+def ext(operands: dict[str, Operand], signed: bool, width: int):
 	"""[S,Z]ext(rs1[width-1:0])\n
 	This operation disregards the operands width and sign specified in the yaml file"""
 	rs1 = operands["rs1"].to_metamodel_ref("rs1", cast=False)
