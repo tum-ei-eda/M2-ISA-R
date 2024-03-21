@@ -71,11 +71,10 @@ class Operand:
 			)
 
 		# The destination register is not typecast in CoreDSL as it gets deduced from the operands
-		if name not in ("rd", "rD"):
-			if self.width < XLEN and cast:
-				return behav.TypeConv(sign, self.width, ref)
-			if sign is arch.DataType.S and cast:
-				return behav.TypeConv(sign, None, ref)
+		if self.width < XLEN and cast:
+			return behav.TypeConv(sign, self.width, ref)
+		if sign is arch.DataType.S and cast:
+			return behav.TypeConv(sign, None, ref)
 
 		return ref
 

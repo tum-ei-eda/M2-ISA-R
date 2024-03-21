@@ -6,23 +6,34 @@ from typing import Dict
 from ....metamodel import behav
 from ..operands import Operand, to_metamodel_operands
 from .template import OpcodeDict
+from ..seal5_support import arithmetic_legalization
+
+# TODO Add G_MUL(s16) legalizations where applicable
 
 
 def mac(operands: Dict[str, Operand], operator: str = "+"):
 	"""rd {operator} rs1 * rs2"""
 	mm_operands = to_metamodel_operands(operands)
 
+	legalization = arithmetic_legalization(operands, "*")
+
 	return (
-		behav.BinaryOperation(
-			mm_operands["rd"],
-			behav.Operator(operator),
-			behav.BinaryOperation(
-				mm_operands["rs1"],
-				behav.Operator("*"),
-				mm_operands["rs2"],
+		behav.SliceOperation(
+			behav.Group(
+				behav.BinaryOperation(
+					behav.BinaryOperation(
+						mm_operands["rs1"],
+						behav.Operator("*"),
+						mm_operands["rs2"],
+					),
+					behav.Operator(operator),
+					mm_operands["rd"],
+				)
 			),
+			behav.IntLiteral(31),  # TODO depends on XLEN
+			behav.IntLiteral(0),
 		),
-		None,
+		legalization,
 	)
 
 
@@ -31,6 +42,8 @@ def mul_n(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 	index = 1 if hh else 0
 	rs1 = operands["rs1"].to_simd_slices("rs1")[index]
 	rs2 = operands["rs2"].to_simd_slices("rs2")[index]
+
+	legalization = arithmetic_legalization(operands, "*")
 
 	if mac_mode:
 		lhs = behav.BinaryOperation(
@@ -46,7 +59,7 @@ def mul_n(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 			behav.Operator(">>"),
 			operands["Is3"].to_metamodel_ref("Is3"),
 		),
-		None,
+		legalization,
 	)
 
 
@@ -55,6 +68,8 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 	index = 1 if hh else 0
 	rs1 = operands["rs1"].to_simd_slices("rs1")[index]
 	rs2 = operands["rs2"].to_simd_slices("rs2")[index]
+
+	legalization = arithmetic_legalization(operands, "*")
 
 	pow2_part = behav.BinaryOperation(
 		behav.IntLiteral(2),
@@ -85,7 +100,7 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 			behav.Operator(">>"),
 			operands["Is3"].to_metamodel_ref("Is3"),
 		),
-		None,
+		legalization,
 	)
 
 

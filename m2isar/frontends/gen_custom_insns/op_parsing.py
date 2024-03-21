@@ -50,7 +50,7 @@ def parse_op(operands: Dict[str, Operand], name: str, x0_guard: bool) -> tuple[b
 
 def x0_guard_wraper(operands, node: behav.BaseNode):
 	"""Wrap the behavior in an Conditional check to prevent writes to X[0]"""
-	rd = operands["rd"].to_metamodel_ref("rd").index
+	rd = operands["rd"].to_metamodel_ref("rd", cast= False).index
 	behavior = node if isinstance(node, list) else [node]
 	return behav.Conditional([behav.BinaryOperation(rd, behav.Operator("!="), behav.IntLiteral(0))], behavior)
 
@@ -59,7 +59,7 @@ def mm_assignment(
 	operands: Dict[str, Operand], expr: behav.BaseNode
 ) -> behav.Assignment:
 	"""rd = expr"""
-	rd_ref = operands["rd"].to_metamodel_ref("rd")
+	rd_ref = operands["rd"].to_metamodel_ref("rd", cast=False)
 
 	return behav.Assignment(rd_ref, expr)
 
