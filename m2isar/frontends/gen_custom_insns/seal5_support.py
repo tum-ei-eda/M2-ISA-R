@@ -24,11 +24,11 @@ class GMIRLegalization:
 
 
 def operand_types(operands: dict[str, Operand]) -> list[str]:
-	"""Gather a list of types that need to be legalized, entries are unique"""
+	"""Creates a list of types that need to be legalized, entries are unique"""
 	# TODO i need to adapt this for simd, maybe an optional parameter which adds vXsY
 
 	return list(
-		{"s" + str(operand.width) for name, operand in operands.items() if name != "rd"}
+		{"s" + str(operand.width) for name, operand in operands.items() if name != "rd" and not operand.immediate}
 	)
 
 
