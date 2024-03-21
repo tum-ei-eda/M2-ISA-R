@@ -35,11 +35,15 @@ class Operand:
 	sign: str
 	immediate: bool = False
 
-	def to_metamodel_ref(self, name: str) -> MetamodelRef:
+	def to_metamodel_ref(self, name: str, cast: bool = True) -> MetamodelRef:
 		"""
-		Creating a M2-ISA-R Metamodel Reference or SliceOperation used in modeling operations\n
-		If the operands width is smaller than XLEN a SliceOperation will be returned instead
-		This can be turned off, by setting "slicing" to False, which is needed when creating simd slices
+		Returns either:
+		- IndexedReference if the operand is a register
+		- NamedReference if the operand is an immediate
+		- Or a TypeConv, explained below
+		
+		Return Value gets wrapped in a TypeConv if its smaller than XLEN or signed,
+		This can be turned off by passing "cast=False"
 		"""
 		registers = arch.Memory(
 			"X", arch.RangeSpec(32), 32, {arch.MemoryAttribute.IS_MAIN_MEM: []}
@@ -68,8 +72,10 @@ class Operand:
 
 		# The destination register is not typecast in CoreDSL as it gets deduced from the operands
 		if name not in ("rd", "rD"):
-			if self.width < XLEN or sign is arch.DataType.S:
-				ref = behav.TypeConv(sign, self.width, ref)
+			if self.width < XLEN and cast:
+				return behav.TypeConv(sign, self.width, ref)
+			if sign is arch.DataType.S and cast:
+				return behav.TypeConv(sign, None, ref)
 
 		return ref
 
