@@ -138,7 +138,7 @@ def get_mm_encoding(
 			# R-Format: funct7 | imm5 | rs1 | funct3 | rd | opcode
 			return [
 				arch.BitVal(7, funct7),
-				arch.BitField(imm_name, arch.RangeSpec(5, 0), imm_sign),
+				arch.BitField(imm_name, arch.RangeSpec(4, 0), imm_sign),
 				reg_bitfield("rs1"),
 				arch.BitVal(3, funct3),
 				reg_bitfield("rd"),
