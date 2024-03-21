@@ -248,12 +248,20 @@ def mm_abs(operands: Dict[str, Operand]):
 	)
 
 
-def ext(operands: Dict[str, Operand]):
-	"""{S,Z}ext(rs1)"""
-	# TODO Not sure how to handle this, There is a GMIR op for this but
-	# extensions happen implicitly in CDSL2 afaik
-	# Need to ask Philipp
-	return (operands["rs1"].to_metamodel_ref("rs1"), None)
+def ext(operands: Dict[str, Operand], signed: bool, width: int):
+	"""[S,Z]ext(rs1[width-1:0])\n
+	This operation disregards the operands width and sign specified in the yaml file"""
+	rs1 = operands["rs1"].to_metamodel_ref("rs1", cast=False)
+	rs1_slice = behav.SliceOperation(
+		rs1, behav.IntLiteral(width - 1), behav.IntLiteral(0)
+	)
+	sign = arch.DataType.S if signed else arch.DataType.U
+
+	legalization = GMIRLegalization(
+		name=["G_SEXT" if signed else "G_ZEXT"], types=["s" + str(width)]
+	)
+
+	return (behav.TypeConv(sign, None, rs1_slice), legalization)
 
 
 # TODO add Clip
@@ -264,7 +272,10 @@ OPS: OpcodeDict = {
 	"max": partial(min_max, operator=">"),
 	"mini": partial(min_max_immediate, operator="<"),
 	"maxi": partial(min_max_immediate, operator=">"),
-	"ext": partial(ext),
+	"exths": partial(ext, signed=True, width=16),
+	"exthz": partial(ext, signed=False, width=16),
+	"extbs": partial(ext, signed=True, width=8),
+	"extbz": partial(ext, signed=False, width=8),
 	"addN": partial(arithmetic_n, operator="+"),
 	"subN": partial(arithmetic_n, operator="-"),
 	"addRN": partial(arithmetic_rn, operator="+"),
