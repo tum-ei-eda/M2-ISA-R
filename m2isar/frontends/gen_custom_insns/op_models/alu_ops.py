@@ -6,7 +6,7 @@ from copy import copy
 
 from ....metamodel import behav, arch
 from ..operands import Operand, to_metamodel_operands
-from ..seal5_support import GMIRLegalization, operand_types
+from ..seal5_support import GMIRLegalization, legalization_signdness, operand_types
 from .template import OpcodeDict
 
 
@@ -18,7 +18,7 @@ def arithmetic_legalization(
 	for ty in types:
 		if "32" in ty:  # Would need to be addapted for XLEN 64 support
 			types.remove(ty)
-	sign = "S" if any("s" in ty.lower() for ty in types) else "U"
+	sign = legalization_signdness(operands)
 
 	op_dict = {
 		"+": ["G_ADD"],
@@ -195,7 +195,7 @@ def min_max(operands: Dict[str, Operand], operator: str = "<"):
 		raise ValueError("Operator must be either '<' or '>'!")
 
 	types = operand_types(operands)
-	sign = "S" if any("s" in ty.lower() for ty in types) else "U"
+	sign = legalization_signdness(operands)
 	gmir_op = {
 		"<": [f"G_{sign}MIN"],
 		">": [f"G_{sign}MAX"],

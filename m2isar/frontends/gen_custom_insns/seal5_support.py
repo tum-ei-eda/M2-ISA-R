@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import yaml
 
@@ -28,11 +28,20 @@ def operand_types(operands: dict[str, Operand]) -> list[str]:
 	# TODO i need to adapt this for simd, maybe an optional parameter which adds vXsY
 
 	return list(
-		{
-			"s" + str(operand.width)
+		{"s" + str(operand.width) for name, operand in operands.items() if name != "rd"}
+	)
+
+
+def legalization_signdness(operands: dict[str, Operand]) -> Literal["S", "U"]:
+	"""Returns the type needed for the GMIR legalization"""
+	return (
+		"S"
+		if any(
+			"s" in operand.sign.lower()
 			for name, operand in operands.items()
 			if name != "rd"
-		}
+		)
+		else "U"
 	)
 
 
