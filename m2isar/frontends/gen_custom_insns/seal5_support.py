@@ -55,7 +55,11 @@ def save_legalizations_yaml(
 		for leg in legs:
 			fixed_name = ext_name.lower().replace("_", "")
 			legalized_ops.append(
-				{"name": leg.name, "types": leg.types, "onlyif": ["HasVendor" + fixed_name]}
+				{
+					"name": leg.name,
+					"types": leg.types,
+					"onlyif": ["HasVendor" + fixed_name],
+				}
 			)
 
 	content = {"riscv": {"legalization": {"gisel": {"ops": legalized_ops}}}}
@@ -76,30 +80,19 @@ def save_extensions_yaml(
 		"passes": {"per_model": {}},
 	}
 
-	if ext_prefix is None: # TODO this is currently not used 
+	if ext_prefix is None:  # TODO this is currently not used
 		ext_prefix = extension_name
 
 	for ext in extensions:
 		content["extensions"][ext] = {
 			"arch": "x" + ext.lower().replace("_", ""),
 			"experimental": False,
-			"feature": ext.replace("_", ""),  # TODO replace the full name with the prefix
+			"feature": ext.replace(
+				"_", ""
+			),  # TODO replace the full name with the prefix
 			"vendor": True,
 			"version": "1.0",
 		}
-
-		content["passes"]["per_model"][ext.replace("_", "")] = (
-			{  # TODO currently hard code, but it should be fine
-				"skip": [
-					"riscv_features",
-					"riscv_isa_info",
-					"riscv_instr_formats",
-					"riscv_instr_info",
-					"behav_to_pat",
-				],
-				"override": {"behav_to_pat": {"patterns": False}},
-			}
-		)
 
 	with open(path / (extension_name + ".yaml"), "w", encoding="utf-8") as file:
 		yaml.safe_dump(content, file)
