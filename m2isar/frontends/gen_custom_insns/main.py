@@ -104,17 +104,30 @@ def main():
 				)
 				if args.one_per_set:
 					name = set_name + "_" + instruction.name
+					if name in inst_sets:
+						logger.error(
+							"The instruction '%s' has been overwritten! "
+							"Make sure to create unique names for each op/width/sign combination!",
+							name,
+						)
 					inst_sets[name] = []
 					legalizations[name] = []
 				else:
 					name = set_name
+
+				if any(instruction.name == i.name for i in inst_sets[name]):
+					logger.error(
+						"Multiple Instructions in Set '%s' share the Name '%s'! "
+						"Make sure to create unique names for each op/width/sign combination!",
+						name,
+						instruction.name,
+					)
 
 				inst_sets[name].append(instruction)
 				if legalization:
 					legalizations[name].append(legalization)
 
 	logger.info("Created %i instructions in %i Sets.", inst_count, len(inst_sets))
-
 
 	# parsing output path
 	if args.output is None:
