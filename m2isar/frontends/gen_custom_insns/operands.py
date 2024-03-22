@@ -35,13 +35,28 @@ class Operand:
 	sign: str
 	immediate: bool = False
 
+	@property
+	def f_width(self):
+		"""Can be used in the yaml file to make the instruction names prettier"""
+		if isinstance(self.width, str):
+			raise RuntimeError(
+				"The property can only be accessed after references have been resolved! This should not have happend."
+			)
+		pretty_width = ""
+		# TODO this should be changed for XLEN 64
+		if self.width == 16:
+			pretty_width = ".w"
+		if self.width == 8:
+			pretty_width = ".b"
+		return pretty_width
+
 	def to_metamodel_ref(self, name: str, cast: bool = True) -> MetamodelRef:
 		"""
 		Returns either:
 		- IndexedReference if the operand is a register
 		- NamedReference if the operand is an immediate
 		- Or a TypeConv, explained below
-		
+
 		Return Value gets wrapped in a TypeConv if its smaller than XLEN or signed,
 		This can be turned off by passing "cast=False"
 		"""

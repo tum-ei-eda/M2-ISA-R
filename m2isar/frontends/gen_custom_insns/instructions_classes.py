@@ -25,7 +25,6 @@ class Instruction:
 
 	def format_name(self) -> None:
 		"""Formates the instruction name using the operands"""
-		# TODO build dict for format, which has width as ".b"/".h"
 		self.name = self.name.format(**self.operands, op=self.op)
 
 	def resolve_references(self) -> None:
@@ -132,20 +131,3 @@ class InstructionCollection:
 			inst.format_name()
 
 		return instructions
-
-
-if __name__ == "__main__":
-	# Just used for debuging
-	instr = Instruction(
-		name="simd_test",
-		op="simd_add",
-		operands={
-			"rs1": Operand(width=8, sign="s"),
-			"rs2": Operand(width=8, sign="s"),
-			"rd": Operand(8, "s"),
-		},
-	)
-
-	test = instr.to_metamodel("test")
-
-	print(test)
