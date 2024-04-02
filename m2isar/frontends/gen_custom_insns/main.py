@@ -214,7 +214,7 @@ def main():
 	if out_path.suffix != ".m2isarmodel":
 		out_path = out_path.with_suffix(".m2isarmodel")
 	with open(out_path, "wb") as file:
-		logger.info("Saving instructions to '%s'", out_path.name)
+		logger.info("Saving instructions to '%s'", out_path)
 		pickle.dump(model, file)
 
 	if args.backend == "cdsl":
@@ -227,7 +227,7 @@ def main():
 				"python",
 				"-m",
 				"m2isar.backends.coredsl2_set.writer",
-				out_path.with_suffix(".m2isarmodel").name,
+				out_path.with_suffix(".m2isarmodel"),
 			],
 			check=True,
 			text=True,
