@@ -216,9 +216,9 @@ def mm_abs(operands: dict[str, Operand]):
 	return (
 		behav.Ternary(
 			behav.BinaryOperation(
-				behav.TypeConv(arch.DataType.S, None, mm_operands["rs1"]),
+				mm_operands["rs1"],
 				behav.Operator("<"),
-				behav.IntLiteral(0),
+				behav.TypeConv(arch.DataType.S, None, behav.IntLiteral(0, signed=True)),
 			),
 			behav.UnaryOperation(behav.Operator("-"), mm_operands["rs1"]),
 			mm_operands["rs1"],

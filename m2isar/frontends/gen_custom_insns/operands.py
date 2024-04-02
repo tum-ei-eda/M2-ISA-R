@@ -117,7 +117,7 @@ class Operand:
 
 
 def to_metamodel_operands(operands: Dict[str, Operand]) -> Dict[str, MetamodelRef]:
-	"""Converts a dict of operands to dict with metamodel references"""
+	"""Converts a dict of operands to dict of metamodel references of those operands"""
 	mm_operands = {
 		opr_name: opr.to_metamodel_ref(opr_name) for opr_name, opr in operands.items()
 	}
