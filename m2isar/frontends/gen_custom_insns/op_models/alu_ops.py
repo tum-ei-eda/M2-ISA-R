@@ -67,7 +67,7 @@ def arithmetic_n(operands: dict[str, Operand], operator: str):
 	mm_operands = to_metamodel_operands(operands)
 	return (
 		behav.BinaryOperation(
-			binary_op_helper(operands, operator),
+			behav.Group(binary_op_helper(operands, operator)),
 			behav.Operator(">>"),
 			mm_operands["Is3"],
 		),
@@ -79,19 +79,25 @@ def arithmetic_rn(operands: dict[str, Operand], operator: str):
 	# It seems like m2isar does not differentiate between logical an arithmetic shift
 	"""(rs1 {operator} rs2 + 2^(Is3-1)) >> Is3"""
 	mm_operands = to_metamodel_operands(operands)
-	pow2_part = behav.BinaryOperation(
-		behav.IntLiteral(2),
-		behav.Operator("^"),
+	pow2_part = behav.Group(
 		behav.BinaryOperation(
-			mm_operands["Is3"],
-			behav.Operator("-"),
-			behav.IntLiteral(1),
-		),
+			behav.IntLiteral(2),
+			behav.Operator("<<"),
+			behav.Group(
+				behav.BinaryOperation(
+					mm_operands["Is3"],
+					behav.Operator("-"),
+					behav.IntLiteral(1),
+				),
+			),
+		)
 	)
 	return (
 		behav.BinaryOperation(
-			behav.BinaryOperation(
-				binary_op_helper(operands, operator), behav.Operator("+"), pow2_part
+			behav.Group(
+				behav.BinaryOperation(
+					binary_op_helper(operands, operator), behav.Operator("+"), pow2_part
+				)
 			),
 			behav.Operator(">>"),
 			mm_operands["Is3"],
@@ -105,8 +111,10 @@ def arithmetic_nr(operands: dict[str, Operand], operator: str):
 	mm_operands = to_metamodel_operands(operands)
 	return (
 		behav.BinaryOperation(
-			behav.BinaryOperation(
-				mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
+			behav.Group(
+				behav.BinaryOperation(
+					mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
+				)
 			),
 			behav.Operator(">>"),
 			behav.SliceOperation(
@@ -118,28 +126,34 @@ def arithmetic_nr(operands: dict[str, Operand], operator: str):
 
 
 def arithmetic_rnr(operands: dict[str, Operand], operator: str):
-	"""(rD + rs1 + 2^(rs2[4:0]-1)) >>> rs2[4:0]; e.g. cv.addRNr"""
+	"""(rD {operator} rs1 + 2^(rs2[4:0]-1)) >>> rs2[4:0]; e.g. cv.addRNr"""
 	mm_operands = to_metamodel_operands(operands)
 	rs2_slice = behav.SliceOperation(
 		mm_operands["rs2"], behav.IntLiteral(4), behav.IntLiteral(0)
 	)
-	pow2_part = behav.BinaryOperation(
-		behav.IntLiteral(2),
-		behav.Operator("^"),
+	pow2_part = behav.Group(
 		behav.BinaryOperation(
-			copy(rs2_slice),
-			behav.Operator("-"),
-			behav.IntLiteral(1),
-		),
+			behav.IntLiteral(2),
+			behav.Operator("<<"),
+			behav.Group(
+				behav.BinaryOperation(
+					copy(rs2_slice),
+					behav.Operator("-"),
+					behav.IntLiteral(1),
+				),
+			),
+		)
 	)
 	return (
 		behav.BinaryOperation(
-			behav.BinaryOperation(
+			behav.Group(
 				behav.BinaryOperation(
-					mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
-				),
-				behav.Operator("+"),
-				pow2_part,
+					behav.BinaryOperation(
+						mm_operands["rd"], behav.Operator(operator), mm_operands["rs1"]
+					),
+					behav.Operator("+"),
+					pow2_part,
+				)
 			),
 			behav.Operator(">>"),
 			copy(rs2_slice),

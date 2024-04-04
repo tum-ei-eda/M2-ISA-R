@@ -8,8 +8,6 @@ from ..operands import Operand, to_metamodel_operands
 from .template import OpcodeDict
 from ..seal5_support import arithmetic_legalization
 
-# TODO Add G_MUL(s16) legalizations where applicable
-
 
 def mac(operands: Dict[str, Operand], operator: str = "+"):
 	"""rd {operator} rs1 * rs2"""
@@ -53,6 +51,7 @@ def mul_n(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 		)
 	else:
 		lhs = behav.BinaryOperation(rs1, behav.Operator("*"), rs2)
+
 	return (
 		behav.BinaryOperation(
 			lhs,
@@ -71,14 +70,18 @@ def mul_rn(operands: Dict[str, Operand], hh: bool, mac_mode: bool):
 
 	legalization = arithmetic_legalization(operands, "*")
 
-	pow2_part = behav.BinaryOperation(
-		behav.IntLiteral(2),
-		behav.Operator("^"),
+	pow2_part = behav.Group(
 		behav.BinaryOperation(
-			operands["Is3"].to_metamodel_ref("Is3"),
-			behav.Operator("-"),
-			behav.IntLiteral(1),
-		),
+			behav.IntLiteral(2),
+			behav.Operator("<<"),
+			behav.Group(
+				behav.BinaryOperation(
+					operands["Is3"].to_metamodel_ref("Is3"),
+					behav.Operator("-"),
+					behav.IntLiteral(1),
+				)
+			),
+		)
 	)
 
 	if mac_mode:
