@@ -20,7 +20,7 @@ class Instruction:
 	"""A single Instructions which can be turned into the M2-ISA Metamodel"""
 
 	name: str
-	op: str  # will later be changed to an object of the operand class
+	op: str
 	operands: Dict[str, Operand]
 
 	def format_name(self) -> None:
