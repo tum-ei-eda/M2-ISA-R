@@ -103,6 +103,9 @@ def number_literal(self: behav.IntLiteral, context):
 def int_literal(self: behav.IntLiteral, context):
 	return self
 
+def string_literal(self: behav.StringLiteral, context):
+	return self
+
 def scalar_definition(self: behav.ScalarDefinition, context):
 	return self
 

@@ -51,6 +51,9 @@ def number_literal(self: behav.IntLiteral, context):
 def int_literal(self: behav.IntLiteral, context):
 	return arch.FunctionThrows.NO
 
+def string_literal(self: behav.StringLiteral, context):
+	return arch.FunctionThrows.NO
+
 def scalar_definition(self: behav.ScalarDefinition, context):
 	return arch.FunctionThrows.NO
 

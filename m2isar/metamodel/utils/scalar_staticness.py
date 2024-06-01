@@ -53,6 +53,9 @@ def number_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
 def int_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
 	return StaticType.READ
 
+def string_literal(self: behav.StringLiteral, context: ScalarStaticnessContext):
+	return StaticType.READ
+
 def scalar_definition(self: behav.ScalarDefinition, context: ScalarStaticnessContext):
 	self.scalar.static = StaticType.RW
 	return StaticType.RW
