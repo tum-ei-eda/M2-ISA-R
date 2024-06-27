@@ -48,6 +48,7 @@ rule_encoding
 encoding_entry
 	: value=integer_constant # bit_value
 	| name=IDENTIFIER '[' left=integer_constant ':' right=integer_constant ']' # bit_field
+	| ('auto' | 'AUTO') # auto_field
 	;
 
 function_definition
