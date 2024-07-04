@@ -338,12 +338,14 @@ def main():
 
 		logger.debug("generating instruction behavior")
 		instructions_by_enc = {}
+		unencoded_instructions_by_name = {}
 		assert isinstance(set_def.instructions, list)
 		overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]" = []
 		# for instr_def in set_def.instructions.values():
 		for instr_def in set_def.instructions:
 
-			logger.debug("generating instruction %s", instr_def.name)
+			instr_name = instr_def.name
+			logger.debug("generating instruction %s", instr_name)
 			logger.debug("generating attributes")
 
 			for attr_name, attr_ops in instr_def.attributes.items():
@@ -364,7 +366,7 @@ def main():
 						ops.append(op)
 					except M2Error as e:
 						logger.critical(
-							'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_def.name, e
+							'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_name, e
 						)
 						sys.exit(1)
 
@@ -381,11 +383,6 @@ def main():
 					if not enable:
 						continue
 
-			print("set_def.parameters", set_def.parameters)
-			print("set_def.memories", set_def.memories)
-			print("set_def.memory_aliases", set_def.memory_aliases)
-			print("set_def.register_banks", set_def.register_banks)
-			print("set_def.register_aliases", set_def.register_aliases)
 			behav_builder = BehaviorModelBuilder(
 				set_def.parameters,
 				set_def.memories,
@@ -401,7 +398,7 @@ def main():
 				op = behav_builder.visit(instr_def.operation)
 			except M2Error as e:
 				logger.critical(
-					"error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e
+					"error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_name, e
 				)
 				raise e
 				sys.exit(1)
@@ -424,12 +421,16 @@ def main():
 
 			# op.statements.insert(0, pc_inc)
 			instr_def.operation = op
-			instr_id = (instr_def.code, instr_def.mask)
-			# check for duplicate instructions
-			if instr_id in instructions_by_enc:
-				overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
-			instructions_by_enc[instr_id] = instr_def
+		if instr_def.has_encoding:
+				instr_id = (instr_def.code, instr_def.mask)
+				# check for duplicate instructions
+				if instr_id in instructions_by_enc:
+					overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
+				instructions_by_enc[instr_id] = instr_def
+			else:
+				unencoded_instructions_by_name[instr_name] = instr_def
 		set_def.instructions = instructions_by_enc
+		set_def.unencoded_instructions = unencoded_instructions_by_name
 		assert isinstance(set_def.instructions, dict)
 		for orig, overwritten in overwritten_instrs:
 			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)

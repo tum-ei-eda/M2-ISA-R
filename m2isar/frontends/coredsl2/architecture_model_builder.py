@@ -157,7 +157,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions, always_blocks)
+			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions, {}, always_blocks)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
@@ -187,7 +187,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._parameters, self._memories, self._memory_aliases,
 			self._register_banks, self._register_aliases, self._functions,
-			self._instructions, self._instr_classes, intrinsics, self._always_blocks)
+			self._instructions, {}, self._instr_classes, intrinsics, self._always_blocks)
 
 		return c
 
@@ -215,20 +215,30 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		"""Generate non-behavioral parts of an instruction."""
+		print("visitInstruction")
 
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
+		print("encoding", encoding)
+		operands = [self.visit(obj) for obj in ctx.operands]
+		if operands:
+			print("operands", operands)
+			input("q")
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
+		name = ctx.name.text
 
-		i = arch.Instruction(ctx.name.text, attributes, encoding, mnemonic, assembly, ctx.behavior, None)
-		self._instr_classes.add(i.size)
+		i = arch.Instruction(name, attributes, encoding, mnemonic, assembly, ctx.behavior, None)
+		if i.has_encoding:
+			self._instr_classes.add(i.size)
+			instr_id = (i.code, i.mask)
 
 		# instr_id = (i.code, i.mask)
 
-		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=i.size//4)
-		i.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
+			# check for duplicate instructions
+			if instr_id in self._instructions:
+				self._overwritten_instrs.append((self._instructions[instr_id], i))
 
 		# check for duplicate instructions
 		# if instr_id in self._instructions:

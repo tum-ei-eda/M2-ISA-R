@@ -687,7 +687,7 @@ class InstructionSet(Named):
 	"""
 
 	def __init__(self, name, extension: "list[str]", parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
-			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]", always_blocks=None):
+			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]", unencoded_instructions: "dict[str, Instruction]", always_blocks=None):
 
 		self.extension = extension
 		self.combines = []
@@ -698,6 +698,7 @@ class InstructionSet(Named):
 		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
+		self.unencoded_instructions = unencoded_instructions
 		self.always_blocks = always_blocks if always_blocks is not None else {}
 
 		super().__init__(name)
@@ -714,7 +715,7 @@ class CoreDef(Named):
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]",
-			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", instr_classes: "set[int]",
+			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", unencoded_instructions: "dict[str, Instructions", instr_classes: "set[int]",
 			intrinsics: "dict[str, Intrinsic]", always_blocks=None):
 
 		self.contributing_types = contributing_types
@@ -726,6 +727,7 @@ class CoreDef(Named):
 		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
+		self.unencoded_instructions = unencoded_instructions
 		self.instr_classes = instr_classes
 		self.main_reg_file = None
 		self.float_reg_file = None
