@@ -80,6 +80,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		val = self.visit(ctx.value)
 		return arch.BitVal(val.ty.size, val.value)
 
+	def visitAuto_field(self, ctx: CoreDSL2Parser.Auto_fieldContext):
+		"""Generate undefined part of encoding."""
+		import traceback
+		traceback.print_stack()
+		input("1")
+
+		return None
+
+
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
 		"""Generate a top-level instruction set object."""
 
