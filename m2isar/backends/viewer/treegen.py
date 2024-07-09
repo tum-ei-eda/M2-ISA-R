@@ -76,7 +76,7 @@ def concat_operation(self: behav.ConcatOperation, context: "TreeGenContext"):
 
 	context.pop()
 
-def number_literal(self: behav.IntLiteral, context: "TreeGenContext"):
+def number_literal(self: behav.NumberLiteral, context: "TreeGenContext"):
 	context.tree.insert(context.parent, tk.END, text="Number Literal", values=(self.value,))
 
 def int_literal(self: behav.IntLiteral, context: "TreeGenContext"):

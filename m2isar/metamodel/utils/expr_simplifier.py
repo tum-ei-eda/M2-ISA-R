@@ -97,7 +97,7 @@ def concat_operation(self: behav.ConcatOperation, context):
 
 	return self
 
-def number_literal(self: behav.IntLiteral, context):
+def number_literal(self: behav.NumberLiteral, context):
 	return self
 
 def int_literal(self: behav.IntLiteral, context):

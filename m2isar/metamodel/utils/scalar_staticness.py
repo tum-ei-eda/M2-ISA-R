@@ -47,7 +47,7 @@ def concat_operation(self: behav.ConcatOperation, context: ScalarStaticnessConte
 
 	return min(left, right)
 
-def number_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
+def number_literal(self: behav.NumberLiteral, context: ScalarStaticnessContext):
 	return StaticType.READ
 
 def int_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
