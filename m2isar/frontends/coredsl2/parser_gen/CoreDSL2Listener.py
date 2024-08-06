@@ -125,6 +125,15 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#auto_field.
+    def enterAuto_field(self, ctx:CoreDSL2Parser.Auto_fieldContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#auto_field.
+    def exitAuto_field(self, ctx:CoreDSL2Parser.Auto_fieldContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#function_definition.
     def enterFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
         pass
