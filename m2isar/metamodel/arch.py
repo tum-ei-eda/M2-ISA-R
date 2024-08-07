@@ -542,10 +542,28 @@ class Instruction(SizedRefOrConst):
 		self.throws = False
 		self.function_info = function_info
 
+		super().__init__(name, 0)
+		self.process_encoding()
+
+		if operands:
+			if self.has_encoding:
+				assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
+				for op_name, op_decl in operands.items():
+					descr = self.fields.get(op_name, None)
+					assert op_decl.value is None
+					# TODO: check op_decl.attributes
+					assert descr is not None
+					assert descr.size == op_decl.size
+					if op_decl.signed:
+						assert descr.data_type == DataType.S
+					else:
+						assert descr.data_type == DataType.U
+
+	def process_encoding(self):
+
 		self.mask = 0
 		self.code = 0
-
-		super().__init__(name, 0)
+		self._size = 0
 
 		for e in reversed(self.encoding):
 			print("e", e)
@@ -572,19 +590,6 @@ class Instruction(SizedRefOrConst):
 				self.code |= e.value << self._size
 
 				self._size += e.length
-		if operands:
-			if self.has_encoding:
-				assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
-				for op_name, op_decl in operands.items():
-					descr = self.fields.get(op_name, None)
-					assert op_decl.value is None
-					# TODO: check op_decl.attributes
-					assert descr is not None
-					assert descr.size == op_decl.size
-					if op_decl.signed:
-						assert descr.data_type == DataType.S
-					else:
-						assert descr.data_type == DataType.U
 
 	@property
 	def has_encoding(self):
