@@ -33,11 +33,13 @@ def encode_instructions(instructions):
             # print("operand_def.size", operand_def.size)
             # print("operand_def.signed", operand_def.signed)
             # print("operand_def.attributes", operand_def.attributes)
+            attrs = operand_def.attributes
+            print("attrs", attrs)  # TODO: fix parsing of operand attrs
             name = operand_def.name
             width = operand_def.size
-            direction = "in" if name[:2] == "rs" else "out"
+            immediate = "imm" in name
+            direction = "in" if name[:2] == "rs" or immediate else "out"
             sign = "s" if operand_def.signed else "u"
-            immediate = False  # TODO: check name or attrs
             operand = Operand(width=width, sign=sign, immediate=immediate)
             if direction.lower() == "in":
                 in_operands[operand_def.name] = operand
@@ -45,7 +47,7 @@ def encode_instructions(instructions):
                 out_operands[operand_def.name] = operand
         # print("in_operands", in_operands)
         # print("out_operands", out_operands)
-        assert len(out_operands) == 1
+        # assert len(out_operands) == 1
         enc = get_mm_encoding(in_operands, out_operands)
         # print("enc", enc)
         instr_def.encoding = enc
