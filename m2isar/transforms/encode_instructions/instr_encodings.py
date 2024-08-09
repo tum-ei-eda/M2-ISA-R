@@ -11,7 +11,7 @@ This could be changed in the future by adding a function which adds unused opcod
 from typing import Dict, List, Union, Optional
 
 from ...metamodel import arch
-from .operands import Operand, get_immediates_with_name
+from .operands import Operand, get_immediates_with_name, get_register_names
 
 
 unused_opcodes = [0b000_1011, 0b010_1011, 0b101_1011, 0b111_1011]
@@ -101,19 +101,29 @@ def _reset_enc_generators():
     f2_opcodes = FunctNOpcodeGenerator(opcode_gen=i_opcodes, funct_size=2)
 
 
-def get_mm_encoding(operands: Dict[str, Operand]) -> List[Union[arch.BitField, arch.BitVal]]:
+def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union[arch.BitField, arch.BitVal]]:
     """
     Finds the next available Opcode and creates the encoding for use with the m2isar metamodel
     """
     # figure out the format
-    immediates = get_immediates_with_name(operands)
+    print("operands", in_operands)
+    immediates = get_immediates_with_name(in_operands)
+    in_register_names = get_register_names(in_operands)
+    out_register_names = list(out_operands.keys())
+    print("in_register_names", in_register_names)
+    print("out_register_names", out_register_names)
     imm_count = len(immediates)
-    reg_count = len(operands) - imm_count
+    print("imm_count", imm_count)
+    in_reg_count = len(in_operands) - imm_count
+    print("in_reg_count", in_reg_count)
 
     if imm_count > 1:
         raise NotImplementedError("Currently instructions with more than two immediates are not supported!")
-    if reg_count > 3:
+    if in_reg_count > 3:
         raise NotImplementedError("No format available with more than 3 Register sources!")
+    if len(out_register_names) > 1:
+        raise NotImplementedError("Multiple output registers not supported!")
+    # assert len(in_register_names) + len(out_register_names) == reg_count
 
     # print("immediates", immediates)
     # print("imm_count", imm_count)
@@ -128,7 +138,7 @@ def get_mm_encoding(operands: Dict[str, Operand]) -> List[Union[arch.BitField, a
         # If its 5 bits or smaller we can use the R-Format and
         # use rs2 to encode the immediate to save encoding space
         # This is the encoding for e.g. cv.clip
-        if reg_count == 2 and immediate.width <= 5:
+        if in_reg_count == 1 and immediate.width <= 5:
             funct7, funct3, opcode = r_opcodes.get()
             update_imm_width(immediate, 5)
             imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
@@ -136,13 +146,13 @@ def get_mm_encoding(operands: Dict[str, Operand]) -> List[Union[arch.BitField, a
             return [
                 arch.BitVal(7, funct7),
                 arch.BitField(imm_name, arch.RangeSpec(4, 0), imm_sign),
-                reg_bitfield("rs1"),
+                reg_bitfield(in_register_names[0]),
                 arch.BitVal(3, funct3),
-                reg_bitfield("rd"),
+                reg_bitfield(out_register_names[0]),
                 arch.BitVal(7, opcode),
             ]
         # 3 register and an immediate => max bitwidth = 5; e.g. cv.addN
-        if reg_count == 3:
+        if in_reg_count == 2:
             if immediate.width > 5:
                 raise ValueError("Instructions with 3 registers can only have an immediate of 5 bits or smaller!")
             funct2, funct3, opcode = f2_opcodes.get()
@@ -152,10 +162,10 @@ def get_mm_encoding(operands: Dict[str, Operand]) -> List[Union[arch.BitField, a
             return [
                 arch.BitVal(2, funct2),
                 arch.BitField(imm_name, arch.RangeSpec(4, 0), imm_sign),
-                reg_bitfield("rs2"),
-                reg_bitfield("rs1"),
+                reg_bitfield(in_register_names[1]),
+                reg_bitfield(in_register_names[0]),
                 arch.BitVal(3, funct3),
-                reg_bitfield("rd"),
+                reg_bitfield(out_register_names[0]),
                 arch.BitVal(7, opcode),
             ]
 
@@ -166,34 +176,46 @@ def get_mm_encoding(operands: Dict[str, Operand]) -> List[Union[arch.BitField, a
         # I-Format: imm12 | rs1 | funct3 | rd | opcode
         return [
             arch.BitField(imm_name, arch.RangeSpec(11, 0), imm_sign),
-            reg_bitfield("rs1"),
+            reg_bitfield(in_register_names[0]),
             arch.BitVal(3, funct3),
-            reg_bitfield("rd"),
+            reg_bitfield(out_register_names[0]),
             arch.BitVal(7, major),
         ]
 
-    if reg_count == 3:
+    if in_reg_count == 3:
         funct2, funct3, major = f2_opcodes.get()
-        # R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
+        # R-Format: funct2 | rs3 | rs2 | rs1 | funct3 | rd | opcode
         return [
             arch.BitVal(2, funct2),
-            reg_bitfield("rs3"),
-            reg_bitfield("rs2"),
-            reg_bitfield("rs1"),
+            reg_bitfield(in_register_names[2]),
+            reg_bitfield(in_register_names[1]),
+            reg_bitfield(in_register_names[0]),
             arch.BitVal(3, funct3),
-            reg_bitfield("rd"),
+            reg_bitfield(out_register_names[0]),
             arch.BitVal(7, major),
         ]
-    if reg_count == 2:
-        # no imm's and only 2 regs, e.g. cv.abs -> just set rs2 to 0
+    if in_reg_count == 2:
+        # no imm's and only 2 regs
         funct7, funct3, major = r_opcodes.get()
         # R-Format: funct7 | rs2 | rs1 | funct3 | rd | opcode
         return [
             arch.BitVal(7, funct7),
-            arch.BitVal(5, 0),
-            reg_bitfield("rs1"),
+            reg_bitfield(in_register_names[1]),
+            reg_bitfield(in_register_names[0]),
             arch.BitVal(3, funct3),
-            reg_bitfield("rd"),
+            reg_bitfield(out_register_names[0]),
+            arch.BitVal(7, major),
+        ]
+    if in_reg_count == 1:
+        # no imm's and only 1 regs, e.g. cv.abs -> just set rs2 to 0
+        funct7, funct3, major = r_opcodes.get()
+        # R-Format: funct7 | 00000 | rs1 | funct3 | rd | opcode
+        return [
+            arch.BitVal(7, funct7),
+            arch.BitVal(5, 0),  # TODO: make use of this!!
+            reg_bitfield(in_register_names[0]),
+            arch.BitVal(3, funct3),
+            reg_bitfield(out_register_names[0]),
             arch.BitVal(7, major),
         ]
 

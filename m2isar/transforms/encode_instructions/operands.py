@@ -124,6 +124,11 @@ def get_immediates_with_name(operands: Dict[str, Operand]) -> List[Tuple[str, Op
     return [(name, operand) for name, operand in operands.items() if operand.immediate]
 
 
+def get_register_names(operands: Dict[str, Operand]) -> List[Tuple[str, Operand]]:
+    """returns an ordered list of register names"""
+    return [name for name, operand in operands.items() if not operand.immediate]
+
+
 def simplify_operands(operands: Dict[str, ComplexOperand]) -> Dict[str, List[Operand]]:
     """
     Simplifying the operands, returns a list where

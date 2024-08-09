@@ -26,7 +26,7 @@ def encode_instructions(instructions):
         assert not instr_def.has_encoding
         in_operands = {}
         out_operands = {}
-        print("instr_def.operands", instr_def.operands)
+        # print("instr_def.operands", instr_def.operands)
         for operand_def in instr_def.operands.values():
             # print("operand_def", operand_def)
             # print("operand_def.name", operand_def.name)
@@ -46,7 +46,7 @@ def encode_instructions(instructions):
         # print("in_operands", in_operands)
         # print("out_operands", out_operands)
         assert len(out_operands) == 1
-        enc = get_mm_encoding(in_operands)
+        enc = get_mm_encoding(in_operands, out_operands)
         # print("enc", enc)
         instr_def.encoding = enc
         instr_def.process_encoding()
