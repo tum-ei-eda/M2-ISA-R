@@ -383,6 +383,31 @@ def main():
 					if not enable:
 						continue
 
+			logger.debug("generating operand attributes")
+			for operand_def in instr_def.operands.values():
+				for attr_name, attr_ops in operand_def.attributes.items():
+					ops = []
+					for attr_op in attr_ops:
+						try:
+							behav_builder = BehaviorModelBuilder(
+								set_def.parameters,
+								set_def.memories,
+								set_def.memory_aliases,
+								set_def.register_banks,
+								set_def.register_aliases,
+								instr_def.fields,
+								set_def.functions,
+								warned_fns,
+							)
+							op = behav_builder.visit(attr_op)
+							ops.append(op)
+						except M2Error as e:
+							logger.critical(
+								'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_name, e
+							)
+							sys.exit(1)
+
+					operand_def.attributes[attr_name] = ops
 			behav_builder = BehaviorModelBuilder(
 				set_def.parameters,
 				set_def.memories,
@@ -421,7 +446,7 @@ def main():
 
 			# op.statements.insert(0, pc_inc)
 			instr_def.operation = op
-		if instr_def.has_encoding:
+			if instr_def.has_encoding:
 				instr_id = (instr_def.code, instr_def.mask)
 				# check for duplicate instructions
 				if instr_id in instructions_by_enc:

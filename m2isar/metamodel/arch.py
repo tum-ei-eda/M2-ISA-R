@@ -244,7 +244,6 @@ class Variable(Symbol):
 			# only allow 1D arrays for now
             assert ty.element_type.kind.is_scalar
 
-        # optional: only for parameters/literals
         self.value = value
         self.children = children
         assert (len(self.children) == 0 or isinstance(ty, type_info.ArrayType))
@@ -545,7 +544,6 @@ class Instruction(SizedRefOrConst):
 		super().__init__(name, 0)
 		self.process_encoding()
 
-<<<<<<< HEAD
 		if operands:
 			if self.has_encoding:
 				assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
@@ -559,29 +557,13 @@ class Instruction(SizedRefOrConst):
 						assert descr.data_type == DataType.S
 					else:
 						assert descr.data_type == DataType.U
-=======
-        self.process_encoding()
-        if operands:
-            if self.has_encoding:
-                assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
-                for op_name, op_decl in operands.items():
-                    descr = self.fields.get(op_name, None)
-                    assert op_decl.value is None
-                    # TODO: check op_decl.attributes
-                    assert descr is not None
-                    assert descr.size == op_decl.size
-                    if op_decl.signed:
-                        assert descr.data_type == DataType.S
-                    else:
-                        assert descr.data_type == DataType.U
-            else:
-                assert len(self.fields) == 0, "TODO: allow manual encoding + operands"
-                for op_name, op_decl in operands.items():
-                    sz = op_decl.size
-                    dtype = DataType.S if op_decl.signed else DataType.U
-                    descr = BitFieldDescr(op_name, sz, dtype)
-                    self.fields[op_name] = descr
->>>>>>> 65da3b4 (operand fixes)
+			else:
+				assert len(self.fields) == 0, "TODO: allow manual encoding + operands"
+				for op_name, op_decl in operands.items():
+					sz = op_decl.size
+					dtype = DataType.S if op_decl.signed else DataType.U
+					descr = BitFieldDescr(op_name, sz, dtype)
+					self.fields[op_name] = descr
 
 	def process_encoding(self):
 

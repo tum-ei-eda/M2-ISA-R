@@ -11,7 +11,7 @@ import logging
 import pathlib
 import pickle
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
 from .operands import Operand
 from .instr_encodings import _reset_enc_generators, get_mm_encoding
 
