@@ -106,16 +106,16 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
     Finds the next available Opcode and creates the encoding for use with the m2isar metamodel
     """
     # figure out the format
-    print("operands", in_operands)
+    # print("operands", in_operands)
     immediates = get_immediates_with_name(in_operands)
     in_register_names = get_register_names(in_operands)
     out_register_names = list(out_operands.keys())
-    print("in_register_names", in_register_names)
-    print("out_register_names", out_register_names)
+    # print("in_register_names", in_register_names)
+    # print("out_register_names", out_register_names)
     imm_count = len(immediates)
-    print("imm_count", imm_count)
+    # print("imm_count", imm_count)
     in_reg_count = len(in_operands) - imm_count
-    print("in_reg_count", in_reg_count)
+    # print("in_reg_count", in_reg_count)
 
     if imm_count > 2:
         raise NotImplementedError("Currently instructions with more than two immediates are not supported!")

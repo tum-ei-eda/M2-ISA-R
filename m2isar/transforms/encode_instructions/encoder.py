@@ -32,13 +32,33 @@ def encode_instructions(instructions):
             # print("operand_def.name", operand_def.name)
             # print("operand_def.size", operand_def.size)
             # print("operand_def.signed", operand_def.signed)
-            # print("operand_def.attributes", operand_def.attributes)
-            attrs = operand_def.attributes
-            print("attrs", attrs)  # TODO: fix parsing of operand attrs
-            name = operand_def.name
+            def get_direction(operand_def):
+                ret = None
+                if arch.OperandAttribute.IN in operand_def.attributes:
+                    ret = "in"
+                elif arch.OperandAttribute.OUT in operand_def.attributes:
+                    ret = "out"
+                elif arch.OperandAttribute.INOUT in operand_def.attributes:
+                    ret = "inout"
+                if ret is None:
+                    ret = "in" if operand_def.name[:2] == "rs" else "out"
+                return ret
+
+            direction = get_direction(operand_def)
+
+            def get_immediate(operand_def):
+                ret = False
+                if arch.OperandAttribute.IS_REG in operand_def.attributes:
+                    ret = False
+                elif arch.OperandAttribute.IS_IMM in operand_def.attributes:
+                    ret = True
+                if ret is None:
+                    ret = "imm" in operand.name
+                return ret
+
+            immediate = get_immediate(operand_def)
+
             width = operand_def.size
-            immediate = "imm" in name
-            direction = "in" if name[:2] == "rs" or immediate else "out"
             sign = "s" if operand_def.signed else "u"
             operand = Operand(width=width, sign=sign, immediate=immediate)
             if direction.lower() == "in":
