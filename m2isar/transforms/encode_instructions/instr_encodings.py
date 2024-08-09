@@ -8,7 +8,7 @@ only uses the major opcodes Custom[0-3] as specified by the RISC-V standard
 This could be changed in the future by adding a function which adds unused opcodes to the list
 """
 
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Optional, Tuple
 
 from ...metamodel import arch
 from .operands import Operand, get_immediates_with_name, get_register_names
@@ -32,7 +32,7 @@ class OpcodeGenerator:
         self.opcode: Optional[int] = None
         self.funct3: int = 0
 
-    def get(self) -> tuple[int, int]:
+    def get(self) -> Tuple[int, int]:
         """
         Get a new opcode as a tuple of (minor, major) opcode,
         Returns (funct3, opcode)
@@ -61,7 +61,7 @@ class FunctNOpcodeGenerator:
         self.n: int = funct_size
         self.funct_n: int = 0
 
-    def get(self) -> tuple[int, int, int]:
+    def get(self) -> Tuple[int, int, int]:
         """returns (functN, funct3, opcode)"""
         if self.funct3 is None or self.funct_n >= 2**self.n:
             self.funct3, self.opcode = self.opcode_generator.get()
