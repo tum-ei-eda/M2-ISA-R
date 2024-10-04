@@ -109,6 +109,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
     # print("operands", in_operands)
     immediates = get_immediates_with_name(in_operands)
     in_register_names = get_register_names(in_operands)
+    # print("out_operands", out_operands)
     out_register_names = list(out_operands.keys())
     # print("in_register_names", in_register_names)
     # print("out_register_names", out_register_names)
@@ -116,6 +117,9 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
     # print("imm_count", imm_count)
     in_reg_count = len(in_operands) - imm_count
     # print("in_reg_count", in_reg_count)
+    out_reg_count = len(out_register_names)
+    # print("out_reg_count", out_reg_count)
+    # input("!!!")
 
     if imm_count > 3:
         raise NotImplementedError("Currently instructions with more than three immediates are not supported!")
@@ -130,7 +134,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
     # print("reg_count", reg_count)
 
     # TODO: clean up the if statements to find the correct format
-    if len(out_register_names) == 0:
+    if out_reg_count == 0:
         # raise NotImplementedError("Zero output registers not supported!")
         if imm_count == 0:
             if in_reg_count == 2:
@@ -192,7 +196,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                         arch.BitField(larger_imm_name, arch.RangeSpec(4, 0), larger_imm_sign),
                         arch.BitVal(7, opcode),
                     ]
-    elif len(out_register_names) == 1:
+    elif out_reg_count == 1:
 
         if in_reg_count == 3:
             funct2, funct3, major = f2_opcodes.get()
@@ -360,8 +364,47 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                         reg_bitfield(out_register_names[0]),
                         arch.BitVal(7, major),
                     ]
-    elif len(out_register_names) > 1:
-        raise NotImplementedError("Multiple output registers not supported!")
+    elif out_reg_count > 1:
+        if in_reg_count == 2:
+            # 2 bits left
+            if imm_count == 0:
+                funct2, funct3, major = f2_opcodes.get()
+                # ?-Format: funct2 | rs2 | rs1 | rd2 | funct3 | rd | opcode
+                return [
+                    arch.BitVal(2, funct2),
+                    reg_bitfield(in_register_names[1]),
+                    reg_bitfield(in_register_names[0]),
+                    reg_bitfield(out_register_names[1]),
+                    arch.BitVal(3, funct3),
+                    reg_bitfield(out_register_names[0]),
+                    arch.BitVal(7, major),
+                ]
+        elif in_reg_count == 1:
+            # 7 bits left
+            if imm_count == 0:
+                funct7, funct3, opcode = r_opcodes.get()
+                # ?-Format: funct7 | rs1 | rd2 | funct3 | rd | opcode
+                return [
+                    arch.BitVal(7, funct7),
+                    reg_bitfield(in_register_names[0]),
+                    reg_bitfield(out_register_names[1]),
+                    arch.BitVal(3, funct3),
+                    reg_bitfield(out_register_names[0]),
+                    arch.BitVal(7, opcode),
+                ]
+        elif in_reg_count == 0:
+            # 12 bits left
+            if imm_count == 0:
+                funct7, funct3, opcode = r_opcodes.get()
+                # ?-Format: funct7 | 00000 | rd2 | funct3 | rd | opcode
+                return [
+                    arch.BitVal(7, funct7),
+                    arch.BitVal(5, 0),  # TODO: make use of this!!
+                    reg_bitfield(out_register_names[1]),
+                    arch.BitVal(3, funct3),
+                    reg_bitfield(out_register_names[0]),
+                    arch.BitVal(7, opcode),
+                ]
 
     raise NotImplementedError("Unknown instruction format!")
 
