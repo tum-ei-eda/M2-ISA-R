@@ -31,7 +31,7 @@ class Trace(MetaTraceModel_base):
 
     def __init__(self, name_):
         self.name = name_
-        self.instructionTypes = []
+        self.instructionGroups = []
         self.traceValues = {}
         self.separator = "|"
         
@@ -42,20 +42,20 @@ class Trace(MetaTraceModel_base):
         self.traceValues[name_] = trVal
         return trVal
         
-    def createAndAddInstructionType(self, name_, id_):
-        instrType = InstructionType(name_, id_, self)
-        self.instructionTypes.append(instrType)
+    def createAndAddInstructionGroup(self, name_, id_):
+        instrType = InstructionGroup(name_, id_, self)
+        self.instructionGroups.append(instrType)
         return instrType
 
     def getAllTraceValues(self):
         return self.traceValues.values()
 
-    def getAllInstructionTypes(self):
-        return self.instructionTypes
+    def getAllInstructionGroups(self):
+        return self.instructionGroups
 
     def getAllMappings(self):
         mappings = []
-        for instrType_i in self.getAllInstructionTypes():
+        for instrType_i in self.getAllInstructionGroups():
             mappings.extend(instrType_i.getAllMappings())
         return mappings
 
@@ -71,7 +71,7 @@ class Trace(MetaTraceModel_base):
     def getSeparator(self):
         return self.separator
     
-class InstructionType(MetaTraceModel_base):
+class InstructionGroup(MetaTraceModel_base):
 
     def __init__(self, name_, id_, parent_):
         self.name = name_
@@ -123,7 +123,7 @@ class TraceValue(MetaTraceModel_base):
 class Mapping(MetaTraceModel_base):
 
     def __init__(self, type_, trVal_, descr_, pos_):
-        self.instructionType = type_
+        self.instructionGroup = type_
         self.traceValue = trVal_
         self.description = Description(self, descr_)
         if pos_ not in ["pre", "post"]:
@@ -144,8 +144,8 @@ class Mapping(MetaTraceModel_base):
     def getDescription(self):
         return self.description
 
-    def getInstructionType(self):
-        return self.instructionType
+    def getInstructionGroup(self):
+        return self.instructionGroup
 
 class Description(MetaTraceModel_base):
 
@@ -167,11 +167,11 @@ class Description(MetaTraceModel_base):
         """
         return self.resolved
 
-    def getInstructionType(self):
+    def getInstructionGroup(self):
         """
         Return the instruction type from the mapping.
         """
-        return self.mapping.getInstructionType()
+        return self.mapping.getInstructionGroup()
 
     def resolve_description(self, desc_string):
         """
@@ -234,8 +234,8 @@ class Description(MetaTraceModel_base):
         bf_match = re.match(r'\$bitfield\{(.+)\}', desc_string)
         if bf_match:
             value = bf_match.group(1).strip()
-            if value not in self.mapping.instructionType.bitfields:
-                self.mapping.instructionType.bitfields.append(value)
+            if value not in self.mapping.instructionGroup.bitfields:
+                self.mapping.instructionGroup.bitfields.append(value)
             return DescriptionNode(bf=value)
         
         if desc_string == "$ba":
@@ -243,6 +243,15 @@ class Description(MetaTraceModel_base):
         
         if desc_string == "$asm":
             return DescriptionNode(asm="instr.printASM(ba)")
+        
+        # 6. Match $csr{} with potential nested content
+        csr_match = re.match(r'\$csr\{(.+)\}', desc_string)
+        if csr_match:
+            value = csr_match.group(1).strip()
+            if value.startswith("$bitfield"):
+                nested_description = recursive_parse(value)
+                return DescriptionNode(csr="csr", nested_descriptions=[nested_description])
+            return DescriptionNode(csr=value)
 
         raise ValueError(f"Unrecognized string format: {desc_string}")
 
@@ -285,7 +294,7 @@ class DescriptionNode:
     This is the new helper class used in place of DescriptionSnippet.
     Handles parsed descriptions like constants, pc, reg, bf, and operations.
     """
-    def __init__(self, const=None, pc=None, reg=None, bf=None, op=None, code=None, asm=None, nested_descriptions=None):
+    def __init__(self, const=None, pc=None, reg=None, bf=None, op=None, code=None, asm=None, csr=None, nested_descriptions=None):
         self.active_type = None
         self.active_value = None
         self.nested_descriptions = []
@@ -313,6 +322,10 @@ class DescriptionNode:
         elif asm is not None:
             self.active_type = 'asm'
             self.active_value = asm
+        elif csr is not None:
+            self.active_type = 'csr'
+            self.active_value = csr
+            self.nested_descriptions = nested_descriptions or []
 
     def __repr__(self):
         if self.nested_descriptions:
