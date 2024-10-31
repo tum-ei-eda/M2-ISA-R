@@ -25,26 +25,30 @@
 
 InstructionMonitorSet *${traceModel_.name}_InstrMonitorSet = new InstructionMonitorSet("${traceModel_.name}_InstrMonitorSet");
 
-% for instr_i in traceModel_.getAllInstructions():
-static InstructionMonitor *${builder_.getInstrMonitorName(instr_i.name)} = new InstructionMonitor(
+% for instrGr_i in traceModel_.getAllInstructionGroups():
+static InstructionMonitor *${builder_.getInstrMonitorName(instrGr_i.name)} = new InstructionMonitor(
   ${traceModel_.name}_InstrMonitorSet,
-  "${instr_i.name}",
+  "${instrGr_i.name}",
   [](etiss::instr::BitArray &ba, etiss::instr::Instruction &instr, etiss::instr::InstructionContext &ic){
     std::stringstream ret_strs;
-    <%include file="bitfields.mako" args="instr_ = instr_i"/>\
-    ret_strs << "${builder_.getBufferName("typeId")}[*${builder_.getInstrCntName()}] = " << ${instr_i.getInstructionType().identifier} << ";\n";
-    % for map_i in instr_i.getAllPreMappings():
+    % for instr_i in instrGr_i.getAllInstructions():
+    <%include file="bitfields.mako" args="instr_ = instr_i, bitfields = instrGr_i.getAllBitfields(), builder_ = builder_"/>\
+    ret_strs << "${builder_.getBufferName("typeId")}[*${builder_.getInstrCntName()}] = " << ${instrGr_i.getInstructionType().identifier} << ";\n";
+    % for map_i in instrGr_i.getAllPreMappings():
     <%include file="traceValueMonitor.mako" args="map_ = map_i, builder_ = builder_"/>\
+    % endfor
     % endfor
     ret_strs << "*${builder_.getInstrCntName()} += 1;\n"; // TODO: InstrCnt should be set in the post-print-function (see below). Currently set here, to makes sure that it is set, even if instruction triggers a return
     return ret_strs.str();
   },
   [](etiss::instr::BitArray &ba, etiss::instr::Instruction &instr, etiss::instr::InstructionContext &ic){
     std::stringstream ret_strs;
-    <%include file="bitfields.mako" args="instr_ = instr_i"/>\
+    % for instr_i in instrGr_i.getAllInstructions():
+    <%include file="bitfields.mako" args="instr_ = instr_i, bitfields = instrGr_i.getAllBitfields(), builder_ = builder_"/>\
     ret_strs << "*${builder_.getInstrCntName()} -= 1;\n"; // TODO: Hack! Needed as long as instrCnt is set by pre-print-function (see above)
-    % for map_i in instr_i.getAllPostMappings():
+    % for map_i in instrGr_i.getAllPostMappings():
     <%include file="traceValueMonitor.mako" args="map_ = map_i, builder_ = builder_"/>\
+    % endfor
     % endfor
     ret_strs << "*${builder_.getInstrCntName()} += 1;\n";
     return ret_strs.str();

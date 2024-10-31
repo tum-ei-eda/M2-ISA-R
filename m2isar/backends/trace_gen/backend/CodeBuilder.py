@@ -14,6 +14,20 @@
 # limitations under the License.
 #
 
+from typing import List, Union
+from m2isar.metamodel import M2Model
+
+class BitRange:
+    """Represents the actual bit range of a bitfield within the instruction encoding."""
+    def __init__(self, name: str, MSB: int, LSB: int, offset: int):
+        self.name = name
+        self.msb = MSB
+        self.lsb = LSB
+        self.offset = offset
+
+    def __repr__(self):
+        return f"BitRange(name='{self.name}', MSB={self.msb}, LSB={self.lsb}, offset={self.offset})"
+
 class CodeBuilder:
 # The idea of this class is to contain output code specific
 # information (e.g. channel sizes, naming conventions, etc)
@@ -22,8 +36,9 @@ class CodeBuilder:
     __MAX_INT_SIZE = 16
     __CHANNEL_SIZE = 100
     
-    def __init__(self, model_):
-        self.model = model_
+    def __init__(self, trace_model_, m2_model_):
+        self.trace_model = trace_model_
+        self.m2_model = m2_model_
 
     def getStringSize(self, trVal_):
         return self.__getValidStringSize(trVal_)
@@ -67,25 +82,49 @@ class CodeBuilder:
             raise TypeError("Cannot call CodeBuilder::getStreamSetup with type %s" %trVal_.dataType)
         
     def getSeparater(self):
-        return "\" " + self.model.getSeparator() + " \""
+        return "\" " + self.trace_model.getSeparator() + " \""
 
-    def getDescriptionString(self, description_):
-        ret = ""
-        first = True
-        for snip_i in description_.getAllDescriptionSnippets():
-            if not first:
-                ret += " << "
-            else:
-                first = False
-            if not snip_i.isPreProcessed():
-                ret += "\""
-            ret += snip_i.getContent()
-            if not snip_i.isPreProcessed():
-                ret += "\""
-        return ret
+    # reconstruction of description string
+    # def getDescriptionString(self, description_):
+    #     ret = ""
+    #     first = True
+    #     for snip_i in description_.getAllDescriptionSnippets():
+    #         if not first:
+    #             ret += " << "
+    #         else:
+    #             first = False
+    #         if not snip_i.isPreProcessed():
+    #             ret += "\""
+    #         ret += snip_i.getContent()
+    #         if not snip_i.isPreProcessed():
+    #             ret += "\""
+    #     return ret
+
+    # ask conrad how does this need to be resolved.
+    def getDescriptionString(self, descriptions):
+        result = ""
+        
+        for description in descriptions:
+            if description.type == "pc":
+                result += "${ic.current_address_}"
+            elif description.type == "asm":
+                result += "${instr.printASM(ba)}"
+            elif description.type == "code":
+                result += "${ba}"
+            elif description.type == "reg":
+                result += f"$*(({self.m2_model.name}*)cpu)->X[${{ ${{BITFIELD rs1_data [(0:9,7)]}} + 8}}]" + self.getDescriptionString(description.nested_descriptions) + "}"
+            elif description.type == "csr":
+                result += "$csr{" + self.getDescriptionString(description.nested_descriptions) + "}"
+            elif description.type == "bitfield":
+                result += "$bitfield{" + description.value + "}"
+            elif description.type == "string":
+                result += description.value
+
+        return result
+
 
     def getHeaderDefinePrefix_Monitor(self):
-        return ("SWEVAL_MONITOR_" + self.model.name.upper() + "_MONITOR_H") 
+        return ("SWEVAL_MONITOR_" + self.trace_model.name.upper() + "_MONITOR_H") 
     
     def getHeaderDefinePrefix_Channel(self):
         return (self.__getHeaderDefinePrefix_SWEvalBackends() + "_CHANNEL_H")
@@ -93,10 +132,14 @@ class CodeBuilder:
     def getHeaderDefinePrefix_Printer(self):
         return (self.__getHeaderDefinePrefix_SWEvalBackends() + "_PRINTER_H")
     
+    def getAllBitRanges(self, instr_, bf_i):
+        instruction = [instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_][0]
+        return [bitrange for bitrange in self.__calculate_bit_ranges(instruction) if bitrange.name == bf_i]
+    
     ## HELPER FUNCTIONS
     
     def __getMonitorPrefix(self):
-        return (self.model.name + "_Monitor_")
+        return (self.trace_model.name + "_Monitor_")
 
     def __getStreamSetupInt(self):
         return ("\"0x\" << std::setfill(\'0\') << std::setw(" + str(self.__MAX_INT_SIZE) + ") << std::right << std::hex")
@@ -111,4 +154,37 @@ class CodeBuilder:
         return trVal_.size if trVal_.size > 0 else self.__MAX_STRING_SIZE_DEFAULT
 
     def __getHeaderDefinePrefix_SWEvalBackends(self):
-        return ("SWEVAL_BACKENDS_" + self.model.name.upper())
+        return ("SWEVAL_BACKENDS_" + self.trace_model.name.upper())
+        
+    def __calculate_bit_ranges(instr) -> List[BitRange]:
+        bit_ranges = []
+        
+        # Calculate total bit width of the instruction by summing lengths of all fields
+        current_position = sum(field.length if isinstance(field, M2Model.BitVal) else field.range.length for field in instr.encoding)
+        
+        # Track cumulative offset for each bitfield name to store remaining length
+        remaining_offset = {}
+
+        for field in instr.encoding:
+            if isinstance(field, M2Model.BitField):
+                # Calculate MSB and LSB based on current position and the field length
+                current_position -= field.range.length
+                LSB = current_position
+                MSB = LSB + field.range.length - 1
+
+                # Determine offset based on remaining length for split fields
+                if field.name not in remaining_offset:
+                    remaining_offset[field.name] = sum(f.range.length for f in instr.encoding if isinstance(f, M2Model.BitField) and f.name == field.name) - field.range.length
+                else:
+                    remaining_offset[field.name] -= field.range.length
+
+                offset = remaining_offset[field.name]
+
+                # Create a BitRange object and add it to the list
+                bit_ranges.append(BitRange(name=field.name, msb=MSB, lsb=LSB, offset=offset))
+            else:
+                # For BitVal, simply subtract its length from the current position
+                current_position -= field.length
+
+        return bit_ranges
+

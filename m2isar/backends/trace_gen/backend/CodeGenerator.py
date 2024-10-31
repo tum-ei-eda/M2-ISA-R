@@ -21,17 +21,20 @@ from .CodeBuilder import CodeBuilder as Builder
 
 class CodeGenerator:
 
-    def __init__(self, model_, fileDict_):
-        self.model = model_
+    def __init__(self, trace_model_, m2_model_, fileDict_):
+        self.trace_model = trace_model_
+        self.m2_model = m2_model_
         self.fileDict = fileDict_
-        self.builder = Builder(model_)
-        
+        self.builder = Builder(trace_model_, m2_model_)
+
+    # dont think this is needed anymore        
     def generateMonitor(self, traceModel_):
 
         self.__generateTraceChannel(traceModel_)
         self.__generateMonitor(traceModel_)
         self.__generateInstructionMonitors(traceModel_)
 
+    # dont think this is needed anymore
     def generatePrinter(self, traceModel_):
 
         self.__generatePrinter(traceModel_)
