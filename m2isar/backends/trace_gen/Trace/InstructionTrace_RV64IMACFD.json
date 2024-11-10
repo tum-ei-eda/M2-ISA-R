@@ -1,0 +1,172 @@
+{"trace": {
+    "name": "InstructionTrace_RV64IMACFD",
+    "setId": "Automatic",
+    "separator": ";",
+    "traceValues": [
+	{"name": "pc"},
+	{"name": "code"},
+	{"name": "assembly", "type": "string", "size": 50},
+	{"name": "rs1_data"},
+	{"name": "rs2_data"},
+	{"name": "rd_data"},
+	{"name": "jump_pc"},
+	{"name": "csr_data"},
+	{"name": "mem_addr"},
+	{"name": "mem_wdata"},
+	{"name": "mem_rdata"}
+    ],
+
+    "instructions": [
+
+	{"name": "_def", "mappings": [ 
+	    {"traceValue": "code", "description": "${ba}"},
+	    {"traceValue": "pc", "description": "${ic.current_address_}"},
+	    {"traceValue": "assembly", "description": "${instr.printASM(ba)}"}
+	]},
+
+	{"name": "csd", "mappings":[
+	    {"traceValue": "code", "description": "${ba}"},
+	    {"traceValue": "pc", "description": "${ic.current_address_}"},
+	    {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	    {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:9,7)]} + 8}]"},
+	    {"traceValue": "rs2_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs2_data [(0:4,2)]} + 8}]"},
+	    {"traceValue": "mem_addr", "description": "offs", "position": "post"},
+	    {"traceValue": "mem_wdata", "description": "mem_val_0", "position": "post"}
+	]},
+
+	{"name": "cld", "mappings":[
+	    {"traceValue": "code", "description": "${ba}"},
+	    {"traceValue": "pc", "description": "${ic.current_address_}"},
+	    {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	    {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:9,7)]} + 8}]"},
+	    {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:4,2)]} + 8}]", "position": "post"},
+	    {"traceValue": "mem_addr", "description": "offs", "position": "post"},
+	    {"traceValue": "mem_rdata", "description": "mem_val_0", "position": "post"}
+	]},
+	
+	{"name": "jal", "mappings":[
+	    {"traceValue": "code", "description": "${ba}"},
+	    {"traceValue": "pc", "description": "${ic.current_address_}"},
+	    {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	    {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"},
+	    {"traceValue": "jump_pc", "description": "cpu->instructionPointer", "position": "post"}
+	]},
+
+	{"name": "jalr", "mappings":[
+	    {"traceValue": "code", "description": "${ba}"},
+	    {"traceValue": "pc", "description": "${ic.current_address_}"},
+	    {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	    {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	    {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"},
+	    {"traceValue": "jump_pc", "description": "cpu->instructionPointer", "position": "post"}
+	]}
+    ],
+
+    "instructionGroups": [
+
+	{"name": "Arith_R_Type",
+	 "instructions": [{"name": "add"}, {"name": "sub"}, {"name": "sll"}, {"name": "xor"}, {"name": "or"}, {"name": "and"}, {"name": "mul"}, {"name": "rem"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rs2_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs2_data [(0:24,20)]} }]"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"}
+	 ]
+	},
+
+	{"name": "Arith_I_Type",
+	 "instructions": [{"name": "addi"}, {"name": "slti"}, {"name": "sltiu"}, {"name": "xori"}, {"name": "ori"}, {"name": "andi"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"}
+	 ]
+	},
+
+	{"name": "Arith_Imm_R_Type",
+	 "instructions": [{"name": "slli"}, {"name": "srli"}, {"name": "srai"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"}
+	 ]
+	},
+
+	{"name": "Load_I_Type",
+	 "instructions": [{"name": "lb"}, {"name": "lh"}, {"name": "lw"}, {"name": "lbu"}, {"name": "lhu"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"},
+	     {"traceValue": "mem_addr", "description": "load_address", "position": "post"},
+	     {"traceValue": "mem_rdata", "description": "res", "position": "post"}
+	 ]
+	},
+
+	{"name": "Store_S_Type",
+	 "instructions": [{"name": "sb"}, {"name": "sh"}, {"name": "sw"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rs2_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs2_data [(0:24,20)]} }]"},
+	     {"traceValue": "mem_addr", "description": "store_address", "position": "post"},
+	     {"traceValue": "mem_wdata", "description": "mem_val_0", "position": "post"}
+	 ]
+	},
+
+	{"name": "CSR_I_Type",
+	 "instructions": [{"name": "csrrw"}, {"name": "csrrs"}, {"name": "csrrc"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"},
+	     {"traceValue": "csr_data", "description": "csr_read(cpu, system, plugin_pointers, ${${BITFIELD imm [0:31,20]}})", "position": "post"}
+	 ]
+	},
+
+	{"name": "CSR_Imm_I_Type",
+	 "instructions": [{"name": "csrrwi"}, {"name": "csrrsi"}, {"name": "csrrci"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"},
+	     {"traceValue": "csr_data", "description": "csr_read(cpu, system, plugin_pointers, ${${BITFIELD imm [0:31,20]}})", "position": "post"}
+	 ]
+	},
+
+	{"name": "Branch_B_Type",
+	 "instructions": [{"name": "beq"}, {"name": "bne"}, {"name": "blt"}, {"name": "bge"}, {"name": "bltu"}, {"name": "bgeu"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rs1_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs1_data [(0:19,15)]} }]"},
+	     {"traceValue": "rs2_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rs2_data [(0:24,20)]} }]"},
+	     {"traceValue": "jump_pc", "description": "cpu->instructionPointer", "position": "post"}
+	 ]
+	},
+
+	{"name": "RegLoad_U_Type",
+	 "instructions": [{"name": "lui"}, {"name": "auipc"}],
+	 "mappings": [
+	     {"traceValue": "code", "description": "${ba}"},
+	     {"traceValue": "pc", "description": "${ic.current_address_}"},
+	     {"traceValue": "assembly", "description": "${instr.printASM(ba)}"},
+	     {"traceValue": "rd_data", "description": "*((RV64IMACFD*)cpu)->X[${ ${BITFIELD rd_data [(0:11,7)]} }]", "position": "post"}
+	 ]
+	}
+    ]
+}}
