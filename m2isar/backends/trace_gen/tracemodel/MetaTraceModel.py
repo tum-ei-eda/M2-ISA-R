@@ -120,6 +120,7 @@ class InstructionGroup(MetaTraceModel_base):
     def getAllPreMappings(self):
         mappings = []
         for map_i in self.mappings:
+            map_i = self.mappings[map_i]
             if map_i.positionIsPre():
                 mappings.append(map_i)
         return mappings
@@ -127,6 +128,7 @@ class InstructionGroup(MetaTraceModel_base):
     def getAllPostMappings(self):
         mappings = []
         for map_i in self.mappings:
+            map_i = self.mappings[map_i]
             if map_i.positionIsPost():
                 mappings.append(map_i)
         return mappings
@@ -222,14 +224,14 @@ class DescriptionParser(MetaTraceModel_base):
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="reg", value="reg", nested_descriptions=self.parse_description_string(nested_content)))
+                parsed_descriptions.append(Description(type_="reg", value="reg", nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
             elif desc_string[i:i+5] == "$csr{":
                 if buffer:
                     parsed_descriptions.append(Description(type_="string", value=buffer))
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="csr", value="csr", nested_descriptions=self.parse_description_string(nested_content)))
+                parsed_descriptions.append(Description(type_="csr", value="csr", nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
             elif desc_string[i:i+10] == "$bitfield{":
                 if buffer:
                     parsed_descriptions.append(Description(type_="string", value=buffer))

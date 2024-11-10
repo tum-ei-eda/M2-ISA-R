@@ -16,13 +16,14 @@
 
 from typing import List, Union
 from m2isar.metamodel import M2Model
+from m2isar.metamodel import arch
 
 class BitRange:
     """Represents the actual bit range of a bitfield within the instruction encoding."""
-    def __init__(self, name: str, MSB: int, LSB: int, offset: int):
+    def __init__(self, name: str, msb: int, lsb: int, offset: int):
         self.name = name
-        self.msb = MSB
-        self.lsb = LSB
+        self.msb = msb
+        self.lsb = lsb
         self.offset = offset
 
     def __repr__(self):
@@ -106,17 +107,17 @@ class CodeBuilder:
         
         for description in descriptions:
             if description.type == "pc":
-                result += "${ic.current_address_}"
+                result += f"\"*(({self.m2_model.name}*)cpu)->instructionPointer\""
             elif description.type == "asm":
-                result += "${instr.printASM(ba)}"
+                result += "instr.printASM(ba)"
             elif description.type == "code":
-                result += "${ba}"
+                result += "ba"
             elif description.type == "reg":
-                result += f"$*(({self.m2_model.name}*)cpu)->X[${{ ${{BITFIELD rs1_data [(0:9,7)]}} + 8}}]" + self.getDescriptionString(description.nested_descriptions) + "}"
+                result += f"\"*(({self.m2_model.name}*)cpu)->X[\" << " + self.getDescriptionString(description.nested_descriptions) + " << \"]\""
             elif description.type == "csr":
-                result += "$csr{" + self.getDescriptionString(description.nested_descriptions) + "}"
+                result += f"\"{self.m2_model.name}_csr_read(cpu, system, plugin_pointers, \" << " + self.getDescriptionString(description.nested_descriptions) + " << \")\""
             elif description.type == "bitfield":
-                result += "$bitfield{" + description.value + "}"
+                result += description.value
             elif description.type == "string":
                 result += description.value
 
@@ -156,17 +157,17 @@ class CodeBuilder:
     def __getHeaderDefinePrefix_SWEvalBackends(self):
         return ("SWEVAL_BACKENDS_" + self.trace_model.name.upper())
         
-    def __calculate_bit_ranges(instr) -> List[BitRange]:
+    def __calculate_bit_ranges(self, instr) -> List[BitRange]:
         bit_ranges = []
         
         # Calculate total bit width of the instruction by summing lengths of all fields
-        current_position = sum(field.length if isinstance(field, M2Model.BitVal) else field.range.length for field in instr.encoding)
+        current_position = sum(field.length if isinstance(field, arch.BitVal) else field.range.length for field in instr.encoding)
         
         # Track cumulative offset for each bitfield name to store remaining length
         remaining_offset = {}
 
         for field in instr.encoding:
-            if isinstance(field, M2Model.BitField):
+            if isinstance(field, arch.BitField):
                 # Calculate MSB and LSB based on current position and the field length
                 current_position -= field.range.length
                 LSB = current_position
@@ -174,7 +175,7 @@ class CodeBuilder:
 
                 # Determine offset based on remaining length for split fields
                 if field.name not in remaining_offset:
-                    remaining_offset[field.name] = sum(f.range.length for f in instr.encoding if isinstance(f, M2Model.BitField) and f.name == field.name) - field.range.length
+                    remaining_offset[field.name] = sum(f.range.length for f in instr.encoding if isinstance(f, arch.BitField) and f.name == field.name) - field.range.length
                 else:
                     remaining_offset[field.name] -= field.range.length
 

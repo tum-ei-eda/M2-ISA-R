@@ -21,7 +21,7 @@ import pathlib
 import pickle
 
 from .CodeGenerator import CodeGenerator
-from common import common as cf
+from ..common import common as cf # type: ignore
 
 from m2isar.metamodel import M2_METAMODEL_VERSION, M2Model
 
@@ -69,7 +69,7 @@ def main(tracemodel_, m2isarmodel_, outDir_):
 
     # Constructiong code generator
     for core_name, core in m2isarmodel_.items():
-        if tracemodel_.name == core_name:
+        if tracemodel_.corename == core_name:
             m2_model_ = core
     codeGen = CodeGenerator(tracemodel_, m2_model_, fileDict)
 

@@ -75,7 +75,7 @@ class Parser():
             instructionGroups = []
 
         for instrGr_i in instructionGroups:
-            instrType_model = trace_model.createAndAddInstructionType(instrGr_i['name'], self.__getId(instrGr_i))
+            instrType_model = trace_model.createAndAddInstructionGroup(instrGr_i['name'], self.__getId(instrGr_i))
             for instr_i in instrGr_i['instructions']:
                 instrType_model.addInstruction(instr_i['name'])
 
@@ -89,7 +89,7 @@ class Parser():
             instructions = []
 
         for instr_i in instructions:
-            instrType_model = trace_model.createAndAddInstructionType(instr_i['name'], self.__getId(instr_i))
+            instrType_model = trace_model.createAndAddInstructionGroup(instr_i['name'], self.__getId(instr_i))
             # why? what purpose does this serve and how does this help me out. 
             instrType_model.addInstruction(instr_i['name'])
 

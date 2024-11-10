@@ -27,7 +27,7 @@
 
 InstructionPrinterSet *${traceModel_.name}_InstrPrinterSet = new InstructionPrinterSet("${traceModel_.name}_InstrPrinterSet");
 
-% for type_i in traceModel_.getAllInstructionTypes():
+% for type_i in traceModel_.getAllInstructionGroups():
 static InstructionPrinter *instrPrinter_${type_i.name} = new InstructionPrinter(
   ${traceModel_.name}_InstrPrinterSet,
   "${type_i.name}",

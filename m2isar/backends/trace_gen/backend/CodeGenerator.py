@@ -47,7 +47,7 @@ class CodeGenerator:
         
         templateLookup = TemplateLookup(directories=[str(templateDir)])
         template = templateLookup.get_template(str(templateFile))
-        code = template.render(**{"traceModel_" : self.model, "builder_" : self.builder})
+        code = template.render(**{"traceModel_" : self.trace_model, "builder_" : self.builder})
 
         outFile = self.fileDict.getOutFile(target_)
         with outFile.open('w') as f:

@@ -33,7 +33,7 @@ static InstructionMonitor *${builder_.getInstrMonitorName(instrGr_i.name)} = new
     std::stringstream ret_strs;
     % for instr_i in instrGr_i.getAllInstructions():
     <%include file="bitfields.mako" args="instr_ = instr_i, bitfields = instrGr_i.getAllBitfields(), builder_ = builder_"/>\
-    ret_strs << "${builder_.getBufferName("typeId")}[*${builder_.getInstrCntName()}] = " << ${instrGr_i.getInstructionType().identifier} << ";\n";
+    ret_strs << "${builder_.getBufferName("typeId")}[*${builder_.getInstrCntName()}] = " << ${instrGr_i.identifier} << ";\n";
     % for map_i in instrGr_i.getAllPreMappings():
     <%include file="traceValueMonitor.mako" args="map_ = map_i, builder_ = builder_"/>\
     % endfor
