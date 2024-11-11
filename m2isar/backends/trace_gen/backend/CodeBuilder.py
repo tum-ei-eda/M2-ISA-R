@@ -109,13 +109,13 @@ class CodeBuilder:
             if description.type == "pc":
                 result += f"<< \"*(({self.m2_model.name}*)cpu)->instructionPointer\""
             elif description.type == "asm":
-                result += "<< instr.printASM(ba)"
+                result += "instr.printASM(ba)"
             elif description.type == "code":
                 result += "<< ba"
             elif description.type == "reg":
                 result += f"<< \"*(({self.m2_model.name}*)cpu)->X[\"" + self.getDescriptionString(description.nested_descriptions) + " << \"]\""
             elif description.type == "csr":
-                result += f"<< \"{self.m2_model.name}_csr_read(cpu, system, plugin_pointers, \" << " + self.getDescriptionString(description.nested_descriptions) + " << \")\""
+                result += f"<< \"{self.m2_model.name}_csr_read(cpu, system, plugin_pointers, \"" + self.getDescriptionString(description.nested_descriptions) + " << \")\""
             elif description.type == "bitfield":
                 result += f"<< {description.value} "
             elif description.type == "string":
