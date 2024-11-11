@@ -34,7 +34,7 @@ class Parser():
 
         # Create "top" trace model
         trace_json = data['trace']
-        trace_model = MetaTraceModel.Trace(trace_json['name'], trace_json['coreName'])
+        trace_model = MetaTraceModel.Trace(trace_json['name'], trace_json['core'])
 
         # Try to read setId attribute
         try:

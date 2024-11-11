@@ -29,9 +29,9 @@ class MetaTraceModel_base:
 
 class Trace(MetaTraceModel_base):
 
-    def __init__(self, name_, corename_):
+    def __init__(self, name_, core_):
         self.name = name_
-        self.corename = corename_
+        self.core = core_
         self.instructionGroups = []
         self.traceValues = {}
         self.separator = "|"

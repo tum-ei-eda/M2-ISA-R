@@ -69,7 +69,7 @@ def main(tracemodel_, m2isarmodel_, outDir_):
 
     # Constructiong code generator
     for core_name, core in m2isarmodel_.items():
-        if tracemodel_.corename == core_name:
+        if tracemodel_.core == core_name:
             m2_model_ = core
     codeGen = CodeGenerator(tracemodel_, m2_model_, fileDict)
 
