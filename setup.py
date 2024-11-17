@@ -26,7 +26,8 @@ setuptools.setup(
 			"etiss_writer=m2isar.backends.etiss.writer:main",
 			"coredsl2_parser=m2isar.frontends.coredsl2.parser:main",
 			"m2isar_viewer=m2isar.backends.viewer.viewer:main",
-			"m2isar2lcov=m2isar.backends.coverage.coverage_lcov:main"
+			"m2isar2lcov=m2isar.backends.coverage.coverage_lcov:main",
+            "trace_gen=m2isar.backends.trace_gen.trace_gen:main"
 		]
 	},
 	zip_safe=False
