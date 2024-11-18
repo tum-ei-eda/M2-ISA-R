@@ -37,17 +37,20 @@ static InstructionMonitor *${builder_.getInstrMonitorName(instr_i)} = new Instru
     % for map_i in instrGr_i.getAllPreMappings():
     <%include file="traceValueMonitor.mako" args="map_ = map_i, builder_ = builder_"/>\
     % endfor
-    ret_strs << "*${builder_.getInstrCntName()} += 1;\n"; // TODO: InstrCnt should be set in the post-print-function (see below). Currently set here, to makes sure that it is set, even if instruction triggers a return
+    % if instrGr_i.getAllPostMappings()==[]:
+    ret_strs << "*${builder_.getInstrCntName()} += 1;\n";
+    % endif
     return ret_strs.str();
   },
   [](etiss::instr::BitArray &ba, etiss::instr::Instruction &instr, etiss::instr::InstructionContext &ic){
     std::stringstream ret_strs;
+    % if instrGr_i.getAllPostMappings()!=[]:
     <%include file="bitfields.mako" args="instr_ = instr_i, bitfields = instrGr_i.getAllBitfields(), builder_ = builder_"/>\
-    ret_strs << "*${builder_.getInstrCntName()} -= 1;\n"; // TODO: Hack! Needed as long as instrCnt is set by pre-print-function (see above)
     % for map_i in instrGr_i.getAllPostMappings():
     <%include file="traceValueMonitor.mako" args="map_ = map_i, builder_ = builder_"/>\
     % endfor
     ret_strs << "*${builder_.getInstrCntName()} += 1;\n";
+    % endif
     return ret_strs.str();
   }
 );
