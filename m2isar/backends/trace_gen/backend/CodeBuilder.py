@@ -171,9 +171,6 @@ class CodeBuilder:
         
         # Calculate total bit width of the instruction by summing lengths of all fields
         current_position = sum(field.length if isinstance(field, arch.BitVal) else field.range.length for field in instr.encoding)
-        
-        # Track cumulative offset for each bitfield name to store remaining length
-        remaining_offset = {}
 
         for field in instr.encoding:
             if isinstance(field, arch.BitField):
@@ -181,14 +178,7 @@ class CodeBuilder:
                 current_position -= field.range.length
                 LSB = current_position
                 MSB = LSB + field.range.length - 1
-
-                # Determine offset based on remaining length for split fields
-                if field.name not in remaining_offset:
-                    remaining_offset[field.name] = sum(f.range.length for f in instr.encoding if isinstance(f, arch.BitField) and f.name == field.name) - field.range.length
-                else:
-                    remaining_offset[field.name] -= field.range.length
-
-                offset = remaining_offset[field.name]
+                offset = field.range.lower_base
 
                 # Create a BitRange object and add it to the list
                 bit_ranges.append(BitRange(name=field.name, msb=MSB, lsb=LSB, offset=offset))
