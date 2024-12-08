@@ -107,7 +107,10 @@ class CodeBuilder:
         
         for description in descriptions:
             if description.type == "pc":
-                result += f"<< \"cpu->instructionPointer\""
+                if description.resolved:
+                    result += f"<< ic.current_address_"
+                else:
+                    result += f"<< \"cpu->instructionPointer\""
             elif description.type == "asm":
                 result += "instr.printASM(ba)"
             elif description.type == "code":
@@ -119,7 +122,10 @@ class CodeBuilder:
             elif description.type == "bitfield":
                 result += f"<< {description.value} "
             elif description.type == "string":
-                result += f"<< \"{description.value}\""
+                if description.resolved:
+                    result += f"<< {description.value}"
+                else:
+                    result += f"<< \"{description.value}\""
 
         return result
 
@@ -136,13 +142,13 @@ class CodeBuilder:
     def getAllBitRanges(self, instr_, bf_i):
         instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_), None)
         if not instruction:
-            print(f"Warning: Instruction '{instr_}' not found in original case format.")
+            # print(f"Warning: Instruction '{instr_}' not found in original case format.")
             instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_.lower()), None)
         if not instruction:
-            print(f"Warning: Instruction '{instr_}' not found in lower case format.")
+            # print(f"Warning: Instruction '{instr_}' not found in lower case format.")
             instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_.upper()), None)
         if not instruction:
-            print(f"Warning: Instruction '{instr_}' not found in upper case format.")
+            # print(f"Warning: Instruction '{instr_}' not found in upper case format.")
             raise ValueError(f"Instruction '{instr_}' not found in any case format.")
         return [bitrange for bitrange in self.__calculate_bit_ranges(instruction) if bitrange.name == bf_i]
     

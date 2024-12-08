@@ -110,7 +110,8 @@ def main():
 
     print()
     print("-- Creating file-dictionary --")
-    fileDict = FileDict(outdir_, tracemodel_.name)
+    outdir = outdir / 'code'
+    fileDict = FileDict(outdir, tracemodel_.name)
 
     # Constructiong code generator
     for core_name, core in m2isarmodel_.items():
@@ -135,25 +136,25 @@ def main():
     codeGen.generate("PrinterSource")
     codeGen.generate("InstructionPrintersSource")
     
-    if outdir is not None:
-        print("")
-        print("-- Storing model --")
-        print("Out-directory: %s" %outdir)
+    # if outdir is not None:
+    #     print("")
+    #     print("-- Storing model --")
+    #     print("Out-directory: %s" %outdir)
 
-        # Creating out-directory
-        pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
+    #     # Creating out-directory
+    #     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
 
-        # Make path for out-file
-        outfile_name = 'trace.model'
-        outfile = outdir / outfile_name
-        print("File: %s" % outfile_name)
-        if outfile.is_file():
-            print("\tFile exists and will be replaced!")
-            # TODO: Add possibility for user to aboard overwrite?
+    #     # Make path for out-file
+    #     outfile_name = 'trace.model'
+    #     outfile = outdir / outfile_name
+    #     print("File: %s" % outfile_name)
+    #     if outfile.is_file():
+    #         print("\tFile exists and will be replaced!")
+    #         # TODO: Add possibility for user to aboard overwrite?
             
-        # Dump model to file
-        with outfile.open('wb') as f:
-            pickle.dump(tracemodel_, f)
+    #     # Dump model to file
+    #     with outfile.open('wb') as f:
+    #         pickle.dump(tracemodel_, f)
 
     return tracemodel_
             

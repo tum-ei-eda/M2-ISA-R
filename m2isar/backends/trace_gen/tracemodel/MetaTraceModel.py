@@ -172,9 +172,10 @@ class Mapping(MetaTraceModel_base):
         return self.instructionGroup
 
 class Description(MetaTraceModel_base):
-    def __init__(self, type_, value, nested_descriptions=None):
+    def __init__(self, type_, value, resolved=False, nested_descriptions=None):
         self.type = type_
         self.value = value
+        self.resolved = resolved
         self.nested_descriptions = nested_descriptions or []
 
     def getDescriptionType(self):
@@ -194,53 +195,61 @@ class Description(MetaTraceModel_base):
             return f"Description(type={self.type}, value={self.value})"
 
 class DescriptionParser(MetaTraceModel_base):
-    def parse_description_string(self, desc_string, instructionGroup):
+    def parse_description_string(self, desc_string, instructionGroup, resolved = False):
         parsed_descriptions = []
+        resolved = resolved
         buffer = ""
         i = 0
 
         while i < len(desc_string):
             if desc_string[i:i+3] == "$pc":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
-                parsed_descriptions.append(Description(type_="pc", value="pc"))
+                parsed_descriptions.append(Description(type_="pc", value="pc", resolved=resolved))
                 i += 3
             elif desc_string[i:i+4] == "$asm":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
-                parsed_descriptions.append(Description(type_="asm", value="asm"))
+                parsed_descriptions.append(Description(type_="asm", value="asm", resolved=resolved))
                 i += 4
             elif desc_string[i:i+5] == "$code":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
-                parsed_descriptions.append(Description(type_="code", value="code"))
+                parsed_descriptions.append(Description(type_="code", value="code", resolved=resolved))
                 i += 5
             elif desc_string[i:i+5] == "$reg{":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="reg", value="reg", nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
+                parsed_descriptions.append(Description(type_="reg", value="reg", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content,instructionGroup, resolved=resolved)))
             elif desc_string[i:i+5] == "$csr{":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="csr", value="csr", nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
+                parsed_descriptions.append(Description(type_="csr", value="csr", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
             elif desc_string[i:i+10] == "$bitfield{":
                 if buffer:
-                    parsed_descriptions.append(Description(type_="string", value=buffer))
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
                 i += 10
                 nested_content, i = self.extract_nested_content(desc_string, i, single_level=True)
                 if nested_content not in instructionGroup.bitfields:
                     instructionGroup.addBitfield(nested_content)
-                parsed_descriptions.append(Description(type_="bitfield", value=nested_content))
+                parsed_descriptions.append(Description(type_="bitfield", value=nested_content, resolved=resolved))
+            elif desc_string[i:i+10] == "$resolved{":
+                if buffer:
+                    parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
+                    buffer = ""
+                i += 10
+                nested_content, i = self.extract_nested_content(desc_string, i)
+                parsed_descriptions.extend(self.parse_description_string(nested_content, instructionGroup, resolved=True))
             else:
                 buffer += desc_string[i]
                 i += 1
