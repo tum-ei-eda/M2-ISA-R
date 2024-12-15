@@ -104,28 +104,49 @@ class CodeBuilder:
     # ask conrad how does this need to be resolved.
     def getDescriptionString(self, descriptions):
         result = ""
-        
+        previous_resolved = False
         for description in descriptions:
             if description.type == "pc":
                 if description.resolved:
-                    result += f"<< ic.current_address_"
+                    if not previous_resolved:
+                        result += "<< "
+                    result += "ic.current_address_"
+                    previous_resolved = True
                 else:
-                    result += f"<< \"cpu->instructionPointer\""
+                    result += "<< \"cpu->instructionPointer\""
+                    previous_resolved = False
             elif description.type == "asm":
                 result += "instr.printASM(ba)"
+                previous_resolved = False
             elif description.type == "code":
-                result += "<< ba"
+                if not previous_resolved:
+                    result += "<< "
+                result += "ba"
+                previous_resolved = False
             elif description.type == "reg":
                 result += f"<< \"*(({self.m2_model.name}*)cpu)->X[\"" + self.getDescriptionString(description.nested_descriptions) + " << \"]\""
+                previous_resolved = False
             elif description.type == "csr":
                 result += f"<< \"{self.m2_model.name}_csr_read(cpu, system, plugin_pointers, \"" + self.getDescriptionString(description.nested_descriptions) + " << \")\""
+                previous_resolved = False
             elif description.type == "bitfield":
-                result += f"<< {description.value} "
-            elif description.type == "string":
                 if description.resolved:
-                    result += f"<< {description.value}"
+                    if not previous_resolved:
+                        result += "<< "
+                    result += f"{description.value} "
+                    previous_resolved = True
                 else:
                     result += f"<< \"{description.value}\""
+                    previous_resolved = False
+            elif description.type == "string":
+                if description.resolved:
+                    if not previous_resolved:
+                        result += "<< "
+                    result += f"{description.value}"
+                    previous_resolved = True
+                else:
+                    result += f"<< \"{description.value}\""
+                    previous_resolved = False
 
         return result
 

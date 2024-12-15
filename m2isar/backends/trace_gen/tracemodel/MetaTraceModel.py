@@ -190,9 +190,9 @@ class Description(MetaTraceModel_base):
     def __repr__(self):
         if self.nested_descriptions:
             nested_repr = ', '.join([repr(nd) for nd in self.nested_descriptions])
-            return f"Description(type={self.type}, value={self.value}, nested_descriptions=[{nested_repr}])"
+            return f"Description(type={self.type}, value={self.value}, resolved={self.resolved} , nested_descriptions=[{nested_repr}])"
         else:
-            return f"Description(type={self.type}, value={self.value})"
+            return f"Description(type={self.type}, value={self.value}, resolved={self.resolved})"
 
 class DescriptionParser(MetaTraceModel_base):
     def parse_description_string(self, desc_string, instructionGroup, resolved = False):
@@ -226,14 +226,14 @@ class DescriptionParser(MetaTraceModel_base):
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="reg", value="reg", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content,instructionGroup, resolved=resolved)))
+                parsed_descriptions.append(Description(type_="reg", value="reg", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content, instructionGroup, resolved=resolved)))
             elif desc_string[i:i+5] == "$csr{":
                 if buffer:
                     parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
                     buffer = ""
                 i += 5
                 nested_content, i = self.extract_nested_content(desc_string, i)
-                parsed_descriptions.append(Description(type_="csr", value="csr", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content,instructionGroup)))
+                parsed_descriptions.append(Description(type_="csr", value="csr", resolved=resolved, nested_descriptions=self.parse_description_string(nested_content, instructionGroup, resolved=resolved)))
             elif desc_string[i:i+10] == "$bitfield{":
                 if buffer:
                     parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
@@ -255,7 +255,7 @@ class DescriptionParser(MetaTraceModel_base):
                 i += 1
 
         if buffer:
-            parsed_descriptions.append(Description(type_="string", value=buffer))
+            parsed_descriptions.append(Description(type_="string", value=buffer, resolved=resolved))
         
         return parsed_descriptions
 
