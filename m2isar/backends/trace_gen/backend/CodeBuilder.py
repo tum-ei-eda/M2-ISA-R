@@ -136,7 +136,7 @@ class CodeBuilder:
                     result += f"{description.value} "
                     previous_resolved = True
                 else:
-                    result += f"<< \"{description.value}\""
+                    result += f"<< {description.value}"
                     previous_resolved = False
             elif description.type == "string":
                 if description.resolved:
