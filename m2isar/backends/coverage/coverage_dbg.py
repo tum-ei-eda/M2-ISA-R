@@ -60,7 +60,7 @@ def main():
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
 
-	for core_name, core_obj in model_obj.models.items():
+	for core_name, core_obj in model_obj.cores.items():
 		process_functions(core_obj)
 		process_instructions(core_obj)
 		process_attributes(core_obj)
@@ -70,7 +70,7 @@ def main():
 
 	ctx = IdMatcherContext()
 
-	for core_name, core_obj in model_obj.models.items():
+	for core_name, core_obj in model_obj.cores.items():
 		ctx.arch_name = core_name
 
 		for fn_name, fn_obj in core_obj.functions.items():

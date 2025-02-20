@@ -73,10 +73,10 @@ def main():
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
 
-	models = model_obj.models
+	cores = model_obj.cores
 
 	# preprocess model
-	for core_name, core in models.items():
+	for core_name, core in cores.items():
 		logger.info("preprocessing model %s", core_name)
 		process_functions(core)
 		process_instructions(core)
@@ -101,7 +101,7 @@ def main():
 	tree.heading(1, text="Value")
 
 	# add each core to the treeview
-	for core_name, core_def in sorted(models.items()):
+	for core_name, core_def in sorted(cores.items()):
 		core_id = tree.insert("", tk.END, text=core_name)
 
 		# add constants to tree

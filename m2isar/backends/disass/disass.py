@@ -98,9 +98,9 @@ def main():
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
 
-	models = model_obj.models
+	cores = model_obj.cores
 
-	core = models[args.core_name]
+	core = cores[args.core_name]
 	readlen = max(core.instr_classes) // 8
 	steplen = min(core.instr_classes) // 8
 

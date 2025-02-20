@@ -125,12 +125,12 @@ def main():
 		logger.warning("Loaded model version mismatch")
 
 	if args.target_arch is not None:
-		models_to_use = {arch_name: model_obj.models[arch_name] for arch_name in args.target_arch}
-		model_obj.models = models_to_use
+		cores_to_use = {arch_name: model_obj.cores[arch_name] for arch_name in args.target_arch}
+		model_obj.cores = cores_to_use
 
 	logger.info("preprocessing models")
 
-	for core_name, core_obj in model_obj.models.items():
+	for core_name, core_obj in model_obj.cores.items():
 		process_functions(core_obj)
 		process_instructions(core_obj)
 		process_attributes(core_obj)
@@ -141,7 +141,7 @@ def main():
 
 	ctx = IdMatcherContext()
 
-	for core_name, core_obj in model_obj.models.items():
+	for core_name, core_obj in model_obj.cores.items():
 		ctx.arch_name = core_name
 
 		for fn_name, fn_obj in core_obj.functions.items():

@@ -78,7 +78,8 @@ intrinsics = {x.name: x for x in intrinsic_defs}
 @dataclass
 class M2Model:
 	model_version: int
-	models: "dict[str, arch.CoreDef]"
+	cores: "dict[str, arch.CoreDef]"
+	sets: "dict[str, arch.InstructionSet]"
 	code_infos: "dict[int, code_info.CodeInfoBase]"
 
 	def __post_init__(self):
