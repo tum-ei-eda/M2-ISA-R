@@ -1,0 +1,6 @@
+*.adoc
+*.pdf
+*.html
+*.adoc
+package-lock.json
+node_modules/
