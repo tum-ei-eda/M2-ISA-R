@@ -143,9 +143,6 @@ class CoreDSL2Writer:
             self.write("}", nl=nl)
 
     def write_type(self, data_type, size):
-        # print("write_type")
-        # print("data_type", data_type)
-        # print("size", size)
         if data_type == arch.DataType.U:
             self.write("unsigned")
         elif data_type == arch.DataType.S:
@@ -196,7 +193,6 @@ def main():
     # resolve model paths
     top_level = pathlib.Path(args.top_level)
     abs_top_level = top_level.resolve()
-    # search_path = abs_top_level.parent.parent
     model_fname = abs_top_level
     output_file = pathlib.Path(args.output)
 
@@ -205,15 +201,11 @@ def main():
 
     if abs_top_level.suffix == ".core_desc":
         logger.warning(".core_desc file passed as input. This is deprecated behavior, please change your scripts!")
-        # search_path = abs_top_level.parent
         model_path = search_path.joinpath('gen_model')
 
         if not model_path.exists():
             raise FileNotFoundError('Models not generated!')
         model_fname = model_path / (abs_top_level.stem + '.m2isarmodel')
-
-    # output_base_path = search_path.joinpath('gen_output')
-    # output_base_path.mkdir(exist_ok=True)
 
     logger.info("loading models")
 
@@ -241,53 +233,6 @@ def main():
     for core_name, core_def in sorted(models.items()):
         logger.info("processing core %s", core_name)
         out_text += f"== {core_name}\n"
-        # consts_id = tree.insert(core_id, tk.END, text="Constants")
-        # for const_name, const_def in sorted(core_def.constants.items()):
-        #     tree.insert(consts_id, tk.END, text=const_name, values=(const_def.value,))
-
-        # add memories to tree
-        # mems_id = tree.insert(core_id, tk.END, text="Memories")
-        # for mem_name, mem_def in sorted(core_def.memories.items()):
-        #     tree.insert(mems_id, tk.END, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
-
-        # add memory aliases to tree
-        # alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
-        # for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
-        #     tree.insert(alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
-
-        # add auxillary attributes
-        # tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
-        # tree.insert(core_id, tk.END, text="Main Register File Object", values=(core_def.main_reg_file,))
-        # tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
-
-        # add functions to tree
-        # fns_id = tree.insert(core_id, tk.END, text="Functions")
-        # for fn_name, fn_def in core_def.functions.items():
-        #     fn_id = tree.insert(fns_id, tk.END, text=fn_name, values=("extern" if fn_def.extern else ""))
-
-        #     # add returns and throws information
-        #     return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
-        #     tree.insert(fn_id, tk.END, text="Return", values=(return_str,))
-        #     tree.insert(fn_id, tk.END, text="Throws", values=(fn_def.throws))
-
-        #     # generate and add attributes
-        #     attrs_id = tree.insert(fn_id, tk.END, text="Attributes")
-
-        #     for attr, ops in fn_def.attributes.items():
-        #         attr_id = tree.insert(attrs_id, tk.END, text=attr)
-        #         for op in ops:
-        #             context = TreeGenContext(tree, attr_id)
-        #             op.generate(context)
-
-        #     # generate and add parameters
-        #     params_id = tree.insert(fn_id, tk.END, text="Parameters")
-
-        #     for param_name, param_def in fn_def.args.items():
-        #         tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.data_type} {param_def.size}",))
-
-        #     # generate and add function behavior
-        #     context = TreeGenContext(tree, fn_id)
-        #     fn_def.operation.generate(context)
 
         # group instructions by size
         instrs_by_size = defaultdict(dict)
@@ -295,23 +240,14 @@ def main():
         for k, v in core_def.instructions.items():
             instrs_by_size[v.size][k] = v
 
-        # sort instructions by encoding
-        # for k, v in instrs_by_size.items():
-        #     instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
-
-        # instrs_top_id = tree.insert(core_id, tk.END, text="Instructions")
-
         # generate instruction size groups
         for size, instrs in sorted(instrs_by_size.items()):
-            # instrs_id = tree.insert(instrs_top_id, tk.END, text=f"Width {size}")
 
             # generate instructions
             out_text += f"=== {size}-bit Instructions\n"
             for (code, mask), instr_def in instrs.items():
                 opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
                 logger.info("processing instruction %s", instr_def.name)
-
-                # instr_id = tree.insert(instrs_id, tk.END, text=f"{instr_def.ext_name} : {instr_def.name}", values=(opcode_str,), tags=("mono",))
 
                 # generate encoding
                 enc_str = []
@@ -321,20 +257,6 @@ def main():
                     elif isinstance(enc, arch.BitField):
                         enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
-                # tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
-                # tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
-                # attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
-
-                # generate attributes
-                # for attr, ops in instr_def.attributes.items():
-                #     attr_id = tree.insert(attrs_id, tk.END, text=attr.name)
-                #     for op in ops:
-                #         context = TreeGenContext(tree, attr_id)
-                #         op.generate(context)
-
-                # generate behavior
-                # context = TreeGenContext(tree, instr_id)
-                # instr_def.operation.generate(context)
                 writer = CoreDSL2Writer()
                 patch_model(visitor)
                 writer.write_behavior2(instr_def.operation, drop_first=True)
@@ -349,8 +271,6 @@ def main():
                 out_text += content_text
     with open(output_file, "w") as f:
         f.write(out_text)
-
-    #tree.tag_configure("mono", font=font.nametofont("TkFixedFont"))
 
 
 if __name__ == "__main__":
