@@ -184,7 +184,7 @@ def main():
 						enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
 				tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
-				tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.disass,))
+				tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.assembly,))
 				tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
 				attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
 
