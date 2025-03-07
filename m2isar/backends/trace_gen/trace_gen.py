@@ -1,5 +1,5 @@
 # 
-# Copyright 2022 Chair of EDA, Technical University of Munich
+# Copyright 2025 Chair of EDA, Technical University of Munich
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,7 +59,6 @@ class FileDict:
         return self.__get(name_, "OutFile")
 
     def __get(self, name_, type_):
-        # TODO: Add error handling
         return self.dict[name_][type_]
 
 def setup():
@@ -135,26 +134,6 @@ def main():
     codeGen.generate("PrinterHeader")
     codeGen.generate("PrinterSource")
     codeGen.generate("InstructionPrintersSource")
-    
-    # if outdir is not None:
-    #     print("")
-    #     print("-- Storing model --")
-    #     print("Out-directory: %s" %outdir)
-
-    #     # Creating out-directory
-    #     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
-
-    #     # Make path for out-file
-    #     outfile_name = 'trace.model'
-    #     outfile = outdir / outfile_name
-    #     print("File: %s" % outfile_name)
-    #     if outfile.is_file():
-    #         print("\tFile exists and will be replaced!")
-    #         # TODO: Add possibility for user to aboard overwrite?
-            
-    #     # Dump model to file
-    #     with outfile.open('wb') as f:
-    #         pickle.dump(tracemodel_, f)
 
     return tracemodel_
             

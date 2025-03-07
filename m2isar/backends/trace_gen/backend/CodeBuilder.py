@@ -1,5 +1,5 @@
 # 
-# Copyright 2022 Chair of EDA, Technical University of Munich
+# Copyright 2025 Chair of EDA, Technical University of Munich
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 # limitations under the License.
 #
 
+from datetime import datetime
 from typing import List, Union
+
 from m2isar.metamodel import M2Model
 from m2isar.metamodel import arch
 
@@ -76,7 +78,7 @@ class CodeBuilder:
 
     def getStreamSetupCaption(self, trVal_):
         if(trVal_.dataType == "int") or (trVal_.dataType == "uint64_t"):
-            return self.__getStreamSetupString(self.__MAX_INT_SIZE + 2) # TODO: This won't work if name of tracevalue is longer than INT_SIZE + 2
+            return self.__getStreamSetupString(self.__MAX_INT_SIZE + 2) # NOTE: This won't work if name of tracevalue is longer than INT_SIZE + 2
         elif(trVal_.dataType == "string"):
             return self.__getStreamSetupString(self.__getValidStringSize(trVal_))
         else:
@@ -85,23 +87,6 @@ class CodeBuilder:
     def getSeparater(self):
         return "\" " + self.trace_model.getSeparator() + " \""
 
-    # reconstruction of description string
-    # def getDescriptionString(self, description_):
-    #     ret = ""
-    #     first = True
-    #     for snip_i in description_.getAllDescriptionSnippets():
-    #         if not first:
-    #             ret += " << "
-    #         else:
-    #             first = False
-    #         if not snip_i.isPreProcessed():
-    #             ret += "\""
-    #         ret += snip_i.getContent()
-    #         if not snip_i.isPreProcessed():
-    #             ret += "\""
-    #     return ret
-
-    # ask conrad how does this need to be resolved.
     def getDescriptionString(self, descriptions):
         result = ""
         previous_resolved = False
@@ -150,6 +135,25 @@ class CodeBuilder:
 
         return result
 
+    def getLicenseHeader(self):
+        ret = "/*\n"
+        ret += f"* Copyright {datetime.today().year} Chair of EDA, Technical University of Munich\n"
+        ret += "*\n"
+        ret += "* Licensed under the Apache License, Version 2.0 (the \"License\");\n"
+        ret += "* you may not use this file except in compliance with the License.\n"
+        ret += "* You may obtain a copy of the License at\n"
+        ret += "*\n"
+        ret += "*	 http://www.apache.org/licenses/LICENSE-2.0\n"
+        ret += "*\n"
+        ret += "* Unless required by applicable law or agreed to in writing, software\n"
+        ret += "* distributed under the License is distributed on an \"AS IS\" BASIS,\n"
+        ret += "* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
+        ret += "* See the License for the specific language governing permissions and\n"
+        ret += "* limitations under the License.\n"
+        ret += "*/\n"
+        ret += "\n"
+        ret += "/********************* AUTO GENERATE FILE (create by M2-ISA-R::Trace-Generator) *********************/\n"
+        return ret
 
     def getHeaderDefinePrefix_Monitor(self):
         return ("SWEVAL_MONITOR_" + self.trace_model.name.upper() + "_MONITOR_H") 

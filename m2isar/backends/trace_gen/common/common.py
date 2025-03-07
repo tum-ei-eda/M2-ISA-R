@@ -1,5 +1,5 @@
 # 
-# Copyright 2023 Chair of EDA, Technical University of Munich
+# Copyright 2025 Chair of EDA, Technical University of Munich
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,8 +30,6 @@ def createOrReplaceDir(dir_):
         pathlib.Path(dir_).mkdir(parents=True)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            # TODO: Better handling here? Wait for user input?
-            #print("WARNING: %s folder exists and is replaced" %(os.path.basename(os.path.normpath(str(dir_))))) 
             print("WARNING: %s folder exists and is replaced" %(os.path.normpath(str(dir_)))) 
             shutil.rmtree(dir_)
             pathlib.Path(dir_).mkdir(parents=True)
