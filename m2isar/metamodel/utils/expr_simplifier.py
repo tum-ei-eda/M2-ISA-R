@@ -97,7 +97,7 @@ def concat_operation(self: behav.ConcatOperation, context):
 
 	return self
 
-def number_literal(self: behav.IntLiteral, context):
+def number_literal(self: behav.NumberLiteral, context):
 	return self
 
 def int_literal(self: behav.IntLiteral, context):
@@ -209,6 +209,11 @@ def type_conv(self: behav.TypeConv, context):
 	return self
 
 def callable_(self: behav.Callable, context):
+	self.args = [stmt.generate(context) for stmt in self.args]
+
+	return self
+
+def procedure_call(self: behav.ProcedureCall, context):
 	self.args = [stmt.generate(context) for stmt in self.args]
 
 	return self

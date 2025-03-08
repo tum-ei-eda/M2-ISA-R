@@ -76,7 +76,7 @@ def concat_operation(self: behav.ConcatOperation, context: "TreeGenContext"):
 
 	context.pop()
 
-def number_literal(self: behav.IntLiteral, context: "TreeGenContext"):
+def number_literal(self: behav.NumberLiteral, context: "TreeGenContext"):
 	context.tree.insert(context.parent, tk.END, text="Number Literal", values=(self.value,))
 
 def int_literal(self: behav.IntLiteral, context: "TreeGenContext"):
@@ -198,6 +198,16 @@ def type_conv(self: behav.TypeConv, context: "TreeGenContext"):
 
 def callable_(self: behav.Callable, context: "TreeGenContext"):
 	context.push(context.tree.insert(context.parent, tk.END, text="Callable", values=(self.ref_or_name.name,)))
+
+	for arg, arg_descr in zip(self.args, self.ref_or_name.args):
+		context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
+		arg.generate(context)
+		context.pop()
+
+	context.pop()
+
+def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
+	context.push(context.tree.insert(context.parent, tk.END, text="ProcedureCall", values=(self.ref_or_name.name,)))
 
 	for arg, arg_descr in zip(self.args, self.ref_or_name.args):
 		context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))

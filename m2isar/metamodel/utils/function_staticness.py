@@ -42,7 +42,7 @@ def concat_operation(self: behav.ConcatOperation, context):
 
 	return all([left, right])
 
-def number_literal(self: behav.IntLiteral, context):
+def number_literal(self: behav.NumberLiteral, context):
 	return True
 
 def int_literal(self: behav.IntLiteral, context):

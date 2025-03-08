@@ -119,6 +119,13 @@ def callable_(self: behav.Callable, context):
 
 	return reduce(or_, args)
 
+
+def procedure_call(self: behav.ProcedureCall, context):
+	args = [arg.generate(context) for arg in self.args]
+	args.append(self.ref_or_name.throws)
+
+	return reduce(or_, args)
+
 def group(self: behav.Group, context):
 	expr = self.expr.generate(context)
 
