@@ -112,6 +112,15 @@ class IntLiteral(NumberLiteral):
 		else:
 			self.signed = signed
 
+
+class StringLiteral(BaseNode):
+    """A string constant"""
+
+    def __init__(self, value: str):
+        super().__init__()
+        self.value = value
+
+
 class Assignment(BaseNode):
 	"""An assignment statement."""
 

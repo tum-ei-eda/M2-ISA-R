@@ -356,6 +356,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.IntLiteral(value, 8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
+	def visitString_constant(self, ctx: CoreDSL2Parser.String_constantContext):
+		text: str = ctx.value.text
+		assert len(text) >= 2
+		assert text[0] == '"' and text[-1] == '"'
+		text = text[1:-1]
+
+		return behav.StringLiteral(text, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+
 	def visitBool_constant(self, ctx: CoreDSL2Parser.Bool_constantContext):
 		"""Generate a boolean literal. Converts directly to uint1."""
 
