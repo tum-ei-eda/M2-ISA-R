@@ -10,7 +10,7 @@ import antlr4
 import antlr4.error.ErrorListener
 
 from m2isar import M2SyntaxError
-from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
+from ..coredsl2.parser_gen import CoreDSL2Lexer, CoreDSL2Parser
 
 RADIX = {"b": 2, "h": 16, "d": 10, "o": 8}
 

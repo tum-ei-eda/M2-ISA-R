@@ -12,7 +12,7 @@ from typing import Union
 
 from m2isar import M2DuplicateError, M2NameError, M2TypeError, M2ValueError, flatten
 from m2isar.metamodel import arch, behav, intrinsics
-from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
 
 logger = logging.getLogger("arch_builder")

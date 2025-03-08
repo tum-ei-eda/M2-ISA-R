@@ -11,7 +11,7 @@
 import logging
 import pathlib
 
-from .parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
+from ..coredsl2.parser_gen import CoreDSL2Listener, CoreDSL2Parser, CoreDSL2Visitor
 from .utils import make_parser
 
 

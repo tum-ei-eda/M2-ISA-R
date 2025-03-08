@@ -9,7 +9,7 @@
 from antlr4 import ParserRuleContext
 
 from m2isar import M2DuplicateError
-from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 
 
 class CoreContainerContext(ParserRuleContext):
