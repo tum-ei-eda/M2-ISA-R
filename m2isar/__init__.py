@@ -15,6 +15,8 @@
   CoreDSL 2 ISA models.
 """
 
+__version__ = "0.0.3"
+
 from collections.abc import Iterable
 
 class M2Error(Exception):
