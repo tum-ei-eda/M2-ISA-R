@@ -253,6 +253,7 @@ def main():
 		model_obj = M2Model(
 			M2_METAMODEL_VERSION,
 			models,
+			{},
 			CodeInfoBase.database
 		)
 
