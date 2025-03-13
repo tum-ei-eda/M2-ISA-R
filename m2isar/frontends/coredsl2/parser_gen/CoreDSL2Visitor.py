@@ -404,6 +404,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#string_constant.
+    def visitString_constant(self, ctx:CoreDSL2Parser.String_constantContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#double_left_bracket.
     def visitDouble_left_bracket(self, ctx:CoreDSL2Parser.Double_left_bracketContext):
         return self.visitChildren(ctx)
