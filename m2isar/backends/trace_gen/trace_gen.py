@@ -88,12 +88,12 @@ def setup():
 
     if M2model_obj.model_version != M2_METAMODEL_VERSION:
         raise TypeError("Loaded model version mismatch")
-    
-    return args.description_file, M2model_obj.models, args.output_dir
+
+    return args.description_file, M2model_obj, args.output_dir
 
 def main():
     
-    descriptionFile_, m2isarmodel_, outdir_= setup()
+    descriptionFile_, m2model_, outdir_= setup()
     
     # Find pathes for json-description and output-directory
     descriptionFile = pathlib.Path(descriptionFile_).resolve()
@@ -113,9 +113,10 @@ def main():
     fileDict = FileDict(outdir, tracemodel_.name)
 
     # Constructiong code generator
-    for core_name, core in m2isarmodel_.items():
-        if tracemodel_.core == core_name:
-            m2_model_ = core
+    try:
+        m2_model_ = m2model_.cores[tracemodel_.core]
+    except KeyError as e:
+        raise RuntimeError(f"M2IASR model does not contain a core {e.args[0]}")
     codeGen = CodeGenerator(tracemodel_, m2_model_, fileDict)
 
     print()

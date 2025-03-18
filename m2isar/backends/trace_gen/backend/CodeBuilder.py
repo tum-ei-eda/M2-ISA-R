@@ -39,10 +39,10 @@ class CodeBuilder:
     __MAX_INT_SIZE = 16
     __CHANNEL_SIZE = 100
     
-    def __init__(self, trace_model_, m2_model_):
+    def __init__(self, trace_model_, m2_coreDef_model_):
         self.trace_model = trace_model_
-        self.m2_model = m2_model_
-
+        self.m2_coreDef_model = m2_coreDef_model_
+        
     def getStringSize(self, trVal_):
         return self.__getValidStringSize(trVal_)
     
@@ -109,10 +109,10 @@ class CodeBuilder:
                 result += "ba"
                 previous_resolved = False
             elif description.type == "reg":
-                result += f"<< \"*(({self.m2_model.name}*)cpu)->X[\"" + self.getDescriptionString(description.nested_descriptions) + " << \"]\""
+                result += f"<< \"*(({self.m2_coreDef_model.name}*)cpu)->X[\"" + self.getDescriptionString(description.nested_descriptions) + " << \"]\""
                 previous_resolved = False
             elif description.type == "csr":
-                result += f"<< \"{self.m2_model.name}_csr_read(cpu, system, plugin_pointers, \"" + self.getDescriptionString(description.nested_descriptions) + " << \")\""
+                result += f"<< \"{self.m2_coreDef_model.name}_csr_read(cpu, system, plugin_pointers, \"" + self.getDescriptionString(description.nested_descriptions) + " << \")\""
                 previous_resolved = False
             elif description.type == "bitfield":
                 if description.resolved:
@@ -165,13 +165,13 @@ class CodeBuilder:
         return (self.__getHeaderDefinePrefix_SWEvalBackends() + "_PRINTER_H")
     
     def getAllBitRanges(self, instr_, bf_i):
-        instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_), None)
+        instruction = next((instr for key, instr in self.m2_coreDef_model.instructions.items() if instr.name == instr_), None)
         if not instruction:
             # print(f"Warning: Instruction '{instr_}' not found in original case format.")
-            instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_.lower()), None)
+            instruction = next((instr for key, instr in self.m2_coreDef_model.instructions.items() if instr.name == instr_.lower()), None)
         if not instruction:
             # print(f"Warning: Instruction '{instr_}' not found in lower case format.")
-            instruction = next((instr for key, instr in self.m2_model.instructions.items() if instr.name == instr_.upper()), None)
+            instruction = next((instr for key, instr in self.m2_coreDef_model.instructions.items() if instr.name == instr_.upper()), None)
         if not instruction:
             # print(f"Warning: Instruction '{instr_}' not found in upper case format.")
             raise ValueError(f"Instruction '{instr_}' not found in any case format.")
