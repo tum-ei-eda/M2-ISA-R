@@ -175,7 +175,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		instr_id = (i.code, i.mask)
 
 		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=i.size//4)
-		i.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
+		i.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, fn_name=f"instr_{i.name}_{opcode_str}")
 
 		# check for duplicate instructions
 		if instr_id in self._instructions:
@@ -216,7 +216,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 		if not f.extern:
-			f.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, "fn_" + f.name)
+			f.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, fn_name="fn_" + f.name)
 
 		# error on duplicate function definition
 		# TODO: implement overwriting function prototypes?

@@ -24,7 +24,7 @@ class CodeInfoBase:
 	start_line_no: int
 	stop_line_no: int
 
-	id: int = field(default=None, kw_only=True)
+	id: int = field(default=None)
 	"""Automatically calculated unique ID for tracking purposes in consumer programs."""
 
 	__id_counter = 0
@@ -54,15 +54,15 @@ class CodeInfoBase:
 
 @dataclass(eq=False)
 class LineInfo(CodeInfoBase):
-	placement: LineInfoPlacement = field(default=LineInfoPlacement.AFTER, kw_only=True)
+	placement: LineInfoPlacement = field(default=LineInfoPlacement.AFTER)
 
 @dataclass(eq=False)
 class FunctionInfo(CodeInfoBase):
-	fn_name: str
+	fn_name: str = None
 
 @dataclass(eq=False)
 class BranchInfo(LineInfo):
-	branch_id: int = field(default=None, kw_only=True)
+	branch_id: int = field(default=None)
 
 @dataclass(eq=False)
 class BranchEntryInfo(BranchInfo):
