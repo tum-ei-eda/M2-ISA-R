@@ -205,7 +205,8 @@ def indexed_reference(self: behav.IndexedReference, context):
 def type_conv(self: behav.TypeConv, context):
 	self.expr = self.expr.generate(context)
 	if isinstance(self.expr, behav.IntLiteral):
-		self.expr.bit_size = self.size
+		if self.size is not None:
+			self.expr.bit_size = self.size
 		self.expr.signed = self.data_type == arch.DataType.S
 		return self.expr
 
