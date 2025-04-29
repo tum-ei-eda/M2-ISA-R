@@ -98,8 +98,8 @@ def main():
     if model_obj.model_version != M2_METAMODEL_VERSION:
         logger.warning("Loaded model version mismatch")
 
+    _reset_enc_generators()
     for core_name, core_def in model_obj.cores.items():
-        _reset_enc_generators()
         unencoded_instructions = list(core_def.unencoded_instructions.values())
         if len(unencoded_instructions) == 0:
             continue
@@ -107,8 +107,8 @@ def main():
         encoded_instructions_dict = {(instr_def.code, instr_def.mask) for instr_def in encoded_instructions}
         core_def.instructions.update(encoded_instructions_dict)
 
+    _reset_enc_generators()
     for set_name, set_def in model_obj.sets.items():
-        _reset_enc_generators()
         unencoded_instructions = list(set_def.unencoded_instructions.values())
         if len(unencoded_instructions) == 0:
             continue
