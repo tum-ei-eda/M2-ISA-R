@@ -14,7 +14,17 @@ from ...metamodel import arch
 from .operands import Operand, get_immediates_with_name, get_register_names
 
 
-unused_opcodes = [0b000_1011, 0b010_1011, 0b101_1011, 0b111_1011]
+# unused_opcodes = [0b000_1011, 0b010_1011, 0b101_1011, 0b111_1011]
+unused_opcodes = [
+    0b110_1011,
+    0b111_0111,
+    0b101_0111,
+    # ---
+    0b000_1011,
+    0b010_1011,
+    0b101_1011,
+    0b111_1011,
+]  # using reserved opcodes (OP-V, OP-P,...)
 """
 only using the major op-codes custom-[0,3] as specified in table 19.1 in "Volume I: RISC-V User-Level ISA V2.2"
 bits 1:0 are always 11; 00, 01 and 10 are used by the compressed instructions
