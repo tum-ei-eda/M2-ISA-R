@@ -29,6 +29,7 @@ std::string ${traceModel_.name}_Printer::getPrintHeader(void)
   % for trVal_i in traceModel_.getAllTraceValues():
   caption_strs << ${builder_.getStreamSetupCaption(trVal_i)} << "${trVal_i.name}" << ${builder_.getSeparater()};
   % endfor
+  caption_strs << std::endl;
 
   return caption_strs.str();
 }
