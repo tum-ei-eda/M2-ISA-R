@@ -559,13 +559,20 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
 		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
 		mask = f"{mask}ULL"
+		simple_mask = True
 
 	# slice with actual lower and upper bound code if not possible to slice with integers
 	except ValueError:
 		new_size = expr.size
 		mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
+		simple_mask = False
 
-	c = CodeString(f"((({expr.code}) >> ({right.code})) & {mask})", static, new_size, expr.signed,
+	if simple_mask and (int(right.code.replace("U", "").replace("L", "")) == 0):
+		# no need to shift zeros steps
+		code = f"(({expr.code}) & {mask})"
+	else:
+		code = f"((({expr.code}) >> ({right.code})) & {mask})"
+	c = CodeString(code, static, new_size, expr.signed,
 		set.union(expr.regs_affected, left.regs_affected, right.regs_affected), [self.line_info] + expr.line_infos + left.line_infos + right.line_infos)
 	c.mem_ids = expr.mem_ids + left.mem_ids + right.mem_ids
 	return c
