@@ -472,7 +472,11 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
-			expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
+			if target.signed:
+				shift = target.actual_size - target.size
+				expr.code = f'(((etiss_int{target.actual_size})({expr.code})) << {shift}) >> {shift}'
+			else:
+				expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
 
 	else:
 		context.generates_exception = True
