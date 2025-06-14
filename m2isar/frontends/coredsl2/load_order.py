@@ -36,10 +36,18 @@ class LoadOrder(CoreDSL2Visitor):
 			raise M2NameError(f"instruction set {ins_set_name} is unknown")
 
 		extensions = [e.text for e in self.instruction_sets[ins_set_name].extension]
+		combines = [e.text for e in self.instruction_sets[ins_set_name].combines]
 		if extensions:
+			assert len(combines) == 0
 			ret = [ins_set_name]
 			for extension in extensions:
 				ret = self.extend_ins_set(extension) + ret
+			return ret
+		elif combines:
+			assert len(extensions) == 0
+			ret = [ins_set_name]
+			for combine in combines:
+				ret = self.extend_ins_set(combines) + ret
 			return ret
 		else:
 			return [ins_set_name]
