@@ -9,6 +9,7 @@
 """Recursive tree traversal methods to generate behavior code."""
 
 import logging
+from math import log2
 from itertools import chain
 from string import Template
 
@@ -476,7 +477,16 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 				shift = target.actual_size - target.size
 				expr.code = f'(((etiss_int{target.actual_size})({expr.code})) << {shift}) >> {shift}'
 			else:
-				expr.code = f'({expr.code}) & {hex((1 << target.size) - 1)}'
+				mask = (1 << target.size) - 1
+				mask_bits = log2(mask)
+				if mask_bits > 64:
+					mask64 = (1 << 64) - 1
+					low = mask & mask64
+					high = mask >> 64
+					mask_code = f"(((etiss_int128){hex(high)}ULL << 64) | {hex(low)}ULL)"
+				else:
+					mask_code = f"{hex(mask)}ULL"
+				expr.code = f'({expr.code}) & {mask_code}'
 
 	else:
 		context.generates_exception = True
@@ -558,7 +568,15 @@ def slice_operation(self: behav.SliceOperation, context: TransformerContext):
 	try:
 		new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
 		mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
-		mask = f"{mask}ULL"
+		mask_bits = log2(mask)
+		if mask_bits > 64:
+			mask64 = (1 << 64) - 1
+			low = mask & mask64
+			high = mask >> 64
+			mask_code = f"((((etiss_int128)){hex(high)}ULL << 64) | {hex(low)}ULL)"
+		else:
+			mask_code = f"{hex(mask)}ULL"
+		mask = f"{mask_code}"
 		simple_mask = True
 
 	# slice with actual lower and upper bound code if not possible to slice with integers
