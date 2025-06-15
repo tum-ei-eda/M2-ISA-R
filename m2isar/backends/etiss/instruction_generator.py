@@ -46,8 +46,9 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 			return_type += f'{fn_def.actual_size}'
 
 		# set up a transformer context and generate code
+		ignore_trunc_warnings = False
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
-			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True)
+			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True, ignore_trunc_warnings)
 
 		logger.debug("generating code for %s", fn_name)
 
