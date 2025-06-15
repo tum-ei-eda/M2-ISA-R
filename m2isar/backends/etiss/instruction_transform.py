@@ -477,6 +477,11 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
 
+	# TODO: move to parser!
+	if target.size < expr.size and not context.ignore_trunc_warnings:
+		# TODO: add position?
+		logger.warning("Implicit truncation %d -> %d found", expr.size, target.size)
+
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
 			if target.signed:
