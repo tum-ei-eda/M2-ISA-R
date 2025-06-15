@@ -537,6 +537,9 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	if not right.static and left.static and not left.is_literal:
 		left.code = context.make_static(left.code, left.signed)
 
+	if op.value == "<<" and left.size <= right.size:
+		# TODO: add LOC
+		logger.warning("Shift count overflow for << operation (%d vs. %d)", left.size, right.size)
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
 		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected), [self.line_info] + left.line_infos + right.line_infos)
 	# keep track of any memory accesses
