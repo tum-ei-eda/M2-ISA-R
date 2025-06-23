@@ -36,7 +36,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		# generate and write file header
 		fn_set_str = fn_set_header_template.render(
 			start_time=start_time,
-			core_name=core_name
+			core_name=core_name,
 			enable_coverage=generate_coverage,
 		)
 
