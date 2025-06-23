@@ -29,6 +29,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
 
 	args = parser.parse_args()
 
@@ -37,7 +38,9 @@ def main():
 
 	top_level = pathlib.Path(args.top_level)
 	abs_top_level = top_level.resolve()
-	search_path = abs_top_level.parent
+	extra_includes = args.includes
+	extra_includes = list(map(lambda x: x.resolve(), map(pathlib.Path, extra_includes)))
+	search_paths = [abs_top_level.parent] + extra_includes
 
 	parser = make_parser(abs_top_level)
 
@@ -45,7 +48,7 @@ def main():
 		logger.info("parsing top level")
 		tree = parser.description_content()
 
-		recursive_import(tree, search_path)
+		recursive_import(tree, search_paths)
 	except M2SyntaxError as e:
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
@@ -58,7 +61,7 @@ def main():
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
 
-	model_path = search_path.joinpath('gen_model')
+	model_path = abs_top_level.parent.joinpath('gen_model')
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
