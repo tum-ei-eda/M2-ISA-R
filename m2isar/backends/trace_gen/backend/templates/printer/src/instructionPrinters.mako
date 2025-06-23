@@ -26,7 +26,7 @@ static InstructionPrinter *instrPrinter_${type_i.name} = new InstructionPrinter(
     ret_strs << ${builder_.getEmptyStream(trVal_i)} << ${builder_.getSeparater()};
     % endif
     % endfor
-    ret_strs << std::endl;
+    // ret_strs << std::endl;
     return ret_strs.str();
   }
 );
