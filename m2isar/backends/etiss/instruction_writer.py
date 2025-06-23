@@ -37,6 +37,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		fn_set_str = fn_set_header_template.render(
 			start_time=start_time,
 			core_name=core_name
+			enable_coverage=generate_coverage,
 		)
 
 		funcs_f.write(fn_set_str)
