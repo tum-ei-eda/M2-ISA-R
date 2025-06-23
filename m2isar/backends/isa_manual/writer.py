@@ -216,7 +216,7 @@ def main():
     if model_obj.model_version != M2_METAMODEL_VERSION:
         logger.warning("Loaded model version mismatch")
 
-    models = model_obj.models
+    models = model_obj.cores
 
     out_text = ""
 
@@ -262,12 +262,12 @@ def main():
                 writer.write_behavior2(instr_def.operation, drop_first=True)
                 behavior_text = writer.text
                 asm_str = None
-                if instr_def.disass:
-                    asm_str = instr_def.disass.replace("\"", "")
+                if instr_def.assembly:
+                    asm_str = instr_def.assembly.replace("\"", "")
                     asm_str = re.sub(r"{([a-zA-Z0-9]+)}", r"\g<1>", re.sub(r"{([a-zA-Z0-9]+):[#0-9a-zA-Z\.]+}", r"{\g<1>}", re.sub(r"name\(([a-zA-Z0-9]+)\)", r"\g<1>", asm_str)))
                 content_template = Template(MAKO_TEMPLATE_INSTR)
                 encoding_text = generate_encoding(instr_def.encoding)
-                content_text = content_template.render(name=instr_def.name, assembly=asm_str if asm_str else "N/A", mnemonic=instr_def.name.lower().replace("_", "."), encoding=encoding_text, attributes=instr_def.attributes, throws=arch.FunctionThrows(instr_def.throws), behavior=behavior_text)
+                content_text = content_template.render(name=instr_def.name, mnemonic=instr_def.mnemonic, assembly=asm_str if asm_str else "N/A", encoding=encoding_text, attributes=instr_def.attributes, throws=arch.FunctionThrows(instr_def.throws), behavior=behavior_text)
                 out_text += content_text
     with open(output_file, "w") as f:
         f.write(out_text)
