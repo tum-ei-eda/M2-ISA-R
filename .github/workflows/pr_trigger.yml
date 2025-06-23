@@ -42,7 +42,7 @@ jobs:
     - name: Wait for Workflow Completion
       run: |
         echo "const https = require('https');
-        const MAX_ATTEMPTS = 8;
+        const MAX_ATTEMPTS = 30;
         let attempt = 0;
         const current_time = new Date();
         console.log('Current Time: ', current_time.toISOString());
