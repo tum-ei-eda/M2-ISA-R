@@ -95,6 +95,10 @@ class NumberLiteral(BaseNode):
 		super().__init__(line_info)
 		self.value = value
 
+	def __repr__(self):
+		return f"NumberLiteral({self.value})"
+
+
 class IntLiteral(NumberLiteral):
 	"""A more precise class holding only integer literals."""
 
@@ -113,13 +117,19 @@ class IntLiteral(NumberLiteral):
 		else:
 			self.signed = signed
 
+	def __repr__(self):
+		return f"IntLiteral({self.value}, {self.bit_size}, {self.signed})"
+
 
 class StringLiteral(BaseNode):
-    """A string constant"""
+	"""A string constant"""
 
-    def __init__(self, value: str):
-        super().__init__()
-        self.value = value
+	def __init__(self, value: str):
+		super().__init__()
+		self.value = value
+
+	def __repr__(self):
+		return f"StringLiteral(\"{self.value}\")"
 
 
 class Assignment(BaseNode):
