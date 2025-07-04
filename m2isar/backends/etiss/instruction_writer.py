@@ -18,6 +18,7 @@ from ...metamodel import arch
 from . import BlockEndType
 from .instruction_generator import generate_functions, generate_instructions
 from .templates import template_dir
+from .warnings import WarningsInfo
 
 logger = logging.getLogger("instruction_writer")
 
@@ -69,7 +70,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		funcs_f.write("// clang-format on\n")
 
 def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool, static_scalars: bool,
-	block_end_on: BlockEndType, generate_coverage: bool):
+	block_end_on: BlockEndType, generate_coverage: bool, warnings_info: WarningsInfo):
 	"""Generate and write the instruction model C++ files for ETISS."""
 
 	instr_set_template = Template(filename=str(template_dir/'etiss_instruction_set.mako'))
@@ -103,7 +104,7 @@ def write_instructions(core: arch.CoreDef, start_time: str, output_path: pathlib
 			out_f.write(instr_set_str)
 
 		# generate instruction behavior models
-		for instr_name, _, ext_name, templ_str in generate_instructions(core, static_scalars, block_end_on, generate_coverage):
+		for instr_name, _, ext_name, templ_str in generate_instructions(core, static_scalars, block_end_on, generate_coverage, warnings_info):
 			logger.debug("writing instruction %s", instr_name)
 			outfiles.get(ext_name, outfiles['default']).write(templ_str)
 		for outfile in outfiles.values():
