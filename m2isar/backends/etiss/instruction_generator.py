@@ -15,6 +15,7 @@ from mako.template import Template
 from ...metamodel import arch, behav, patch_model
 from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
+from .warnings import WarningsInfo
 
 logger = logging.getLogger("instruction_generator")
 
@@ -46,9 +47,8 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 			return_type += f'{fn_def.actual_size}'
 
 		# set up a transformer context and generate code
-		ignore_trunc_warnings = False
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
-			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True, ignore_trunc_warnings)
+			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True, warnings_info)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -140,7 +140,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
-def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instruction, fields, static_scalars: bool, block_end_on: BlockEndType, generate_coverage: bool):
+def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instruction, fields, static_scalars: bool, block_end_on: BlockEndType, generate_coverage: bool, warnings_info: WarningsInfo):
 	patch_model(instruction_transform)
 
 	instr_name = instr_def.name
@@ -152,7 +152,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
 	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
-		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage)
+		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, warnings_info)
 
 	# force a block end if necessary
 	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes
@@ -187,7 +187,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 
 	return callback_str
 
-def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on: BlockEndType, generate_coverage: bool):
+def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on: BlockEndType, generate_coverage: bool, warnings_info: WarningsInfo):
 	"""Return a generator object to generate instruction behavior code. Uses instruction
 	definitions in the core object.
 	"""
@@ -231,7 +231,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 			instr_def.operation = new_op
 			instr_def.throws = True
 
-		callback_str = generate_instruction_callback(core, instr_def, fields, static_scalars, block_end_on, generate_coverage)
+		callback_str = generate_instruction_callback(core, instr_def, fields, static_scalars, block_end_on, generate_coverage, warnings_info)
 
 		# render code for whole instruction
 		templ_str = instr_template.render(

@@ -478,9 +478,9 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.dependent_regs.update(expr.regs_affected)
 
 	# TODO: move to parser!
-	if target.size < expr.size and not context.ignore_trunc_warnings:
-		# TODO: add position?
-		logger.warning("Implicit truncation %d -> %d found", expr.size, target.size)
+	# if target.size < expr.size and not context.ignore_trunc_warnings:
+	if target.size < expr.size:
+		context.emit_warning(f"Implicit truncation {expr.size} -> {target.size} found", "implicit-trunc", logger=logger, line_info=self.line_info)
 
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
@@ -545,7 +545,7 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 
 	if op.value == "<<" and left.size <= right.size:
 		# TODO: add LOC
-		logger.warning("Shift count overflow for << operation (%d vs. %d)", left.size, right.size)
+		context.emit_warning(f"Shift count overflow for << operation ({left.size} vs. {right.size})", "shift-overflow", logger=logger, line_info=self.line_info)
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
 		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected), [self.line_info] + left.line_infos + right.line_infos)
 	# keep track of any memory accesses
