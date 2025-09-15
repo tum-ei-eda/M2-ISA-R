@@ -14,7 +14,7 @@ from mako.template import Template
 
 # from ...metamodel import arch, behav, patch_model
 from ...metamodel import arch, patch_model
-from . import BlockEndType, instruction_transform, instruction_utils
+from . import instruction_transform, instruction_utils
 from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
@@ -94,10 +94,10 @@ def generate_instruction_callback(
     instr_name = instr_def.name
     set_name = set_def.name
     misc_code = []
-    set_default_width = set_def.constants["XLEN"].value
+    set_default_width = None
     fields_code, _, _, enc_idx = fields
 
-    callback_template = Template(filename=str(template_dir / "etiss_instruction_callback.mako"))
+    callback_template = Template(filename=str(template_dir / "spike_instruction_callback.mako"))
 
     context = instruction_utils.TransformerContext(
         set_def.constants,
@@ -109,7 +109,7 @@ def generate_instruction_callback(
         enc_idx,
         set_default_width,
         set_name,
-        set_def.intrinsics,
+        # set_def.intrinsics,
     )
 
     # generate instruction behavior code
@@ -123,11 +123,11 @@ def generate_instruction_callback(
     callback_str = callback_template.render(
         instr_name=instr_name,
         misc_code=misc_code,
-        fields_code=fields_code,
+        # fields_code=fields_code,
         operation=out_code,
-        reg_dependencies=[],  # context.dependent_regs,
-        reg_affected=[],  # context.affected_regs,
-        set_default_width=set_default_width,
+        # reg_dependencies=[],  # context.dependent_regs,
+        # reg_affected=[],  # context.affected_regs,
+        # set_default_width=set_default_width,
     )
 
     return callback_str
@@ -148,29 +148,31 @@ def generate_instructions(set_def: arch.InstructionSet):
         instr_name = instr_def.name
         instr_name_lower = instr_name.lower()
         instr_name_upper = instr_name.upper()
-        mk_str = f"       {instr_name_lower}"
+        mk_str = f"       {instr_name_lower} \\\n"
 
         if instr_def.attributes is None:
             instr_def.attributes = []
 
         # generate instruction parameter extraction code
-        fields = generate_fields(set_def.constants["XLEN"].value, instr_def)
+        fields = generate_fields(None, instr_def)
         # fields_code, asm_printer_code, seen_fields, enc_idx = fields
 
         code_string = f"{code:#08x}"
         mask_string = f"{mask:#08x}"
         compact = True
         if compact:
-            enc_str = f"DECLARE_INSN({instr_name}, {code_string}, {mask_string})"
+            enc_str = f"DECLARE_INSN({instr_name_lower}, {code_string}, {mask_string})\n"
         else:
             enc_str = f"""#define MATCH_{instr_name_upper} {code_string}
 #define MASK_{instr_name_upper} {mask_string}
-DECLARE_INSN({instr_name}, MATCH_{instr_name_upper}, MASK_{instr_name_upper})"""
+DECLARE_INSN({instr_name}, MATCH_{instr_name_upper}, MASK_{instr_name_upper})
+"""
 
         if arch.InstrAttribute.ENABLE in instr_def.attributes:
             raise NotImplementedError("ENABLE attr")
 
         callback_str = generate_instruction_callback(set_def, instr_def, fields)
+        print("callback_str", callback_str)
 
         # render code for whole instruction
         behav_str = instr_template.render(
