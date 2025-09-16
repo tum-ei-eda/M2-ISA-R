@@ -171,6 +171,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 		core_name=core.name,
 		main_reg=core.main_reg_file,
 		float_reg=core.float_reg_file,
+		csr_reg=core.csr_reg_file
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
