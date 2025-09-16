@@ -46,6 +46,18 @@ public:
 			ss << "${main_reg.name}" << index;
 			return ss.str();
 		}
+		% if float_reg is not None:
+		if ((${main_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 1})){
+			std::stringstream ss;
+			ss << "${float_reg.name}" << (index - ${main_reg.range.length + 1});
+			return ss.str();
+		}
+		if ((${main_reg.range.length + float_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 5})){  // FCSR
+			std::stringstream ss;
+			ss << "CSR" << (index - ${main_reg.range.length + float_reg.range.length + 1});
+			return ss.str();
+		}
+		% endif
 		switch (index){
 		case ${main_reg.range.length}:
 			return "instructionPointer";

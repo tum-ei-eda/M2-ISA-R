@@ -149,6 +149,22 @@ std::shared_ptr<etiss::VirtualStruct> ${core_name}Arch::getVirtualStruct(ETISS_C
 	}
 
 	ret->addField(new pcField_${core_name}(*ret));
+
+	% if float_reg is not None:
+	// FPRs
+	for (uint32_t i = 0; i < ${float_reg.range.length}; ++i){
+		ret->addField(new FloatRegField_${core_name}(*ret,i));
+	}
+	% endif
+	% if csr_reg is not None:
+	// CSRs
+	% if float_reg is not None:
+	// FCSR
+	ret->addField(new CSRField_${core_name}(*ret,1));
+	ret->addField(new CSRField_${core_name}(*ret,2));
+	ret->addField(new CSRField_${core_name}(*ret,3));
+  % endif
+  % endif
 	return ret;
 }
 
