@@ -41,6 +41,7 @@
 class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore {
 public:
 	std::string mapRegister(unsigned index){
+		% if mapping is None:
 		if (index < ${main_reg.range.length}){
 			std::stringstream ss;
 			ss << "${main_reg.name}" << index;
@@ -58,9 +59,16 @@ public:
 			return ss.str();
 		}
 		% endif
+		% endif
 		switch (index){
+		% if mapping is not None:
+		% for regnum, name in mapping.items():
+		case ${regnum}: return "${name}";
+		% endfor
+		% else:
 		case ${main_reg.range.length}:
 			return "instructionPointer";
+		% endif
 		/**************************************************************************
 		*   Further register should be added here to send data over gdbserver	  *
 		***************************************************************************/

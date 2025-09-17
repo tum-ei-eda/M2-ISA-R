@@ -177,7 +177,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, virtualstruct_regs: dict):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
 	error_fn = None
@@ -228,13 +228,14 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		global_irq_en_reg=core.global_irq_en_memory,
 		global_irq_en_mask=global_irq_en_mask,
 		error_callbacks=error_callbacks,
-		error_fn=error_fn
+		error_fn=error_fn,
+		virtualstruct_regs=virtualstruct_regs,
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, gdb_mapping: dict):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_gdbcore.mako'))
 
 	logger.info("writing gdbcore")
@@ -243,7 +244,8 @@ def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file,
-		float_reg=core.float_reg_file
+		float_reg=core.float_reg_file,
+		mapping=gdb_mapping,
 	)
 
 	with open(output_path / f"{core.name}GDBCore.h", "w", encoding="utf-8") as f:

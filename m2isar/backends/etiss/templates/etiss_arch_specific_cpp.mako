@@ -144,27 +144,22 @@ std::shared_ptr<etiss::VirtualStruct> ${core_name}Arch::getVirtualStruct(ETISS_C
 		}
 	);
 
-	for (uint32_t i = 0; i < ${main_reg.range.length}; ++i){
-		ret->addField(new RegField_${core_name}(*ret,i));
+	% if virtualstruct_regs is not None:
+	% for virtualstruct_class, idxs in virtualstruct_regs.items():
+	% for idx in idxs:
+	% if isinstance(idx, range):
+	for (uint32_t i = ${idx.start}; i < ${idx.stop}; i += ${idx.step}){
+		ret->addField(new ${virtualstruct_class}_${core_name}(*ret, i));
 	}
-
-	ret->addField(new pcField_${core_name}(*ret));
-
-	% if float_reg is not None:
-	// FPRs
-	for (uint32_t i = 0; i < ${float_reg.range.length}; ++i){
-		ret->addField(new FloatRegField_${core_name}(*ret,i));
-	}
+	% elif idx is None:
+	ret->addField(new ${virtualstruct_class}_${core_name}(*ret));
+	% else:
+	ret->addField(new ${virtualstruct_class}_${core_name}(*ret, ${idx}));
 	% endif
-	% if csr_reg is not None:
-	// CSRs
-	% if float_reg is not None:
-	// FCSR
-	ret->addField(new CSRField_${core_name}(*ret,1));
-	ret->addField(new CSRField_${core_name}(*ret,2));
-	ret->addField(new CSRField_${core_name}(*ret,3));
-  % endif
-  % endif
+	% endfor
+	% endfor
+	% endif
+
 	return ret;
 }
 

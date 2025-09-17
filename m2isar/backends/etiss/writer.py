@@ -8,7 +8,6 @@
 
 """Main entrypoint for the etiss_writer program."""
 
-import re
 import argparse
 import logging
 import pathlib
@@ -27,6 +26,7 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
+from .virtualstruct_utils import process_gdb_xml_descr_args, get_virtualstruct_regs, get_gdb_mapping
 
 
 class BooleanOptionalAction(argparse.Action):
@@ -128,54 +128,12 @@ def setup():
 	return (model_obj.cores, logger, output_base_path, spec_name, start_time, args)
 
 
-def process_xml_descr(path):
-	import xml.etree.ElementTree as ET
-	from xml.etree import ElementTree, ElementInclude
-	# print("process_xml_descr", path)
-	tree = ElementTree.parse(path)
-	# print("tree", tree)
-	root = tree.getroot()
-	# print("root", root)
-	parent = pathlib.Path(path).parent
-	def custom_loader(href, parse, encoding=None):
-		if not pathlib.Path(href).is_file():
-			href = parent / href
-		if parse == "xml":
-			with open(href, 'rb') as file:
-				data = ElementTree.parse(file).getroot()
-		else:
-			if not encoding:
-				encoding = 'UTF-8'
-			with open(href, 'r', encoding=encoding) as file:
-				data = file.read()
-		return data
-	ElementInclude.include(root, loader=custom_loader)
-	mapping = {}
-	num = 0
-	for node in tree.iter():
-		if node.tag == "reg":
-			# print("node", node.tag, node.attrib)
-			num = int(node.attrib.get("regnum", num + 1))
-			name = node.attrib["name"]
-			sz = int(node.attrib["bitsize"])
-			mapping[num] = (name, sz)
-	# print("mapping", mapping)
-	# input(">>>")
-	return mapping
-
 def main():
 	"""etiss_writer main entrypoint function."""
 
 	# setup etiss writer
 	cores, logger, output_base_path, spec_name, start_time, args = setup()
-	descr_mapping = {}
-	for descr in args.gdb_xml_descr:
-		assert ":" in descr
-		core, xml_path = descr.split(":", 1)
-		print("core", core)
-		assert core in cores
-		mapping = process_xml_descr(xml_path)
-		descr_mapping[core] = mapping
+	descr_mapping = process_gdb_xml_descr_args(args.gdb_xml_descr, cores)
 
 	# preprocess all models
 	for core_name, core in cores.items():
@@ -199,59 +157,9 @@ def main():
 	# generate each core in the model
 	for core_name, core in cores.items():
 		logger.info("processing model %s", core_name)
-		# print("core.memories", core.memories)
-		# print("core.memory_aliases", core.memory_aliases)
 		mapping = descr_mapping.get(core_name)
-		# print("mapping", mapping)
-		# assert mapping is not None
-		if mapping is not None:
-			default_aliases = {"zero": "x0", "ra": "x1", "sp": "x2", "gp": "x3", "tp": "x4", "t0": "x5", "t1": "x6", "t2": "x7", "s0": "x8", "fp": "x8", "s1": "x9", "a0": "x10", "a1": "x11", "a2": "x12", "a3": "x13", "a4": "x14", "a5": "x15", "a6": "x16", "a7": "x17", "s2": "x18", "s3": "x19", "s4": "x20", "s5": "x21", "s6": "x22", "s7": "x23", "s8": "x24", "s9": "x25", "s10": "x26", "s11": "x27", "t3": "x28", "t4": "x29", "t5": "x30", "t6": "x31"}
-			def resolve_reg(name, mems, aliases):
-				split_name = lambda s: (m.group(1), int(m.group(2))) if (m:=re.fullmatch(r'([a-zA-Z]+)(\d+)', s)) else None
-				# print("resolve_reg", name)
-				idx = None
-				ret = mems.get(name, mems.get(name.lower(), mems.get(name.upper())))
-				if ret is None:
-					ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper())))
-				if ret is None:
-					splitted = split_name(name)
-					if splitted is not None:
-						# print("splitted", splitted)
-						name, idx = splitted
-						# print("name", name)
-						# print("idx", idx)
-						ret = mems.get(name, mems.get(name.lower(), mems.get(name.upper())))
-						# print("ret", ret)
-						if ret is None:
-								ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper())))
-						# input("?")
-				if ret is None:
-					new_name = default_aliases.get(name, default_aliases.get(name.lower(), default_aliases.get(name.upper())))
-					if new_name is not None:
-						return resolve_reg(new_name, mems, aliases)
-				return ret, idx
-			for regnum, data in mapping.items():
-				# print("regnum,data", regnum, data)
-				name, sz = data
-				resolved = resolve_reg(name, core.memories, core.memory_aliases)
-				# print("resolved", resolved)
-				# print("resolved[0]", dir(resolved[0]))
-				# print("resolved[0].children", resolved[0].children)
-				# print("resolved[0].parent", resolved[0].parent)
-				# print("resolved[0].range", resolved[0].range)
-				# print("resolved[0].size", resolved[0].size)
-				assert resolved is not None
-				if resolved is not None:
-					mem, idx = resolved
-					assert mem is not None
-					if mem.parent is not None:  # alias
-						rng = mem.range
-						assert rng.length == 1
-						assert idx is None
-						idx = rng.lower
-						mem = mem.parent
-					assert mem.size == sz
-					print("regnum,mem,idx", regnum, mem, idx)
+		virtualstruct_regs = get_virtualstruct_regs(mapping, core.memories, core.memory_aliases)
+		gdb_mapping = get_gdb_mapping(mapping, core.memories, core.memory_aliases)
 
 		# create output files path
 		output_path = output_base_path / spec_name / core_name
@@ -266,10 +174,10 @@ def main():
 		write_arch_header(core, start_time, output_path)
 		write_arch_cpp(core, start_time, output_path, False)
 		write_arch_specific_header(core, start_time, output_path)
-		write_arch_specific_cpp(core, start_time, output_path)
+		write_arch_specific_cpp(core, start_time, output_path, virtualstruct_regs)
 		write_arch_lib(core, start_time, output_path)
 		write_arch_cmake(core, start_time, output_path, args.separate)
-		write_arch_gdbcore(core, start_time, output_path)
+		write_arch_gdbcore(core, start_time, output_path, gdb_mapping)
 		write_functions(core, start_time, output_path, args.static_scalars, args.coverage)
 		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()], args.coverage)
 
