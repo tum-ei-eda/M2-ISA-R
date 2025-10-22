@@ -18,18 +18,22 @@
 #include "etiss/jit/CPU.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #pragma pack(push, 1)
-struct ${core_name} {
-	ETISS_CPU cpu; // original cpu struct must be defined as the first field of the new structure. this allows to cast X * to ETISS_CPU * and vice vers
-	% for reg in regs:
-	${reg};
-	% endfor
-};
+    struct ${core_name}
+    {
+        ETISS_CPU cpu; // original cpu struct must be defined as the first field of the new structure.
+                       // This allows to cast X * to ETISS_CPU * and vice versa
+        % for reg in regs:
+        ${reg};
+        % endfor
+    };
 
 #pragma pack(pop) // undo changes
-typedef struct ${core_name} ${core_name}; // convenient use of X instead of struct X in generated C code
+    // convenient use of X instead of struct X in generated C code
+    typedef struct ${core_name} ${core_name};
 #ifdef __cplusplus
 } // extern "C"
 #endif

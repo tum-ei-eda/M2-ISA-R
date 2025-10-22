@@ -16,7 +16,8 @@
 #define __${core_name.upper()}_FUNCS_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "${core_name}.h"
