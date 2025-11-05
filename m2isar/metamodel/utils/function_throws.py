@@ -26,6 +26,12 @@ def operation(self: behav.Operation, context):
 
 	return reduce(or_, statements, arch.FunctionThrows.NO)
 
+
+def block(self: behav.Block, context):
+	stmts = [x.generate(context) for x in self.statements]
+	return reduce(or_, stmts, arch.FunctionThrows.NO)
+
+
 def binary_operation(self: behav.BinaryOperation, context):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
