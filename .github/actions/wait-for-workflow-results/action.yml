@@ -1,6 +1,9 @@
 name: 'Build SW Examples'
 description: 'Compile Example Target SW'
 inputs:
+  token:
+    description: 'GITHUB_TOKEN or a `repo` scoped Personal Access Token (PAT)'
+    default: ${{ github.token }}
   repo:
     description: 'Repository to check'
     required: true
