@@ -43,7 +43,8 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
   public:
     std::string mapRegister(unsigned index)
     {
-        if (index < ${main_reg.range.length}){
+        if (index < ${main_reg.range.length})
+        {
             std::stringstream ss;
             ss << "${main_reg.name}" << index;
             return ss.str();
@@ -67,7 +68,7 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
         return ${main_reg.range.length + 1};
     }
 
-    etiss::uint64 getInstructionPointer(ETISS_CPU * cpu) { return cpu->instructionPointer; }
+    etiss::uint64 getInstructionPointer(ETISS_CPU *cpu) { return cpu->instructionPointer; }
 
     bool isLittleEndian()
     {

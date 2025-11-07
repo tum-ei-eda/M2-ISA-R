@@ -41,7 +41,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		)
 
 		funcs_f.write(fn_set_str)
-		funcs_f.write("// clang-format off\n")
+		funcs_f.write("    // clang-format off\n")
 
 		# generate and write function declarations
 		for fn_name, templ_str in generate_functions(core, static_scalars, True, generate_coverage):
@@ -50,8 +50,8 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 
 		fn_set_str = fn_set_footer_template.render()
 
+		funcs_f.write("\n    // clang-format on\n")
 		funcs_f.write(fn_set_str)
-		funcs_f.write("\n// clang-format on\n")
 
 	with open(output_path / f'{core_name}Funcs.c', 'w', encoding="utf-8") as funcs_f:
 		fn_impl_str = fn_impl_template.render(
