@@ -6,7 +6,9 @@ ${'\n'.join(misc_code)}
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
+// NOLINTBEGIN(clang-diagnostic-unused-but-set-variable)
 ${fields_code}
+// NOLINTEND(clang-diagnostic-unused-but-set-variable)
 // -----------------------------------------------------------------------------
 
 	% for name, part in operation.generate().items():
