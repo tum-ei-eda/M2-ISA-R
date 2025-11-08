@@ -19,6 +19,12 @@
 #ifndef ETISS_${core_name}Arch_${core_name}ARCHSPECIFICIMP_H_
 #define ETISS_${core_name}Arch_${core_name}ARCHSPECIFICIMP_H_
 
+#include <cstdint>
+#include "etiss/Instruction.h"
+#include "etiss/VirtualStruct.h"
+#include "etiss/jit/CPU.h"
+#include "${core_name}.h"
+
 /**
     @brief VirtualStruct for ${core_name} architecture to faciliate register acess
 
