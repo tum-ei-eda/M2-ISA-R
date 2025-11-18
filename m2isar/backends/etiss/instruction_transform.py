@@ -141,12 +141,13 @@ def operation(self: behav.Operation, context: TransformerContext):
 def block(self: behav.Block, context: TransformerContext):
 	stmts = [stmt.generate(context) for stmt in self.statements]
 
-	pre = [CodeString("{ // block", StaticType.READ, None, None, line_infos=self.line_info)]
-	post = [CodeString("} // block", StaticType.READ, None, None)]
+	comment = "" if context.omit_comments else " // block"
+	pre = [CodeString("{" + comment, StaticType.READ, None, None, line_infos=self.line_info)]
+	post = [CodeString("}" + comment, StaticType.READ, None, None)]
 
 	if not context.ignore_static:
-		pre.append(CodeString("{ // block", StaticType.NONE, None, None))
-		post.insert(0, CodeString("} // block", StaticType.NONE, None, None))
+		pre.append(CodeString("{" + comment, StaticType.NONE, None, None))
+		post.insert(0, CodeString("}" + comment, StaticType.NONE, None, None))
 
 	return pre + stmts + post
 
@@ -239,8 +240,9 @@ def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
 			cond = "if (cpu->return_pending) " if fn.throws == arch.FunctionThrows.MAYBE else ""
 			c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
-			pre = [CodeString("{ // procedure", StaticType.READ, None, None), CodeString("{ // procedure", StaticType.NONE, None, None)]
-			post = [CodeString("} // procedure", StaticType.NONE, None, None), CodeString("} // procedure", StaticType.READ, None, None)]
+			comment = "" if context.omit_comments else " // procedure"
+			pre = [CodeString("{" + comment, StaticType.READ, None, None), CodeString("{" + comment, StaticType.NONE, None, None)]
+			post = [CodeString("}" + comment, StaticType.NONE, None, None), CodeString("}" + comment, StaticType.READ, None, None)]
 
 			return pre + [c, c2] + post
 
@@ -346,7 +348,8 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 
 	# generate initial if
 	#c = conds[0]
-	conds[0].code = f'if ({conds[0].code}) {{ // conditional'
+	comment = "" if context.omit_comments else " // conditional"
+	conds[0].code = f'if ({conds[0].code}) {{' + comment
 	conds[0].line_infos.append(self.line_info)
 	outputs.append(conds[0])
 	if not static:
@@ -356,24 +359,24 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 	outputs.extend(flatten(stmts[0]))
 
 	# generate closing brace
-	outputs.append(CodeString("} // conditional", static, None, None))
+	outputs.append(CodeString("}" + comment, static, None, None))
 
 	for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
-		elif_cond.code = f' else if ({elif_cond.code}) {{ // conditional'
+		elif_cond.code = f' else if ({elif_cond.code}) {{' + comment
 		outputs.append(elif_cond)
 		if not static:
 			context.dependent_regs.update(elif_cond.regs_affected)
 
 		outputs.extend(flatten(elif_stmts))
 
-		outputs.append(CodeString("} // conditional", static, None, None))
+		outputs.append(CodeString("}" + comment, static, None, None))
 
 	if len(conds) < len(stmts):
-		outputs.append(CodeString("else { // conditional", static, None, None))
+		outputs.append(CodeString("else {" + comment, static, None, None))
 
 		outputs.extend(flatten(stmts[-1]))
 
-		outputs.append(CodeString("} // conditional", static, None, None))
+		outputs.append(CodeString("}" + comment, static, None, None))
 
 	return outputs
 

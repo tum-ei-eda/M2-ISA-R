@@ -171,7 +171,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
+def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, omit_comments: bool):
 	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
 	error_fn = None
@@ -201,7 +201,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 			error_instr._size = bitsize # pylint: disable=protected-access
 
 			error_fields = generate_fields(32, error_instr)
-			error_callbacks[bitsize] = generate_instruction_callback(core, error_instr, error_fields, True, BlockEndType.NONE, False)
+			error_callbacks[bitsize] = generate_instruction_callback(core, error_instr, error_fields, True, BlockEndType.NONE, False, omit_comments)
 
 	logger.info("writing architecture specific file")
 
