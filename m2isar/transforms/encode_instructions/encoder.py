@@ -22,7 +22,6 @@ def encode_instructions(instructions):
     # print("encode_instructions")
     ret = []
     for instr_def in instructions:
-        print("instr_def", instr_def)
         assert not instr_def.has_encoding
         in_operands = {}
         out_operands = {}
