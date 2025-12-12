@@ -3,7 +3,7 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-      - v\d+.\d+.\d+  # Push events for v0.1.0, v20.15.10 but not v0.1.0dev0
+      - \d+.\d+.\d+  # Push events for 0.1.0, 20.15.10 but not 0.1.0dev0
 name: Create Release
 jobs:
   build:
