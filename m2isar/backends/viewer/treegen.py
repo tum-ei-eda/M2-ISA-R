@@ -206,7 +206,7 @@ def callable_(self: behav.Callable, context: "TreeGenContext"):
 
 	context.pop()
 
-def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
+def procedure_call(self: behav.ProcedureCall, context: "TreeGenContext"):
 	context.push(context.tree.insert(context.parent, tk.END, text="ProcedureCall", values=(self.ref_or_name.name,)))
 
 	for arg, arg_descr in zip(self.args, self.ref_or_name.args):

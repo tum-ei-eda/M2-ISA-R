@@ -75,11 +75,16 @@ def main():
         logger.warning("Loaded model version mismatch")
 
     # preprocess model
-    for core_name, core in model_obj.cores.items():
-        logger.info("preprocessing model %s", core_name)
-        process_functions(core)
-        process_instructions(core)
-        process_attributes(core)
+    # for core_name, core in model_obj.cores.items():
+    #     logger.info("preprocessing model %s", core_name)
+    #     process_functions(core)
+    #     process_instructions(core)
+    #     process_attributes(core)
+    for set_name, set_def in model_obj.sets.items():
+        logger.info("preprocessing model %s", set_name)
+        process_functions(set_def)
+        process_instructions(set_def)
+        process_attributes(set_def)
 
     # load Ttk TreeView transformer functions
     patch_model(treegen)
@@ -100,17 +105,20 @@ def main():
     tree.heading(1, text="Value")
 
     # add each core to the treeview
-    for core_name, core_def in sorted(model_obj.cores.items()):
-        core_id = tree.insert("", tk.END, text=core_name)
+    # for core_name, core_def in sorted(model_obj.cores.items()):
+    for core_name, set_def in sorted(model_obj.sets.items()):
+        # core_id = tree.insert("", tk.END, text=core_name)
+        set_id = tree.insert("", tk.END, text=set_name)
 
         # add constants to tree
-        consts_id = tree.insert(core_id, tk.END, text="Constants")
-        for const_name, const_def in sorted(core_def.constants.items()):
+        # consts_id = tree.insert(core_id, tk.END, text="Constants")
+        consts_id = tree.insert(set_id, tk.END, text="Constants")
+        for const_name, const_def in sorted(set_def.constants.items()):
             tree.insert(consts_id, tk.END, text=const_name, values=(const_def.value,))
 
         # add memories to tree
-        mems_id = tree.insert(core_id, tk.END, text="Memories")
-        for mem_name, mem_def in sorted(core_def.memories.items()):
+        mems_id = tree.insert(set_id, tk.END, text="Memories")
+        for mem_name, mem_def in sorted(set_def.memories.items()):
             tree.insert(
                 mems_id,
                 tk.END,
@@ -119,8 +127,8 @@ def main():
             )
 
         # add memory aliases to tree
-        alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
-        for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
+        alias_id = tree.insert(set_id, tk.END, text="Memory Aliases")
+        for mem_name, mem_def in sorted(set_def.memory_aliases.items()):
             tree.insert(
                 alias_id,
                 tk.END,
@@ -129,13 +137,13 @@ def main():
             )
 
         # add auxillary attributes
-        tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
-        tree.insert(core_id, tk.END, text="Main Register File Object", values=(core_def.main_reg_file,))
-        tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
+        # tree.insert(set_id, tk.END, text="Main Memory Object", values=(set_def.main_memory,))
+        # tree.insert(set_id, tk.END, text="Main Register File Object", values=(set_def.main_reg_file,))
+        # tree.insert(set_id, tk.END, text="PC Memory Object", values=(set_def.pc_memory,))
 
         # add functions to tree
-        fns_id = tree.insert(core_id, tk.END, text="Functions")
-        for fn_name, fn_def in core_def.functions.items():
+        fns_id = tree.insert(set_id, tk.END, text="Functions")
+        for fn_name, fn_def in set_def.functions.items():
             fn_id = tree.insert(fns_id, tk.END, text=fn_name, values=("extern" if fn_def.extern else ""))
 
             # add returns and throws information
@@ -165,16 +173,17 @@ def main():
         # group instructions by size
         instrs_by_size = defaultdict(dict)
 
-        for k, v in core_def.instructions.items():
+        for k, v in set_def.instructions.items():
             instrs_by_size[v.size][k] = v
 
         # sort instructions by encoding
         for k, v in instrs_by_size.items():
             instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
 
-        instrs_top_id = tree.insert(core_id, tk.END, text="Instructions")
+        instrs_top_id = tree.insert(set_id, tk.END, text="Instructions")
 
         # generate instruction size groups
+        unencoded_instrs_id = tree.insert(instrs_top_id, tk.END, text=f"Unencoded")
         for size, instrs in sorted(instrs_by_size.items()):
             instrs_id = tree.insert(instrs_top_id, tk.END, text=f"Width {size}")
 
@@ -200,7 +209,9 @@ def main():
                     elif isinstance(enc, arch.BitField):
                         enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
+                tree.insert(instr_id, tk.END, text="Operands", values=("?",))
                 tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
+                tree.insert(instr_id, tk.END, text="Mnemonic", values=(instr_def.mnemonic,))
                 tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.assembly,))
                 tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
                 attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
@@ -215,6 +226,43 @@ def main():
                 # generate behavior
                 context = TreeGenContext(tree, instr_id)
                 instr_def.operation.generate(context)
+
+        # generate instructions
+        for instr_def in set_def.unencoded_instructions.values():
+
+            instr_id = tree.insert(
+                unencoded_instrs_id,
+                tk.END,
+                text=f"{instr_def.ext_name} : {instr_def.name}",
+                values=("?",),
+                tags=("mono",),
+            )
+
+            # generate encoding
+            enc_str = []
+            for enc in instr_def.encoding:
+                if isinstance(enc, arch.BitVal):
+                    enc_str.append(f"{enc.value:0{enc.length}b}")
+                elif isinstance(enc, arch.BitField):
+                    enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
+
+            tree.insert(instr_id, tk.END, text="Operands", values=("?",))
+            tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
+            tree.insert(instr_id, tk.END, text="Mnemonic", values=(instr_def.mnemonic,))
+            tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.assembly,))
+            tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
+            attrs_id = tree.insert(instr_id, tk.END, text="Attributes")
+
+            # generate attributes
+            for attr, ops in instr_def.attributes.items():
+                attr_id = tree.insert(attrs_id, tk.END, text=attr.name)
+                for op in ops:
+                    context = TreeGenContext(tree, attr_id)
+                    op.generate(context)
+
+            # generate behavior
+            context = TreeGenContext(tree, instr_id)
+            instr_def.operation.generate(context)
 
     # tree.tag_configure("mono", font=font.nametofont("TkFixedFont"))
 

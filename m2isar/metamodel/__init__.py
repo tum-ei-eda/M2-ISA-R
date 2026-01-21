@@ -38,56 +38,56 @@ M2_METAMODEL_VERSION = 2
 
 
 def patch_model(module):
-	"""Monkey patch transformation functions inside `module`
-	into :mod:`m2isar.metamodel.behav` classes
+    """Monkey patch transformation functions inside `module`
+    into :mod:`m2isar.metamodel.behav` classes
 
-	Transformation functions must have a specific signature for this to work:
+    Transformation functions must have a specific signature for this to work:
 
-	`def transform(self: <behav Class>, context: Any)`
+    `def transform(self: <behav Class>, context: Any)`
 
-	where `<behav Class>` is the class in :mod:`m2isar.metamodel.behav` which this
-	transformation is associated with. Context can be any user-defined object to keep track
-	of additional contextual information, if needed.
-	"""
+    where `<behav Class>` is the class in :mod:`m2isar.metamodel.behav` which this
+    transformation is associated with. Context can be any user-defined object to keep track
+    of additional contextual information, if needed.
+    """
 
-	logger = logging.getLogger("patch_model")
+    logger = logging.getLogger("patch_model")
 
-	for _, fn in inspect.getmembers(module, inspect.isfunction):
-		sig = inspect.signature(fn)
-		param = sig.parameters.get("self")
-		if not param:
-			continue
-		if not param.annotation:
-			raise ValueError(f"self parameter not annotated correctly for {fn}")
-		if not issubclass(param.annotation, behav.BaseNode):
-			raise TypeError(f"self parameter for {fn} has wrong subclass")
+    for _, fn in inspect.getmembers(module, inspect.isfunction):
+        sig = inspect.signature(fn)
+        param = sig.parameters.get("self")
+        if not param:
+            continue
+        if not param.annotation:
+            raise ValueError(f"self parameter not annotated correctly for {fn}")
+        if not issubclass(param.annotation, behav.BaseNode):
+            raise TypeError(f"self parameter for {fn} has wrong subclass")
 
-		logger.debug("patching %s with fn %s", param.annotation, fn)
-		param.annotation.generate = fn
+        logger.debug("patching %s with fn %s", param.annotation, fn)
+        param.annotation.generate = fn
 
-intrinsic_defs = [
-	arch.Intrinsic("__encoding_size", 16, arch.DataType.U)
-]
+
+intrinsic_defs = [arch.Intrinsic("__encoding_size", 16, arch.DataType.U)]
 
 intrinsics = {x.name: x for x in intrinsic_defs}
 
-#@property
-#def intrinsics():
-#	return {x.name: x for x in intrinsic_defs}
+# @property
+# def intrinsics():
+# 	return {x.name: x for x in intrinsic_defs}
+
 
 @dataclass
 class M2Model:
-	model_version: int
-	cores: "dict[str, arch.CoreDef]"
-	sets: "dict[str, arch.InstructionSet]"
-	code_infos: "dict[int, code_info.CodeInfoBase]"
+    model_version: int
+    cores: "dict[str, arch.CoreDef]"
+    sets: "dict[str, arch.InstructionSet]"
+    code_infos: "dict[int, code_info.CodeInfoBase]"
 
-	def __post_init__(self):
-		self.line_infos: dict[int, code_info.LineInfo] = {}
-		self.function_infos: dict[int, code_info.FunctionInfo] = {}
+    def __post_init__(self):
+        self.line_infos: dict[int, code_info.LineInfo] = {}
+        self.function_infos: dict[int, code_info.FunctionInfo] = {}
 
-		for idx, c in self.code_infos.items():
-			if isinstance(c, code_info.LineInfo):
-				self.line_infos[idx] = c
-			elif isinstance(c, code_info.FunctionInfo):
-				self.function_infos[idx] = c
+        for idx, c in self.code_infos.items():
+            if isinstance(c, code_info.LineInfo):
+                self.line_infos[idx] = c
+            elif isinstance(c, code_info.FunctionInfo):
+                self.function_infos[idx] = c
