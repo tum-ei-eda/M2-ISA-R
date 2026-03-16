@@ -10,6 +10,7 @@
 
 import tkinter as tk
 
+from ..etiss.instruction_utils import TransformerContext
 from ...metamodel import behav
 from .utils import TreeGenContext
 
