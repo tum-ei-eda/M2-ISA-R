@@ -5,6 +5,9 @@
 # Copyright (C) 2022
 # Chair of Electrical Design Automation
 # Technical University of Munich
+#
+# Copyright (C) 2026
+# Modifed by JK TUW ECS
 
 """Viewer tool to visualize an M2-ISA-R model hierarchy."""
 
@@ -22,7 +25,7 @@ from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, patch_model
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
-from . import treegen
+from .treegen import TreeGenVisitor
 
 logger = logging.getLogger("viewer")
 
@@ -83,7 +86,7 @@ def main():
 		process_attributes(core)
 
 	# load Ttk TreeView transformer functions
-	patch_model(treegen)
+	visitor = TreeGenVisitor()
 
 	# create main Tk window
 	root = tk.Tk()
@@ -141,7 +144,7 @@ def main():
 				attr_id = tree.insert(attrs_id, tk.END, text=attr)
 				for op in ops:
 					context = TreeGenContext(tree, attr_id)
-					op.generate(context)
+					visitor.generate(op, context)
 
 			# generate and add parameters
 			params_id = tree.insert(fn_id, tk.END, text="Parameters")
@@ -151,7 +154,7 @@ def main():
 
 			# generate and add function behavior
 			context = TreeGenContext(tree, fn_id)
-			fn_def.operation.generate(context)
+			visitor.generate(fn_def.operation, context)
 
 		# group instructions by size
 		instrs_by_size = defaultdict(dict)
@@ -193,11 +196,13 @@ def main():
 					attr_id = tree.insert(attrs_id, tk.END, text=attr.name)
 					for op in ops:
 						context = TreeGenContext(tree, attr_id)
-						op.generate(context)
+						visitor.generate(op, context)
 
 				# generate behavior
 				context = TreeGenContext(tree, instr_id)
-				instr_def.operation.generate(context)
+				visitor.generate(instr_def.operation, context)
+
+
 
 	#tree.tag_configure("mono", font=font.nametofont("TkFixedFont"))
 
