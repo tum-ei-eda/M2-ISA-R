@@ -5,6 +5,9 @@
 # Copyright (C) 2022
 # Chair of Electrical Design Automation
 # Technical University of Munich
+#
+# Copyright (C) 2026
+# Modifed by JK TUW ECS
 
 """Generate a ttk.Treeview representation of a M2-ISA-R model structure."""
 
@@ -12,215 +15,245 @@ import tkinter as tk
 
 from ...metamodel import behav
 from .utils import TreeGenContext
+from ...metamodel.utils.ExprVisitor import ExprVisitor
+from .utils import TreeGenContext
 
 # pylint: disable=unused-argument
 
-def operation(self: behav.Operation, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Operation"))
 
-	for stmt in self.statements:
-		stmt.generate(context)
+class TreeGenVisitor(ExprVisitor):
+	"""Visitor to generate a ttk.Treeview representation of a M2-ISA-R model structure."""
 
-	context.pop()
+	@ExprVisitor.generate.register
+	def visit_operation(self, expr: behav.Operation, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Operation"))
 
-def block(self: behav.Block, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Block"))
+		for stmt in expr.statements:
+			stmt.generate(context)
 
-	for stmt in self.statements:
-		stmt.generate(context)
-
-	context.pop()
-
-def binary_operation(self: behav.BinaryOperation, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Binary Operation"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-	self.left.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-	self.right.generate(context)
-	context.pop()
-
-	context.tree.insert(context.parent, tk.END, text="Op", values=(self.op.value,))
-
-	context.pop()
-
-def slice_operation(self: behav.SliceOperation, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Slice Operation"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-	self.expr.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-	self.left.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-	self.right.generate(context)
-	context.pop()
-
-	context.pop()
-
-def concat_operation(self: behav.ConcatOperation, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Concat Operation"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-	self.left.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-	self.right.generate(context)
-	context.pop()
-
-	context.pop()
-
-def number_literal(self: behav.NumberLiteral, context: "TreeGenContext"):
-	context.tree.insert(context.parent, tk.END, text="Number Literal", values=(self.value,))
-
-def int_literal(self: behav.IntLiteral, context: "TreeGenContext"):
-	context.tree.insert(context.parent, tk.END, text="Int Literal", values=(self.value,))
-
-def scalar_definition(self: behav.ScalarDefinition, context: "TreeGenContext"):
-	context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(self.scalar.name,))
-
-def break_(self: behav.Break, context: "TreeGenContext"):
-	context.tree.insert(context.parent, tk.END, text="Break")
-
-def assignment(self: behav.Assignment, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Assignment"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Target"))
-	self.target.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-	self.expr.generate(context)
-	context.pop()
-
-	context.pop()
-
-def conditional(self: behav.Conditional, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Conditional"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Conditions"))
-	for cond in self.conds:
-		cond.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
-	for stmt in self.stmts:
-		stmt.generate(context)
-	context.pop()
-
-	context.pop()
-
-def loop(self: behav.Loop, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Loop"))
-
-	context.tree.insert(context.parent, tk.END, text="Post Test", values=(self.post_test,))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Condition"))
-	self.cond.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
-	for stmt in self.stmts:
-		stmt.generate(context)
-	context.pop()
-
-	context.pop()
-
-def ternary(self: behav.Ternary, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Ternary"))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Cond"))
-	self.cond.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Then Expression"))
-	self.then_expr.generate(context)
-	context.pop()
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Else Expression"))
-	self.else_expr.generate(context)
-	context.pop()
-
-	context.pop()
-
-def return_(self: behav.Return, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Return"))
-
-	if self.expr is not None:
-		context.push(context.tree.insert(context.parent, tk.END, text="Expression"))
-		self.expr.generate(context)
 		context.pop()
 
-	context.pop()
+	@ExprVisitor.generate.register
+	def visit_block(self, expr: behav.Block, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Block"))
 
-def unary_operation(self: behav.UnaryOperation, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Unary Operation"))
+		for stmt in expr.statements:
+			stmt.generate(context)
 
-	context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-	self.right.generate(context)
-	context.pop()
-
-	context.tree.insert(context.parent, tk.END, text="Op", values=(self.op.value,))
-
-	context.pop()
-
-def named_reference(self: behav.NamedReference, context: "TreeGenContext"):
-	context.tree.insert(context.parent, tk.END, text="Named Reference", values=(f"{self.reference}",))
-
-def indexed_reference(self: behav.IndexedReference, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Indexed Reference"))
-
-	context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{self.reference}",))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Index"))
-	self.index.generate(context)
-	context.pop()
-
-	context.pop()
-
-def type_conv(self: behav.TypeConv, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Type Conv"))
-
-	context.tree.insert(context.parent, tk.END, text="Type", values=(self.data_type,))
-	context.tree.insert(context.parent, tk.END, text="Size", values=(self.size,))
-
-	context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-	self.expr.generate(context)
-	context.pop()
-
-	context.pop()
-
-def callable_(self: behav.Callable, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Callable", values=(self.ref_or_name.name,)))
-
-	for arg, arg_descr in zip(self.args, self.ref_or_name.args):
-		context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
-		arg.generate(context)
 		context.pop()
 
-	context.pop()
+	@ExprVisitor.generate.register
+	def visit_binary_operation(self, expr: behav.BinaryOperation, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Binary Operation"))
 
-def procedure_call(self: behav.ProcedureCall, context: TransformerContext):
-	context.push(context.tree.insert(context.parent, tk.END, text="ProcedureCall", values=(self.ref_or_name.name,)))
-
-	for arg, arg_descr in zip(self.args, self.ref_or_name.args):
-		context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
-		arg.generate(context)
+		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
+		expr.left.generate(context)
 		context.pop()
 
-	context.pop()
+		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
+		expr.right.generate(context)
+		context.pop()
 
-def group(self: behav.Group, context: "TreeGenContext"):
-	context.push(context.tree.insert(context.parent, tk.END, text="Group"))
+		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
 
-	context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-	self.expr.generate(context)
-	context.pop()
+		context.pop()
 
-	context.pop()
+	@ExprVisitor.generate.register
+	def visit_slice_operation(self, expr: behav.SliceOperation, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Slice Operation"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
+		expr.expr.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
+		expr.left.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
+		expr.right.generate(context)
+		context.pop()
+
+		context.pop()
+
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def concat_operation(self, expr: behav.ConcatOperation, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Concat Operation"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
+		expr.left.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
+		expr.right.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def number_literal(self, expr: behav.NumberLiteral, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Number Literal", values=(expr.value,))
+
+	@ExprVisitor.generate.register
+	def int_literal(self, expr: behav.IntLiteral, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Int Literal", values=(expr.value,))
+
+	@ExprVisitor.generate.register
+	def scalar_definition(self, expr: behav.ScalarDefinition, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.scalar.name,))
+
+	@ExprVisitor.generate.register
+	def break_(self, expr: behav.Break, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Break")
+
+	@ExprVisitor.generate.register
+	def assignment(self, expr: behav.Assignment, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Assignment"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Target"))
+		expr.target.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
+		expr.expr.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def conditional(self, expr: behav.Conditional, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Conditional"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Conditions"))
+		for cond in expr.conds:
+			cond.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
+		for stmt in expr.stmts:
+			stmt.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def loop(self, expr: behav.Loop, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Loop"))
+
+		context.tree.insert(context.parent, tk.END, text="Post Test", values=(expr.post_test,))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Condition"))
+		expr.cond.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
+		for stmt in expr.stmts:
+			stmt.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def ternary(self, expr: behav.Ternary, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Ternary"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Cond"))
+		expr.cond.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Then Expression"))
+		expr.then_expr.generate(context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Else Expression"))
+		expr.else_expr.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def return_(self, expr: behav.Return, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Return"))
+
+		if expr.expr is not None:
+			context.push(context.tree.insert(context.parent, tk.END, text="Expression"))
+			expr.expr.generate(context)
+			context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def unary_operation(self, expr: behav.UnaryOperation, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Unary Operation"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
+		expr.right.generate(context)
+		context.pop()
+
+		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def named_reference(self, expr: behav.NamedReference, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Named Reference", values=(f"{expr.reference}",))
+
+	@ExprVisitor.generate.register
+	def indexed_reference(self, expr: behav.IndexedReference, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Indexed Reference"))
+
+		context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Index"))
+		expr.index.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def type_conv(self, expr: behav.TypeConv, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Type Conv"))
+
+		context.tree.insert(context.parent, tk.END, text="Type", values=(expr.data_type,))
+		context.tree.insert(context.parent, tk.END, text="Size", values=(expr.size,))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
+		expr.expr.generate(context)
+		context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def callable_(self, expr: behav.Callable, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Callable", values=(expr.ref_or_name.name,)))
+
+		for arg, arg_descr in zip(expr.args, expr.ref_or_name.args):
+			context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
+			arg.generate(context)
+			context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def procedure_call(self, expr: behav.ProcedureCall, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="ProcedureCall", values=(expr.ref_or_name.name,)))
+
+		for arg, arg_descr in zip(expr.args, expr.ref_or_name.args):
+			context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
+			arg.generate(context)
+			context.pop()
+
+		context.pop()
+
+	@ExprVisitor.generate.register
+	def group(self, expr: behav.Group, context: "TreeGenContext"):
+		context.push(context.tree.insert(context.parent, tk.END, text="Group"))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
+		expr.expr.generate(context)
+		context.pop()
+
+		context.pop()
