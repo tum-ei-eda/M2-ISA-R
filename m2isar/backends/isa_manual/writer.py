@@ -18,9 +18,9 @@ from collections import defaultdict
 from mako.template import Template
 
 from .utils import generate_encoding
-from . import visitor
+from .visitor import ISAmanualVisitor
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, patch_model
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -158,9 +158,10 @@ class CoreDSL2Writer:
 
     def write_behavior2(self, operation, drop_first=False):
         # Eliminate PC increment
+        visitor = ISAmanualVisitor()
         if drop_first:
             operation.statements = operation.statements[1:]
-        operation.generate(self)
+        visitor.generate(operation, self)
 
     def write_behavior(self, instruction):
         self.write("behavior: ")
@@ -258,8 +259,8 @@ def main():
                         enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
                 writer = CoreDSL2Writer()
-                patch_model(visitor)
-                writer.write_behavior2(instr_def.operation, drop_first=True)
+                visitor = ISAmanualVisitor()
+                writer.write_behavior2(instr_def.operation, visitor, drop_first=True)
                 behavior_text = writer.text
                 asm_str = None
                 if instr_def.assembly:
