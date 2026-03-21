@@ -12,8 +12,9 @@ import logging
 
 from mako.template import Template
 
-from ...metamodel import arch, behav, patch_model
-from . import BlockEndType, instruction_transform, instruction_utils
+from ...metamodel import arch, behav
+from . import BlockEndType, instruction_utils
+from .instruction_transform import InstructionTransformVisitor
 from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
@@ -28,7 +29,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 	"""
 
 	# load the instruction_transform generators
-	patch_model(instruction_transform)
+	visitor = InstructionTransformVisitor()
 
 	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
 
@@ -55,7 +56,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 
 		if not decls_only:
 			fn_def.operation.line_info = fn_def.function_info
-			out_code = fn_def.operation.generate(context)
+			out_code = visitor.generate(fn_def.operation, context)
 			out_code.format(ARCH_NAME=core_name)
 
 		#fn_def.static = not context.used_arch_data
@@ -140,7 +141,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 	return (fields_code, asm_printer_code, seen_fields, enc_idx)
 
 def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instruction, fields, static_scalars: bool, block_end_on: BlockEndType, generate_coverage: bool):
-	patch_model(instruction_transform)
+	visitor = InstructionTransformVisitor()
 
 	instr_name = instr_def.name
 	core_name = core.name
@@ -169,7 +170,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	logger.debug("generating behavior code for %s", instr_def.name)
 
 	instr_def.operation.line_info = instr_def.function_info
-	out_code = instr_def.operation.generate(context)
+	out_code = visitor.generate(instr_def.operation, context)
 	out_code.format(ARCH_NAME=core_name)
 
 	logger.debug("rendering template for %s", instr_def.name)
