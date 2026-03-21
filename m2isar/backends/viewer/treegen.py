@@ -17,14 +17,17 @@ from ...metamodel import behav
 from .utils import TreeGenContext
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from .utils import TreeGenContext
-
+from functools import singledispatchmethod
 # pylint: disable=unused-argument
 
 
 class TreeGenVisitor(ExprVisitor):
 	"""Visitor to generate a ttk.Treeview representation of a M2-ISA-R model structure."""
+	@singledispatchmethod
+	def generate(self, expr : behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def visit_operation(self, expr: behav.Operation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Operation"))
 
@@ -33,7 +36,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def visit_block(self, expr: behav.Block, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Block"))
 
@@ -42,7 +45,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def visit_binary_operation(self, expr: behav.BinaryOperation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Binary Operation"))
 
@@ -58,7 +61,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def visit_slice_operation(self, expr: behav.SliceOperation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Slice Operation"))
 
@@ -77,7 +80,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.pop()
 
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def concat_operation(self, expr: behav.ConcatOperation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Concat Operation"))
 
@@ -91,23 +94,23 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def number_literal(self, expr: behav.NumberLiteral, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Number Literal", values=(expr.value,))
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def int_literal(self, expr: behav.IntLiteral, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Int Literal", values=(expr.value,))
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def scalar_definition(self, expr: behav.ScalarDefinition, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.scalar.name,))
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def break_(self, expr: behav.Break, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Break")
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def assignment(self, expr: behav.Assignment, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Assignment"))
 
@@ -121,7 +124,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def conditional(self, expr: behav.Conditional, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Conditional"))
 
@@ -137,7 +140,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def loop(self, expr: behav.Loop, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Loop"))
 
@@ -154,7 +157,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def ternary(self, expr: behav.Ternary, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Ternary"))
 
@@ -172,7 +175,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def return_(self, expr: behav.Return, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Return"))
 
@@ -183,7 +186,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def unary_operation(self, expr: behav.UnaryOperation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Unary Operation"))
 
@@ -195,11 +198,11 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def named_reference(self, expr: behav.NamedReference, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Named Reference", values=(f"{expr.reference}",))
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def indexed_reference(self, expr: behav.IndexedReference, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Indexed Reference"))
 
@@ -211,7 +214,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def type_conv(self, expr: behav.TypeConv, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Type Conv"))
 
@@ -224,7 +227,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def callable_(self, expr: behav.Callable, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Callable", values=(expr.ref_or_name.name,)))
 
@@ -235,7 +238,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def procedure_call(self, expr: behav.ProcedureCall, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="ProcedureCall", values=(expr.ref_or_name.name,)))
 
@@ -246,7 +249,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.pop()
 
-	@ExprVisitor.generate.register
+	@generate.register
 	def group(self, expr: behav.Group, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Group"))
 
