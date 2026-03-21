@@ -16,13 +16,13 @@ from functools import partial
 
 from tqdm.contrib.concurrent import process_map
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, patch_model
+from ...metamodel import M2_METAMODEL_VERSION, M2Model
 from ...metamodel.code_info import (BranchInfo, CodeInfoBase, FunctionInfo,
                                     LineInfo)
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
-from . import id_transform
+from .id_transform import IdTransformVisitor
 from .utils import IdMatcherContext
 
 logger = logging.getLogger("coverage_lcov")
@@ -137,7 +137,7 @@ def main():
 
 	logger.info("building model-specific coverage database")
 
-	patch_model(id_transform)
+	id_transform_visitor = IdTransformVisitor()
 
 	ctx = IdMatcherContext()
 
@@ -148,12 +148,12 @@ def main():
 			if fn_obj.function_info is not None:
 				ctx.id_to_obj_map[core_name][fn_obj.function_info.id] = fn_obj
 
-			fn_obj.operation.generate(ctx)
+			id_transform_visitor.generate(fn_obj.operation, ctx)
 
 		for instr_name, instr_obj in core_obj.instructions.items():
 			ctx.id_to_obj_map[core_name][instr_obj.function_info.id] = instr_obj
 
-			instr_obj.operation.generate(ctx)
+			id_transform_visitor.generate(instr_obj.operation, ctx)
 
 
 	logger.info("initializing coverage counters")
