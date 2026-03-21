@@ -6,138 +6,138 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+"""Visitor for mapping line/function IDs to model objects for coverage backends."""
 
 from ...metamodel import behav
+from ...metamodel.utils.ExprVisitor import ExprVisitor
 from .utils import IdMatcherContext
+from functools import singledispatchmethod
 
 
-def operation(self: behav.Operation, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+class IdTransformVisitor(ExprVisitor):
+	"""Visitor that builds a mapping from code info IDs to behavior objects."""
 
-	for stmt in self.statements:
-		stmt.generate(context)
+	@singledispatchmethod
+	def generate(self, expr: behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
 
-def block(self: behav.Block, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	def _store_id(self, expr: behav.BaseNode, context: "IdMatcherContext"):
+		if expr.line_info is not None:
+			context.id_to_obj_map[context.arch_name][expr.line_info.id] = expr
 
-	for stmt in self.statements:
-		stmt.generate(context)
+	@generate.register
+	def _(self, expr: behav.Operation, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		for stmt in expr.statements:
+			self.generate(stmt, context)
 
-def binary_operation(self: behav.BinaryOperation, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Block, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		for stmt in expr.statements:
+			self.generate(stmt, context)
 
-	self.left.generate(context)
-	self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.left, context)
+		self.generate(expr.right, context)
 
-def slice_operation(self: behav.SliceOperation, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.SliceOperation, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.expr, context)
+		self.generate(expr.left, context)
+		self.generate(expr.right, context)
 
-	self.expr.generate(context)
-	self.left.generate(context)
-	self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.ConcatOperation, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.left, context)
+		self.generate(expr.right, context)
 
-def concat_operation(self: behav.ConcatOperation, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context: "IdMatcherContext"):
+		self._store_id(expr, context)
 
-	self.left.generate(context)
-	self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context: "IdMatcherContext"):
+		self._store_id(expr, context)
 
-def number_literal(self: behav.IntLiteral, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.ScalarDefinition, context: "IdMatcherContext"):
+		self._store_id(expr, context)
 
-def int_literal(self: behav.IntLiteral, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Break, context: "IdMatcherContext"):
+		self._store_id(expr, context)
 
-def scalar_definition(self: behav.ScalarDefinition, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Assignment, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.target, context)
+		self.generate(expr.expr, context)
 
-def break_(self: behav.Break, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Conditional, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		for cond in expr.conds:
+			self.generate(cond, context)
+		for stmt in expr.stmts:
+			self.generate(stmt, context)
 
-def assignment(self: behav.Assignment, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Loop, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.cond, context)
+		for stmt in expr.stmts:
+			self.generate(stmt, context)
 
-	self.target.generate(context)
-	self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.Ternary, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.cond, context)
+		self.generate(expr.then_expr, context)
+		self.generate(expr.else_expr, context)
 
-def conditional(self: behav.Conditional, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.Return, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		if expr.expr is not None:
+			self.generate(expr.expr, context)
 
-	for cond in self.conds:
-		cond.generate(context)
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.right, context)
 
-	for stmt in self.stmts:
-		#
-		#for stmt in op:
-			stmt.generate(context)
-		#
+	@generate.register
+	def _(self, expr: behav.NamedReference, context: "IdMatcherContext"):
+		self._store_id(expr, context)
 
-def loop(self: behav.Loop, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.index, context)
 
-	self.cond.generate(context)
+	@generate.register
+	def _(self, expr: behav.TypeConv, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.expr, context)
 
-	for stmt in self.stmts:
-		stmt.generate(context)
+	@generate.register
+	def _(self, expr: behav.Callable, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		for arg in expr.args:
+			self.generate(arg, context)
 
-def ternary(self: behav.Ternary, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
+	@generate.register
+	def _(self, expr: behav.ProcedureCall, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		for arg in expr.args:
+			self.generate(arg, context)
 
-	self.cond.generate(context)
-	self.then_expr.generate(context)
-	self.else_expr.generate(context)
-
-def return_(self: behav.Return, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	if self.expr is not None:
-		self.expr.generate(context)
-
-def unary_operation(self: behav.UnaryOperation, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	self.right.generate(context)
-
-def named_reference(self: behav.NamedReference, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-def indexed_reference(self: behav.IndexedReference, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	self.index.generate(context)
-
-def type_conv(self: behav.TypeConv, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	self.expr.generate(context)
-
-def callable_(self: behav.Callable, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	for arg, arg_descr in zip(self.args, self.ref_or_name.args):
-		arg.generate(context)
-
-def group(self: behav.Group, context: "IdMatcherContext"):
-	if self.line_info is not None:
-		context.id_to_obj_map[context.arch_name][self.line_info.id] = self
-
-	self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.Group, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+		self.generate(expr.expr, context)
