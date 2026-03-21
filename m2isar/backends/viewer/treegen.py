@@ -29,7 +29,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Operation"))
 
 		for stmt in expr.statements:
-			stmt.generate(context)
+			self.generate(stmt, context)
 
 		context.pop()
 
@@ -38,7 +38,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Block"))
 
 		for stmt in expr.statements:
-			stmt.generate(context)
+			self.generate(stmt, context)
 
 		context.pop()
 
@@ -47,11 +47,11 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Binary Operation"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-		expr.left.generate(context)
+		self.generate(expr.left, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-		expr.right.generate(context)
+		self.generate(expr.right, context)
 		context.pop()
 
 		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
@@ -63,32 +63,30 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Slice Operation"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-		expr.expr.generate(context)
+		self.generate(expr.expr, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-		expr.left.generate(context)
+		self.generate(expr.left, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-		expr.right.generate(context)
+		self.generate(expr.right, context)
 		context.pop()
 
 		context.pop()
 
-
-		context.pop()
 
 	@ExprVisitor.generate.register
 	def concat_operation(self, expr: behav.ConcatOperation, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Concat Operation"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Left"))
-		expr.left.generate(context)
+		self.generate(expr.left, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-		expr.right.generate(context)
+		self.generate(expr.right, context)
 		context.pop()
 
 		context.pop()
@@ -114,11 +112,11 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Assignment"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Target"))
-		expr.target.generate(context)
+		self.generate(expr.target, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-		expr.expr.generate(context)
+		self.generate(expr.expr, context)
 		context.pop()
 
 		context.pop()
@@ -129,12 +127,12 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Conditions"))
 		for cond in expr.conds:
-			cond.generate(context)
+			self.generate(cond, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
 		for stmt in expr.stmts:
-			stmt.generate(context)
+			self.generate(stmt, context)
 		context.pop()
 
 		context.pop()
@@ -146,12 +144,12 @@ class TreeGenVisitor(ExprVisitor):
 		context.tree.insert(context.parent, tk.END, text="Post Test", values=(expr.post_test,))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Condition"))
-		expr.cond.generate(context)
+		self.generate(expr.cond, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
 		for stmt in expr.stmts:
-			stmt.generate(context)
+			self.generate(stmt, context)
 		context.pop()
 
 		context.pop()
@@ -161,15 +159,15 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Ternary"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Cond"))
-		expr.cond.generate(context)
+		self.generate(expr.cond, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Then Expression"))
-		expr.then_expr.generate(context)
+		self.generate(expr.then_expr, context)
 		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Else Expression"))
-		expr.else_expr.generate(context)
+		self.generate(expr.else_expr, context)
 		context.pop()
 
 		context.pop()
@@ -180,7 +178,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		if expr.expr is not None:
 			context.push(context.tree.insert(context.parent, tk.END, text="Expression"))
-			expr.expr.generate(context)
+			self.generate(expr.expr, context)
 			context.pop()
 
 		context.pop()
@@ -190,7 +188,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Unary Operation"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Right"))
-		expr.right.generate(context)
+		self.generate(expr.right, context)
 		context.pop()
 
 		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
@@ -208,7 +206,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Index"))
-		expr.index.generate(context)
+		self.generate(expr.index, context)
 		context.pop()
 
 		context.pop()
@@ -221,7 +219,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.tree.insert(context.parent, tk.END, text="Size", values=(expr.size,))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-		expr.expr.generate(context)
+		self.generate(expr.expr, context)
 		context.pop()
 
 		context.pop()
@@ -232,7 +230,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		for arg, arg_descr in zip(expr.args, expr.ref_or_name.args):
 			context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
-			arg.generate(context)
+			self.generate(arg, context)
 			context.pop()
 
 		context.pop()
@@ -243,7 +241,7 @@ class TreeGenVisitor(ExprVisitor):
 
 		for arg, arg_descr in zip(expr.args, expr.ref_or_name.args):
 			context.push(context.tree.insert(context.parent, tk.END, text="Arg", values=(arg_descr,)))
-			arg.generate(context)
+			self.generate(arg, context)
 			context.pop()
 
 		context.pop()
@@ -253,7 +251,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Group"))
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Expr"))
-		expr.expr.generate(context)
+		self.generate(expr.expr, context)
 		context.pop()
 
 		context.pop()
