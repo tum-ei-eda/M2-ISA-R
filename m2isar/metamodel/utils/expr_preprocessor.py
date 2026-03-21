@@ -14,42 +14,46 @@ import logging
 from itertools import chain
 
 from ... import M2ValueError
-from .. import arch, patch_model
-from . import (ScalarStaticnessContext, expr_simplifier, function_staticness,
-               function_throws, scalar_staticness)
+from .. import arch
+from . import ScalarStaticnessContext
+from .expr_simplifier import ExprSimplifierVisitor
+from .function_staticness import FunctionStaticnessVisitor
+from .function_throws import FunctionThrowsVisitor
+from .scalar_staticness import ScalarStaticnessVisitor
 
 logger = logging.getLogger("preprocessor")
 
 def process_attributes(core: arch.CoreDef):
 	"""Apply all preprocessing to memory, function and instruction attributes in `core`."""
 
-	patch_model(expr_simplifier)
+	simplifier = ExprSimplifierVisitor()
 
 	for _, obj_def in chain(core.functions.items(), core.instructions.items(), core.memories.items(), core.memory_aliases.items()):
 		for attr_name, attr_defs in obj_def.attributes.items():
 			logger.debug("simplifying expressions for attr %s of %s", attr_name, obj_def.name)
 			for attr_def in attr_defs:
-				attr_def.generate(None)
+				simplifier.generate(attr_def, None)
 
 def process_functions(core: arch.CoreDef):
 	"""Apply all preprocessing to all functions in `core`."""
 
-	for fn_name, fn_def in core.functions.items():
-		patch_model(expr_simplifier)
-		logger.debug("simplifying expressions for fn %s", fn_name)
-		fn_def.operation.generate(None)
+	simplifier = ExprSimplifierVisitor()
+	function_throws_visitor = FunctionThrowsVisitor()
+	scalar_staticness_visitor = ScalarStaticnessVisitor()
+	function_staticness_visitor = FunctionStaticnessVisitor()
 
-		patch_model(function_throws)
+	for fn_name, fn_def in core.functions.items():
+		logger.debug("simplifying expressions for fn %s", fn_name)
+		simplifier.generate(fn_def.operation, None)
+
 		logger.debug("checking throws for fn %s", fn_name)
-		throws = fn_def.operation.generate(None)
+		throws = function_throws_visitor.generate(fn_def.operation, None)
 		fn_def.throws = throws or arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
 
 		context = ScalarStaticnessContext()
-		patch_model(scalar_staticness)
 		logger.debug("examining scalar staticness for fn %s", fn_name)
-		fn_def.operation.generate(context)
+		scalar_staticness_visitor.generate(fn_def.operation, context)
 
-		patch_model(function_staticness)
 		logger.debug("examining function staticness for fn %s", fn_name)
 
 		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
@@ -63,23 +67,24 @@ def process_functions(core: arch.CoreDef):
 				fn_def.static = True
 
 		else:
-			ret = fn_def.operation.generate(None)
+			ret = function_staticness_visitor.generate(fn_def.operation, None)
 			fn_def.static = ret
 
 def process_instructions(core: arch.CoreDef):
 	"""Apply all preprocessing to all instructions in `core`."""
 
-	for _, instr_def in core.instructions.items():
-		patch_model(expr_simplifier)
-		logger.debug("simplifying expressions for instr %s", instr_def.name)
-		instr_def.operation.generate(None)
+	simplifier = ExprSimplifierVisitor()
+	function_throws_visitor = FunctionThrowsVisitor()
+	scalar_staticness_visitor = ScalarStaticnessVisitor()
 
-		patch_model(function_throws)
+	for _, instr_def in core.instructions.items():
+		logger.debug("simplifying expressions for instr %s", instr_def.name)
+		simplifier.generate(instr_def.operation, None)
+
 		logger.debug("checking throws for instr %s", instr_def.name)
-		throws = instr_def.operation.generate(None)
+		throws = function_throws_visitor.generate(instr_def.operation, None)
 		instr_def.throws = throws
 
 		context = ScalarStaticnessContext()
-		patch_model(scalar_staticness)
 		logger.debug("examining staticness for instr %s", instr_def.name)
-		instr_def.operation.generate(context)
+		scalar_staticness_visitor.generate(instr_def.operation, context)
