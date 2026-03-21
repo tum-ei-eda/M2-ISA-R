@@ -12,7 +12,6 @@ functions and instructions to get rid of monkey patching and use instead polymor
 
 from ...metamodel import behav
 from abc import ABC, abstractmethod
-
 from functools import singledispatchmethod
 # pylint: disable=unused-argument
 
@@ -25,107 +24,111 @@ class ExprVisitor(ABC):
     Use self for additonal global state information
     Use context for stack-based information that is only relevant for the current branch of the AST.
     """
-    @singledispatchmethod
+    @abstractmethod
     def generate(self, expr : behav.BaseNode, context=None):
         raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
 
-    @generate.register
+    @singledispatchmethod
+    def default_visit(self, expr: behav.BaseNode, context):
+        raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
+
+    @default_visit.register
     def visit_codeliteral(self, expr: behav.CodeLiteral, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_operator(self, expr: behav.Operator, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_operation(self, expr: behav.Operation, context):
         for stmt in expr.statements:
             stmt.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_block(self, expr: behav.Block, context):
         for stmt in expr.statements:
             stmt.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_binary_operation(self, expr: behav.BinaryOperation, context):
         expr.left.generate(context)
         expr.right.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_slice_operation(self, expr: behav.SliceOperation, context):
         expr.expr.generate(context)
         expr.left.generate(context)
         expr.right.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_concat_operation(self, expr: behav.ConcatOperation, context):
         expr.left.generate(context)
         expr.right.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_number_literal(self, expr: behav.NumberLiteral, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_int_literal(self, expr: behav.IntLiteral, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_string_literal(self, expr: behav.StringLiteral, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
         expr.target.generate(context)
         expr.expr.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_conditional(self, expr: behav.Conditional, context):
         for cond in expr.conds:
             cond.generate(context)
         for stmt in expr.stmts:
             stmt.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_loop(self, expr: behav.Loop, context):
         expr.cond.generate(context)
         for stmt in expr.stmts:
             stmt.generate(context)
 
     # TODO: Add more visit methods for other node types as needed, e.g., Ternary, etc.
-    @generate.register
+    @default_visit.register
     def visit_ternary_operation(self, expr: behav.Ternary, context):
         expr.cond.generate(context)
         expr.then_expr.generate(context)
         expr.else_expr.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_break(self, expr: behav.Break, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
         pass
 
-    @generate.register
+    @default_visit.register
     def visit_type_conv(self, expr: behav.TypeConv, context):
         expr.expr.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_callable(self, expr: behav.Callable, context):
         for arg in expr.args:
             arg.generate(context)
 
-    @generate.register
+    @default_visit.register
     def visit_procedure_call(self, expr: behav.Callable, context):
         for arg in expr.args:
             arg.generate(context)
 
-    @generate.register
-    def group(self, expr: behav.Group, context):
+    @default_visit.register
+    def visit_group(self, expr: behav.Group, context):
         expr.expr.generate(context)
