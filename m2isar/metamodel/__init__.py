@@ -13,15 +13,17 @@ description.
 Also included are preprocessing functions, mostly to simplify a model and to extract information
 about scalar and function staticness as well as exceptions.
 
-Any model traversal should use the :func:`patch_model` function and a module including the needed
-transformations. :func:`patch_model` monkey patches transformation functions into the classes of the
-behavior model, therefore separating model code from transformation code. For examples on how
-these transformation functions look like, see either the modules in :mod:`m2isar.metamodel.utils`
-or the main code generation module :mod:`m2isar.backends.etiss.instruction_transform`. For a description
-of the monkey patching, see :func:`patch_model`.
+Any model traversal should use a :subclass`` of the ExprVisitor MetaClass including the needed
+transformations/ recursive calls. For examples on how the recursive generate functions look like,
+see the ExprVisitor MetaClass with its default generate function in :mod:`m2isar.metamodel.utils.ExprVisitor`
+Multiple examples of such visitors can be found in the :mod:`m2isar.backends` submodules,
+e.g. :mod:`m2isar.backends.etiss.instruction_transform` or :mod:`m2isar.backends.isa_manual.visitor`.
+But also the metamodel builders in :mod:`m2isar.frontends.coredsl2` use this approach to build
+the model from the parse tree. As well as the Frontend.
 
 Usually a M2-ISA-R behavioral model is traversed from top to bottom. Necessary contextual
-information is passed to lower levels by a user-defined `context` object. Each object should then
+information is either stored globally within the self object of the ExprVisitor or passed to lower levels
+by a user-defined `context` object for local stack-based information. Each object should then
 generate a piece of output (e.g. c-code for ETISS) and return it to its parent. Value passing between
 generation functions is completely user-defined, :mod:`m2isar.backends.etiss.instruction_transform`
 uses complex objects in lower levels of translation and switches to strings for the two highest levels of

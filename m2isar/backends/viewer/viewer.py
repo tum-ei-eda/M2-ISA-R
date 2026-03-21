@@ -21,7 +21,7 @@ from tkinter import ttk
 
 from m2isar.backends.viewer.utils import TreeGenContext
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, patch_model
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)

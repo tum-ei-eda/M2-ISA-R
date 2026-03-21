@@ -6,7 +6,10 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""This module contains classes for modeling the behavioral part
+""" Deprecated module, only used for legacy reasons. Monkey patching can be avoided
+by a custom ExprVisitor subclass and a custom generate function.
+See :mod:`m2isar.metamodel.utils.ExprVisitor` for more details on how to do this.
+This module contains classes for modeling the behavioral part
 of an M2-ISA-R model, this means the functional behavior of functions
 and instructions. Behavior is modeled as a tree of instances of the classes
 in this module. This object tree can then be traversed with transformation
