@@ -21,214 +21,236 @@ simplifications are done:
 """
 
 from ...metamodel import arch, behav
+from .ExprVisitor import ExprVisitor
+from functools import singledispatchmethod
 
 # pylint: disable=unused-argument
 
-def operation(self: behav.Operation, context):
-	statements = []
-	for stmt in self.statements:
-		try:
-			temp = stmt.generate(context)
-			if isinstance(temp, list):
-				statements.extend(temp)
+class ExprSimplifierVisitor(ExprVisitor):
+	"""Visitor that simplifies behavior expression trees."""
+
+	@singledispatchmethod
+	def generate(self, expr : behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
+
+
+	@generate.register
+	def _(self, expr: behav.Operation, context):
+		statements = []
+		for stmt in expr.statements:
+			try:
+				temp = self.generate(stmt, context)
+				if isinstance(temp, list):
+					statements.extend(temp)
+				else:
+					statements.append(temp)
+			except (NotImplementedError, ValueError):
+				print(f"cant simplify {stmt}")
+
+		expr.statements = statements
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.Block, context):
+		expr.statements = [self.generate(x, context) for x in expr.statements]
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context):
+		expr.left = self.generate(expr.left, context)
+		expr.right = self.generate(expr.right, context)
+
+		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
+			if expr.left.bit_size < expr.right.reference.size:
+				expr.left.bit_size = expr.right.reference.size
+
+		if isinstance(expr.right, behav.IntLiteral) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
+			if expr.right.bit_size < expr.left.reference.size:
+				expr.right.bit_size = expr.left.reference.size
+
+		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, behav.IntLiteral):
+			# pylint: disable=eval-used
+			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
+			return behav.IntLiteral(res, max(expr.left.bit_size, expr.right.bit_size, res.bit_length()))
+
+		if expr.op.value == "&&":
+			if isinstance(expr.left, behav.IntLiteral):
+				if expr.left.value:
+					return expr.right
+				return expr.left
+
+			if isinstance(expr.right, behav.IntLiteral):
+				if expr.right.value:
+					return expr.left
+				return expr.right
+
+		if expr.op.value == "||":
+			if isinstance(expr.left, behav.IntLiteral):
+				if expr.left.value:
+					return expr.left
+				return expr.right
+
+			if isinstance(expr.right, behav.IntLiteral):
+				if expr.right.value:
+					return expr.right
+				return expr.left
+
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.SliceOperation, context):
+		expr.expr = self.generate(expr.expr, context)
+		expr.left = self.generate(expr.left, context)
+		expr.right = self.generate(expr.right, context)
+
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.ConcatOperation, context):
+		expr.left = self.generate(expr.left, context)
+		expr.right = self.generate(expr.right, context)
+
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context):
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context):
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.StringLiteral, context):
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.ScalarDefinition, context):
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.Break, context):
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.Assignment, context):
+		expr.target = self.generate(expr.target, context)
+		expr.expr = self.generate(expr.expr, context)
+
+		if isinstance(expr.expr, behav.IntLiteral) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
+			if expr.expr.bit_size < expr.target.reference.size:
+				expr.expr.bit_size = expr.target.reference.size
+
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.Conditional, context):
+		expr.conds = [self.generate(x, context) for x in expr.conds]
+		expr.stmts = [self.generate(x, context) for x in expr.stmts]
+
+		eval_false = True
+
+		conds = []
+		stmts = []
+
+		for cond, stmt in zip(expr.conds, expr.stmts):
+			if isinstance(cond, behav.IntLiteral):
+				if cond.value:
+					return stmt
 			else:
-				statements.append(temp)
-		except (NotImplementedError, ValueError):
-			print(f"cant simplify {stmt}")
+				conds.append(cond)
+				stmts.append(stmt)
+				eval_false = False
 
-	self.statements = statements
-	return self
+		if len(expr.conds) < len(expr.stmts):
+			if eval_false and isinstance(expr.conds[-1], behav.IntLiteral):
+				if not cond.value:  # pylint: disable=undefined-loop-variable
+					return expr.stmts[-1]
+			stmts.append(expr.stmts[-1])
 
-def block(self: behav.Block, context):
-	self.statements = [x.generate(context) for x in self.statements]
-	return self
+		expr.conds = conds
+		expr.stmts = stmts
 
-def binary_operation(self: behav.BinaryOperation, context):
-	self.left = self.left.generate(context)
-	self.right = self.right.generate(context)
+		return expr
 
-	if isinstance(self.left, behav.IntLiteral) and isinstance(self.right, (behav.NamedReference, behav.IndexedReference)):
-		if self.left.bit_size < self.right.reference.size:
-			self.left.bit_size = self.right.reference.size
+	@generate.register
+	def _(self, expr: behav.Loop, context):
+		expr.cond = self.generate(expr.cond, context)
+		expr.stmts = [self.generate(x, context) for x in expr.stmts]
 
-	if isinstance(self.right, behav.IntLiteral) and isinstance(self.left, (behav.NamedReference, behav.IndexedReference)):
-		if self.right.bit_size < self.left.reference.size:
-			self.right.bit_size = self.left.reference.size
+		return expr
 
-	if isinstance(self.left, behav.IntLiteral) and isinstance(self.right, behav.IntLiteral):
-		# pylint: disable=eval-used
-		res: int = int(eval(f"{self.left.value}{self.op.value}{self.right.value}"))
-		return behav.IntLiteral(res, max(self.left.bit_size, self.right.bit_size, res.bit_length()))
+	@generate.register
+	def _(self, expr: behav.Ternary, context):
+		expr.cond = self.generate(expr.cond, context)
+		expr.then_expr = self.generate(expr.then_expr, context)
+		expr.else_expr = self.generate(expr.else_expr, context)
 
-	if self.op.value == "&&":
-		if isinstance(self.left, behav.IntLiteral):
-			if self.left.value:
-				return self.right
-			else:
-				return self.left
+		if isinstance(expr.cond, behav.IntLiteral):
+			if expr.cond.value:
+				return expr.then_expr
 
-		if isinstance(self.right, behav.IntLiteral):
-			if self.right.value:
-				return self.left
-			else:
-				return self.right
+			return expr.else_expr
 
-	if self.op.value == "||":
-		if isinstance(self.left, behav.IntLiteral):
-			if self.left.value:
-				return self.left
-			else:
-				return self.right
+		return expr
 
-		if isinstance(self.right, behav.IntLiteral):
-			if self.right.value:
-				return self.right
-			else:
-				return self.left
+	@generate.register
+	def _(self, expr: behav.Return, context):
+		if expr.expr is not None:
+			expr.expr = self.generate(expr.expr, context)
 
-	return self
+		return expr
 
-def slice_operation(self: behav.SliceOperation, context):
-	self.expr = self.expr.generate(context)
-	self.left = self.left.generate(context)
-	self.right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context):
+		expr.right = self.generate(expr.right, context)
+		if isinstance(expr.right, behav.IntLiteral):
+			# pylint: disable=eval-used
+			res: int = eval(f"{expr.op.value}{expr.right.value}")
+			return behav.IntLiteral(res, max(expr.right.bit_size, res.bit_length()))
 
-	return self
+		return expr
 
-def concat_operation(self: behav.ConcatOperation, context):
-	self.left = self.left.generate(context)
-	self.right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.NamedReference, context):
+		if isinstance(expr.reference, arch.Constant):
+			return behav.IntLiteral(expr.reference.value, expr.reference.size, expr.reference.signed)
 
-	return self
+		return expr
 
-def number_literal(self: behav.NumberLiteral, context):
-	return self
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context):
+		expr.index = self.generate(expr.index, context)
 
-def int_literal(self: behav.IntLiteral, context):
-	return self
+		return expr
 
-def string_literal(self: behav.StringLiteral, context):
-	return self
+	@generate.register
+	def _(self, expr: behav.TypeConv, context):
+		expr.expr = self.generate(expr.expr, context)
+		if isinstance(expr.expr, behav.IntLiteral):
+			expr.expr.bit_size = expr.size
+			expr.expr.signed = expr.data_type == arch.DataType.S
+			return expr.expr
 
-def scalar_definition(self: behav.ScalarDefinition, context):
-	return self
+		return expr
 
-def break_(self: behav.Break, context):
-	return self
+	@generate.register
+	def _(self, expr: behav.Callable, context):
+		expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
-def assignment(self: behav.Assignment, context):
-	self.target = self.target.generate(context)
-	self.expr = self.expr.generate(context)
+		return expr
 
-	if isinstance(self.expr, behav.IntLiteral) and isinstance(self.target, (behav.NamedReference, behav.IndexedReference)):
-		if self.expr.bit_size < self.target.reference.size:
-			self.expr.bit_size = self.target.reference.size
+	@generate.register
+	def _(self, expr: behav.ProcedureCall, context):
+		expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
-	#if isinstance(self.expr, behav.IntLiteral) and isinstance(self.target, behav.ScalarDefinition):
-#		self.target.scalar.value = self.expr.value
+		return expr
 
-	return self
+	@generate.register
+	def _(self, expr: behav.Group, context):
+		expr.expr = self.generate(expr.expr, context)
 
-def conditional(self: behav.Conditional, context):
-	self.conds = [x.generate(context) for x in self.conds]
-	self.stmts = [x.generate(context) for x in self.stmts]
+		if isinstance(expr.expr, behav.IntLiteral):
+			return expr.expr
 
-	eval_false = True
-
-	conds = []
-	stmts = []
-
-	for cond, stmt in zip(self.conds, self.stmts):
-		if isinstance(cond, behav.IntLiteral):
-			if cond.value:
-				return stmt
-		else:
-			conds.append(cond)
-			stmts.append(stmt)
-			eval_false = False
-
-	if len(self.conds) < len(self.stmts):
-		if eval_false and isinstance(self.conds[-1], behav.IntLiteral):
-			if not cond.value: # pylint: disable=undefined-loop-variable
-				return self.stmts[-1]
-		stmts.append(self.stmts[-1])
-
-	self.conds = conds
-	self.stmts = stmts
-
-	return self
-
-def loop(self: behav.Loop, context):
-	self.cond = self.cond.generate(context)
-	self.stmts = [x.generate(context) for x in self.stmts]
-
-	return self
-
-def ternary(self: behav.Ternary, context):
-	self.cond = self.cond.generate(context)
-	self.then_expr = self.then_expr.generate(context)
-	self.else_expr = self.else_expr.generate(context)
-
-	if isinstance(self.cond, behav.IntLiteral):
-		if self.cond.value:
-			return self.then_expr
-
-		return self.else_expr
-
-	return self
-
-def return_(self: behav.Return, context):
-	if self.expr is not None:
-		self.expr = self.expr.generate(context)
-
-	return self
-
-def unary_operation(self: behav.UnaryOperation, context):
-	self.right = self.right.generate(context)
-	if isinstance(self.right, behav.IntLiteral):
-		# pylint: disable=eval-used
-		res: int = eval(f"{self.op.value}{self.right.value}")
-		return behav.IntLiteral(res, max(self.right.bit_size, res.bit_length()))
-
-	return self
-
-def named_reference(self: behav.NamedReference, context):
-	if isinstance(self.reference, arch.Constant):
-		return behav.IntLiteral(self.reference.value, self.reference.size, self.reference.signed)
-
-	#if isinstance(self.reference, arch.Scalar) and self.reference.value is not None:
-#		return behav.IntLiteral(self.reference.value, self.reference.size, self.reference.data_type == arch.DataType.S)
-
-	return self
-
-def indexed_reference(self: behav.IndexedReference, context):
-	self.index = self.index.generate(context)
-
-	return self
-
-def type_conv(self: behav.TypeConv, context):
-	self.expr = self.expr.generate(context)
-	if isinstance(self.expr, behav.IntLiteral):
-		self.expr.bit_size = self.size
-		self.expr.signed = self.data_type == arch.DataType.S
-		return self.expr
-
-	return self
-
-def callable_(self: behav.Callable, context):
-	self.args = [stmt.generate(context) for stmt in self.args]
-
-	return self
-
-def procedure_call(self: behav.ProcedureCall, context):
-	self.args = [stmt.generate(context) for stmt in self.args]
-
-	return self
-
-def group(self: behav.Group, context):
-	self.expr = self.expr.generate(context)
-
-	if isinstance(self.expr, behav.IntLiteral):
-		return self.expr
-
-	return self
+		return expr

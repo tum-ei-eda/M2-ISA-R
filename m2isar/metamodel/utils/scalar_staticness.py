@@ -11,141 +11,183 @@ behavior are to be considered static.
 """
 
 import dataclasses
+from functools import singledispatchmethod
+from typing import Any, cast
 
 from ...metamodel import arch, behav
 from ...metamodel.utils import ScalarStaticnessContext, StaticType
+from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
 
-def operation(self: behav.Operation, context: ScalarStaticnessContext):
-	statements = []
-	for stmt in self.statements:
-		temp = stmt.generate(context)
-		if isinstance(temp, list):
-			statements.extend(temp)
+class ScalarStaticnessVisitor(ExprVisitor):
+	"""Visitor that determines scalar staticness for behavior expression trees."""
+
+	@singledispatchmethod
+	def generate(self, expr: behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
+
+	@generate.register
+	def _(self, expr: behav.Operation, context: ScalarStaticnessContext):
+		statements = []
+		for stmt in expr.statements:
+			temp = self.generate(stmt, context)
+			if isinstance(temp, list):
+				statements.extend(temp)
+			else:
+				statements.append(temp)
+
+		return expr
+
+	@generate.register
+	def _(self, expr: behav.Block, context):
+		stmts = [self.generate(x, context) for x in expr.statements]
+		valid = [s for s in stmts if s is not None]
+		if not valid:
+			return StaticType.NONE
+		return min(valid)
+
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context: ScalarStaticnessContext):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return min(left, right)
+
+	@generate.register
+	def _(self, expr: behav.SliceOperation, context: ScalarStaticnessContext):
+		expr_result = self.generate(expr.expr, context)
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return min(expr_result, left, right)
+
+	@generate.register
+	def _(self, expr: behav.ConcatOperation, context: ScalarStaticnessContext):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return min(left, right)
+
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context: ScalarStaticnessContext):
+		return StaticType.READ
+
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context: ScalarStaticnessContext):
+		return StaticType.READ
+
+	@generate.register
+	def _(self, expr: behav.StringLiteral, context: ScalarStaticnessContext):
+		return StaticType.READ
+
+	@generate.register
+	def _(self, expr: behav.ScalarDefinition, context: ScalarStaticnessContext):
+		scalar = cast(Any, expr.scalar)
+		scalar.static = StaticType.RW
+		return StaticType.RW
+
+	@generate.register
+	def _(self, expr: behav.Break, context):
+		return StaticType.READ
+
+	@generate.register
+	def _(self, expr: behav.Assignment, context: ScalarStaticnessContext):
+		self.generate(expr.target, context)
+
+		if context.context_is_static != StaticType.NONE or isinstance(expr.target, behav.ScalarDefinition):
+			expr_static = self.generate(expr.expr, context)
+
+			if expr_static != StaticType.NONE:
+				expr_static = StaticType.RW
 		else:
-			statements.append(temp)
+			expr_static = StaticType.NONE
 
-	return self
+		if isinstance(expr.target, behav.NamedReference) and isinstance(expr.target.reference, arch.Scalar):
+			target_ref = cast(Any, expr.target.reference)
+			target_ref.static &= expr_static
 
-def block(self: behav.Block, context):
-	stmts = [x.generate(context) for x in self.statements]
-	valid = [s for s in stmts if s is not None]
-	if not valid:
+		if isinstance(expr.target, behav.ScalarDefinition):
+			target_scalar = cast(Any, expr.target.scalar)
+			target_scalar.static &= expr_static
+
+	@generate.register
+	def _(self, expr: behav.Conditional, context: ScalarStaticnessContext):
+		conds = [self.generate(x, context) for x in expr.conds]
+		stmt_context = dataclasses.replace(context, context_is_static=min(conds))
+		_ = [self.generate(x, stmt_context) for x in expr.stmts]
+
+	@generate.register
+	def _(self, expr: behav.Loop, context: ScalarStaticnessContext):
+		cond = self.generate(expr.cond, context)
+		stmt_context = dataclasses.replace(context, context_is_static=cond)
+		_ = [self.generate(x, stmt_context) for x in expr.stmts]
+
+	@generate.register
+	def _(self, expr: behav.Ternary, context: ScalarStaticnessContext):
+		cond = self.generate(expr.cond, context)
+		then_expr = self.generate(expr.then_expr, context)
+		else_expr = self.generate(expr.else_expr, context)
+
+		return min(cond, then_expr, else_expr)
+
+	@generate.register
+	def _(self, expr: behav.Return, context: ScalarStaticnessContext):
+		if expr.expr is not None:
+			return self.generate(expr.expr, context)
+
+		return StaticType.RW
+
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context: ScalarStaticnessContext):
+		right = self.generate(expr.right, context)
+
+		return right
+
+	@generate.register
+	def _(self, expr: behav.NamedReference, context: ScalarStaticnessContext):
+		if isinstance(expr.reference, arch.Scalar):
+			return expr.reference.static
+
+		static_map = {
+			arch.Memory: StaticType.NONE,
+			arch.BitFieldDescr: StaticType.READ,
+			arch.Constant: StaticType.READ,
+			arch.FnParam: StaticType.READ
+		}
+
+		return static_map.get(type(expr.reference), StaticType.NONE)
+
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context: ScalarStaticnessContext):
+		self.generate(expr.index, context)
+
 		return StaticType.NONE
-	return min(valid)
 
-def binary_operation(self: behav.BinaryOperation, context: ScalarStaticnessContext):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.TypeConv, context: ScalarStaticnessContext):
+		expr_result = self.generate(expr.expr, context)
 
-	return min(left, right)
+		return expr_result
 
-def slice_operation(self: behav.SliceOperation, context: ScalarStaticnessContext):
-	expr = self.expr.generate(context)
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.Callable, context: ScalarStaticnessContext):
+		args = [self.generate(arg, context) for arg in expr.args]
+		is_static = bool(getattr(expr.ref_or_name, "static", False))
+		args.append(StaticType.READ if is_static else StaticType.NONE)
 
-	return min(expr, left, right)
+		return min(args)
 
-def concat_operation(self: behav.ConcatOperation, context: ScalarStaticnessContext):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.ProcedureCall, context: ScalarStaticnessContext):
+		args = [self.generate(arg, context) for arg in expr.args]
+		is_static = bool(getattr(expr.ref_or_name, "static", False))
+		args.append(StaticType.READ if is_static else StaticType.NONE)
 
-	return min(left, right)
+		return min(args)
 
-def number_literal(self: behav.NumberLiteral, context: ScalarStaticnessContext):
-	return StaticType.READ
+	@generate.register
+	def _(self, expr: behav.Group, context: ScalarStaticnessContext):
+		expr_result = self.generate(expr.expr, context)
 
-def int_literal(self: behav.IntLiteral, context: ScalarStaticnessContext):
-	return StaticType.READ
-
-def string_literal(self: behav.StringLiteral, context: ScalarStaticnessContext):
-	return StaticType.READ
-
-def scalar_definition(self: behav.ScalarDefinition, context: ScalarStaticnessContext):
-	self.scalar.static = StaticType.RW
-	return StaticType.RW
-
-def break_(self: behav.Break, context):
-	return StaticType.READ
-
-def assignment(self: behav.Assignment, context: ScalarStaticnessContext):
-	self.target.generate(context)
-
-	if context.context_is_static != StaticType.NONE or isinstance(self.target, behav.ScalarDefinition):
-		expr = self.expr.generate(context)
-
-		if expr != StaticType.NONE:
-			expr = StaticType.RW
-	else:
-		expr = StaticType.NONE
-
-	if isinstance(self.target, behav.NamedReference) and isinstance(self.target.reference, arch.Scalar):
-		self.target.reference.static &= expr
-
-	if isinstance(self.target, behav.ScalarDefinition):
-		self.target.scalar.static &= expr
-
-
-def conditional(self: behav.Conditional, context: ScalarStaticnessContext):
-	conds = [x.generate(context) for x in self.conds]
-	stmt_context = dataclasses.replace(context, context_is_static=min(conds))
-	_ = [x.generate(stmt_context) for x in self.stmts]
-
-def loop(self: behav.Loop, context: ScalarStaticnessContext):
-	cond = self.cond.generate(context)
-	stmt_context = dataclasses.replace(context, context_is_static=cond)
-	_ = [x.generate(stmt_context) for x in self.stmts]
-
-def ternary(self: behav.Ternary, context: ScalarStaticnessContext):
-	cond = self.cond.generate(context)
-	then_expr = self.then_expr.generate(context)
-	else_expr = self.else_expr.generate(context)
-
-	return min(cond, then_expr, else_expr)
-
-def return_(self: behav.Return, context: ScalarStaticnessContext):
-	if self.expr is not None:
-		return self.expr.generate(context)
-
-	return StaticType.RW
-
-def unary_operation(self: behav.UnaryOperation, context: ScalarStaticnessContext):
-	right = self.right.generate(context)
-
-	return right
-
-def named_reference(self: behav.NamedReference, context: ScalarStaticnessContext):
-	if isinstance(self.reference, arch.Scalar):
-		return self.reference.static
-
-	static_map = {
-		arch.Memory: StaticType.NONE,
-		arch.BitFieldDescr: StaticType.READ,
-		arch.Constant: StaticType.READ,
-		arch.FnParam: StaticType.READ
-	}
-
-	return static_map.get(type(self.reference), StaticType.NONE)
-
-def indexed_reference(self: behav.IndexedReference, context: ScalarStaticnessContext):
-	self.index.generate(context)
-
-	return StaticType.NONE
-
-def type_conv(self: behav.TypeConv, context: ScalarStaticnessContext):
-	expr = self.expr.generate(context)
-
-	return expr
-
-def callable_(self: behav.Callable, context: ScalarStaticnessContext):
-	args = [arg.generate(context) for arg in self.args]
-	args.append(StaticType.READ if self.ref_or_name.static else StaticType.NONE)
-
-	return min(args)
-
-def group(self: behav.Group, context: ScalarStaticnessContext):
-	expr = self.expr.generate(context)
-
-	return expr
+		return expr_result

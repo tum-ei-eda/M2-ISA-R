@@ -8,132 +8,168 @@
 
 """Transformation functions to determine whether a function is considered to be static."""
 
+from functools import singledispatchmethod
+
 from ...metamodel import arch, behav
+from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
 
-def operation(self: behav.Operation, context):
-	statements = []
-	for stmt in self.statements:
-		temp = stmt.generate(context)
-		if isinstance(temp, list):
-			statements.extend(temp)
-		else:
-			statements.append(temp)
+class FunctionStaticnessVisitor(ExprVisitor):
+	"""Visitor that determines whether behavior expression trees are static."""
 
-	return all(statements)
+	@singledispatchmethod
+	def generate(self, expr: behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
 
+	@generate.register
+	def _(self, expr: behav.Operation, context):
+		statements = []
+		for stmt in expr.statements:
+			temp = self.generate(stmt, context)
+			if isinstance(temp, list):
+				statements.extend(temp)
+			else:
+				statements.append(temp)
 
-def block(self: behav.Block, context):
-	stmts = [x.generate(context) for x in self.statements]
-	return all(stmts)
+		return all(statements)
 
+	@generate.register
+	def _(self, expr: behav.Block, context):
+		stmts = [self.generate(x, context) for x in expr.statements]
+		return all(stmts)
 
-def binary_operation(self: behav.BinaryOperation, context):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
 
-	return all([left, right])
+		return all([left, right])
 
-def slice_operation(self: behav.SliceOperation, context):
-	expr = self.expr.generate(context)
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.SliceOperation, context):
+		expr_result = self.generate(expr.expr, context)
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
 
-	return all([expr, left, right])
+		return all([expr_result, left, right])
 
-def concat_operation(self: behav.ConcatOperation, context):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.ConcatOperation, context):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
 
-	return all([left, right])
+		return all([left, right])
 
-def number_literal(self: behav.NumberLiteral, context):
-	return True
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context):
+		return True
 
-def int_literal(self: behav.IntLiteral, context):
-	return True
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context):
+		return True
 
-def string_literal(self: behav.StringLiteral, context):
-	return True
+	@generate.register
+	def _(self, expr: behav.StringLiteral, context):
+		return True
 
-def scalar_definition(self: behav.ScalarDefinition, context):
-	return True
+	@generate.register
+	def _(self, expr: behav.ScalarDefinition, context):
+		return True
 
-def break_(self: behav.Break, context):
-	return True
+	@generate.register
+	def _(self, expr: behav.Break, context):
+		return True
 
-def assignment(self: behav.Assignment, context):
-	target = self.target.generate(context)
-	expr = self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.Assignment, context):
+		target = self.generate(expr.target, context)
+		expr_result = self.generate(expr.expr, context)
 
-	return all([target, expr])
+		return all([target, expr_result])
 
-def conditional(self: behav.Conditional, context):
-	conds = [x.generate(context) for x in self.conds]
-	stmts = [x.generate(context) for x in self.stmts]
+	@generate.register
+	def _(self, expr: behav.Conditional, context):
+		conds = [self.generate(x, context) for x in expr.conds]
+		stmts = [self.generate(x, context) for x in expr.stmts]
 
-	conds.extend(stmts)
+		conds.extend(stmts)
 
-	return all(conds)
+		return all(conds)
 
-def loop(self: behav.Loop, context):
-	cond = self.cond.generate(context)
-	stmts = [x.generate(context) for x in self.stmts]
-	stmts.append(cond)
+	@generate.register
+	def _(self, expr: behav.Loop, context):
+		cond = self.generate(expr.cond, context)
+		stmts = [self.generate(x, context) for x in expr.stmts]
+		stmts.append(cond)
 
-	return all(stmts)
+		return all(stmts)
 
-def ternary(self: behav.Ternary, context):
-	cond = self.cond.generate(context)
-	then_expr = self.then_expr.generate(context)
-	else_expr = self.else_expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.Ternary, context):
+		cond = self.generate(expr.cond, context)
+		then_expr = self.generate(expr.then_expr, context)
+		else_expr = self.generate(expr.else_expr, context)
 
-	return all([cond, then_expr, else_expr])
+		return all([cond, then_expr, else_expr])
 
-def return_(self: behav.Return, context):
-	if self.expr is not None:
-		return self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.Return, context):
+		if expr.expr is not None:
+			return self.generate(expr.expr, context)
 
-	return True
+		return True
 
-def unary_operation(self: behav.UnaryOperation, context):
-	right = self.right.generate(context)
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context):
+		right = self.generate(expr.right, context)
 
-	return right
+		return right
 
-def named_reference(self: behav.NamedReference, context):
-	if isinstance(self.reference, arch.Scalar):
-		return self.reference.static
+	@generate.register
+	def _(self, expr: behav.NamedReference, context):
+		if isinstance(expr.reference, arch.Scalar):
+			return expr.reference.static
 
-	static_map = {
-		arch.Memory: False,
-		arch.BitFieldDescr: True,
-		arch.Constant: True,
-		arch.FnParam: True,
-		arch.Scalar: True,
-		arch.Intrinsic: False
-	}
+		static_map = {
+			arch.Memory: False,
+			arch.BitFieldDescr: True,
+			arch.Constant: True,
+			arch.FnParam: True,
+			arch.Scalar: True,
+			arch.Intrinsic: False
+		}
 
-	return static_map.get(type(self.reference), False)
+		return static_map.get(type(expr.reference), False)
 
-def indexed_reference(self: behav.IndexedReference, context):
-	self.index.generate(context)
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context):
+		self.generate(expr.index, context)
 
-	return False
+		return False
 
-def type_conv(self: behav.TypeConv, context):
-	expr = self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.TypeConv, context):
+		expr_result = self.generate(expr.expr, context)
 
-	return expr
+		return expr_result
 
-def callable_(self: behav.Callable, context):
-	args = [arg.generate(context) for arg in self.args]
-	args.append(self.ref_or_name.static)
+	@generate.register
+	def _(self, expr: behav.Callable, context):
+		args = [self.generate(arg, context) for arg in expr.args]
+		args.append(bool(getattr(expr.ref_or_name, "static", False)))
 
-	return all(args)
+		return all(args)
 
-def group(self: behav.Group, context):
-	expr = self.expr.generate(context)
+	@generate.register
+	def _(self, expr: behav.ProcedureCall, context):
+		args = [self.generate(arg, context) for arg in expr.args]
+		args.append(bool(getattr(expr.ref_or_name, "static", False)))
 
-	return expr
+		return all(args)
+
+	@generate.register
+	def _(self, expr: behav.Group, context):
+		expr_result = self.generate(expr.expr, context)
+
+		return expr_result
