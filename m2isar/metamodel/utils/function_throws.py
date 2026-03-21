@@ -51,7 +51,7 @@ def concat_operation(self: behav.ConcatOperation, context):
 
 	return reduce(or_, [left, right])
 
-def number_literal(self: behav.IntLiteral, context):
+def number_literal(self: behav.NumberLiteral, context):
 	return arch.FunctionThrows.NO
 
 def int_literal(self: behav.IntLiteral, context):
