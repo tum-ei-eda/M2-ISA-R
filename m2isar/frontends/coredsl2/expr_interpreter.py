@@ -10,28 +10,47 @@
 
 from ... import M2ValueError
 from ...metamodel import arch, behav
+from ...metamodel.utils.ExprVisitor import ExprVisitor
+from functools import singledispatchmethod
 
 
-def group(self: behav.Group, context):
-	return self.expr.generate(context)
+class ExprInterpreterVisitor(ExprVisitor):
+	"""Visitor for evaluating parse-time constant expressions."""
 
-def int_literal(self: behav.IntLiteral, context):
-	return self.value
+	@singledispatchmethod
+	def generate(self, expr: behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
 
-def named_reference(self: behav.NamedReference, context):
-	if isinstance(self.reference, arch.Constant) and self.reference.value is not None:
-		return self.reference.value
-	raise M2ValueError("non-interpretable value encountered")
+	@generate.register
+	def _(self, expr: behav.Group, context):
+		return self.generate(expr.expr, context)
 
-def indexed_reference(self: behav.IndexedReference, context):
-	idx = self.index.generate(context)
-	return self.reference._initval[idx]
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context):
+		return expr.value
 
-def binary_operation(self: behav.BinaryOperation, context):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
-	return int(eval(f"{left}{self.op.value}{right}"))
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context):
+		return expr.value
 
-def unary_operation(self: behav.UnaryOperation, context):
-	right = self.right.generate(context)
-	return int(eval(f"{self.op.value}{right}"))
+	@generate.register
+	def _(self, expr: behav.NamedReference, context):
+		if isinstance(expr.reference, arch.Constant) and expr.reference.value is not None:
+			return expr.reference.value
+		raise M2ValueError("non-interpretable value encountered")
+
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context):
+		idx = self.generate(expr.index, context)
+		return expr.reference._initval[idx]
+
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+		return int(eval(f"{left}{expr.op.value}{right}"))
+
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context):
+		right = self.generate(expr.right, context)
+		return int(eval(f"{expr.op.value}{right}"))

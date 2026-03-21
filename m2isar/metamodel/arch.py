@@ -16,20 +16,21 @@ import itertools
 from collections import defaultdict
 from enum import Enum, IntEnum, auto
 from typing import TYPE_CHECKING, Any, Union
+from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 
 from .. import M2TypeError
 from .behav import BaseNode, Operation
 
 if TYPE_CHECKING:
 	from .code_info import FunctionInfo
-
+exprInterpretVisitor = ExprInterpreterVisitor()
 
 def get_const_or_val(arg) -> int:
 	if isinstance(arg, Constant):
 		return arg.value
 
 	if isinstance(arg, BaseNode):
-		return arg.generate(None)
+		return exprInterpretVisitor.generate(arg, None)
 
 	return arg
 
