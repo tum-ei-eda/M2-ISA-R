@@ -14,10 +14,8 @@ import pickle
 import sys
 
 from ... import M2Error, M2SyntaxError
-from ...metamodel import (M2_METAMODEL_VERSION, M2Model, arch, behav,
-                          patch_model)
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav
 from ...metamodel.code_info import CodeInfoBase
-from . import expr_interpreter
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
@@ -73,8 +71,6 @@ def main():
 
 	temp_save = {}
 	models: "dict[str, arch.CoreDef]" = {}
-
-	patch_model(expr_interpreter)
 
 	for core_name, core_def in cores.items():
 		logger.info('building architecture model for core %s', core_name)

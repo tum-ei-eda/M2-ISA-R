@@ -18,6 +18,9 @@ from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
 from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
+from .expr_interpreter import ExprInterpreterVisitor
+
+exprInterpretVisitor = ExprInterpreterVisitor()
 
 if TYPE_CHECKING:
 	from ...metamodel.code_info import LineInfo
@@ -411,7 +414,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			width = self.visit(ctx.shorthand)
 
 		if isinstance(width, behav.BaseNode):
-			width = width.generate(None)
+			width =  exprInterpretVisitor.generate(width, None)
 		else:
 			raise M2TypeError("width has wrong type")
 
