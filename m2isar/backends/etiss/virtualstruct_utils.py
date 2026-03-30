@@ -207,7 +207,7 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz, f"Expected size missmatch: {mem.size} vs. {sz}"
+				assert mem.size >= sz, f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
 				name = mem.name
 				virtualstruct_class = VIRTUALSTRUCT_CLASSES.get(name)
 				assert virtualstruct_class is not None, f"Unable to find VirtualStruct class for reg: {name}"
