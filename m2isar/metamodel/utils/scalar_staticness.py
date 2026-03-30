@@ -28,6 +28,13 @@ def operation(self: behav.Operation, context: ScalarStaticnessContext):
 
 	return self
 
+def block(self: behav.Block, context):
+	stmts = [x.generate(context) for x in self.statements]
+	valid = [s for s in stmts if s is not None]
+	if not valid:
+		return StaticType.NONE
+	return min(valid)
+
 def binary_operation(self: behav.BinaryOperation, context: ScalarStaticnessContext):
 	left = self.left.generate(context)
 	right = self.right.generate(context)
