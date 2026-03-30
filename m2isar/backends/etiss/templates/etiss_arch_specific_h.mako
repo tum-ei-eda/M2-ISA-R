@@ -24,6 +24,7 @@
 #include "etiss/VirtualStruct.h"
 #include "etiss/jit/CPU.h"
 #include "${core_name}.h"
+#include "${core_name}Funcs.h"
 
 /**
     @brief VirtualStruct for ${core_name} architecture to faciliate register acess
