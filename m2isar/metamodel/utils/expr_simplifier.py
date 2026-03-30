@@ -39,6 +39,10 @@ def operation(self: behav.Operation, context):
 	self.statements = statements
 	return self
 
+def block(self: behav.Block, context):
+	self.statements = [x.generate(context) for x in self.statements]
+	return self
+
 def binary_operation(self: behav.BinaryOperation, context):
 	self.left = self.left.generate(context)
 	self.right = self.right.generate(context)

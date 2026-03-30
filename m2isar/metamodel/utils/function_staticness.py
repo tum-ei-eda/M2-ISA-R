@@ -23,6 +23,12 @@ def operation(self: behav.Operation, context):
 
 	return all(statements)
 
+
+def block(self: behav.Block, context):
+	stmts = [x.generate(context) for x in self.statements]
+	return all(stmts)
+
+
 def binary_operation(self: behav.BinaryOperation, context):
 	left = self.left.generate(context)
 	right = self.right.generate(context)

@@ -12,14 +12,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "m2isar"
+description = "CoreDSL2 Parser with backend to generate simulation code for the ETISS instruction set simulator"
+authors = [
+    {name = "Philipp van Kempen", email = "philipp.van-kempen@tum.de"},
+    {name = "Karsten Emrich"},
+]
+maintainers = [
+    {name = "Philipp van Kempen", email = "philipp.van-kempen@tum.de"},
+]
 dynamic = ["version"]
 requires-python = ">=3.8"
 license = {text = "Apache-2.0"}
+readme = "README.md"
 dependencies = [
 	"mako",
 	"antlr4-python3-runtime == 4.13.1",
 	"tqdm"
 ]
+
+[project.urls]
+Homepage = "https://tum-ei-eda.github.io/M2-ISA-R"
+Documentation = "https://tum-ei-eda.github.io/M2-ISA-R"
+Repository = "https://github.com/tum-ei-eda/M2-ISA-R.git"
+"Bug Tracker" = "https://github.com/tum-ei-eda/M2-ISA-R/issues"
 
 [project.scripts]
 etiss_writer = "m2isar.backends.etiss.writer:main"
