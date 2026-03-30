@@ -97,53 +97,53 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
 class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
 {
   private:
-  	const unsigned gprid_;
+    const unsigned gprid_;
   public:
-  	FloatRegField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
+    FloatRegField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
         // clang-format off
-  		      : Field(parent,
-  		      	std::string("${float_reg.name}")+etiss::toString(gprid),
-  		      	std::string("${float_reg.name}")+etiss::toString(gprid),
-  		      	R|W,
-  		      	${int(float_reg.size / 8)}
-  		      ),
-  		      gprid_(gprid)
+            : Field(parent,
+              std::string("${float_reg.name}")+etiss::toString(gprid),
+              std::string("${float_reg.name}")+etiss::toString(gprid),
+              R|W,
+              ${int(float_reg.size / 8)}
+            ),
+            gprid_(gprid)
         // clang-format on
-  	    {
+        {
         }
 
-  	FloatRegField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
+    FloatRegField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
         // clang-format off
-  		  : Field(parent,
-  		      	name,
-  		      	name,
-  		      	R|W,
-  		      	${int(float_reg.size / 8)}
-  		      ),
-  		      gprid_(gprid)
+        : Field(parent,
+              name,
+              name,
+              R|W,
+              ${int(float_reg.size / 8)}
+            ),
+            gprid_(gprid)
         // clang-format on
-  	    {
+        {
         }
 
-  	virtual ~FloatRegField_${core_name}(){}
+    virtual ~FloatRegField_${core_name}(){}
 
   protected:
-  	virtual uint64_t _read() const {
-  		% if len(main_reg.children) > 0:
-  		return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
-  		% else:
-  		return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
-  		% endif
-  	}
+    virtual uint64_t _read() const {
+      % if len(main_reg.children) > 0:
+      return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
+      % else:
+      return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
+      % endif
+    }
 
-  	virtual void _write(uint64_t val) {
-  		etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-  		% if len(main_reg.children) > 0:
-  		*((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
-  		% else:
-  		((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
-  		% endif
-  	}
+    virtual void _write(uint64_t val) {
+      etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+      % if len(main_reg.children) > 0:
+      *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
+      % else:
+      ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
+      % endif
+    }
   };
 % endif
 
@@ -152,42 +152,42 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
 class CSRField_${core_name} : public etiss::VirtualStruct::Field
 {
   private:
-	  const unsigned gprid_;
+    const unsigned gprid_;
   public:
-	  CSRField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
+    CSRField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
         // clang-format off
-		    : Field(parent,
-			      std::string("${csr_reg.name}")+etiss::toString(gprid),
-			      std::string("${csr_reg.name}")+etiss::toString(gprid),
-			      R|W,
-			      ${int(float_reg.size / 8)}
-		    ),
-		    gprid_(gprid)
+        : Field(parent,
+            std::string("${csr_reg.name}")+etiss::toString(gprid),
+            std::string("${csr_reg.name}")+etiss::toString(gprid),
+            R|W,
+            ${int(float_reg.size / 8)}
+        ),
+        gprid_(gprid)
     // clang-format on
-	  {
+    {
     }
 
-	CSRField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
-		: Field(parent,
-			name,
-			name,
-			R|W,
-			${int(float_reg.size / 8)}
-		),
-		gprid_(gprid)
-	{}
+  CSRField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
+    : Field(parent,
+      name,
+      name,
+      R|W,
+      ${int(float_reg.size / 8)}
+    ),
+    gprid_(gprid)
+  {}
 
-	virtual ~CSRField_${core_name}(){}
+  virtual ~CSRField_${core_name}(){}
 
 protected:
-	virtual uint64_t _read() const {
-		return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${float_reg.size}) gprid_);
-	}
+  virtual uint64_t _read() const {
+    return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${float_reg.size}) gprid_);
+  }
 
-	virtual void _write(uint64_t val) {
-		etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-		${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${float_reg.size}) val);
-	}
+  virtual void _write(uint64_t val) {
+    etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+    ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${float_reg.size}) val);
+  }
 };
 % endif
 
