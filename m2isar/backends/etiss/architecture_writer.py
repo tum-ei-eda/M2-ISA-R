@@ -191,14 +191,14 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		extra_lib_paths = set()
 		has_softfloat = core.float_reg_file is not None
 		has_softvector = core.vector_reg_file is not None
+		extra_header_paths.add("etiss/jit")
+		extra_lib_paths.add("etiss/jit")
 		if has_softfloat:
-			extra_headers.add("/etiss/jit/libsoftfloat.h")
+			extra_headers.add("etiss/jit/libsoftfloat.h")
 			extra_libs.add("softfloat")
-			extra_header_paths.add("/etiss/jit")
-			extra_lib_paths.add("/etiss/jit")
 		if has_softvector:
-			extra_headers.add("/etiss/jit/libsoftvector.h")
-			extra_headers.add("/etiss/jit/softvector.h")
+			extra_headers.add("etiss/jit/libsoftvector.h")
+			extra_headers.add("etiss/jit/softvector.h")
 			extra_libs.add("softvector")
 			extra_libs.add("etiss_softvector")
 		fill_jit_extensions = Template(filename=str(template_dir/'etiss_jit_extensions.mako')).render(
