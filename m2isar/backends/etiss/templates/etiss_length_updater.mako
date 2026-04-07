@@ -1,5 +1,5 @@
     vis->length_updater_ = [](VariableInstructionSet &, InstructionContext &ic, BitArray &ba) {
-        std::function<void(InstructionContext & ic, etiss_uint32 opRd)> updateRV32IMACFDInstrLength =
+        std::function<void(InstructionContext & ic, etiss_uint32 opRd)> update${core_name}InstrLength =
             [](InstructionContext &ic, etiss_uint32 opRd) {
                 ic.instr_width_fully_evaluated_ = true;
                 ic.is_not_default_width_ = true;
@@ -40,7 +40,7 @@
             }
             else
             {
-                updateRV32IMACFDInstrLength(ic, opRd);
+                update${core_name}InstrLength(ic, opRd);
                 break;
             }
         case 4:
@@ -51,12 +51,12 @@
             }
             else if(opRd == 0x7f) /* P-Extension instructions */
             {
-                updateRV32IMACFDInstrLength(ic, opRd);
+                update${core_name}InstrLength(ic, opRd);
                 break;
             }
             else
             {
-                updateRV32IMACFDInstrLength(ic, opRd);
+                update${core_name}InstrLength(ic, opRd);
                 break;
             }
         case 6:
@@ -67,7 +67,7 @@
             }
             else
             {
-                updateRV32IMACFDInstrLength(ic, opRd);
+                update${core_name}InstrLength(ic, opRd);
                 break;
             }
         case 8:
@@ -78,7 +78,7 @@
             }
             else
             {
-                updateRV32IMACFDInstrLength(ic, opRd);
+                update${core_name}InstrLength(ic, opRd);
                 break;
             }
         default:

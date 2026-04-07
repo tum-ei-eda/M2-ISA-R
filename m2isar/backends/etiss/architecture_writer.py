@@ -207,7 +207,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 				extra_header_paths=";".join(extra_header_paths),
 				extra_lib_paths=";".join(extra_lib_paths),
 		)
-		fill_length_updater = Template(filename=str(template_dir/'etiss_length_updater.mako')).render()
+		fill_length_updater = Template(filename=str(template_dir/'etiss_length_updater.mako')).render(core_name=core.name)
 	else:
 	    assert fill_mode == "empty", f"Unsupported fill_mode: {fill_mode}"
 	arch_source_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
