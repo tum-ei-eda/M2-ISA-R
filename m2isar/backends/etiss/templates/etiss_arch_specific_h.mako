@@ -209,7 +209,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
             std::string("${csr_reg.name}")+etiss::toString(gprid),
             std::string("${csr_reg.name}")+etiss::toString(gprid),
             R|W,
-            ${int(float_reg.size / 8)}
+            ${int(csr_reg.size / 8)}
         ),
         gprid_(gprid)
     // clang-format on
@@ -221,7 +221,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
       name,
       name,
       R|W,
-      ${int(float_reg.size / 8)}
+      ${int(csr_reg.size / 8)}
     ),
     gprid_(gprid)
   {}
@@ -231,13 +231,13 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
 protected:
   virtual uint64_t _read(size_t offset) const {
     assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-    return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${float_reg.size}) gprid_);
+    return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${csr_reg.size}) gprid_);
   }
 
   virtual void _write(uint64_t val, size_t offset) {
     assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
     etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-    ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${float_reg.size}) val);
+    ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${csr_reg.size}) val);
   }
 };
 % endif
