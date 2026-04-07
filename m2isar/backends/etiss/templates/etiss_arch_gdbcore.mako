@@ -67,8 +67,8 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
         % endif
         switch (index){
         % if mapping is not None:
-        % for regnum, name in mapping.items():
-        case ${regnum}: return "${name}";
+        % for regnum, (name, name2) in mapping.items():
+        case ${regnum}: return "${name2}";  // ${name}
         % endfor
         % else:
         case ${main_reg.range.length}:

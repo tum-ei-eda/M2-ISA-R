@@ -143,17 +143,16 @@ def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz, f"Expected size missmatch: {mem.size} vs. {sz}"
-				name = mem.name
-				name = HARCODED_NAMES.get(name, name)
+				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				name2 = mem.name
+				name2 = HARCODED_NAMES.get(name2, name2)
 				if idx is not None:
-					name += str(idx)
-				gdb_mapping[regnum] = name
+					name2 += str(idx)
+				gdb_mapping[regnum] = (name, name2)
 	return gdb_mapping
 
 
 def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
-	gdb_mapping = None
 	main_reg = None
 	float_reg = None
 	vector_reg = None
