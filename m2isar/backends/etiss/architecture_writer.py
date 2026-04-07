@@ -171,6 +171,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 		core_name=core.name,
 		main_reg=core.main_reg_file,
 		float_reg=core.float_reg_file,
+		vector_reg=core.vector_reg_file,
 		csr_reg=core.csr_reg_file
 	)
 

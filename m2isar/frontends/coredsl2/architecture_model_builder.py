@@ -35,6 +35,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_instr_classes: "set[int]"
 	_main_reg_file: Union[arch.Memory, None]
 	_float_reg_file: Union[arch.Memory, None]
+	_vector_reg_file: Union[arch.Memory, None]
 	_csr_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
@@ -52,6 +53,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instr_classes = set()
 		self._main_reg_file = None
 		self._float_reg_file = None
+		self._vector_reg_file = None
 		self._csr_reg_file = None
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
@@ -389,6 +391,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						self._main_reg_file = m
 					if arch.MemoryAttribute.IS_FLOAT_REG in attributes:
 						self._float_reg_file = m
+					if arch.MemoryAttribute.IS_VECTOR_REG in attributes:
+						self._vector_reg_file = m
 					if arch.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
 						self._csr_reg_file = m
 

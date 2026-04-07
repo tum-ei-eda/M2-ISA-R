@@ -199,6 +199,7 @@ class MemoryAttribute(Enum):
 	IS_MAIN_MEM = auto()
 	IS_MAIN_REG = auto()
 	IS_FLOAT_REG = auto()
+	IS_VECTOR_REG = auto()
 	IS_CSR_REG = auto()
 	DELETE = auto()
 	ETISS_CAN_FAIL = auto()
@@ -575,6 +576,7 @@ class CoreDef(Named):
 		self.instr_classes = instr_classes
 		self.main_reg_file = None
 		self.float_reg_file = None
+		self.vector_reg_file = None
 		self.csr_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
@@ -601,6 +603,8 @@ class CoreDef(Named):
 				self.main_reg_file = mem
 			if MemoryAttribute.IS_FLOAT_REG in mem.attributes:
 				self.float_reg_file = mem
+			if MemoryAttribute.IS_VECTOR_REG in mem.attributes:
+				self.vector_reg_file = mem
 			if MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
 				self.csr_reg_file = mem
 			elif MemoryAttribute.IS_PC in mem.attributes:

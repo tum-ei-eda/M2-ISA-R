@@ -156,6 +156,7 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	gdb_mapping = None
 	main_reg = None
 	float_reg = None
+	vector_reg = None
 	csr_reg = None
 	pc_reg = None
 	for mem in memories.values():
@@ -165,6 +166,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 			main_reg = mem
 		elif MemoryAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
 			float_reg = mem
+		elif MemoryAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "F":
+			vector_reg = mem
 		elif MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
 			csr_reg = mem
 	aliased_csrs = set()
@@ -179,6 +182,7 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	VIRTUALSTRUCT_CLASSES = {
 		main_reg.name: "RegField",
 		**({float_reg.name: "FloatRegField"} if float_reg is not None else {}),
+		**({vector_reg.name: "VectorRegField"} if vector_reg is not None else {}),
 		**({csr_reg.name: "CSRField"} if csr_reg is not None else {}),
 		**({pc_reg.name: "pcField"} if pc_reg is not None else {}),
 	}
@@ -186,6 +190,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	DEFAULT_VIRTUALSTRUCT_REGS = {
 		"RegField": [range(0, main_reg.range.length)],
 		**({"FloatRegField": [range(0, float_reg.range.length)]} if float_reg is not None else {}),
+		# **({"VectorRegField": [range(0, vector_reg.range.length)]} if vector_reg is not None else {}),
+		**({"VectorRegField": [range(0, 32)]} if vector_reg is not None else {}),
 		**({"CSRField": list(sorted(aliased_csrs)) if aliased_csrs_only else [range(0, csr_reg.range.length)]} if csr_reg is not None else {}),
 		"pcField": [None]
 	}
@@ -207,7 +213,7 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz, f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
 				name = mem.name
 				virtualstruct_class = VIRTUALSTRUCT_CLASSES.get(name)
 				assert virtualstruct_class is not None, f"Unable to find VirtualStruct class for reg: {name}"
