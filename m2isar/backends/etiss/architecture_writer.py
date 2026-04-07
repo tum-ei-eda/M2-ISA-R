@@ -178,7 +178,38 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, virtualstruct_regs: dict):
+def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, virtualstruct_regs: dict, fill_mode: str):
+	fill_jit_extensions=None
+	fill_length_updater=None
+	fill_endianess_compensation=None
+	assert isinstance(fill_mode, str)
+	fill_mode = fill_mode.lower()
+	if fill_mode == "auto":
+		extra_headers = set()
+		extra_libs = set()
+		extra_header_paths = set()
+		extra_lib_paths = set()
+		has_softfloat = core.float_reg_file is not None
+		has_softvector = core.vector_reg_file is not None
+		if has_softfloat:
+			extra_headers.add("/etiss/jit/libsoftfloat.h")
+			extra_libs.add("softfloat")
+			extra_header_paths.add("/etiss/jit")
+			extra_lib_paths.add("/etiss/jit")
+		if has_softvector:
+			extra_headers.add("/etiss/jit/libsoftvector.h")
+			extra_headers.add("/etiss/jit/softvector.h")
+			extra_libs.add("softvector")
+			extra_libs.add("etiss_softvector")
+		fill_jit_extensions = Template(filename=str(template_dir/'etiss_jit_extensions.mako')).render(
+				extra_headers=";".join(extra_headers),
+				extra_libs=";".join(extra_libs),
+				extra_header_paths=";".join(extra_header_paths),
+				extra_lib_paths=";".join(extra_lib_paths),
+		)
+		fill_length_updater = Template(filename=str(template_dir/'etiss_length_updater.mako')).render()
+	else:
+	    assert fill_mode == "empty", f"Unsupported fill_mode: {fill_mode}"
 	arch_source_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
 	error_fn = None
