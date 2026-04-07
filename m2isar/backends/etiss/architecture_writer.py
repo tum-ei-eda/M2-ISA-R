@@ -202,10 +202,10 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 			extra_libs.add("softvector")
 			extra_libs.add("etiss_softvector")
 		fill_jit_extensions = Template(filename=str(template_dir/'etiss_jit_extensions.mako')).render(
-				extra_headers=";".join(extra_headers),
-				extra_libs=";".join(extra_libs),
-				extra_header_paths=";".join(extra_header_paths),
-				extra_lib_paths=";".join(extra_lib_paths),
+				extra_headers=";".join(sorted(list(extra_headers))),
+				extra_libs=";".join(sorted(list(extra_libs))),
+				extra_header_paths=";".join(sorted(list(extra_header_paths))),
+				extra_lib_paths=";".join(sorted(list(extra_lib_paths))),
 		)
 		fill_length_updater = Template(filename=str(template_dir/'etiss_length_updater.mako')).render(core_name=core.name)
 	else:
