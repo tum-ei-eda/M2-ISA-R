@@ -84,7 +84,9 @@ def process_xml_descr(path):
 	num = -1
 	for node in tree.iter():
 		if node.tag == "reg":
-			num = int(node.attrib.get("regnum", num + 1))
+			num = node.attrib.get("regnum", num + 1)
+			if isinstance(num, str):
+				num = int(num, 0)
 			name = node.attrib["name"]
 			sz = int(node.attrib["bitsize"])
 			mapping[num] = (name, sz)
@@ -92,18 +94,19 @@ def process_xml_descr(path):
 
 
 def resolve_reg(name, mems, aliases):
+	# print("resolve_reg", name, mems, aliases)
 	split_name = lambda s: (m.group(1), int(m.group(2))) if (m:=re.fullmatch(r'([a-zA-Z]+)(\d+)', s)) else None
 	idx = None
 	ret = mems.get(name, mems.get(name.lower(), mems.get(name.upper())))
 	if ret is None:
-		ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper())))
+		ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper(), aliases.get(f"{name.upper()}_CSR"))))
 	if ret is None:
 		splitted = split_name(name)
 		if splitted is not None:
 			name, idx = splitted
 			ret = mems.get(name, mems.get(name.lower(), mems.get(name.upper())))
 			if ret is None:
-					ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper())))
+				ret = aliases.get(name, aliases.get(name.lower(), aliases.get(name.upper(), aliases.get(f"{name.upper()}_CSR"))))
 	if ret is None:
 		new_name = DEFAULT_ALIASES.get(name, DEFAULT_ALIASES.get(name.lower(), DEFAULT_ALIASES.get(name.upper())))
 		if new_name is not None:
