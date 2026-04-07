@@ -105,7 +105,7 @@ def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_
 def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
 	"""Generate {CoreName}Arch.cpp file. Contains mainly register initialization code."""
 
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
+	arch_cpp_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
 
 	ptr_regs = []
 	actual_regs = []
@@ -132,7 +132,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 			reg_names[child.range.lower] = child.name
 	# TODO(annnnna42): add float reg aliases here
 
-	txt = arch_header_template.render(
+	txt = arch_cpp_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		instr_classes=sorted(core.instr_classes),
@@ -149,11 +149,11 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		f.write(txt)
 
 def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_lib.mako'))
+	arch_lib_template = Template(filename=str(template_dir/'etiss_arch_lib.mako'))
 
 	logger.info("writing architecture lib")
 
-	txt = arch_header_template.render(
+	txt = arch_lib_template.render(
 		start_time=start_time,
 		core_name=core.name
 	)
@@ -162,11 +162,11 @@ def write_arch_lib(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		f.write(txt)
 
 def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_h.mako'))
+	arch_specific_header_template = Template(filename=str(template_dir/'etiss_arch_specific_h.mako'))
 
 	logger.info("writing architecture specific header")
 
-	txt = arch_header_template.render(
+	txt = arch_specific_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file,
@@ -179,7 +179,7 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 		f.write(txt)
 
 def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, virtualstruct_regs: dict):
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
+	arch_source_template = Template(filename=str(template_dir/'etiss_arch_specific_cpp.mako'))
 
 	error_fn = None
 
@@ -219,7 +219,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 			raise M2TypeError(f"IRQ enable mask of {core.global_irq_en_memory.name} is not compile static")
 		global_irq_en_mask = attr.value
 
-	txt = arch_header_template.render(
+	txt = arch_source_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file,
@@ -231,17 +231,20 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 		error_callbacks=error_callbacks,
 		error_fn=error_fn,
 		virtualstruct_regs=virtualstruct_regs,
+		fill_jit_extensions=fill_jit_extensions,
+		fill_length_updater=fill_length_updater,
+		fill_endianess_compensation=fill_endianess_compensation,
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.cpp", "w", encoding="utf-8") as f:
 		f.write(txt)
 
 def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, gdb_mapping: dict):
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_gdbcore.mako'))
+	arch_gdbcore_template = Template(filename=str(template_dir/'etiss_arch_gdbcore.mako'))
 
 	logger.info("writing gdbcore")
 
-	txt = arch_header_template.render(
+	txt = arch_gdbcore_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file,
@@ -253,7 +256,7 @@ def write_arch_gdbcore(core: arch.CoreDef, start_time: str, output_path: pathlib
 		f.write(txt)
 
 def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, separate: bool):
-	arch_header_template = Template(filename=str(template_dir/'etiss_arch_cmake.mako'))
+	arch_cmake_template = Template(filename=str(template_dir/'etiss_arch_cmake.mako'))
 
 	logger.info("writing CMakeLists")
 
@@ -264,7 +267,7 @@ def write_arch_cmake(core: arch.CoreDef, start_time: str, output_path: pathlib.P
 	if separate:
 		arch_files += [f'{core.name}_{ext_name}Instr.cpp' for ext_name in core.contributing_types if len(core.instructions_by_ext[ext_name]) > 0]
 
-	txt = arch_header_template.render(
+	txt = arch_cmake_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		arch_files=arch_files
