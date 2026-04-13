@@ -406,7 +406,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			cond.mem_ids.clear()
 
 		for stmt in expr.stmts:
-			ret = self.generate(stmt, context)
+			if isinstance(stmt, list):
+				ret = []
+				for stmt_ in stmt:
+					ret_ = self.generate(stmt_, context)
+					ret.append(ret_)
+			else:
+				ret = self.generate(stmt, context)
 
 			if isinstance(ret, list):
 				stmts.append(ret)
