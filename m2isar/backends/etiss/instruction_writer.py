@@ -22,7 +22,7 @@ from .warnings import WarningsInfo
 
 logger = logging.getLogger("instruction_writer")
 
-def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, static_scalars: bool, generate_coverage: bool):
+def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, static_scalars: bool, generate_coverage: bool, warnings_info: WarningsInfo):
 	"""Generate and write the {CoreName}Funcs.h file for ETISS."""
 
 	fn_set_header_template = Template(filename=str(template_dir/'etiss_function_set_header.mako'))
@@ -45,7 +45,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		funcs_f.write("    // clang-format off\n")
 
 		# generate and write function declarations
-		for fn_name, templ_str in generate_functions(core, static_scalars, True, generate_coverage):
+		for fn_name, templ_str in generate_functions(core, static_scalars, True, generate_coverage, warnings_info):
 			logger.debug("writing function decl %s", fn_name)
 			funcs_f.write(templ_str)
 
@@ -64,7 +64,7 @@ def write_functions(core: arch.CoreDef, start_time: str, output_path: pathlib.Pa
 		funcs_f.write("// clang-format off\n")
 
 		# generate and write function definitions
-		for fn_name, templ_str in generate_functions(core, static_scalars, False, generate_coverage):
+		for fn_name, templ_str in generate_functions(core, static_scalars, False, generate_coverage, warnings_info):
 			logger.debug("writing function def %s", fn_name)
 			funcs_f.write(templ_str)
 		funcs_f.write("// clang-format on\n")

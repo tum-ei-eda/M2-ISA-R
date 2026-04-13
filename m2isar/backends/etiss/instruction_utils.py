@@ -17,7 +17,7 @@ from ...metamodel import arch
 from ...metamodel.code_info import LineInfo
 from ...metamodel.utils import StaticType
 from . import replacements
-from .warnings import WarningsManager
+from .warnings import WarningsManager, WarningsInfo
 
 data_type_map = {
 	arch.DataType.S: 'etiss_int',

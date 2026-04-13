@@ -1,5 +1,5 @@
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Set
 
 KNOWN_WARNINGS = {
@@ -13,16 +13,18 @@ KNOWN_WARNINGS = {
 
 @dataclass
 class WarningsInfo:
-	known: Set[str] = default
-	defaults: Set[str] = {}
-	enabled: Set[str] = {}
-	disabled: Set[str] = {}
-	as_error: Set[str] = {}
+	# known: Set[str] = field(default_factory=set)
+	known: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
+	# defaults: Set[str] = field(default_factory=set)
+	defaults: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
+	enabled: Set[str] = field(default_factory=set)
+	disabled: Set[str] = field(default_factory=set)
+	as_error: Set[str] = field(default_factory=set)
 	all_as_error: bool = False
 
 	@property
 	def warnings(self):
-		return self.defaults - self.disabled + self.enabled
+		return (self.defaults - self.disabled) | self.enabled
 
 	@property
 	def errors(self):
@@ -37,21 +39,22 @@ class WarningFlagAction(argparse.Action):
 			if val.startswith('no-'):
 				warn = val[3:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
-				disabled.add(warn)
+				warnings_info.disabled.add(warn)
 			elif val.startswith('error='):
 				warn = val[6:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
-				error_set.add(warn)
+				warnings_info.error_set.add(warn)
 			elif val == 'error':
-				all_as_error = True
+				warnings_info.all_as_error = True
 			elif val == 'all':
 				warnings_info.enabled.update(warnings_info.known)
 			else:
+				warn = val[3:]
 				assert warn in warnings_info.known, f"Unknown warning: {val}"
-				enabled.add(val)
+				warnings_info.enabled.add(val)
 			# No need for -Wall as all warnings are enabled by default
 
-		setattr(namespace, 'warnings_info', warnings_info)
+		setattr(namespace, 'warnings', warnings_info)
 
 def add_warnings_flags(parser, known_warnings: Set[str], default_warnings: Set[str]):
 	parser.add_argument(
@@ -67,7 +70,7 @@ def add_warnings_flags(parser, known_warnings: Set[str], default_warnings: Set[s
 	)
 
 	# Defaults
-	warnings_info = WarningsInfo(known=known_warnings, default=default_warnings)
+	warnings_info = WarningsInfo(known=known_warnings, defaults=default_warnings)
 	parser.set_defaults(enabled_warnings=warnings_info)
 
 
@@ -79,9 +82,11 @@ class WarningsManager:
 	def emit_warning(self, msg, name=None, logger=None, line_info=None):
 		log_warn_f = logging.warning if logger is None else logger.warning
 		log_err_f = logging.error if logger is None else logger.error
+		if self.warnings_info is None:
+			return  # ignore
 		assert name in self.warnings_info.known, f"Unknown warning: {name}"
 		is_err = name in self.warnings_info.errors
-		if name not in self.wwarnings_info.warnings:
+		if name not in self.warnings_info.warnings:
 			# do nothing
 			return
 		log_f = log_err_f if is_err else log_warn_f

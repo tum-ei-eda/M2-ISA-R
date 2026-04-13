@@ -26,7 +26,7 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
-from .warnings import add_warnings_flags
+from .warnings import add_warnings_flags, KNOWN_WARNINGS
 
 
 class BooleanOptionalAction(argparse.Action):
@@ -86,7 +86,7 @@ def setup():
 		help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
-	add_warnings_flags(parser)
+	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)
 	args = parser.parse_args()
 
 	# configure logging
@@ -173,8 +173,8 @@ def main():
 		write_arch_lib(core, start_time, output_path)
 		write_arch_cmake(core, start_time, output_path, args.separate)
 		write_arch_gdbcore(core, start_time, output_path)
-		write_functions(core, start_time, output_path, args.static_scalars, args.coverage)
-		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()], args.coverage, args.warnings_info)
+		write_functions(core, start_time, output_path, args.static_scalars, args.coverage, args.warnings)
+		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()], args.coverage, args.warnings)
 
 		with open(output_path / "coverage.csv", "w") as f:
 			for c_id, c_info in sorted(CodeInfoTracker.tracker[core_name].items()):
