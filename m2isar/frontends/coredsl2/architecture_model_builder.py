@@ -25,7 +25,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
 
 	_constants: "dict[str, arch.Constant]"
-	_instructions: "dict[str, arch.Instruction]"
+	_instructions: "list[arch.Instruction]"
 	_functions: "dict[str, arch.Function]"
 	_always_blocks: "dict[str, arch.AlwaysBlock]"
 	_instruction_sets: "dict[str, arch.InstructionSet]"
@@ -39,7 +39,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def __init__(self):
 		super().__init__()
 		self._constants = {}
-		self._instructions = {}
+		# self._instructions = {}
+		self._instructions = []
 		self._functions = {}
 		self._always_blocks = {}
 		self._instruction_sets = {}
@@ -85,7 +86,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		constants = {}
 		memories = {}
 		functions = {}
-		instructions = {}
+		# instructions = {}
+		instructions = []
 
 		# group contents by type
 		for item in contents:
@@ -97,7 +99,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				functions[item.name] = item
 				item.ext_name = name
 			elif isinstance(item, arch.Instruction):
-				instructions[(item.code, item.mask)] = item
+				# instructions[(item.code, item.mask)] = item
+				instructions.append(item)
 				item.ext_name = name
 			elif isinstance(item, arch.AlwaysBlock):
 				pass
@@ -173,17 +176,18 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		i = arch.Instruction(ctx.name.text, attributes, encoding, mnemonic, assembly, ctx.behavior, None)
 		self._instr_classes.add(i.size)
 
-		instr_id = (i.code, i.mask)
+		# instr_id = (i.code, i.mask)
 
 		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=i.size//4)
 		i.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
 
 		# check for duplicate instructions
-		if instr_id in self._instructions:
-			self._overwritten_instrs.append((self._instructions[instr_id], i))
+		# if instr_id in self._instructions:
+		# 	self._overwritten_instrs.append((self._instructions[instr_id], i))
 
 		# keep track of instruction
-		self._instructions[instr_id] = i
+		# self._instructions[instr_id] = i
+		self._instructions.append(i)
 
 		return i
 

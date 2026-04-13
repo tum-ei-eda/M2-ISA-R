@@ -15,6 +15,7 @@ import sys
 
 from ... import M2Error, M2SyntaxError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav
+from ...metamodel.utils import expr_simplifier
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
@@ -25,6 +26,14 @@ from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
 from ...transforms.validate_behav.validate import validate_behav
 from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+
+def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
+	patch_model(expr_simplifier)
+	op = operation.generate(None)
+	if not isinstance(op, behav.IntLiteral):
+		return None
+	return op.value != 0
 
 
 def main():
@@ -80,8 +89,8 @@ def main():
 		except M2Error as e:
 			logger.critical("Error building architecture model of core %s: %s", core_name, e)
 
-		for orig, overwritten in arch_builder._overwritten_instrs:
-			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
+		# for orig, overwritten in arch_builder._overwritten_instrs:
+		# 	logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
 
 		temp_save[core_name] = (c, arch_builder)
 		models[core_name] = c[-1]
@@ -207,7 +216,11 @@ def main():
 
 		logger.debug("generating instruction behavior")
 
-		for instr_def in core_def.instructions.values():
+		assert isinstance(core_def.instructions, list)
+		instructions_by_enc = {}
+		overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]" = []
+		# for instr_def in core_def.instructions.values():
+		for instr_def in core_def.instructions:
 			logger.debug("generating instruction %s", instr_def.name)
 			logger.debug("generating attributes")
 
@@ -224,6 +237,17 @@ def main():
 						sys.exit(1)
 
 				instr_def.attributes[attr_name] = ops
+			if arch.InstrAttribute.ENABLE in instr_def.attributes:
+				enable_attr = instr_def.attributes[arch.InstrAttribute.ENABLE]
+				assert isinstance(enable_attr, list)
+				assert len(enable_attr) == 1
+				enable_attr = enable_attr[0]
+				enable = try_eval_bool(enable_attr, core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
+				if enable is not None:
+					assert isinstance(enable, bool)
+					instr_def.attributes.pop(arch.InstrAttribute.ENABLE)
+					if not enable:
+						continue
 
 			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
 				instr_def.fields, core_def.functions, warned_fns)
@@ -253,6 +277,15 @@ def main():
 			#op.statements.insert(0, pc_inc)
 			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
+			instr_id = (instr_def.code, instr_def.mask)
+			# check for duplicate instructions
+			if instr_id in instructions_by_enc:
+				overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
+			instructions_by_enc[instr_id] = instr_def
+		core_def.instructions = instructions_by_enc
+		assert isinstance(core_def.instructions, dict)
+		for orig, overwritten in overwritten_instrs:
+			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
 
 	model_obj = M2Model(
 		M2_METAMODEL_VERSION,
