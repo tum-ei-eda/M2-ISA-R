@@ -23,7 +23,7 @@ def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
 	return f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size}{arg_name}'
 
-def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool):
+def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool, warnings_info: WarningsInfo):
 	"""Return a generator object to generate function behavior code. Uses function
 	definitions in the core object.
 	"""
@@ -152,7 +152,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
 	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
-		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, warnings_info)
+		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False, warnings_info)
 
 	# force a block end if necessary
 	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes
