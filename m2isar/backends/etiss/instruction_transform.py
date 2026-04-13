@@ -741,8 +741,8 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 	# if only data type should be changed assume width remains unchanged
 	if self.size is None:
-		self.size = expr.size
-		self.actual_size = expr.actual_size
+		self._size = expr.size
+		self._actual_size = expr.actual_size
 
 	# save access size for memory access
 	if expr.is_mem_access:

@@ -93,10 +93,17 @@ class NumberLiteral(BaseNode):
 
 	def __init__(self, value, line_info=None):
 		super().__init__(line_info)
-		self.value = value
+		self._value = value
 
 	def __repr__(self):
 		return f"NumberLiteral({self.value})"
+
+	@property
+	def value(self) -> int:
+		"""Returns the resolved value."""
+		if isinstance(self, IntLiteral):
+			return int(self._value)
+		return self._value
 
 
 class IntLiteral(NumberLiteral):
@@ -110,6 +117,9 @@ class IntLiteral(NumberLiteral):
 		else:
 			self.bit_size = bit_size
 
+		if isinstance(self.bit_size, IntLiteral):
+			self.bit_size = self.bit_size.value
+
 		self.bit_size = max(1, self.bit_size)
 
 		if signed is None:
@@ -119,6 +129,9 @@ class IntLiteral(NumberLiteral):
 
 	def __repr__(self):
 		return f"IntLiteral({self.value}, {self.bit_size}, {self.signed})"
+
+	def __int__(self):
+		return self.value
 
 
 class StringLiteral(BaseNode):
@@ -222,15 +235,24 @@ class TypeConv(BaseNode):
 	def __init__(self, data_type, size, expr: BaseNode, line_info=None):
 		super().__init__(line_info)
 		self.data_type = data_type
-		self.size = size
+		self._size = size
 		self.expr = expr
 
-		if self.size is not None:
-			self.actual_size = 1 << (self.size - 1).bit_length()
-			self.actual_size = max(self.actual_size, 8)
+	@property
+	def size(self) -> int:
+		"""Returns the resolved size."""
+		if isinstance(self._size, IntLiteral):
+			return int(self._size)
+		return self._size
 
-		else:
-			self.actual_size = None
+	@property
+	def actual_size(self) -> int:
+		"""Returns the actual size."""
+		if self.size is not None:
+			actual_size = 1 << (int(self.size) - 1).bit_length()
+			actual_size = max(actual_size, 8)
+			return actual_size
+		return None
 
 class Callable(BaseNode):
 	"""A generic invocation of a callable."""
