@@ -313,7 +313,13 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 		cond.mem_ids.clear()
 
 	for stmt in self.stmts:
-		ret = stmt.generate(context)
+		if isinstance(stmt, list):
+			ret = []
+			for stmt_ in stmt:
+				ret_ = stmt_.generate(context)
+				ret.append(ret_)
+		else:
+			ret = stmt.generate(context)
 
 		if isinstance(ret, list):
 			stmts.append(ret)
