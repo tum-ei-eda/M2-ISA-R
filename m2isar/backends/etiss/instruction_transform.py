@@ -544,7 +544,6 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 		left.code = context.make_static(left.code, left.signed)
 
 	if op.value == "<<" and left.size <= right.size:
-		# TODO: add LOC
 		context.emit_warning(f"Shift count overflow for << operation ({left.size} vs. {right.size})", "shift-overflow", logger=logger, line_info=self.line_info)
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
 		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected), [self.line_info] + left.line_infos + right.line_infos)
