@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 
 from .. import M2TypeError
-from .behav import BaseNode, Operation
+from .behav import BaseNode, Operation, NumberLiteral
 
 if TYPE_CHECKING:
 	from .code_info import FunctionInfo
@@ -29,8 +29,11 @@ def get_const_or_val(arg) -> int:
 	if isinstance(arg, Constant):
 		return arg.value
 
+	if isinstance(arg, NumberLiteral):
+		arg = arg.value
+
 	if isinstance(arg, BaseNode):
-		return exprInterpretVisitor.generate(arg, None)
+		arg = exprInterpretVisitor.generate(arg, None)
 
 	return arg
 
@@ -68,7 +71,10 @@ class SizedRefOrConst(Named):
 	def size(self) -> int:
 		"""Returns the resolved size, by calling get_const_or_val on _size."""
 
-		return get_const_or_val(self._size)
+		ret = get_const_or_val(self._size)
+		if ret is None:
+			return None
+		return int(ret)
 
 	@property
 	def actual_size(self):
