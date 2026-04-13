@@ -4,9 +4,10 @@ from typing import Set
 
 KNOWN_WARNINGS = {
 	'implicit-trunc',
-	'shift-outofrange',
+	'shift-overflow',
+	'shift-signed',
 	'implicit-extend',
-	'signed-compare',
+	'sign-compare',
 	'unused-value',
 }
 
