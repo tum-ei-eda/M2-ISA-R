@@ -264,7 +264,6 @@ def main():
 		CodeInfoBase.database
 	)
 
-	print("args.validate", args.validate)
 	if args.validate:
 		logger.info("Running type inference")
 		model_obj = infer_types(model_obj)
