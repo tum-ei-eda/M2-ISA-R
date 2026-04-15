@@ -9,6 +9,7 @@ KNOWN_WARNINGS = {
 	'implicit-extend',
 	'sign-compare',
 	'unused-value',
+	'bit-op-missmatch',
 }
 
 
