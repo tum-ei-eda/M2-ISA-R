@@ -34,7 +34,8 @@ def main():
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
-	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run type inference and validator after parsing.")
+	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
+	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
 	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
 
 	args = parser.parse_args()
@@ -264,9 +265,10 @@ def main():
 		CodeInfoBase.database
 	)
 
-	if args.validate:
+	if args.infer_types or args.validate:
 		logger.info("Running type inference")
 		model_obj = infer_types(model_obj)
+	if args.validate:
 		logger.info("Running validator")
 		warnings_info = args.warnings
 		validate_behav(model_obj, warnings_info)
