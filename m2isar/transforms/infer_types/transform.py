@@ -27,11 +27,26 @@ def get_parser():
     return parser
 
 
+def infer_types(model_obj):
+    logger = logging.getLogger("infer_types")
+    for _, core_def in model_obj.cores.items():
+        logger.debug("inferring types for core %s", core_def.name)
+        patch_model(visitor)
+        for _, instr_def in core_def.instructions.items():
+            logger.debug("inferring types for instr %s", instr_def.name)
+            instr_def.operation.generate(None)
+    for _, set_def in model_obj.sets.items():
+        logger.debug("inferring types for set %s", set_def.name)
+        patch_model(visitor)
+        for _, instr_def in set_def.instructions.items():
+            logger.debug("inferring types for instr %s", instr_def.name)
+            instr_def.operation.generate(None)
+    return model_obj
+
+
 def run(args):
     # initialize logging
     logging.basicConfig(level=getattr(logging, args.log.upper()))
-    logger = logging.getLogger("infer_types")
-    logger.setLevel(getattr(logging, args.log.upper()))
 
     # resolve model paths
     top_level = pathlib.Path(args.top_level)
@@ -40,21 +55,7 @@ def run(args):
     print("out_path", out_path)
 
     model_obj = load_model(top_level)
-
-    for _, core_def in model_obj.cores.items():
-        logger.debug("inferring types for core %s", core_def.name)
-        patch_model(visitor)
-        for _, instr_def in core_def.instructions.items():
-            logger.debug("inferring types for instr %s", instr_def.name)
-            instr_def.operation.generate(None)
-            # input("!")
-    for _, set_def in model_obj.sets.items():
-        logger.debug("inferring types for set %s", set_def.name)
-        patch_model(visitor)
-        for _, instr_def in set_def.instructions.items():
-            logger.debug("inferring types for instr %s", instr_def.name)
-            instr_def.operation.generate(None)
-            # input("!")
+    model_obj = infer_types(model_obj)
 
     dump_model(model_obj, out_path)
 
