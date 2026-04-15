@@ -38,6 +38,7 @@ ETISS_WRITER_WARNINGS = {
 }
 
 
+# TODO: not required anymore for Python >= v3.9
 class BooleanOptionalAction(argparse.Action):
 	"""A boolean optional action for argparse, supports automatic generation of --no-x flags."""
 
