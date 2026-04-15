@@ -31,7 +31,7 @@ logger = logging.getLogger("validate_behav")
 
 
 def operation(self: behav.Operation, context):
-    print("operation", operation)
+    # print("operation", operation)
     statements = []
     for stmt in self.statements:
         # try:
@@ -48,16 +48,14 @@ def operation(self: behav.Operation, context):
 
 
 def binary_operation(self: behav.BinaryOperation, context):
-    print("binary_operation")
+    # print("binary_operation")
     self.left = self.left.generate(context)
     op = self.op
     self.right = self.right.generate(context)
 
-    print("self.left", self.left)
-    print("op", op)
-    print("self.right", self.right)
-    if isinstance(self.right, behav.NamedReference):
-        print("self.right.reference", self.right.reference)
+    # print("self.left", self.left)
+    # print("op", op)
+    # print("self.right", self.right)
     assert self.left.inferred_type is not None
     assert self.right.inferred_type is not None
     if op.value in ["|", "&", "^"] and self.left.inferred_type.width != self.right.inferred_type.width:
@@ -70,8 +68,8 @@ def binary_operation(self: behav.BinaryOperation, context):
         # input("!!5")
     if op.value in ["<", "<=", ">", ">=", "==", "!="] and self.left.inferred_type.signed != self.right.inferred_type.signed:
         # TODO: handle unsigned < 0
-        print("self.left", self.left, dir(self.left), self.left.inferred_type)
-        print("self.right", self.right, dir(self.right), self.right.inferred_type)
+        # print("self.left", self.left, dir(self.left), self.left.inferred_type)
+        # print("self.right", self.right, dir(self.right), self.right.inferred_type)
         if isinstance(self.left, behav.IntLiteral) and self.left.value == 0:
             pass
         if isinstance(self.right, behav.IntLiteral) and self.right.value == 0:
@@ -81,12 +79,12 @@ def binary_operation(self: behav.BinaryOperation, context):
             # input("!!4")
     if op.value == "<<" and self.left.inferred_type.width <= self.right.inferred_type.width:
         context.emit_warning(f"Shift count overflow for << operation ({self.left.inferred_type.width} vs. {self.right.inferred_type.width})", "shift-overflow", logger=logger, line_info=self.line_info)
-        input("!!6")
+        # input("!!6")
     return self
 
 
 def slice_operation(self: behav.SliceOperation, context):
-    print("slice_operation")
+    # print("slice_operation")
     self.expr = self.expr.generate(context)
     self.left = self.left.generate(context)
     self.right = self.right.generate(context)
@@ -94,33 +92,33 @@ def slice_operation(self: behav.SliceOperation, context):
 
 
 def concat_operation(self: behav.ConcatOperation, context):
-    print("concat_coperation")
+    # print("concat_coperation")
     self.left = self.left.generate(context)
     self.right = self.right.generate(context)
     return self
 
 
 def number_literal(self: behav.IntLiteral, context):
-    print("number_literal")
+    # print("number_literal")
     return self
 
 
 def int_literal(self: behav.IntLiteral, context):
-    print("int_literal")
+    # print("int_literal")
     return self
 
 
 def scalar_definition(self: behav.ScalarDefinition, context):
-    print("scalar_definition")
+    # print("scalar_definition")
     return self
 
 
 def assignment(self: behav.Assignment, context):
-    print("assignment", self)
+    # print("assignment", self)
     self.target = self.target.generate(context)
     self.expr = self.expr.generate(context)
-    print("self.target", self.target)
-    print("self.expr", self.expr)
+    # print("self.target", self.target)
+    # print("self.expr", self.expr)
     assert self.target.inferred_type is not None
     assert self.expr.inferred_type is not None
     if self.target.inferred_type.width < self.expr.inferred_type.width:
@@ -133,7 +131,7 @@ def assignment(self: behav.Assignment, context):
 
 
 def conditional(self: behav.Conditional, context):
-    print("conditional")
+    # print("conditional")
     self.conds = [x.generate(context) for x in self.conds]
     stmts = []
     for stmt in self.stmts:
@@ -147,14 +145,14 @@ def conditional(self: behav.Conditional, context):
 
 
 def loop(self: behav.Loop, context):
-    print("loop")
+    # print("loop")
     self.cond = self.cond.generate(context)
     self.stmts = [x.generate(context) for x in self.stmts]
     return self
 
 
 def ternary(self: behav.Ternary, context):
-    print("ternary")
+    # print("ternary")
     self.cond = self.cond.generate(context)
     self.then_expr = self.then_expr.generate(context)
     self.else_expr = self.else_expr.generate(context)
@@ -163,49 +161,49 @@ def ternary(self: behav.Ternary, context):
 
 
 def return_(self: behav.Return, context):
-    print("return_")
+    # print("return_")
     if self.expr is not None:
         self.expr = self.expr.generate(context)
     return self
 
 
 def unary_operation(self: behav.UnaryOperation, context):
-    print("unary_operation")
+    # print("unary_operation")
     self.right = self.right.generate(context)
     return self
 
 
 def named_reference(self: behav.NamedReference, context):
-    print("named_reference", self)
+    # print("named_reference", self)
     return self
 
 
 def indexed_reference(self: behav.IndexedReference, context):
-    print("indexed_reference")
+    # print("indexed_reference")
     self.index = self.index.generate(context)
     return self
 
 
 def type_conv(self: behav.TypeConv, context):
-    print("type_conv")
+    # print("type_conv")
     self.expr = self.expr.generate(context)
     return self
 
 
 def callable_(self: behav.Callable, context):
-    print("callable_")
+    # print("callable_")
     self.args = [stmt.generate(context) for stmt in self.args]
     return self
 
 
 def procedure_call(self: behav.ProcedureCall, context):
-    print("procedure_call")
+    # print("procedure_call")
     self.args = [stmt.generate(context) for stmt in self.args]
     return self
 
 
 def group(self: behav.Group, context):
-    print("group")
+    # print("group")
     self.expr = self.expr.generate(context)
     if isinstance(self.expr, behav.IntLiteral):
         return self.expr
@@ -213,5 +211,5 @@ def group(self: behav.Group, context):
 
 
 def break_(self: behav.Break, context):
-    print("break_")
+    # print("break_")
     return self
