@@ -31,7 +31,7 @@ logger = logging.getLogger("infer_types")
 
 
 def operation(self: behav.Operation, context):
-    print("operation", operation)
+    # print("operation", operation)
     statements = []
     for stmt in self.statements:
         # try:
@@ -48,17 +48,17 @@ def operation(self: behav.Operation, context):
 
 
 def binary_operation(self: behav.BinaryOperation, context):
-    print("binary_operation")
-    print("self.op.value", self.op.value)
+    # print("binary_operation")
+    # print("self.op.value", self.op.value)
 
     self.left = self.left.generate(context)
     self.right = self.right.generate(context)
-    print("self.left", self.left)
-    print("self.right", self.right)
+    # print("self.left", self.left)
+    # print("self.right", self.right)
 
-    print("self.left.inferred_type", self.left.inferred_type)
-    print("self.right.inferred_type", self.right.inferred_type)
-    print("self.inferred_type_", self.inferred_type)
+    # print("self.left.inferred_type", self.left.inferred_type)
+    # print("self.right.inferred_type", self.right.inferred_type)
+    # print("self.inferred_type_", self.inferred_type)
 
     # see: https://github.com/Minres/CoreDSL/wiki/Expressions#arithmetic-type-rules
     if self.op.value in ["+", "-", "*", "/", "%", "|", "&", "^", "<<", ">>"]:
@@ -127,7 +127,7 @@ def binary_operation(self: behav.BinaryOperation, context):
         elif self.op.value in ["<", ">", "==", "!=", ">=", "<="]:
             self.inferred_type = arch.IntegerType(1, False, None)  # unsigned<1> / bool
     # print("sit", self.inferred_type.width)
-    print("self.inferred_type", self.inferred_type)
+    # print("self.inferred_type", self.inferred_type)
     assert self.inferred_type is not None
     # input("!x!")
 
@@ -135,7 +135,7 @@ def binary_operation(self: behav.BinaryOperation, context):
 
 
 def slice_operation(self: behav.SliceOperation, context):
-    print("slice_operation")
+    # print("slice_operation")
     self.expr = self.expr.generate(context)
     self.left = self.left.generate(context)
     self.right = self.right.generate(context)
@@ -170,7 +170,7 @@ def slice_operation(self: behav.SliceOperation, context):
 
 
 def concat_operation(self: behav.ConcatOperation, context):
-    print("concat_coperation")
+    # print("concat_coperation")
     self.left = self.left.generate(context)
     self.right = self.right.generate(context)
     # print("self", self)
@@ -194,7 +194,7 @@ def concat_operation(self: behav.ConcatOperation, context):
 
 
 def number_literal(self: behav.IntLiteral, context):
-    print("number_literal")
+    # print("number_literal")
     if isinstance(self, behav.IntLiteral):
         bit_size = self.bit_size
         signed = self.signed
@@ -204,7 +204,7 @@ def number_literal(self: behav.IntLiteral, context):
 
 
 def int_literal(self: behav.IntLiteral, context):
-    print("int_literal")
+    # print("int_literal")
 
     # type inference
     bit_size = self.bit_size
@@ -216,7 +216,7 @@ def int_literal(self: behav.IntLiteral, context):
 
 
 def scalar_definition(self: behav.ScalarDefinition, context):
-    print("scalar_definition")
+    # print("scalar_definition")
     # type inference
     # print("scalar_definition", self, dir(self), self.scalar, self.scalar.size, self.scalar.data_type)
     signed = self.scalar.data_type == arch.DataType.S
@@ -226,7 +226,7 @@ def scalar_definition(self: behav.ScalarDefinition, context):
 
 
 def assignment(self: behav.Assignment, context):
-    print("assignment", self)
+    # print("assignment", self)
     # print("at_", self.target)
     # print("ae_", self.expr)
     self.target = self.target.generate(context)
@@ -249,7 +249,7 @@ def assignment(self: behav.Assignment, context):
 
 
 def conditional(self: behav.Conditional, context):
-    print("conditional")
+    # print("conditional")
     self.conds = [x.generate(context) for x in self.conds]
     # self.stmts = [[y.generate(context) for y in x] for x in self.stmts]
     stmts = []
@@ -265,7 +265,7 @@ def conditional(self: behav.Conditional, context):
 
 
 def loop(self: behav.Loop, context):
-    print("loop")
+    # print("loop")
     self.cond = self.cond.generate(context)
     self.stmts = [x.generate(context) for x in self.stmts]
 
@@ -273,7 +273,7 @@ def loop(self: behav.Loop, context):
 
 
 def ternary(self: behav.Ternary, context):
-    print("ternary")
+    # print("ternary")
 
     self.cond = self.cond.generate(context)
     self.then_expr = self.then_expr.generate(context)
@@ -302,7 +302,7 @@ def ternary(self: behav.Ternary, context):
 
 
 def return_(self: behav.Return, context):
-    print("return_")
+    # print("return_")
     if self.expr is not None:
         self.expr = self.expr.generate(context)
 
@@ -310,7 +310,7 @@ def return_(self: behav.Return, context):
 
 
 def unary_operation(self: behav.UnaryOperation, context):
-    print("unary_operation")
+    # print("unary_operation")
 
     self.right = self.right.generate(context)
 
@@ -334,7 +334,7 @@ def unary_operation(self: behav.UnaryOperation, context):
 
 
 def named_reference(self: behav.NamedReference, context):
-    print("named_reference", self)
+    # print("named_reference", self)
     # print("dir", dir(self))
     # print("self.reference", self.reference)
     reference = self.reference
@@ -389,7 +389,7 @@ def named_reference(self: behav.NamedReference, context):
 
 
 def indexed_reference(self: behav.IndexedReference, context):
-    print("indexed_reference")
+    # print("indexed_reference")
     self.index = self.index.generate(context)
 
     # type inference
@@ -407,9 +407,9 @@ def indexed_reference(self: behav.IndexedReference, context):
 
 
 def type_conv(self: behav.TypeConv, context):
-    print("type_conv")
+    # print("type_conv")
     self.expr = self.expr.generate(context)
-    print("self.expr", self.expr)
+    # print("self.expr", self.expr)
 
     ty = self.expr.inferred_type
     if ty is None:
@@ -429,12 +429,12 @@ def type_conv(self: behav.TypeConv, context):
 
 
 def callable_(self: behav.Callable, context):
-    print("callable_")
-    print("self", self)
-    print("dir(self)", dir(self))
-    print("self.ref_or_name", self.ref_or_name)
+    # print("callable_")
+    # print("self", self)
+    # print("dir(self)", dir(self))
+    # print("self.ref_or_name", self.ref_or_name)
     if isinstance(self.ref_or_name, arch.Function):
-        print("dir(self.ref_or_name)", dir(self.ref_or_name))
+        # print("dir(self.ref_or_name)", dir(self.ref_or_name))
         assert self.ref_or_name.data_type in [arch.DataType.U, arch.DataType.S]
         signed = self.ref_or_name.data_type == arch.DataType.S
         width = self.ref_or_name.size
@@ -446,14 +446,14 @@ def callable_(self: behav.Callable, context):
 
 
 def procedure_call(self: behav.ProcedureCall, context):
-    print("procedure_call")
+    # print("procedure_call")
     self.args = [stmt.generate(context) for stmt in self.args]
 
     return self
 
 
 def group(self: behav.Group, context):
-    print("group")
+    # print("group")
     self.expr = self.expr.generate(context)
 
     if isinstance(self.expr, behav.IntLiteral):
@@ -466,5 +466,5 @@ def group(self: behav.Group, context):
 
 
 def break_(self: behav.Break, context):
-    print("break_")
+    # print("break_")
     return self
