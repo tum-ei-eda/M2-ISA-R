@@ -37,7 +37,9 @@ class WarningFlagAction(argparse.Action):
 		warnings_info = getattr(namespace, 'warnings_info', WarningsInfo())
 
 		for val in values:
-			if val.startswith('no-'):
+			if val == 'no-error':
+				warnings_info.all_as_error = False
+			elif val.startswith('no-'):
 				warn = val[3:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
 				warnings_info.disabled.add(warn)
@@ -72,7 +74,7 @@ def add_warnings_flags(parser, known_warnings: Set[str], default_warnings: Set[s
 
 	# Defaults
 	warnings_info = WarningsInfo(known=known_warnings, defaults=default_warnings)
-	parser.set_defaults(enabled_warnings=warnings_info)
+	parser.set_defaults(warnings=warnings_info)
 
 
 class WarningsManager:
