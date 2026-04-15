@@ -17,7 +17,6 @@ from ...metamodel import arch
 from ...metamodel.code_info import LineInfo
 from ...metamodel.utils import StaticType
 from . import replacements
-from ...warnings import WarningsManager, WarningsInfo
 
 data_type_map = {
 	arch.DataType.S: 'etiss_int',
@@ -135,19 +134,14 @@ class CodePartsContainer:
 			setattr(self, name, formatted)
 
 
-class EtissWriterWarningsManager(WarningsManager):
-	pass
-
-
-class TransformerContext(EtissWriterWarningsManager):
+class TransformerContext:
 	"""Track miscellaneous information throughout the code generation process. Also
 	provides helper functions for staticness conversion etc.
 	"""
 
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
-			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False, warnings_info: WarningsInfo = None):
-		super().__init__(warnings_info)
+			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
 		self.constants = constants
 		self.memories = memories

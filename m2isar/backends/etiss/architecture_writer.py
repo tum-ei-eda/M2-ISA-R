@@ -201,7 +201,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 			error_instr._size = bitsize # pylint: disable=protected-access
 
 			error_fields = generate_fields(32, error_instr)
-			error_callbacks[bitsize] = generate_instruction_callback(core, error_instr, error_fields, True, BlockEndType.NONE, False, None)
+			error_callbacks[bitsize] = generate_instruction_callback(core, error_instr, error_fields, True, BlockEndType.NONE, False)
 
 	logger.info("writing architecture specific file")
 
