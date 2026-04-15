@@ -15,7 +15,7 @@ from mako.template import Template
 from ...metamodel import arch, behav, patch_model
 from . import BlockEndType, instruction_transform, instruction_utils
 from .templates import template_dir
-from .warnings import WarningsInfo
+from ...warnings import WarningsInfo
 
 logger = logging.getLogger("instruction_generator")
 

@@ -18,7 +18,7 @@ from ...metamodel import arch
 from . import BlockEndType
 from .instruction_generator import generate_functions, generate_instructions
 from .templates import template_dir
-from .warnings import WarningsInfo
+from ...warnings import WarningsInfo
 
 logger = logging.getLogger("instruction_writer")
 

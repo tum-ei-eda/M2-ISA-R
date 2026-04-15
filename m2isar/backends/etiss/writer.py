@@ -26,7 +26,16 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
-from .warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags
+
+ETISS_WRITER_WARNINGS = {
+	'implicit-trunc',
+	'shift-overflow',
+	'shift-signed',
+	'implicit-extend',
+	'sign-compare',
+	'unused-value',
+}
 
 
 class BooleanOptionalAction(argparse.Action):
@@ -86,7 +95,7 @@ def setup():
 		help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)
+	add_warnings_flags(parser, ETISS_WRITER_WARNINGS, ETISS_WRITER_WARNINGS)
 	args = parser.parse_args()
 
 	# configure logging
