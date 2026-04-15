@@ -23,6 +23,10 @@ from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
+from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
+from ...transforms.infer_types.transform import infer_types
+from ...transforms.validate_behav.validate import validate_behav
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS
 
 
 def main():
@@ -30,6 +34,8 @@ def main():
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
+	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run type inference and validator after parsing.")
+	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
 
 	args = parser.parse_args()
 
@@ -251,14 +257,23 @@ def main():
 			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
 
+	model_obj = M2Model(
+		M2_METAMODEL_VERSION,
+		models,
+		{},
+		CodeInfoBase.database
+	)
+
+	print("args.validate", args.validate)
+	if args.validate:
+		logger.info("Running type inference")
+		model_obj = infer_types(model_obj)
+		logger.info("Running validator")
+		warnings_info = args.warnings
+		validate_behav(model_obj, warnings_info)
+
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:
-		model_obj = M2Model(
-			M2_METAMODEL_VERSION,
-			models,
-			{},
-			CodeInfoBase.database
-		)
 
 		pickle.dump(model_obj, f)
 
