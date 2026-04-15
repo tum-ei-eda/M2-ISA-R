@@ -471,11 +471,6 @@ def assignment(self: behav.Assignment, context: TransformerContext):
 	context.affected_regs.update(target.regs_affected)
 	context.dependent_regs.update(expr.regs_affected)
 
-	# TODO: move to parser!
-	# if target.size < expr.size and not context.ignore_trunc_warnings:
-	if target.size < expr.size:
-		context.emit_warning(f"Implicit truncation {expr.size} -> {target.size} found", "implicit-trunc", logger=logger, line_info=self.line_info)
-
 	if not target.is_mem_access and not expr.is_mem_access:
 		if target.actual_size > target.size:
 			if target.signed:
@@ -530,16 +525,6 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	left = self.left.generate(context)
 	op = self.op
 	right = self.right.generate(context)
-	if op.value in ["<<", ">>", ">>>"] and right.signed:
-		context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=self.line_info)
-	if op.value in ["<", "<=", ">", ">=", "==", "!="] and left.signed != right.signed:
-		# TODO: handle unsigned < 0
-		if left.static and left.is_literal and left.code == "0":
-			pass
-		elif right.static and right.is_literal and right.code == "0":
-			pass
-		else:
-			context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=self.line_info)
 
 	# convert staticness if needed
 	if not left.static and right.static and not right.is_literal:
@@ -547,8 +532,6 @@ def binary_operation(self: behav.BinaryOperation, context: TransformerContext):
 	if not right.static and left.static and not left.is_literal:
 		left.code = context.make_static(left.code, left.signed)
 
-	if op.value == "<<" and left.size <= right.size:
-		context.emit_warning(f"Shift count overflow for << operation ({left.size} vs. {right.size})", "shift-overflow", logger=logger, line_info=self.line_info)
 	c = CodeString(f'{left.code} {op.value} {right.code}', left.static and right.static, left.size if left.size > right.size else right.size,
 		left.signed or right.signed, set.union(left.regs_affected, right.regs_affected), [self.line_info] + left.line_infos + right.line_infos)
 	# keep track of any memory accesses
