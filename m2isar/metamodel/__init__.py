@@ -28,8 +28,11 @@ uses complex objects in lower levels of translation and switches to strings for 
 the hierarchy.
 """
 
+import pickle
 import inspect
 import logging
+from typing import Union
+from pathlib import Path
 from dataclasses import dataclass
 
 from . import arch, behav, code_info
@@ -91,3 +94,38 @@ class M2Model:
 				self.line_infos[idx] = c
 			elif isinstance(c, code_info.FunctionInfo):
 				self.function_infos[idx] = c
+
+
+def load_model(
+    model_path: Union[str, Path], allow_missmatch: bool = False
+) -> M2Model:
+    logger = logging.getLogger("load_model")
+    logger.debug("loading model: %s", str(model_path))
+    with open(model_path, "rb") as f:
+        # models: "dict[str, arch.CoreDef]" = pickle.load(f)
+        # sets: "dict[str, arch.InstructionSet]" = pickle.load(f)
+        model_obj: M2Model = pickle.load(f)
+    assert isinstance(model_obj, M2Model), "Expected M2Model"
+    required_version = M2_METAMODEL_VERSION
+    if model_obj.model_version != required_version:
+        err_handler = logger.warning if allow_missmatch else RuntimeError
+        err_handler("Loaded model version mismatch")
+    return model_obj
+
+
+def dump_model(
+    model_obj: M2Model, out_path: Union[str, Path], ignore_suffix: bool = False
+):
+    logger = logging.getLogger("dump_model")
+    if not ignore_suffix:
+        out_path = Path(out_path)
+        suffix = out_path.suffix
+        required_suffix = ".m2isarmodel"
+        if suffix not in [required_suffix]:
+            assert len(suffix) == 0, f"Invalid suffix: {suffix}"
+            out_path = out_path.parent / f"{out_path.stem}{required_suffix}"
+        else:
+            assert suffix == required_suffix, f"Invalid suffix: {suffix}, Expected: {required_suffix}"
+    logger.debug("dumping model: %s", out_path)
+    with open(out_path, "wb") as f:
+        pickle.dump(model_obj, f)
