@@ -266,6 +266,13 @@ class IntegerType(DataType2):
 
 		return get_const_or_val(self._width)
 
+	def __str__(self) -> str:
+		return f'{super().__repr__()}, width={self.width}, signed={self.signed}'
+
+	def __repr__(self):
+		return self.__str__()
+
+
 	@property
 	def actual_width(self):
 		"""Returns the resolved width value rounded to the nearest multiple of 8."""
