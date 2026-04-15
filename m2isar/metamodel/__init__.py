@@ -102,8 +102,6 @@ def load_model(
     logger = logging.getLogger("load_model")
     logger.debug("loading model: %s", str(model_path))
     with open(model_path, "rb") as f:
-        # models: "dict[str, arch.CoreDef]" = pickle.load(f)
-        # sets: "dict[str, arch.InstructionSet]" = pickle.load(f)
         model_obj: M2Model = pickle.load(f)
     assert isinstance(model_obj, M2Model), "Expected M2Model"
     required_version = M2_METAMODEL_VERSION
