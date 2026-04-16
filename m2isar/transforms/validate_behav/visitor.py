@@ -61,7 +61,8 @@ def binary_operation(self: behav.BinaryOperation, context):
             pass
         else:
             context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=self.line_info)
-    if op.value == "<<" and self.left.inferred_type.width <= self.right.inferred_type.width:
+    # TODO: also check possible range of non-literal rhs?
+    if op.value == "<<" and isinstance(self.left, behav.IntLiteral) and self.left.inferred_type.width <= self.right.value:
         context.emit_warning(f"Shift count overflow for << operation ({self.left.inferred_type.width} vs. {self.right.inferred_type.width})", "shift-overflow", logger=logger, line_info=self.line_info)
     return self
 
