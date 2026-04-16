@@ -16,9 +16,10 @@ from ...metamodel import arch, behav, intrinsics
 from ...metamodel.code_info import FunctionInfoFactory
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
+from .expr_interpreter import ExprInterpreterVisitor
 
 logger = logging.getLogger("arch_builder")
-
+exprInterpretVisitor = ExprInterpreterVisitor()
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
@@ -379,7 +380,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					# attach init value to memory object
 					if init is not None:
-						m._initval[None] = init.generate(None)
+						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
 					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
@@ -490,13 +491,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# if LHS is a reference, assign RHS as its default value
 		if isinstance(left, behav.NamedReference):
 			if isinstance(left.reference, arch.Constant):
-				left.reference.value = right.generate(None)
+				left.reference.value = exprInterpretVisitor.generate(right, None)
 
 			elif isinstance(left.reference, arch.Memory):
-				left.reference._initval[None] = right.generate(None)
+				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
 
 		elif isinstance(left, behav.IndexedReference):
-			left.reference._initval[left.index.generate(None)] = right.generate(None)
+			left.reference._initval[exprInterpretVisitor.generate(left.index, None)] = exprInterpretVisitor.generate(right, None)
 
 	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
 		"""Generate an attribute."""

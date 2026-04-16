@@ -9,133 +9,171 @@
 """Tranformation functions to determine whether a function throws an exception."""
 
 from functools import reduce
+from functools import singledispatchmethod
 from operator import or_
+from typing import Any
 
 from ...metamodel import arch, behav
+from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
 
-def operation(self: behav.Operation, context):
-	statements = []
-	for stmt in self.statements:
-		temp = stmt.generate(context)
-		if isinstance(temp, list):
-			statements.extend(temp)
-		else:
-			statements.append(temp)
+class FunctionThrowsVisitor(ExprVisitor):
+	"""Visitor that determines whether behavior expression trees can throw exceptions."""
 
-	return reduce(or_, statements, arch.FunctionThrows.NO)
+	@singledispatchmethod
+	def generate(self, expr: behav.BaseNode, context=None):
+		raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(expr).__name__}")
+
+	@generate.register
+	def _(self, expr: behav.Operation, context):
+		statements = []
+		for stmt in expr.statements:
+			temp = self.generate(stmt, context)
+			if isinstance(temp, list):
+				statements.extend(temp)
+			else:
+				statements.append(temp)
+
+		return reduce(or_, statements, arch.FunctionThrows.NO)
+
+	@generate.register
+	def _(self, expr: behav.Block, context):
+		stmts = [self.generate(x, context) for x in expr.statements]
+		return reduce(or_, stmts, arch.FunctionThrows.NO)
+
+	@generate.register
+	def _(self, expr: behav.BinaryOperation, context):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return reduce(or_, [left, right])
+
+	@generate.register
+	def _(self, expr: behav.SliceOperation, context):
+		expr_result = self.generate(expr.expr, context)
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return reduce(or_, [expr_result, left, right])
+
+	@generate.register
+	def _(self, expr: behav.ConcatOperation, context):
+		left = self.generate(expr.left, context)
+		right = self.generate(expr.right, context)
+
+		return reduce(or_, [left, right])
+
+	@generate.register
+	def _(self, expr: behav.NumberLiteral, context):
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.IntLiteral, context):
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.StringLiteral, context):
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.ScalarDefinition, context):
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.Break, context):
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.Assignment, context):
+		target = self.generate(expr.target, context)
+		expr_result = self.generate(expr.expr, context)
+
+		return reduce(or_, [target, expr_result])
+
+	@generate.register
+	def _(self, expr: behav.Conditional, context):
+		conds = [self.generate(x, context) for x in expr.conds]
+		stmts = [self.generate(x, context) for x in expr.stmts]
+
+		conds.extend(stmts)
+
+		return arch.FunctionThrows.MAYBE if reduce(or_, conds) else arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.Loop, context):
+		cond = self.generate(expr.cond, context)
+		stmts = [self.generate(x, context) for x in expr.stmts]
+		stmts.append(cond)
+
+		return reduce(or_, stmts)
+
+	@generate.register
+	def _(self, expr: behav.Ternary, context):
+		cond = self.generate(expr.cond, context)
+		then_expr = self.generate(expr.then_expr, context)
+		else_expr = self.generate(expr.else_expr, context)
+
+		return reduce(or_, [cond, then_expr, else_expr])
+
+	@generate.register
+	def _(self, expr: behav.Return, context):
+		if expr.expr is not None:
+			return self.generate(expr.expr, context)
+
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.UnaryOperation, context):
+		right = self.generate(expr.right, context)
+
+		return right
+
+	@generate.register
+	def _(self, expr: behav.NamedReference, context):
+		if isinstance(expr.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return arch.FunctionThrows.YES
+
+		return arch.FunctionThrows.NO
+
+	@generate.register
+	def _(self, expr: behav.IndexedReference, context):
+		if isinstance(expr.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return arch.FunctionThrows.YES
+
+		return self.generate(expr.index, context)
+
+	@generate.register
+	def _(self, expr: behav.TypeConv, context):
+		expr_result = self.generate(expr.expr, context)
+
+		return expr_result
+
+	@generate.register
+	def _(self, expr: behav.Callable, context):
+		args = [self.generate(arg, context) for arg in expr.args]
+		throws = getattr(expr.ref_or_name, "throws", arch.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, arch.FunctionThrows) else cast_to_throws(throws))
+
+		return reduce(or_, args)
+
+	@generate.register
+	def _(self, expr: behav.ProcedureCall, context):
+		args = [self.generate(arg, context) for arg in expr.args]
+		throws = getattr(expr.ref_or_name, "throws", arch.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, arch.FunctionThrows) else cast_to_throws(throws))
+
+		return reduce(or_, args)
+
+	@generate.register
+	def _(self, expr: behav.Group, context):
+		expr_result = self.generate(expr.expr, context)
+
+		return expr_result
 
 
-def block(self: behav.Block, context):
-	stmts = [x.generate(context) for x in self.statements]
-	return reduce(or_, stmts, arch.FunctionThrows.NO)
-
-
-def binary_operation(self: behav.BinaryOperation, context):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
-
-	return reduce(or_, [left, right])
-
-def slice_operation(self: behav.SliceOperation, context):
-	expr = self.expr.generate(context)
-	left = self.left.generate(context)
-	right = self.right.generate(context)
-
-	return reduce(or_, [expr, left, right])
-
-def concat_operation(self: behav.ConcatOperation, context):
-	left = self.left.generate(context)
-	right = self.right.generate(context)
-
-	return reduce(or_, [left, right])
-
-def number_literal(self: behav.IntLiteral, context):
-	return arch.FunctionThrows.NO
-
-def int_literal(self: behav.IntLiteral, context):
-	return arch.FunctionThrows.NO
-
-def string_literal(self: behav.StringLiteral, context):
-	return arch.FunctionThrows.NO
-
-def scalar_definition(self: behav.ScalarDefinition, context):
-	return arch.FunctionThrows.NO
-
-def break_(self: behav.Break, context):
-	return arch.FunctionThrows.NO
-
-def assignment(self: behav.Assignment, context):
-	target = self.target.generate(context)
-	expr = self.expr.generate(context)
-
-	return reduce(or_, [target, expr])
-
-def conditional(self: behav.Conditional, context):
-	conds = [x.generate(context) for x in self.conds]
-	stmts = [x.generate(context) for x in self.stmts]
-
-	conds.extend(stmts)
-
-	return arch.FunctionThrows.MAYBE if reduce(or_, conds) else arch.FunctionThrows.NO
-
-def loop(self: behav.Loop, context):
-	cond = self.cond.generate(context)
-	stmts = [x.generate(context) for x in self.stmts]
-	stmts.append(cond)
-
-	return reduce(or_, stmts)
-
-def ternary(self: behav.Ternary, context):
-	cond = self.cond.generate(context)
-	then_expr = self.then_expr.generate(context)
-	else_expr = self.else_expr.generate(context)
-
-	return reduce(or_, [cond, then_expr, else_expr])
-
-def return_(self: behav.Return, context):
-	if self.expr is not None:
-		return self.expr.generate(context)
-
-	return arch.FunctionThrows.NO
-
-def unary_operation(self: behav.UnaryOperation, context):
-	right = self.right.generate(context)
-
-	return right
-
-def named_reference(self: behav.NamedReference, context):
-	if isinstance(self.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in self.reference.attributes:
-		return arch.FunctionThrows.YES
-
-	return arch.FunctionThrows.NO
-
-def indexed_reference(self: behav.IndexedReference, context):
-	if isinstance(self.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in self.reference.attributes:
-		return arch.FunctionThrows.YES
-
-	return self.index.generate(context)
-
-def type_conv(self: behav.TypeConv, context):
-	expr = self.expr.generate(context)
-
-	return expr
-
-def callable_(self: behav.Callable, context):
-	args = [arg.generate(context) for arg in self.args]
-	args.append(self.ref_or_name.throws)
-
-	return reduce(or_, args)
-
-
-def procedure_call(self: behav.ProcedureCall, context):
-	args = [arg.generate(context) for arg in self.args]
-	args.append(self.ref_or_name.throws)
-
-	return reduce(or_, args)
-
-def group(self: behav.Group, context):
-	expr = self.expr.generate(context)
-
-	return expr
+def cast_to_throws(throws: Any) -> arch.FunctionThrows:
+	"""Cast unknown throws values into FunctionThrows for robust visitor dispatch."""
+	if isinstance(throws, bool):
+		return arch.FunctionThrows.YES if throws else arch.FunctionThrows.NO
+	return arch.FunctionThrows(throws)
