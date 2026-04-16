@@ -35,7 +35,9 @@ class WarningsInfo:
 
 class WarningFlagAction(argparse.Action):
 	def __call__(self, parser, namespace, values, option_string=None):
-		warnings_info = getattr(namespace, 'warnings_info', WarningsInfo())
+		warnings_info = getattr(namespace, 'warnings', None)
+		if warnings_info is None:
+				warnings_info = WarningsInfo()
 
 		for val in values:
 			if val == 'no-error':
@@ -47,7 +49,7 @@ class WarningFlagAction(argparse.Action):
 			elif val.startswith('error='):
 				warn = val[6:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
-				warnings_info.error_set.add(warn)
+				warnings_info.as_error.add(warn)
 			elif val == 'error':
 				warnings_info.all_as_error = True
 			elif val == 'all':
