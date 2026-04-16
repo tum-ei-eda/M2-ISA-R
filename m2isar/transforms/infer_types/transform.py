@@ -15,7 +15,7 @@ import pathlib
 
 from m2isar.metamodel import load_model, dump_model
 
-from .visitor import InferTypesVisitor
+from .visitor import InferTypesMutator
 
 
 def get_parser():
@@ -31,15 +31,15 @@ def infer_types(model_obj):
     logger = logging.getLogger("infer_types")
     for _, core_def in model_obj.cores.items():
         logger.debug("inferring types for core %s", core_def.name)
-        visitor = InferTypesVisitor()
+        mutator = InferTypesMutator()
         for _, instr_def in core_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
-            visitor.generate(instr_def.operation, None)
+            mutator.generate(instr_def.operation, None)
     for _, set_def in model_obj.sets.items():
         logger.debug("inferring types for set %s", set_def.name)
         for _, instr_def in set_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
-            visitor.generate(instr_def.operation, None)
+            mutator.generate(instr_def.operation, None)
     return model_obj
 
 

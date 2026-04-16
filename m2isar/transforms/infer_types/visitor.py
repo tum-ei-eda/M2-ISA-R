@@ -25,14 +25,14 @@ from copy import copy
 from functools import singledispatchmethod
 
 from m2isar.metamodel import arch, behav
-from ...metamodel.utils.ExprVisitor import ExprVisitor
+from ...metamodel.utils.ExprMutator import ExprMutator
 
 logger = logging.getLogger("infer_types")
 
 # pylint: disable=unused-argument
 
-class InferTypesVisitor(ExprVisitor):
-    """Visitor to annote inferred types to a metamodel."""
+class InferTypesMutator(ExprMutator):
+    """Mutator to annote inferred types to a metamodel."""
 
     @singledispatchmethod
     def generate(self, expr: behav.BaseNode, context):
