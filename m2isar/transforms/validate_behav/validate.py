@@ -15,6 +15,7 @@ import pathlib
 
 from ...metamodel import patch_model, load_model, dump_model
 from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
+from .visitor import ValidateBehavVisitor
 
 from . import visitor
 
@@ -38,17 +39,17 @@ def validate_behav(model_obj, warnings_info):
     for _, core_def in model_obj.cores.items():
         logger.debug("validating behavior for core %s", core_def.name)
         context = ValidatorContext(warnings_info)
-        patch_model(visitor)
+        visitor = ValidateBehavVisitor()
         for _, instr_def in core_def.instructions.items():
             logger.debug("validating behavior for instr %s", instr_def.name)
-            instr_def.operation.generate(context)
+            visitor.generate(instr_def.operation, context)
     for _, set_def in model_obj.sets.items():
         logger.debug("validating behavior for set %s", set_def.name)
         context = ValidatorContext(warnings_info)
-        patch_model(visitor)
+        visitor = ValidateBehavVisitor()
         for _, instr_def in set_def.instructions.items():
             logger.debug("validating behavior for instr %s", instr_def.name)
-            instr_def.operation.generate(context)
+            visitor.generate(instr_def.operation, context)
     # return model_obj
 
 
