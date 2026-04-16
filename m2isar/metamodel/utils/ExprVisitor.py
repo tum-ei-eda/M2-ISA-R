@@ -34,101 +34,134 @@ class ExprVisitor(ABC):
 
     @default_visit.register
     def visit_codeliteral(self, expr: behav.CodeLiteral, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_operator(self, expr: behav.Operator, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_operation(self, expr: behav.Operation, context):
+        statements = []
         for stmt in expr.statements:
-            stmt.generate(context)
+            stmt = stmt.generate(context)
+            statements.append(stmt)
+        expr.statements = statements
+        return expr
 
     @default_visit.register
     def visit_block(self, expr: behav.Block, context):
+        statements = []
         for stmt in expr.statements:
-            stmt.generate(context)
+            stmt = stmt.generate(context)
+            statements.append(stmt)
+        expr.statements = statements
+        return expr
 
     @default_visit.register
     def visit_binary_operation(self, expr: behav.BinaryOperation, context):
-        expr.left.generate(context)
-        expr.right.generate(context)
+        expr.left = expr.left.generate(context)
+        expr.right = expr.right.generate(context)
+        return expr
 
     @default_visit.register
     def visit_slice_operation(self, expr: behav.SliceOperation, context):
-        expr.expr.generate(context)
-        expr.left.generate(context)
-        expr.right.generate(context)
+        expr.expr = expr.expr.generate(context)
+        expr.left = expr.left.generate(context)
+        expr.right = expr.right.generate(context)
+        return expr
 
     @default_visit.register
     def visit_concat_operation(self, expr: behav.ConcatOperation, context):
-        expr.left.generate(context)
-        expr.right.generate(context)
+        expr.left = expr.left.generate(context)
+        expr.right = expr.right.generate(context)
+        return expr
 
     @default_visit.register
     def visit_number_literal(self, expr: behav.NumberLiteral, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_int_literal(self, expr: behav.IntLiteral, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_string_literal(self, expr: behav.StringLiteral, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
-        expr.target.generate(context)
-        expr.expr.generate(context)
+        expr_target = expr.target.generate(context)
+        expr.expr = expr.expr.generate(context)
+        return expr
 
     @default_visit.register
     def visit_conditional(self, expr: behav.Conditional, context):
+        conds = []
         for cond in expr.conds:
-            cond.generate(context)
+            cond = cond.generate(context)
+            conds.append(cond)
+        expr.conds = conds
+        stmts = []
         for stmt in expr.stmts:
-            stmt.generate(context)
+            smts = stmt.generate(context)
+            stmts.append(stmt)
+        expr.stmts = stmts
+        return expr
 
     @default_visit.register
     def visit_loop(self, expr: behav.Loop, context):
-        expr.cond.generate(context)
+        expr.cond = expr.cond.generate(context)
+        stmts = []
         for stmt in expr.stmts:
-            stmt.generate(context)
+            stmt = stmt.generate(context)
+            stmts.append(stmt)
+        expr.stmts = stmts
+        return expr
 
-    # TODO: Add more visit methods for other node types as needed, e.g., Ternary, etc.
     @default_visit.register
     def visit_ternary_operation(self, expr: behav.Ternary, context):
-        expr.cond.generate(context)
-        expr.then_expr.generate(context)
-        expr.else_expr.generate(context)
+        expr.cond = expr.cond.generate(context)
+        expr.then_expr = expr.then_expr.generate(context)
+        expr.else_expr = expr.else_expr.generate(context)
+        return expr
 
     @default_visit.register
     def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_break(self, expr: behav.Break, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
-        pass
+        return expr
 
     @default_visit.register
     def visit_type_conv(self, expr: behav.TypeConv, context):
-        expr.expr.generate(context)
+        expr.expr = expr.expr.generate(context)
+        return expr
 
     @default_visit.register
     def visit_callable(self, expr: behav.Callable, context):
+        args = []
         for arg in expr.args:
-            arg.generate(context)
+            arg = arg.generate(context)
+            args.append(arg)
+        epxr.args = args
+        return expr
 
     @default_visit.register
     def visit_procedure_call(self, expr: behav.Callable, context):
+        args = []
         for arg in expr.args:
-            arg.generate(context)
+            arg = arg.generate(context)
+            args.append(arg)
+        epxr.args = args
+        return expr
 
     @default_visit.register
     def visit_group(self, expr: behav.Group, context):
-        expr.expr.generate(context)
+        expr.expr = expr.expr.generate(context)
+        return expr
