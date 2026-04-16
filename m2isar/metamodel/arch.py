@@ -18,7 +18,7 @@ from enum import Enum, IntEnum, auto
 from typing import TYPE_CHECKING, Any, Union
 
 from .. import M2TypeError
-from .behav import BaseNode, Operation
+from .behav import BaseNode, Operation, NumberLiteral
 
 if TYPE_CHECKING:
 	from .code_info import FunctionInfo
@@ -28,8 +28,11 @@ def get_const_or_val(arg) -> int:
 	if isinstance(arg, Constant):
 		return arg.value
 
+	if isinstance(arg, NumberLiteral):
+		arg = arg.value
+
 	if isinstance(arg, BaseNode):
-		return arg.generate(None)
+		arg = arg.generate(None)
 
 	return arg
 
@@ -67,7 +70,10 @@ class SizedRefOrConst(Named):
 	def size(self) -> int:
 		"""Returns the resolved size, by calling get_const_or_val on _size."""
 
-		return get_const_or_val(self._size)
+		ret = get_const_or_val(self._size)
+		if ret is None:
+			return None
+		return int(ret)
 
 	@property
 	def actual_size(self):
@@ -560,7 +566,7 @@ class CoreDef(Named):
 	"""A class representing an entire CPU core. Contains the collected attributes of multiple InstructionSets."""
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, constants: "dict[str, Constant]", memories: "dict[str, Memory]",
-			memory_aliases: "dict[str, Memory]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]",
+			memory_aliases: "dict[str, Memory]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]",
 			instr_classes: "set[int]", intrinsics: "dict[str, Intrinsic]"):
 
 		self.contributing_types = contributing_types
@@ -581,13 +587,9 @@ class CoreDef(Named):
 		self.irq_pending_memory = None
 		self.intrinsics = intrinsics
 
-		self.instructions_by_ext = defaultdict(dict)
+		self._instructions_by_ext = None
 		self.functions_by_ext = defaultdict(dict)
-		self.instructions_by_class = defaultdict(dict)
-
-		for (code, mask), instr_def in self.instructions.items():
-			self.instructions_by_ext[instr_def.ext_name][(code, mask)] = instr_def
-			self.instructions_by_class[instr_def.size][(code, mask)] = instr_def
+		self._instructions_by_class = None
 
 		for fn_name, fn_def in self.functions.items():
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
@@ -609,3 +611,23 @@ class CoreDef(Named):
 				self.irq_pending_memory = mem
 
 		super().__init__(name)
+
+	@property
+	def instructions_by_ext(self):
+		if self._instructions_by_ext is not None:
+			return self._instructions_by_ext
+		assert isinstance(self.instructions, dict)
+		self._instructions_by_ext = defaultdict(dict)
+		for (code, mask), instr_def in self.instructions.items():
+			self._instructions_by_ext[instr_def.ext_name][(code, mask)] = instr_def
+		return self._instructions_by_ext
+
+	@property
+	def instructions_by_class(self):
+		if self._instructions_by_class is not None:
+			return self._instructions_by_class
+		assert isinstance(self.instructions, dict)
+		self._instructions_by_class = defaultdict(dict)
+		for (code, mask), instr_def in self.instructions.items():
+			self._instructions_by_class[instr_def.size][(code, mask)] = instr_def
+		return self._instructions_by_class
