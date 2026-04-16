@@ -406,7 +406,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			cond.mem_ids.clear()
 
 		for stmt in expr.stmts:
-			ret = self.generate(stmt, context)
+			if isinstance(stmt, list):
+				ret = []
+				for stmt_ in stmt:
+					ret_ = self.generate(stmt_, context)
+					ret.append(ret_)
+			else:
+				ret = self.generate(stmt, context)
 
 			if isinstance(ret, list):
 				stmts.append(ret)
@@ -517,8 +523,8 @@ class InstructionTransformVisitor(ExprVisitor):
 			expr.data_type = arch.DataType.S if expr_str.signed else arch.DataType.U
 
 		if expr.size is None:
-			expr.size = expr_str.size
-			expr.actual_size = expr_str.actual_size
+			expr._size = expr_str.size
+			expr._actual_size = expr_str.actual_size
 
 		if expr_str.is_mem_access:
 			if not expr_str.mem_corrected and expr_str.mem_ids[-1].access_size != expr.size:
