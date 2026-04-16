@@ -15,7 +15,7 @@ import sys
 
 from ... import M2Error, M2SyntaxError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav
-from ...metamodel.utils import expr_simplifier
+from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
@@ -29,8 +29,9 @@ from ...warnings import add_warnings_flags, KNOWN_WARNINGS
 
 def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
-	patch_model(expr_simplifier)
-	op = operation.generate(None)
+	simplifier = ExprSimplifierVisitor()
+	# TODO: switch to ExprInterpreterVisitor?
+	op = simplifier.generate(operation, None)
 	if not isinstance(op, behav.IntLiteral):
 		return None
 	return op.value != 0
