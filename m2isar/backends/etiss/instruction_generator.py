@@ -151,7 +151,7 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
 	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
-		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage)
+		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
 
 	# force a block end if necessary
 	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes

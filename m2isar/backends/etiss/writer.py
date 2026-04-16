@@ -28,6 +28,7 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
 from .instruction_writer import write_functions, write_instructions
 
 
+# TODO: not required anymore for Python >= v3.9
 class BooleanOptionalAction(argparse.Action):
 	"""A boolean optional action for argparse, supports automatic generation of --no-x flags."""
 

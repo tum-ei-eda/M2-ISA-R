@@ -141,7 +141,7 @@ class TransformerContext:
 
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
-			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static=False):
+			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
 		self.constants = constants
 		self.memories = memories
