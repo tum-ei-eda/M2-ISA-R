@@ -43,28 +43,28 @@ class ExprVisitor(ABC):
     @default_visit.register
     def visit_operation(self, expr: behav.Operation, context):
         for stmt in expr.statements:
-            stmt.generate(context)
+            self.generate(stmt, context)
 
     @default_visit.register
     def visit_block(self, expr: behav.Block, context):
         for stmt in expr.statements:
-            stmt.generate(context)
+            self.generate(stmt, context)
 
     @default_visit.register
     def visit_binary_operation(self, expr: behav.BinaryOperation, context):
-        expr.left.generate(context)
-        expr.right.generate(context)
+        self.generate(expr.left, context)
+        self.generate(expr.right, context)
 
     @default_visit.register
     def visit_slice_operation(self, expr: behav.SliceOperation, context):
-        expr.expr.generate(context)
-        expr.left.generate(context)
-        expr.right.generate(context)
+        self.generate(expr.expr, context)
+        self.generate(expr.left, context)
+        self.generate(expr.right, context)
 
     @default_visit.register
     def visit_concat_operation(self, expr: behav.ConcatOperation, context):
-        expr.left.generate(context)
-        expr.right.generate(context)
+        self.generate(expr.left, context)
+        self.generate(expr.right, context)
 
     @default_visit.register
     def visit_number_literal(self, expr: behav.NumberLiteral, context):
@@ -80,27 +80,27 @@ class ExprVisitor(ABC):
 
     @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
-        expr.target.generate(context)
-        expr.expr.generate(context)
+        self.generate(expr.target, context)
+        self.generate(expr.expr, context)
 
     @default_visit.register
     def visit_conditional(self, expr: behav.Conditional, context):
         for cond in expr.conds:
-            cond.generate(context)
+            self.generate(cond, context)
         for stmt in expr.stmts:
-            stmt.generate(context)
+            self.generate(stmt, context)
 
     @default_visit.register
     def visit_loop(self, expr: behav.Loop, context):
-        expr.cond.generate(context)
+        self.generate(expr.cond, context)
         for stmt in expr.stmts:
-            stmt.generate(context)
+            self.generate(stmt, context)
 
     @default_visit.register
     def visit_ternary_operation(self, expr: behav.Ternary, context):
-        expr.cond.generate(context)
-        expr.then_expr.generate(context)
-        expr.else_expr.generate(context)
+        self.generate(expr.cond, context)
+        self.generate(expr.then_expr, context)
+        self.generate(expr.else_expr, context)
 
     @default_visit.register
     def visit_return_operation(self, expr: behav.Return, context):
@@ -129,18 +129,18 @@ class ExprVisitor(ABC):
 
     @default_visit.register
     def visit_type_conv(self, expr: behav.TypeConv, context):
-        expr.expr.generate(context)
+        self.generate(expr.expr, context)
 
     @default_visit.register
     def visit_callable(self, expr: behav.Callable, context):
         for arg in expr.args:
-            arg.generate(context)
+            self.generate(arg, context)
 
     @default_visit.register
     def visit_procedure_call(self, expr: behav.Callable, context):
         for arg in expr.args:
-            arg.generate(context)
+            self.generate(arg, context)
 
     @default_visit.register
     def visit_group(self, expr: behav.Group, context):
-        expr.expr.generate(context)
+        self.generate(expr.expr, context)

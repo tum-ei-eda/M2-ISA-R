@@ -44,7 +44,7 @@ class ExprMutator(ABC):
     def visit_operation(self, expr: behav.Operation, context):
         statements = []
         for stmt in expr.statements:
-            stmt = stmt.generate(context)
+            stmt = self.generate(stmt, context)
             statements.append(stmt)
         expr.statements = statements
         return expr
@@ -53,28 +53,28 @@ class ExprMutator(ABC):
     def visit_block(self, expr: behav.Block, context):
         statements = []
         for stmt in expr.statements:
-            stmt = stmt.generate(context)
+            stmt = self.generate(stmt, context)
             statements.append(stmt)
         expr.statements = statements
         return expr
 
     @default_visit.register
     def visit_binary_operation(self, expr: behav.BinaryOperation, context):
-        expr.left = expr.left.generate(context)
-        expr.right = expr.right.generate(context)
+        expr.left = self.generate(expr.left, context)
+        expr.right = self.generate(expr.right, context)
         return expr
 
     @default_visit.register
     def visit_slice_operation(self, expr: behav.SliceOperation, context):
-        expr.expr = expr.expr.generate(context)
-        expr.left = expr.left.generate(context)
-        expr.right = expr.right.generate(context)
+        expr.expr = self.generate(expr.expr, context)
+        expr.left = self.generate(expr.left, context)
+        expr.right = self.generate(expr.right, context)
         return expr
 
     @default_visit.register
     def visit_concat_operation(self, expr: behav.ConcatOperation, context):
-        expr.left = expr.left.generate(context)
-        expr.right = expr.right.generate(context)
+        expr.left = self.generate(expr.left, context)
+        expr.right = self.generate(expr.right, context)
         return expr
 
     @default_visit.register
@@ -91,39 +91,39 @@ class ExprMutator(ABC):
 
     @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
-        expr_target = expr.target.generate(context)
-        expr.expr = expr.expr.generate(context)
+        expr_target = self.generate(expr.target, context)
+        expr.expr = self.generate(expr.expr, context)
         return expr
 
     @default_visit.register
     def visit_conditional(self, expr: behav.Conditional, context):
         conds = []
         for cond in expr.conds:
-            cond = cond.generate(context)
+            cond = self.generate(cond, context)
             conds.append(cond)
         expr.conds = conds
         stmts = []
         for stmt in expr.stmts:
-            smts = stmt.generate(context)
+            smts = self.generate(stmt, context)
             stmts.append(stmt)
         expr.stmts = stmts
         return expr
 
     @default_visit.register
     def visit_loop(self, expr: behav.Loop, context):
-        expr.cond = expr.cond.generate(context)
+        expr.cond = self.generate(expr.cond, context)
         stmts = []
         for stmt in expr.stmts:
-            stmt = stmt.generate(context)
+            stmt = self.generate(stmt, context)
             stmts.append(stmt)
         expr.stmts = stmts
         return expr
 
     @default_visit.register
     def visit_ternary_operation(self, expr: behav.Ternary, context):
-        expr.cond = expr.cond.generate(context)
-        expr.then_expr = expr.then_expr.generate(context)
-        expr.else_expr = expr.else_expr.generate(context)
+        expr.cond = self.generate(expr.cond, context)
+        expr.then_expr = self.generate(expr.then_expr, context)
+        expr.else_expr = self.generate(expr.else_expr, context)
         return expr
 
     @default_visit.register
@@ -163,7 +163,7 @@ class ExprMutator(ABC):
     def visit_callable(self, expr: behav.Callable, context):
         args = []
         for arg in expr.args:
-            arg = arg.generate(context)
+            arg = self.generate(arg, context)
             args.append(arg)
         epxr.args = args
         return expr
@@ -172,12 +172,12 @@ class ExprMutator(ABC):
     def visit_procedure_call(self, expr: behav.Callable, context):
         args = []
         for arg in expr.args:
-            arg = arg.generate(context)
+            arg = self.generate(arg, context)
             args.append(arg)
         epxr.args = args
         return expr
 
     @default_visit.register
     def visit_group(self, expr: behav.Group, context):
-        expr.expr = expr.expr.generate(context)
+        expr.expr = self.generate(expr.expr, context)
         return expr
