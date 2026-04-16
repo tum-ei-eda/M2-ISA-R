@@ -127,6 +127,17 @@ class ExprMutator(ABC):
         return expr
 
     @default_visit.register
+    def visit_return_operation(self, expr: behav.Return, context):
+        if expr.expr is not None:
+            expr.expr = self.generate(expr.expr, context)
+        return expr
+
+    @default_visit.register
+    def visit_unary_operation(self, expr: behav.UnaryOperation, context):
+        expr.right = self.generate(expr.right, context)
+        return expr
+
+    @default_visit.register
     def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
         return expr
 
@@ -136,6 +147,11 @@ class ExprMutator(ABC):
 
     @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
+        return expr
+
+    @default_visit.register
+    def visit_indexed_reference(self, expr: behav.IndexedReference, context):
+        expr.index = self.generate(expr.index, context)
         return expr
 
     @default_visit.register

@@ -103,6 +103,15 @@ class ExprVisitor(ABC):
         expr.else_expr.generate(context)
 
     @default_visit.register
+    def visit_return_operation(self, expr: behav.Return, context):
+        if expr.expr is not None:
+            self.generate(expr.expr, context)
+
+    @default_visit.register
+    def visit_unary_operation(self, expr: behav.UnaryOperation, context):
+        self.generate(expr.right, context)
+
+    @default_visit.register
     def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
         pass
 
@@ -113,6 +122,10 @@ class ExprVisitor(ABC):
     @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
         pass
+
+    @default_visit.register
+    def visit_indexed_reference(self, expr: behav.IndexedReference, context):
+        self.generate(expr.index, context)
 
     @default_visit.register
     def visit_type_conv(self, expr: behav.TypeConv, context):
