@@ -313,13 +313,7 @@ def conditional(self: behav.Conditional, context: TransformerContext):
 		cond.mem_ids.clear()
 
 	for stmt in self.stmts:
-		if isinstance(stmt, list):
-			ret = []
-			for stmt_ in stmt:
-				ret_ = stmt_.generate(context)
-				ret.append(ret_)
-		else:
-			ret = stmt.generate(context)
+		ret = stmt.generate(context)
 
 		if isinstance(ret, list):
 			stmts.append(ret)
@@ -747,8 +741,8 @@ def type_conv(self: behav.TypeConv, context: TransformerContext):
 
 	# if only data type should be changed assume width remains unchanged
 	if self.size is None:
-		self._size = expr.size
-		self._actual_size = expr.actual_size
+		self.size = expr.size
+		self.actual_size = expr.actual_size
 
 	# save access size for memory access
 	if expr.is_mem_access:
