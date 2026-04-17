@@ -57,8 +57,8 @@ class ValidateBehavVisitor(ExprVisitor):
             else:
                 context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=expr.line_info)
         # TODO: also check possible range of non-literal rhs?
-        if op.value == "<<" and isinstance(expr.left, behav.IntLiteral) and expr.left.inferred_type.width <= expr.right.value:
-            context.emit_warning(f"Shift count overflow for << operation ({expr.left.inferred_type.width} vs. {expr.right.inferred_type.width})", "shift-overflow", logger=logger, line_info=expr.line_info)
+        if op.value == "<<" and isinstance(expr.right, behav.IntLiteral) and expr.left.inferred_type.width <= expr.right.value:
+            context.emit_warning(f"Shift count overflow for << operation ({expr.left.inferred_type.width} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
 
 
     @generate.register
