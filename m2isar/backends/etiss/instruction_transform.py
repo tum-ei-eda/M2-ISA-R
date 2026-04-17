@@ -341,9 +341,6 @@ class InstructionTransformVisitor(ExprVisitor):
 			for m_id in expr_str.mem_ids:
 				m_id.write = False
 
-				if not expr_str.mem_corrected:
-					logger.debug("assuming mem read size at %d", target.size)
-					m_id.access_size = target.size
 
 			if target.is_mem_access:
 				if len(target.mem_ids) != 1:
@@ -351,9 +348,6 @@ class InstructionTransformVisitor(ExprVisitor):
 
 				target.mem_ids[0].write = True
 
-				if not target.mem_corrected:
-					logger.debug("assuming mem write size at %d", expr_str.size)
-					target.mem_ids[0].access_size = expr_str.size
 
 		c = CodeString(f"{target.code} = {expr_str.code};", static, None, None, line_infos=[expr.line_info] + target.line_infos + expr_str.line_infos)
 
@@ -526,13 +520,6 @@ class InstructionTransformVisitor(ExprVisitor):
 			expr._size = expr_str.size
 			expr._actual_size = expr_str.actual_size
 
-		if expr_str.is_mem_access:
-			if not expr_str.mem_corrected and expr_str.mem_ids[-1].access_size != expr.size:
-				expr_str.mem_ids[-1].access_size = expr.size
-				expr_str.size = expr.size
-				expr_str.mem_corrected = True
-			elif expr_str.mem_ids[-1].access_size == expr.size:
-				expr_str.mem_corrected = True
 
 		code_str = expr_str.code
 
@@ -548,7 +535,6 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == arch.DataType.S, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.mem_ids = expr_str.mem_ids
-		c.mem_corrected = expr_str.mem_corrected
 
 		return c
 
@@ -632,6 +618,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			static = StaticType.NONE
 
 		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+			size = expr.inferred_type._width
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
 			c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 			context.mem_var_count += 1
@@ -640,8 +627,6 @@ class InstructionTransformVisitor(ExprVisitor):
 		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
-		if size != referred_mem.size:
-			code_str = f'(etiss_uint{size})' + code_str
 		c = CodeString(code_str, static, size, False, line_infos=[expr.line_info] + index.line_infos)
 		if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
 			c.regs_affected.add(index_code)

@@ -330,7 +330,6 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.TypeConv, context):
         expr.expr = self.generate(expr.expr, context)
 
-        ty = expr.expr.inferred_type
         ty = deepcopy(expr.expr.inferred_type)
         if ty is None:
             logger.warning("Type conv needs inferred type. Skipping...")
