@@ -319,7 +319,21 @@ class InferTypesMutator(ExprMutator):
         assert isinstance(expr.reference, arch.Memory)
         ty = arch.DataType.U  # TODO: Memory class should keep track of dtype, not only size?
         assert ty in [arch.DataType.U, arch.DataType.S]
-        size = expr.reference.size
+        single_mem_acc_size = expr.reference.size
+
+        ## Simple eval check for ranged access.
+        # Little-endian interpretation:
+        # - lhs > rhs  → width = lhs - rhs + 1
+        # - lhs == rhs → width = 8 bits
+
+        if expr.right == None:
+            size = single_mem_acc_size
+        if expr.right != None:
+                lhs_offset = helper_expr_size(expr.index)
+                rhs_offset = helper_expr_size(expr.right)
+                assert(lhs_offset >= rhs_offset)
+                size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
+
         ty_ = arch.IntegerType(size, ty == arch.DataType.S, None)
 
         expr.inferred_type = ty_
@@ -381,3 +395,28 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Break, context):
         return expr
+
+
+# Simple expression evaluation for ranged mem indexes
+def helper_expr_size(sub_expr: behav.BaseNode):
+    expr = None
+    if type(sub_expr) == behav.Group:
+            expr = sub_expr.expr
+            return helper_expr_size(expr)
+    elif type(sub_expr) == behav.BinaryOperation:
+            expr = sub_expr
+
+            if expr.op.value == "+":
+                    if type(expr.right) == behav.IntLiteral:
+                            return int(expr.right.value)
+
+            elif expr.op.value == "-":
+                    if type(expr.right) == behav.IntLiteral:
+                            return (-1 * int(expr.right.value))
+            else:
+                    raise(f"Not supported Operation value Type {expr.op.value} within mem access range")
+
+    elif type(sub_expr) == behav.NamedReference:
+            return 0
+    else:
+            raise(f"Not supported expr Type {type(sub_expr)} within mem access range")
