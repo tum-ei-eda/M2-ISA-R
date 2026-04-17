@@ -23,6 +23,7 @@ simplifications are done:
 import logging
 from copy import copy
 from functools import singledispatchmethod
+from copy import deepcopy
 
 from m2isar.metamodel import arch, behav
 from ...metamodel.utils.ExprMutator import ExprMutator
@@ -330,6 +331,7 @@ class InferTypesMutator(ExprMutator):
         expr.expr = self.generate(expr.expr, context)
 
         ty = expr.expr.inferred_type
+        ty = deepcopy(expr.expr.inferred_type)
         if ty is None:
             logger.warning("Type conv needs inferred type. Skipping...")
             return expr
