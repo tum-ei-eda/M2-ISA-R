@@ -53,7 +53,6 @@ class CodeString:
 		self.signed = signed
 		self.mem_ids = []
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
-		self.mem_corrected = False
 		self.is_literal = False
 		self.function_calls = []
 		self.check_trap = False
