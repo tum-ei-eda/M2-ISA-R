@@ -620,7 +620,18 @@ class InstructionTransformVisitor(ExprVisitor):
 		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			size = expr.inferred_type._width
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
-			c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
+			if (expr.right != None):
+				# Use a simple base address on one site atleast for ranged_mem access.
+				# Index Codestring is forwarded into MemID class.
+				right = self.generate(expr.right, context)
+				if(type(expr.index) == behav.NamedReference):
+					c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
+				elif(type(expr.right) == behav.NamedReference):
+					c.mem_ids.append(MemID(referred_mem, context.mem_var_count, right, size))
+				else:
+					raise(f"IndexedExpr ist needs to be static on one side: But Type is Left: {type(expr.index)} and Right: {type(expr.index)}")
+			else:
+				c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 			context.mem_var_count += 1
 			return c
 
