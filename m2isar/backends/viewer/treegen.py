@@ -208,9 +208,31 @@ class TreeGenVisitor(ExprVisitor):
 
 		context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",))
 
-		context.push(context.tree.insert(context.parent, tk.END, text="Index"))
-		self.generate(expr.index, context)
-		context.pop()
+		# If LHS is a complex expression => RHS also an expression
+		# TODO: Little Endian only so far supported
+		if (expr.reference.name == "MEM"):
+				if expr.right != None:
+						context.push(context.tree.insert(context.parent, tk.END, text="IndexRange"))
+
+						context.push(context.tree.insert(context.parent, tk.END, text="Left"))
+						self.generate(expr.index, context)
+						context.pop()
+						assert(type(expr.right), behav.NamedReference)
+						context.push(context.tree.insert(context.parent, tk.END, text="Right"))
+						self.generate(expr.right, context)
+						context.pop()
+
+						context.pop()
+
+				else:
+						context.push(context.tree.insert(context.parent, tk.END, text="Index"))
+						self.generate(expr.index, context)
+						context.pop()
+
+		else:
+				context.push(context.tree.insert(context.parent, tk.END, text="Index"))
+				self.generate(expr.index, context)
+				context.pop()
 
 		context.pop()
 
