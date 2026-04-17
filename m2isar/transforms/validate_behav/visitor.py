@@ -117,12 +117,12 @@ class ValidateBehavVisitor(ExprVisitor):
     @generate.register
     def _(self, expr: behav.Return, context):
         if expr.expr is not None:
-            expr.expr = self.generate(expr.expr, context)
+            self.generate(expr.expr, context)
         return expr
 
     @generate.register
     def _(self, expr: behav.UnaryOperation, context):
-        expr.right = self.generate(expr.right, context)
+        self.generate(expr.right, context)
         return expr
 
     @generate.register
