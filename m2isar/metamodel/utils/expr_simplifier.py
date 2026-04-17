@@ -228,7 +228,13 @@ class ExprSimplifierVisitor(ExprVisitor):
 	def _(self, expr: behav.TypeConv, context):
 		expr.expr = self.generate(expr.expr, context)
 		if isinstance(expr.expr, behav.IntLiteral):
-			expr.expr.bit_size = expr.size
+			size = expr.size
+			if size is None:
+				assert expr.inferred_type is not None
+				size = expr.inferred_type.width
+				assert size is not None
+			expr.expr.bit_size = size
+			assert expr.expr.bit_size is not None
 			expr.expr.signed = expr.data_type == arch.DataType.S
 			return expr.expr
 
