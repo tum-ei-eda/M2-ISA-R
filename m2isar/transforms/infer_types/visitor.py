@@ -405,6 +405,7 @@ def helper_expr_size(sub_expr: behav.BaseNode):
             return helper_expr_size(expr)
     elif type(sub_expr) == behav.BinaryOperation:
             expr = sub_expr
+            assert isinstance(expr.left, behav.NamedReference)
 
             if expr.op.value == "+":
                     if type(expr.right) == behav.IntLiteral:
