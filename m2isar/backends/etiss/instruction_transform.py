@@ -37,7 +37,9 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Operation, context: TransformerContext):
-		"""Generate an `Operation` model object."""
+		"""Generate an `Operation` model object. Essentially generate all children,
+		concatenate their code, and add exception behavior if needed.
+		"""
 
 		args: "list[CodeString]" = []
 		code_lines = []
@@ -108,6 +110,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		container = CodePartsContainer()
 		container.initial_required = '\n'.join(code_lines)
 
+		# only generate return statements if not in a function
 		if not context.ignore_static:
 			container.initial_required += '\ncp.code() += "instr_exit_" + std::to_string(ic.current_address_) + ":\\n";'
 			container.initial_required += '\ncp.code() += "cpu->instructionPointer = cpu->nextPc;\\n";'
@@ -175,6 +178,8 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context: TransformerContext):
+		"""Generate a scalar definition. Calculates the actual required data width and generates
+		a variable instantiation."""
 		if context.static_scalars:
 			if context.ignore_static:
 				static = StaticType.RW
@@ -196,29 +201,40 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.ProcedureCall, context: TransformerContext):
+		"""Generate a procedure call (Function call without usage of the return value)."""
 		fn_args = [self.generate(arg, context) for arg in expr.args]
 
+		# extract function object reference
 		ref = expr.ref_or_name if isinstance(expr.ref_or_name, arch.Function) else None
 		name = ref.name if isinstance(expr.ref_or_name, arch.Function) else expr.ref_or_name
 
 		if ref is not None:
+			# if there is a function object, use its information
 			fn = ref
+
+
+			# determine if procedure call is entirely static
 			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
+			# convert singular static arguments
 			if not static:
 				context.used_arch_data = True
 				for arg in fn_args:
 					if arg.static and not arg.is_literal:
 						arg.code = context.make_static(arg.code, arg.signed)
 
+			# generate argument string, add ETISS arch data if required
 			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
+			# check if any argument is a memory access
 			mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
+			# update affected and dependent registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 			context.dependent_regs.update(regs_affected)
 
+			# add special behavior if this function is an exception entry point
 			exc_code = ""
 
 			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
@@ -249,25 +265,35 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.FunctionCall, context: TransformerContext):
+		"""Generate a regular function call (with further use of return value)."""
 		fn_args = [self.generate(arg, context) for arg in expr.args]
 
+		# extract function object reference
 		ref = expr.ref_or_name if isinstance(expr.ref_or_name, arch.Function) else None
 		name = ref.name if isinstance(expr.ref_or_name, arch.Function) else expr.ref_or_name
 
 		if ref is not None:
+			# if there is a function object, use its information
+
 			fn = ref
+
+			# determine if function call is entirely static
 			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
 
+			# convert singular static arguments
 			if not static:
 				context.used_arch_data = True
 				for arg in fn_args:
 					if arg.static and not arg.is_literal:
 						arg.code = context.make_static(arg.code, arg.signed)
 
+			# generate argument string, add ETISS arch data if required
 			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
+			# keep track of signedness of function return value
 			signed = fn.data_type == arch.DataType.S
+			# keep track of affected registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
 			c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected, [expr.line_info] + [x.line_infos for x in fn_args])
@@ -296,14 +322,19 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Assignment, context: TransformerContext):
+		"""Generate an assignment expression"""
+
+		# generate target and value expressions
 		target: CodeString = self.generate(expr.target, context)
 		expr_str: CodeString = self.generate(expr.expr, context)
 
+		# check staticness
 		static = bool(target.static & StaticType.WRITE) and bool(expr_str.static)
 
 		if not expr_str.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
 			raise M2ValueError('Static target cannot be assigned to non-static expression!')
 
+		# convert assignment value staticness
 		if expr_str.static and not expr_str.is_literal:
 			if bool(target.static & StaticType.WRITE):
 				if context.ignore_static:
@@ -313,9 +344,11 @@ class InstructionTransformVisitor(ExprVisitor):
 			else:
 				expr_str.code = context.make_static(expr_str.code, expr_str.signed)
 
+		# convert target staticness
 		if bool(target.static & StaticType.READ):
 			target.code = Template(target.code).safe_substitute(replacements.rename_write)
 
+		# keep track of affected and dependent registers
 		context.affected_regs.update(target.regs_affected)
 		context.dependent_regs.update(expr_str.regs_affected)
 
@@ -361,10 +394,14 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context: TransformerContext):
+		"""Generate a binary expression"""
+
+		# generate LHS and RHS of the expression
 		left = self.generate(expr.left, context)
 		op = expr.op
 		right = self.generate(expr.right, context)
 
+		# convert staticness if needed
 		if not left.static and right.static and not right.is_literal:
 			right.code = context.make_static(right.code, right.signed)
 		if not right.static and left.static and not left.is_literal:
@@ -378,6 +415,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			set.union(left.regs_affected, right.regs_affected),
 			[expr.line_info] + left.line_infos + right.line_infos,
 		)
+		# keep track of any memory accesses
 		c.mem_ids = left.mem_ids + right.mem_ids
 		return c
 
@@ -392,6 +430,9 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Conditional, context: TransformerContext):
+		"""Generate a conditional ('if' with optional 'else if' and 'else' blocks)"""
+
+		# generate conditions and statement blocks
 		conds: "list[CodeString]" = [self.generate(x, context) for x in expr.conds]
 		stmts: "list[list[CodeString]]" = []
 
@@ -413,6 +454,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			else:
 				stmts.append([ret])
 
+		# check if all conditions are static
 		static = all(x.static for x in conds)
 		outputs: "list[CodeString]" = []
 
@@ -430,7 +472,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		if not static:
 			context.dependent_regs.update(conds[0].regs_affected)
 
+		# generate first statement block
 		outputs.extend(flatten(stmts[0]))
+
+		# generate closing brace
 		outputs.append(CodeString("} // conditional", static, None, None))
 
 		for elif_cond, elif_stmts in zip(conds[1:], stmts[1:]):
@@ -451,6 +496,8 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Loop, context: TransformerContext):
+		"""Generate 'while' and 'do .. while' loops."""
+
 		cond: CodeString = self.generate(expr.cond, context)
 		stmts: "list[CodeString]" = []
 
@@ -483,12 +530,16 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Ternary, context: TransformerContext):
+		"""Generate a ternary expression."""
+
+		# generate condition and 'then' and 'else' statements
 		cond = self.generate(expr.cond, context)
 		then_expr = self.generate(expr.then_expr, context)
 		else_expr = self.generate(expr.else_expr, context)
 
 		static = StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
 
+		# convert singular static sub-components
 		if not static:
 			if cond.static and not cond.is_literal:
 				cond.code = context.make_static(cond.code, cond.signed)
@@ -511,11 +562,16 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.TypeConv, context: TransformerContext):
+		"""Generate a type cast expression"""
+
+		# generate the expression to be type-casted
 		expr_str = self.generate(expr.expr, context)
 
+		# if only width should be changed assume data type remains unchanged
 		if expr.data_type is None:
 			expr.data_type = arch.DataType.S if expr_str.signed else arch.DataType.U
 
+		# if only data type should be changed assume width remains unchanged
 		if expr.size is None:
 			expr._size = expr_str.size
 			expr._actual_size = expr_str.actual_size
@@ -523,6 +579,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		code_str = expr_str.code
 
+		# sign extension for non-2^N datatypes
 		if expr.data_type == arch.DataType.S and expr_str.actual_size != expr_str.size:
 			target_size = expr.actual_size
 
@@ -530,6 +587,8 @@ class InstructionTransformVisitor(ExprVisitor):
 				code_str = f'((etiss_int{target_size})(((etiss_int{target_size}){expr_str.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
 			else:
 				code_str = f'((etiss_int{target_size})(({expr_str.code}) << ({target_size} - {expr.size})) >> ({target_size} - {expr.size}))'
+		# normal type conversion
+		# TODO: check if behavior adheres to CoreDSL 2 spec
 		else:
 			code_str = f'({data_type_map[expr.data_type]}{expr.actual_size})({code_str})'
 
@@ -540,15 +599,23 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context: TransformerContext):
+		"""Generate a named reference"""
+
+		# extract referred object
 		referred_var = expr.reference
+
 		static = StaticType.NONE
+
 		name = referred_var.name
 
+		# check if static name replacement is needed
 		if name in replacements.rename_static:
 			name = f'${{{name}}}'
 			static = StaticType.READ
 
+		# check which type of reference has to be generated
 		if isinstance(referred_var, arch.Memory):
+			# architecture constant
 			if not static:
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
@@ -557,6 +624,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.BitFieldDescr):
+			# function argument
 			signed = referred_var.data_type == arch.DataType.S
 			size = referred_var.size
 			static = StaticType.READ
@@ -599,8 +667,13 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.IndexedReference, context: TransformerContext):
+		"""Generate an indexed reference expression (for register banks or memory)."""
+
 		name = expr.reference.name
+
+		# generate index expression
 		index = self.generate(expr.index, context)
+
 		referred_mem = expr.reference
 
 		if isinstance(referred_mem, arch.Memory):
@@ -608,6 +681,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		size = referred_mem.size
 
+		# convert static index expression
 		index_code = index.code
 		if index.static and not context.ignore_static and not index.is_literal:
 			index.code = context.make_static(index.code, index.signed)
@@ -618,6 +692,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			static = StaticType.NONE
 
 		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+			# generate memory access if main memory is accessed
 			size = expr.inferred_type._width
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
 			if (expr.right != None):
@@ -635,6 +710,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.mem_var_count += 1
 			return c
 
+		# generate normal indexed access if not
 		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
@@ -645,6 +721,9 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.SliceOperation, context: TransformerContext):
+		"""Generate a slice expression"""
+
+		# generate expression to be sliced and lower and upper slice bound
 		expr_str = self.generate(expr.expr, context)
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
@@ -659,6 +738,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if right.static and not right.is_literal:
 				right.code = context.make_static(right.code, right.signed)
 
+		# slice with fixed integers if slice bounds are integers
 		try:
 			new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
 			mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
@@ -672,12 +752,15 @@ class InstructionTransformVisitor(ExprVisitor):
 				mask_code = f"{hex(mask)}ULL"
 			mask = f"{mask_code}"
 			simple_mask = True
+
+		# slice with actual lower and upper bound code if not possible to slice with integers
 		except ValueError:
 			new_size = expr_str.size
 			mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
 			simple_mask = False
 
 		if simple_mask and (int(right.code.replace("U", "").replace("L", "")) == 0):
+			# no need to shift zeros steps
 			code = f"(({expr_str.code}) & {mask})"
 		else:
 			code = f"((({expr_str.code}) >> ({right.code})) & {mask})"
@@ -688,6 +771,9 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.ConcatOperation, context: TransformerContext):
+		"""Generate a concatenation expression"""
+
+		# generate LHS and RHS operands
 		left: CodeString = self.generate(expr.left, context)
 		right: CodeString = self.generate(expr.right, context)
 
@@ -704,6 +790,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NumberLiteral, context: TransformerContext):
+		"""Generate generic number literal. Currently unused."""
 		lit = int(expr.value)
 		size = min(lit.bit_length(), 64)
 		sign = lit < 0
@@ -717,6 +804,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.IntLiteral, context: TransformerContext):
+		"""Generate an integer literal."""
 		lit = int(expr.value)
 		size = min(expr.bit_size, 128)
 		sign = expr.signed
@@ -748,6 +836,8 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Group, context: TransformerContext):
+		"""Generate a group of expressions."""
+
 		expr_str = self.generate(expr.expr, context)
 		if isinstance(expr_str, CodeString):
 			expr_str.code = f'({expr_str.code})'
