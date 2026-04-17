@@ -201,11 +201,24 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 			break
 
 	core_name = core.name
+	seen_instr_names = set()
 
 	for (code, mask), instr_def in core.instructions.items():
 		logger.debug("setting up instruction generator for %s", instr_def.name)
 
 		instr_name = instr_def.name
+		instr_name2 = instr_name
+		if instr_name2 in seen_instr_names:
+			def gen_rand_suffix(length: int = 8):
+				# TODO: fixed seed?
+				import uuid
+				return str(uuid.uuid4()).replace('-', '')[:length]
+			logger.info("Found duplicate instr name: %s", instr_name2)
+			suffix = gen_rand_suffix(8)
+			instr_name2_new = f"{instr_name2}_{suffix}"
+			logger.info(f"Changing to %s...", instr_name2_new)
+			instr_name2 = instr_name2_new
+		seen_instr_names.add(instr_name)
 
 		if instr_def.attributes is None:
 			instr_def.attributes = []
@@ -236,6 +249,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 		# render code for whole instruction
 		templ_str = instr_template.render(
 			instr_name=instr_name,
+			instr_name2=instr_name2,
 			seen_fields=seen_fields,
 			enc_idx=enc_idx,
 			core_name=core_name,

@@ -7,8 +7,8 @@
 ## Technical University of Munich
 \
 
-${f'{"// "+instr_name+" ":-<80}'}
-static InstructionDefinition ${instr_name.lower().replace('.', '_')}_${'_'.join(seen_fields)} (
+${f'{"// "+instr_name2+" ":-<80}'}
+static InstructionDefinition ${instr_name2.lower().replace('.', '_')}_${'_'.join(seen_fields)} (
 	ISA${enc_idx}_${core_name},
 	"${instr_name.lower()}",
 	(uint64_t) ${code_string},
