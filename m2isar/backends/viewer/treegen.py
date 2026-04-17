@@ -217,7 +217,7 @@ class TreeGenVisitor(ExprVisitor):
 						context.push(context.tree.insert(context.parent, tk.END, text="Left"))
 						self.generate(expr.index, context)
 						context.pop()
-						assert(type(expr.right), behav.NamedReference)
+						assert(type(expr.right) == behav.NamedReference)
 						context.push(context.tree.insert(context.parent, tk.END, text="Right"))
 						self.generate(expr.right, context)
 						context.pop()
