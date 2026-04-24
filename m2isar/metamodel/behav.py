@@ -124,6 +124,7 @@ class IntLiteral(NumberLiteral):
 			self.bit_size = self.bit_size.value
 
 		self.bit_size = max(1, self.bit_size)
+		assert self.bit_size is not None
 
 		if signed is None:
 			self.signed = value <= 0
