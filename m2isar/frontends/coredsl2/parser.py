@@ -14,7 +14,7 @@ import pickle
 import sys
 
 from ... import M2Error, M2SyntaxError
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info
 from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
@@ -271,7 +271,7 @@ def main():
 				behav.BinaryOperation(
 					behav.NamedReference(core_def.pc_memory),
 					behav.Operator("+"),
-					behav.IntLiteral(int(instr_def.size/8))
+					behav.Literal(int(instr_def.size/8), type_info.PrimitiveKind.U)
 				)
 			)
 

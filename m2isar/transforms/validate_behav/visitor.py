@@ -73,15 +73,7 @@ class ValidateBehavVisitor(ExprVisitor):
         self.generate(expr.right, context)
 
     @generate.register
-    def _(self, expr: behav.NumberLiteral, context):
-        pass
-
-    @generate.register
-    def _(self, expr: behav.IntLiteral, context):
-        pass
-
-    @generate.register
-    def _(self, expr: behav.StringLiteral, context):
+    def _(self, expr: behav.Literal, context):
         pass
 
     @generate.register

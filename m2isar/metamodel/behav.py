@@ -21,6 +21,8 @@ on which translation module is loaded using :func:`patch_model`.
 """
 
 from typing import TYPE_CHECKING, Union
+from .type_info import PrimitiveKind
+
 
 if TYPE_CHECKING:
 	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
@@ -91,62 +93,35 @@ class ConcatOperation(BaseNode):
 		self.left = left
 		self.right = right
 
-class NumberLiteral(BaseNode):
-	"""A class holding a generic number literal."""
 
-	def __init__(self, value, line_info=None):
+class Literal(BaseNode):
+	def __init__(self, value:int, kind : PrimitiveKind = None, size=None, base=10, line_info=None):
 		super().__init__(line_info)
-		self._value = value
+
+		self._value : Union[int, str] = value
+		self.kind = kind      # assigned during type checking
+
+		#Optional type information (not always given)
+		if size is None:
+			self.size = value.bit_length()
+		else:
+			self.size = size    # optional (important for ISA DSL!)
+		self.base: int = base   # 2, 10, 16
 
 	def __repr__(self):
-		return f"NumberLiteral({self.value})"
+		return f"Literal(value={self.value}, kind={self.kind}, size={self.size}, base={self.base})"
 
+	def __int__(self):
+		if isinstance(self.value, int):
+			return int(self.value, self.base)
+		else:
+			raise ValueError(f"Cannot convert {self.value} to int")
+
+	# compile time constant
 	@property
 	def value(self) -> int:
 		"""Returns the resolved value."""
-		if isinstance(self, IntLiteral):
-			return int(self._value)
-		return self._value
-
-
-class IntLiteral(NumberLiteral):
-	"""A more precise class holding only integer literals."""
-
-	def __init__(self, value: int, bit_size: int=None, signed: bool=None, line_info=None):
-		super().__init__(value, line_info)
-
-		if bit_size is None:
-			self.bit_size = value.bit_length()
-		else:
-			self.bit_size = bit_size
-
-		if isinstance(self.bit_size, IntLiteral):
-			self.bit_size = self.bit_size.value
-
-		self.bit_size = max(1, self.bit_size)
-		assert self.bit_size is not None
-
-		if signed is None:
-			self.signed = value <= 0
-		else:
-			self.signed = signed
-
-	def __repr__(self):
-		return f"IntLiteral({self.value}, {self.bit_size}, {self.signed})"
-
-	def __int__(self):
-		return self.value
-
-
-class StringLiteral(BaseNode):
-	"""A string constant"""
-
-	def __init__(self, value: str):
-		super().__init__()
-		self.value = value
-
-	def __repr__(self):
-		return f"StringLiteral(\"{self.value}\")"
+		return int(self._value)
 
 
 class Assignment(BaseNode):
@@ -245,7 +220,7 @@ class TypeConv(BaseNode):
 	@property
 	def size(self) -> int:
 		"""Returns the resolved size."""
-		if isinstance(self._size, IntLiteral):
+		if isinstance(self._size, Literal):
 			return int(self._size)
 		return self._size
 

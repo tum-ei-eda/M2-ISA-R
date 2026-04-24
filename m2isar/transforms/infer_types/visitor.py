@@ -25,7 +25,7 @@ from copy import copy
 from functools import singledispatchmethod
 from copy import deepcopy
 
-from m2isar.metamodel import arch, behav
+from m2isar.metamodel import arch, behav, type_info
 from ...metamodel.utils.ExprMutator import ExprMutator
 
 logger = logging.getLogger("infer_types")
@@ -142,11 +142,11 @@ class InferTypesMutator(ExprMutator):
         assert isinstance(expr.expr.inferred_type, arch.IntegerType)
         ty = expr.expr.inferred_type
         # For non-static slices, we cann not infer the type!
-        if not isinstance(expr.left, behav.IntLiteral):
+        if not isinstance(expr.left, behav.Literal):
             logger.warning("Can not infer type of non-static slice operation. Skipping...")
             return expr
         lval = expr.left.value
-        if not isinstance(expr.right, behav.IntLiteral):
+        if not isinstance(expr.right, behav.Literal):
             logger.warning("Can not infer type of non-static slice operation. Skipping...")
             return expr
         rval = expr.right.value
@@ -175,23 +175,15 @@ class InferTypesMutator(ExprMutator):
         return expr
 
 
+    # behav.IntLiteral
     @generate.register
-    def _(self, expr: behav.IntLiteral, context):
-        if isinstance(expr, behav.IntLiteral):
-            bit_size = expr.bit_size
-            signed = expr.signed
-
-            expr.inferred_type = arch.IntegerType(bit_size, signed, None)
-        return expr
-
-
-    @generate.register
-    def _(self, expr: behav.IntLiteral, context):
+    def _(self, expr: behav.Literal, context):
         # type inference
-        bit_size = expr.bit_size
-        signed = expr.signed
+        assert((expr.size is not None))
+        assert(expr.kind in [type_info.PrimitiveKind.U, type_info.PrimitiveKind.S])
+        signed = True if expr.kind is type_info.PrimitiveKind.S else False
 
-        expr.inferred_type = arch.IntegerType(bit_size, signed, None)
+        expr.inferred_type = arch.IntegerType(expr.size, signed, None)
 
         return expr
 
@@ -223,7 +215,7 @@ class InferTypesMutator(ExprMutator):
         stmts = []
         for stmt in expr.stmts:
             if isinstance(stmt, list):  # TODO: legacy?
-                new = [seld.generate(y, context) for y in stmt]
+                new = [self.generate(y, context) for y in stmt]
             else:
                 new = self.generate(stmt, context)
             stmts.append(new)
@@ -384,7 +376,7 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.Group, context):
         expr.expr = self.generate(expr.expr, context)
 
-        if isinstance(expr.expr, behav.IntLiteral):
+        if isinstance(expr.expr, behav.Literal):
             return expr.expr
 
         # type inference

@@ -70,16 +70,9 @@ class ScalarStaticnessVisitor(ExprVisitor):
 		return min(left, right)
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context: ScalarStaticnessContext):
+	def _(self, expr: behav.Literal, context: ScalarStaticnessContext):
 		return StaticType.READ
 
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context: ScalarStaticnessContext):
-		return StaticType.READ
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context: ScalarStaticnessContext):
-		return StaticType.READ
 
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context: ScalarStaticnessContext):

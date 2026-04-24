@@ -208,7 +208,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	global_irq_en_mask = None
 	if core.global_irq_en_memory is not None:
 		attr = core.global_irq_en_memory.attributes[arch.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
-		if not isinstance(attr, behav.IntLiteral):
+		if not isinstance(attr, behav.Literal):
 			raise M2TypeError(f"IRQ enable mask of {core.global_irq_en_memory.name} is not compile static")
 		global_irq_en_mask = attr.value
 

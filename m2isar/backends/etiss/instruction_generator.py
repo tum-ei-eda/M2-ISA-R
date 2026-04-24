@@ -12,7 +12,7 @@ import logging
 
 from mako.template import Template
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info
 from . import BlockEndType, instruction_utils
 from .instruction_transform import InstructionTransformVisitor
 from .templates import template_dir
@@ -237,7 +237,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 					[cond[0]],
 					[
 						instr_def.operation.statements,
-						behav.ProcedureCall(error_fn, [behav.IntLiteral(-11)])
+						behav.ProcedureCall(error_fn, [behav.Literal(-11, type_info.PrimitiveKind.S)])
 					]
 				)
 			])

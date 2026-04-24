@@ -26,12 +26,8 @@ class ExprInterpreterVisitor(ExprVisitor):
 		return self.generate(expr.expr, context)
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return expr.value
-
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return expr.value
+	def _(self, expr: behav.Literal, context):
+		return int(expr.value)
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):

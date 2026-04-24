@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 
 from .. import M2TypeError
-from .behav import BaseNode, Operation, NumberLiteral
+from .behav import BaseNode, Operation, Literal
 
 if TYPE_CHECKING:
 	from .code_info import FunctionInfo
@@ -29,8 +29,8 @@ def get_const_or_val(arg) -> int:
 	if isinstance(arg, Constant):
 		return arg.value
 
-	if isinstance(arg, NumberLiteral):
-		arg = arg.value
+	if isinstance(arg, Literal):
+		arg = int(arg.value)
 
 	if isinstance(arg, BaseNode):
 		arg = exprInterpretVisitor.generate(arg, None)

@@ -20,7 +20,7 @@ simplifications are done:
   type directly to the :class:`IntLiteral` and discard the type conversion
 """
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info
 from .ExprVisitor import ExprVisitor
 from functools import singledispatchmethod
 
@@ -60,37 +60,37 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.left = self.generate(expr.left, context)
 		expr.right = self.generate(expr.right, context)
 
-		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
-			if expr.left.bit_size < expr.right.reference.size:
-				expr.left.bit_size = expr.right.reference.size
+		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
+			if expr.left.size < expr.right.reference.size:
+				expr.left.size = expr.right.reference.size
 
-		if isinstance(expr.right, behav.IntLiteral) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
-			if expr.right.bit_size < expr.left.reference.size:
-				expr.right.bit_size = expr.left.reference.size
+		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
+			if expr.right.size < expr.left.reference.size:
+				expr.right.size = expr.left.reference.size
 
-		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, behav.IntLiteral):
+		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			return behav.IntLiteral(res, max(expr.left.bit_size, expr.right.bit_size, res.bit_length()))
+			return behav.Literal(res, type_info.PrimitiveKind.U, max(expr.left.size, expr.right.size, res.bit_length()))
 
 		if expr.op.value == "&&":
-			if isinstance(expr.left, behav.IntLiteral):
+			if isinstance(expr.left, behav.Literal):
 				if expr.left.value:
 					return expr.right
 				return expr.left
 
-			if isinstance(expr.right, behav.IntLiteral):
+			if isinstance(expr.right, behav.Literal):
 				if expr.right.value:
 					return expr.left
 				return expr.right
 
 		if expr.op.value == "||":
-			if isinstance(expr.left, behav.IntLiteral):
+			if isinstance(expr.left, behav.Literal):
 				if expr.left.value:
 					return expr.left
 				return expr.right
 
-			if isinstance(expr.right, behav.IntLiteral):
+			if isinstance(expr.right, behav.Literal):
 				if expr.right.value:
 					return expr.right
 				return expr.left
@@ -113,15 +113,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 		return expr
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return expr
-
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return expr
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
+	def _(self, expr: behav.Literal, context):
 		return expr
 
 	@generate.register
@@ -137,9 +129,9 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.target = self.generate(expr.target, context)
 		expr.expr = self.generate(expr.expr, context)
 
-		if isinstance(expr.expr, behav.IntLiteral) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
-			if expr.expr.bit_size < expr.target.reference.size:
-				expr.expr.bit_size = expr.target.reference.size
+		if isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
+			if expr.expr.size < expr.target.reference.size:
+				expr.expr.size = expr.target.reference.size
 
 		return expr
 
@@ -154,7 +146,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 		stmts = []
 
 		for cond, stmt in zip(expr.conds, expr.stmts):
-			if isinstance(cond, behav.IntLiteral):
+			if isinstance(cond, behav.Literal):
 				if cond.value:
 					return stmt
 			else:
@@ -163,7 +155,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				eval_false = False
 
 		if len(expr.conds) < len(expr.stmts):
-			if eval_false and isinstance(expr.conds[-1], behav.IntLiteral):
+			if eval_false and isinstance(expr.conds[-1], behav.Literal):
 				if not cond.value:  # pylint: disable=undefined-loop-variable
 					return expr.stmts[-1]
 			stmts.append(expr.stmts[-1])
@@ -186,7 +178,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.then_expr = self.generate(expr.then_expr, context)
 		expr.else_expr = self.generate(expr.else_expr, context)
 
-		if isinstance(expr.cond, behav.IntLiteral):
+		if isinstance(expr.cond, behav.Literal):
 			if expr.cond.value:
 				return expr.then_expr
 
@@ -204,17 +196,17 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
 		expr.right = self.generate(expr.right, context)
-		if isinstance(expr.right, behav.IntLiteral):
+		if isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
-			return behav.IntLiteral(res, max(expr.right.bit_size, res.bit_length()))
+			return behav.Literal(res, type_info.PrimitiveKind.U, max(expr.right.size, res.bit_length()))
 
 		return expr
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
 		if isinstance(expr.reference, arch.Constant):
-			return behav.IntLiteral(expr.reference.value, expr.reference.size, expr.reference.signed)
+			return behav.Literal(expr.reference.value, type_info.PrimitiveKind.S if expr.reference.signed else type_info.PrimitiveKind.U, expr.reference.size)
 
 		return expr
 
@@ -227,7 +219,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.TypeConv, context):
 		expr.expr = self.generate(expr.expr, context)
-		if isinstance(expr.expr, behav.IntLiteral):
+		if isinstance(expr.expr, behav.Literal):
 			size = expr.size
 			if size is None:
 				assert expr.inferred_type is not None
@@ -256,7 +248,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 	def _(self, expr: behav.Group, context):
 		expr.expr = self.generate(expr.expr, context)
 
-		if isinstance(expr.expr, behav.IntLiteral):
+		if isinstance(expr.expr, behav.Literal):
 			return expr.expr
 
 		return expr

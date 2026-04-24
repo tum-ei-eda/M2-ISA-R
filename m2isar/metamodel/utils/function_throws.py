@@ -65,15 +65,7 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return reduce(or_, [left, right])
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return arch.FunctionThrows.NO
-
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return arch.FunctionThrows.NO
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
+	def _(self, expr: behav.Literal, context):
 		return arch.FunctionThrows.NO
 
 	@generate.register

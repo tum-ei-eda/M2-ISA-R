@@ -15,7 +15,7 @@ from string import Template
 from functools import singledispatchmethod
 
 from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info
 from ...metamodel.code_info import LineInfoPlacement
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from . import CodeInfoTracker, replacements
@@ -789,42 +789,41 @@ class InstructionTransformVisitor(ExprVisitor):
 		return c
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context: TransformerContext):
-		"""Generate generic number literal. Currently unused."""
-		lit = int(expr.value)
-		size = min(lit.bit_length(), 64)
-		sign = lit < 0
+	def _(self, expr: behav.Literal, context: TransformerContext):
+		if expr.kind is type_info.PrimitiveKind.STR:
+			return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
+		else:
+			# old number NumberLiteral
+			if expr.size is None:
+				lit = int(expr.value)
+				size = min(lit.bit_length(), 64)
+				sign = lit < 0
 
-		twocomp_lit = (lit + (1 << 64)) % (1 << 64)
 
-		postfix = "U" if not sign else ""
-		postfix += "LL"
+				# TODO: Look in diff. U is sometimes there for negative  vals!!!
+				twocomp_lit = (lit + (1 << 64)) % (1 << 64)
+				postfix = "U" if not sign else ""
+				postfix += "LL"
+				return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
+			# IntLiteral
+			else:
+				assert(expr.kind in [type_info.PrimitiveKind.S, type_info.PrimitiveKind.U])
+				lit = int(expr.value)
+				size = min(expr.size, 128)
+				sign = True if expr.kind is type_info.PrimitiveKind.S else False
 
-		return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
+				minus = ""
+				if lit > 0 and sign and (lit >> (size - 1)) & 1:
+					minus = "-"
 
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context: TransformerContext):
-		"""Generate an integer literal."""
-		lit = int(expr.value)
-		size = min(expr.bit_size, 128)
-		sign = expr.signed
+				_ = (lit + (1 << size)) % (1 << size)
 
-		minus = ""
-		if lit > 0 and sign and (lit >> (size - 1)) & 1:
-			minus = "-"
+				postfix = "U" if not sign else ""
+				postfix += "LL"
 
-		_ = (lit + (1 << size)) % (1 << size)
-
-		postfix = "U" if not sign else ""
-		postfix += "LL"
-
-		ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
-		ret.is_literal = True
-		return ret
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context: TransformerContext):
-		return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
+				ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
+				ret.is_literal = True
+				return ret
 
 	@generate.register
 	def _(self, expr: behav.CodeLiteral, context: TransformerContext):

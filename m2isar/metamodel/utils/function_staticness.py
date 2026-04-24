@@ -62,15 +62,7 @@ class FunctionStaticnessVisitor(ExprVisitor):
 		return all([left, right])
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return True
-
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return True
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
+	def _(self, expr: behav.Literal, context):
 		return True
 
 	@generate.register

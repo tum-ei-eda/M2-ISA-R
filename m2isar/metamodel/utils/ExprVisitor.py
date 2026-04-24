@@ -67,15 +67,7 @@ class ExprVisitor(ABC):
         self.generate(expr.right, context)
 
     @default_visit.register
-    def visit_number_literal(self, expr: behav.NumberLiteral, context):
-        pass
-
-    @default_visit.register
-    def visit_int_literal(self, expr: behav.IntLiteral, context):
-        pass
-
-    @default_visit.register
-    def visit_string_literal(self, expr: behav.StringLiteral, context):
+    def visit_number_literal(self, expr: behav.Literal, context):
         pass
 
     @default_visit.register

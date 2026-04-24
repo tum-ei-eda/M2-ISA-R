@@ -12,7 +12,7 @@ from typing import Union
 
 from ... import (M2DuplicateError, M2NameError, M2TypeError, M2ValueError,
                  flatten)
-from ...metamodel import arch, behav, intrinsics
+from ...metamodel import arch, behav, intrinsics, type_info
 from ...metamodel.code_info import FunctionInfoFactory
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
@@ -67,7 +67,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		"""Generate a fixed encoding part."""
 
 		val = self.visit(ctx.value)
-		return arch.BitVal(val.bit_size, val.value)
+		return arch.BitVal(val.size, val.value)
 
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
 		"""Generate a top-level instruction set object."""
@@ -280,7 +280,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				width = value.bit_length()
 
-		return behav.IntLiteral(value, width)
+		kind = type_info.PrimitiveKind.U if value >=0 else type_info.PrimitiveKind.S
+		return behav.Literal(value, kind, width)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
@@ -421,7 +422,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			width = self.visit(ctx.shorthand)
 
 		# type check width
-		if isinstance(width, behav.IntLiteral):
+		if isinstance(width, behav.Literal):
 			width = width.value
 		elif isinstance(width, behav.NamedReference):
 			width = width.reference
@@ -483,7 +484,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return SIGNEDNESS[ctx.children[0].symbol.text]
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
-		return behav.IntLiteral(SHORTHANDS[ctx.children[0].symbol.text])
+		value = SHORTHANDS[ctx.children[0].symbol.text]
+		return behav.Literal(value, type_info.PrimitiveKind.S if value<0 else type_info.PrimitiveKind.U)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """

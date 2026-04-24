@@ -12,7 +12,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
-from ...metamodel import arch, behav, intrinsics
+from ...metamodel import arch, behav, type_info, intrinsics
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoFactory, LineInfoPlacement)
 from ...metamodel.utils import StaticType
@@ -136,7 +136,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 			else:
-				init = behav.IntLiteral(0)
+				init = behav.Literal(0, type_info.PrimitiveKind.U)
 
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
 			ret_decls.append(a)
@@ -352,7 +352,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			value = int(text, 0)
 			width = value.bit_length()
 
-		return behav.IntLiteral(value, width, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		kind = type_info.PrimitiveKind.S if value <= 0 else type_info.PrimitiveKind.U
+
+		return behav.Literal(value, kind, width, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
 		"""Generate a character literal. Converts directly to uint8."""
@@ -361,7 +363,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		value = min(ord(text.replace("'", "")), 255)
 
-		return behav.IntLiteral(value, 8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(value, type_info.PrimitiveKind.U, size=8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitString_constant(self, ctx: CoreDSL2Parser.String_constantContext):
 		text: str = ctx.value.text
@@ -442,4 +444,4 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		"""Lookup a shorthand type specifier."""
 
-		return behav.IntLiteral(SHORTHANDS[ctx.children[0].symbol.text], line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], type_info.PrimitiveKind.U, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
