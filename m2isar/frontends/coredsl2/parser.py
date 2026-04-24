@@ -36,6 +36,14 @@ def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "d
 		return None
 	return op.value != 0
 
+def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
+	patch_model(expr_simplifier)
+	op = operation.generate(None)
+	if not isinstance(op, behav.IntLiteral):
+		return None
+	return op.value != 0
+
 
 def main():
 	parser = argparse.ArgumentParser()
