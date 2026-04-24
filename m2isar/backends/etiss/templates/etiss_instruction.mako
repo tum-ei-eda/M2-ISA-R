@@ -11,8 +11,8 @@ ${f'{"// "+instr_name2+" ":-<80}'}
 static InstructionDefinition ${instr_name2.lower().replace('.', '_')}_${'_'.join(seen_fields)} (
 	ISA${enc_idx}_${core_name},
 	"${instr_name.lower()}",
-	(uint${enc_idx}_t) ${code_string},
-	(uint${enc_idx}_t) ${mask_string},
+	(uint64_t) ${code_string},
+	(uint64_t) ${mask_string},
 ${callback_code},
 	0,
 	[] (BitArray & ba, Instruction & instr)

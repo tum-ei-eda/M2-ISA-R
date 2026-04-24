@@ -39,7 +39,7 @@ from dataclasses import dataclass
 
 from . import arch, behav, code_info
 
-M2_METAMODEL_VERSION = 2
+M2_METAMODEL_VERSION = 3
 
 
 def patch_model(module):
