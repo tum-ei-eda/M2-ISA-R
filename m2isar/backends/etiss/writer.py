@@ -87,6 +87,8 @@ def setup():
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	parser.add_argument("--gdb-xml-descr", nargs="+", default=[])
+	parser.add_argument("--fill-mode", choices=["auto", "empty"], default="empty")
+	# TODO: add modes for rvv,...
 	args = parser.parse_args()
 
 	# configure logging
@@ -174,7 +176,7 @@ def main():
 		write_arch_header(core, start_time, output_path)
 		write_arch_cpp(core, start_time, output_path, False)
 		write_arch_specific_header(core, start_time, output_path)
-		write_arch_specific_cpp(core, start_time, output_path, virtualstruct_regs)
+		write_arch_specific_cpp(core, start_time, output_path, virtualstruct_regs, args.fill_mode)
 		write_arch_lib(core, start_time, output_path)
 		write_arch_cmake(core, start_time, output_path, args.separate)
 		write_arch_gdbcore(core, start_time, output_path, gdb_mapping)
