@@ -42,19 +42,3 @@ M2-ISA-R v2 currently ships three usable tools: Two parsers (for transforming Co
 - To generate ETISS Architecture: `etiss_writer -s path/to/input/gen_model/<top_level>.m2isarmodel`
 
 For parsers, see [m2isar/frontends/coredsl](m2isar/frontends/coredsl) or [m2isar/frontends/coredsl2](m2isar/frontends/coredsl2). For the ETISS architecture writer, see [m2isar/backends/etiss](m2isar/backends/etiss).
-
-## Roadmap
-- [X] CoreDSL 2 support (WIP, RISC-V models are buildable)
-- [ ] Formal metamodel description
-- [ ] Support for extended CoreDSL 2 features:
-	- [ ] Loops (WIP, for loops unimplemented)
-	- [ ] Complex data types
-	- [ ] Bit-wise aliasing
-	- [ ] Spawn blocks
-- [X] Detection and evaluation of generation-time static expressions
-- [X] Better support for translation-time static expressions, see #5 and #6
-- [ ] Full generation of ETISS architecture models:
-	- [ ] Variable width instruction decoding
-	- [X] Exception handling
-	- [X] Privilege levels
-	- [X] Interrupts
