@@ -271,7 +271,7 @@ def main():
 				behav.BinaryOperation(
 					behav.NamedReference(core_def.pc_memory),
 					behav.Operator("+"),
-					behav.Literal(int(instr_def.size/8), type_info.PrimitiveKind.U)
+					behav.Literal(int(instr_def.size/8), type_info.TypeKind.TYPE_UINT)
 				)
 			)
 

@@ -95,12 +95,8 @@ class TreeGenVisitor(ExprVisitor):
 		context.pop()
 
 	@generate.register
-	def number_literal(self, expr: behav.NumberLiteral, context: "TreeGenContext"):
+	def number_literal(self, expr: behav.Literal, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Number Literal", values=(expr.value,))
-
-	@generate.register
-	def int_literal(self, expr: behav.IntLiteral, context: "TreeGenContext"):
-		context.tree.insert(context.parent, tk.END, text="Int Literal", values=(expr.value,))
 
 	@generate.register
 	def scalar_definition(self, expr: behav.ScalarDefinition, context: "TreeGenContext"):

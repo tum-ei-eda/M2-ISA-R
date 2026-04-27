@@ -37,6 +37,8 @@ from typing import Union
 from pathlib import Path
 from dataclasses import dataclass
 
+from m2isar.metamodel import type_info
+
 from . import arch, behav, code_info
 
 M2_METAMODEL_VERSION = 3
@@ -71,7 +73,7 @@ def patch_model(module):
 		param.annotation.generate = fn
 
 intrinsic_defs = [
-	arch.Intrinsic("__encoding_size", 16, arch.DataType.U)
+	arch.Intrinsic("__encoding_size", 16, type_info.TypeKind.TYPE_UINT),
 ]
 
 intrinsics = {x.name: x for x in intrinsic_defs}

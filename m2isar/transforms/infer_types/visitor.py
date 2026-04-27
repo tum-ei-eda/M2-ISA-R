@@ -64,12 +64,12 @@ class InferTypesMutator(ExprMutator):
                 logger.warning("Slice Operation needs inferred type. Skipping...")
                 expr.inferred_type = None
                 return expr
-            assert isinstance(expr.left.inferred_type, arch.IntegerType)
-            assert isinstance(expr.right.inferred_type, arch.IntegerType)
-            w1 = expr.left.inferred_type._width
-            w2 = expr.right.inferred_type._width
-            s1 = expr.left.inferred_type.signed
-            s2 = expr.right.inferred_type.signed
+            assert isinstance(expr.left.inferred_type, type_info.IntegerType)
+            assert isinstance(expr.right.inferred_type, type_info.IntegerType)
+            w1 = expr.left.inferred_type.size
+            w2 = expr.right.inferred_type.size
+            s1 = True if expr.left.inferred_type.kind == type_info.TypeKind.TYPE_INT else False
+            s2 = True if expr.right.inferred_type.kind == type_info.TypeKind.TYPE_INT else False
             if expr.op.value == "+":
                 if not s1 and not s2:
                     wr = max(w1, w2) + 1
@@ -118,12 +118,12 @@ class InferTypesMutator(ExprMutator):
             elif expr.op.value in [">>", "<<"]:
                 wr = w1
                 sr = s1
-            expr.inferred_type = arch.IntegerType(wr, sr, None)
+            expr.inferred_type = type_info.IntegerType(wr, sr)
         else:
             if expr.op.value in ["||", "&&"]:
-                expr.inferred_type = arch.IntegerType(1, False, None)  # unsigned<1> / bool
+                expr.inferred_type = type_info.IntegerType(1, False)  # unsigned<1> / bool
             elif expr.op.value in ["<", ">", "==", "!=", ">=", "<="]:
-                expr.inferred_type = arch.IntegerType(1, False, None)  # unsigned<1> / bool
+                expr.inferred_type = type_info.IntegerType(1, False)  # unsigned<1> / bool
         assert expr.inferred_type is not None
 
         return expr
@@ -139,7 +139,7 @@ class InferTypesMutator(ExprMutator):
         if expr.expr.inferred_type is None:
             logger.warning("Slice Operation needs inferred type. Skipping...")
             return expr
-        assert isinstance(expr.expr.inferred_type, arch.IntegerType)
+        assert isinstance(expr.expr.inferred_type, type_info.IntegerType)
         ty = expr.expr.inferred_type
         # For non-static slices, we cann not infer the type!
         if not isinstance(expr.left, behav.Literal):
@@ -168,8 +168,9 @@ class InferTypesMutator(ExprMutator):
         if expr.right.inferred_type is None:
             logger.warning("Concat Operation needs inferred type. Skipping...")
             return expr
-        width = expr.left.inferred_type.width + expr.right.inferred_type.width
-        ty = arch.IntegerType(width, False, None)
+        width = expr.left.inferred_type.size + expr.right.inferred_type.size
+        size = arch.get_const_or_val(width)
+        ty = type_info.IntegerType(size, False)
         expr.inferred_type = ty
 
         return expr
@@ -179,20 +180,20 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Literal, context):
         # type inference
-        assert((expr.size is not None))
-        assert(expr.kind in [type_info.PrimitiveKind.U, type_info.PrimitiveKind.S])
-        signed = True if expr.kind is type_info.PrimitiveKind.S else False
+        assert(expr.type.size is not None)
+        assert(expr.type.kind in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT])
+        signed = True if expr.type.kind is type_info.TypeKind.TYPE_INT else False
 
-        expr.inferred_type = arch.IntegerType(expr.size, signed, None)
+        expr.inferred_type = type_info.IntegerType(expr.type.size, signed)
 
         return expr
 
     @generate.register
     def _(self, expr: behav.ScalarDefinition, context):
         # type inference
-        signed = expr.scalar.data_type == arch.DataType.S
+        signed = expr.scalar.data_type == type_info.TypeKind.TYPE_INT
         width = expr.scalar.size
-        expr.inferred_type = arch.IntegerType(width, signed, None)
+        expr.inferred_type = type_info.IntegerType(arch.get_const_or_val(width), signed)
         return expr
 
     @generate.register
@@ -242,10 +243,10 @@ class InferTypesMutator(ExprMutator):
         else_ty = expr.else_expr.inferred_type
         if then_ty and else_ty:
             # assert then_ty.signed == else_ty.signed
-            wt = then_ty.width
-            we = else_ty.width
+            wt = then_ty.size
+            we = else_ty.size
             wr = max(wt, we)
-            expr.inferred_type = arch.IntegerType(wr, True, None)
+            expr.inferred_type = type_info.IntegerType(wr, True)
 
         return expr
 
@@ -260,13 +261,13 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.UnaryOperation, context):
         expr.right = self.generate(expr.right, context)
         if expr.right.inferred_type:
-            w1 = expr.right.inferred_type.width
+            w1 = expr.right.inferred_type.size
             if expr.op.value == "-":
-                inferred_type = arch.IntegerType(w1 + 1, True, None)
+                inferred_type = type_info.IntegerType(w1 + 1, True)
             elif expr.op.value == "~":
-                inferred_type = arch.IntegerType(w1, True, None)
+                inferred_type = type_info.IntegerType(w1, True)
             elif expr.op.value == "!":
-                inferred_type = arch.IntegerType(1, False, None)
+                inferred_type = type_info.IntegerType(1, False)
             else:
                 inferred_type = None
             expr.inferred_type = inferred_type
@@ -280,24 +281,24 @@ class InferTypesMutator(ExprMutator):
         # type inference
         # expr.infered_type = ?
         if isinstance(reference, arch.BitFieldDescr):
-            assert expr.reference.data_type in [arch.DataType.U, arch.DataType.S]
-            ty = arch.IntegerType(reference.size, reference.data_type == arch.DataType.S, None)
+            assert expr.reference.data_type in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
+            ty = type_info.IntegerType(arch.get_const_or_val(reference.size), reference.data_type == type_info.TypeKind.TYPE_INT)
             expr.inferred_type = ty
 
         elif isinstance(reference, arch.Scalar):
             dt = reference.data_type
             sz = reference.size
-            assert dt in [arch.DataType.U, arch.DataType.S]
-            signed = dt == arch.DataType.S
-            ty = arch.IntegerType(sz, signed, None)
+            assert dt in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
+            signed = dt == type_info.TypeKind.TYPE_INT
+            ty = type_info.IntegerType(arch.get_const_or_val(sz), signed)
             expr.inferred_type = ty
         elif isinstance(reference, arch.Memory):
-            expr.inferred_type = arch.IntegerType(reference.size, False, None)
+            expr.inferred_type = type_info.IntegerType(reference.size, False)
         elif isinstance(reference, arch.Intrinsic):
-            assert expr.reference.data_type in [arch.DataType.U, arch.DataType.S]
-            expr.inferred_type = arch.IntegerType(reference.size, reference.data_type == arch.DataType.S, None)
+            assert expr.reference.data_type in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
+            expr.inferred_type = type_info.IntegerType(arch.get_const_or_val(reference.size), reference.data_type == type_info.TypeKind.TYPE_INT)
         elif isinstance(reference, arch.Constant):
-            expr.inferred_type = arch.IntegerType(reference.size, reference.signed, None)
+            expr.inferred_type = type_info.IntegerType(arch.get_const_or_val(reference.size), reference.signed)
         else:
             assert False, "Unhandled reference"
 
@@ -309,8 +310,8 @@ class InferTypesMutator(ExprMutator):
 
         # type inference
         assert isinstance(expr.reference, arch.Memory)
-        ty = arch.DataType.U  # TODO: Memory class should keep track of dtype, not only size?
-        assert ty in [arch.DataType.U, arch.DataType.S]
+        ty = type_info.TypeKind.TYPE_UINT  # TODO: Memory class should keep track of dtype, not only size?
+        assert ty in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
         single_mem_acc_size = expr.reference.size
 
         ## Simple eval check for ranged access.
@@ -326,7 +327,7 @@ class InferTypesMutator(ExprMutator):
                 assert(lhs_offset >= rhs_offset)
                 size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
 
-        ty_ = arch.IntegerType(size, ty == arch.DataType.S, None)
+        ty_ = type_info.IntegerType(size, ty == type_info.TypeKind.TYPE_INT)
 
         expr.inferred_type = ty_
 
@@ -340,9 +341,9 @@ class InferTypesMutator(ExprMutator):
         if ty is None:
             logger.warning("Type conv needs inferred type. Skipping...")
             return expr
-        assert isinstance(ty, arch.IntegerType)
-        assert expr.data_type in [arch.DataType.U, arch.DataType.S]
-        ty.signed = expr.data_type == arch.DataType.S
+        assert isinstance(ty, type_info.IntegerType)
+        assert expr.data_type in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
+        ty.signed = expr.data_type == type_info.TypeKind.TYPE_INT
         if expr.size is not None:
             ty._width = expr.size
 
@@ -354,13 +355,13 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Callable, context):
         if isinstance(expr.ref_or_name, arch.Function):
-            if expr.ref_or_name.data_type == arch.DataType.NONE:
+            if expr.ref_or_name.data_type == type_info.TypeKind.TYPE_VOID:
                 signed = None
             else:
-                assert expr.ref_or_name.data_type in [arch.DataType.U, arch.DataType.S]
-                signed = expr.ref_or_name.data_type == arch.DataType.S
-            width = expr.ref_or_name.size
-            expr.inferred_type = arch.IntegerType(width, signed, None)
+                assert expr.ref_or_name.data_type in [type_info.TypeKind.TYPE_UINT, type_info.TypeKind.TYPE_INT]
+                signed = expr.ref_or_name.data_type == type_info.TypeKind.TYPE_INT
+            width = arch.get_const_or_val(expr.ref_or_name.size)
+            expr.inferred_type = type_info.IntegerType(arch.get_const_or_val(width), signed)
         expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
         return expr

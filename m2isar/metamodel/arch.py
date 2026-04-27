@@ -17,6 +17,7 @@ from collections import defaultdict
 from enum import Enum, IntEnum, auto
 from typing import TYPE_CHECKING, Any, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
+from m2isar.metamodel import type_info
 
 from .. import M2TypeError
 from .behav import BaseNode, Operation, Literal
@@ -235,69 +236,15 @@ class FunctionThrows(IntEnum):
 	YES = 1
 	MAYBE = 2
 
-class DataType(Enum):
-	NONE = auto()
-	U = auto()
-	S = auto()
-	F = auto()
-	D = auto()
-	Q = auto()
-	B = auto()
-
-class DataType2:
-	"""A datatype base class, only holds information on whether it is a pointer."""
-
-	ptr: Any
-
-	def __init__(self, ptr) -> None:
-		self.ptr = ptr
-
-class VoidType(DataType2):
-	"""A void datatype, automatically assumes native size."""
-
-class IntegerType(DataType2):
-	"""An integer datatype with width and sign information."""
-
-	_width: Union[int, "Constant", "BaseNode"]
-	signed: bool
-
-	def __init__(self, width: Union[int, "Constant", "BaseNode"], signed: bool, ptr):
-		self._width = width
-		self.signed = signed
-
-		super().__init__(ptr)
-
-	@property
-	def width(self):
-		"""Returns the resolved width value."""
-
-		return get_const_or_val(self._width)
-
-	def __str__(self) -> str:
-		return f'{super().__repr__()}, width={self.width}, signed={self.signed}'
-
-	def __repr__(self):
-		return self.__str__()
-
-
-	@property
-	def actual_width(self):
-		"""Returns the resolved width value rounded to the nearest multiple of 8."""
-
-		if self._width is None:
-			return None
-
-		temp = 1 << (self.width - 1).bit_length()
-		return temp if temp >= 8 else 8
 
 class FnParam(SizedRefOrConst):
 	"""A function parameter."""
 
-	data_type: DataType
+	data_type: type_info.TypeKind
 	_width: Union[int, "Constant", "BaseNode"]
 	"""The array width of this parameter."""
 
-	def __init__(self, name, size, data_type: DataType, width=1):
+	def __init__(self, name, size, data_type: type_info.TypeKind, width=1):
 		self.data_type = data_type
 		self._width = width
 		super().__init__(name, size)
@@ -316,9 +263,9 @@ class Scalar(SizedRefOrConst):
 
 	value: int
 	static: bool
-	data_type: DataType
+	data_type: type_info.TypeKind
 
-	def __init__(self, name, value: int, static: bool, size, data_type: DataType):
+	def __init__(self, name, value: int, static: bool, size, data_type: type_info.TypeKind):
 		self.value = value
 		self.static = static
 		self.data_type = data_type
@@ -327,9 +274,9 @@ class Scalar(SizedRefOrConst):
 class Intrinsic(SizedRefOrConst):
 
 	value: int
-	data_type: DataType
+	data_type: type_info.TypeKind
 
-	def __init__(self, name, size: ValOrConst, data_type: DataType, value: int = None):
+	def __init__(self, name, size: ValOrConst, data_type: type_info.TypeKind, value: int = None):
 		self.data_type = data_type
 		self.value = value
 		super().__init__(name, size)
@@ -393,13 +340,13 @@ class BitField(Named):
 	"""
 
 	range: RangeSpec
-	data_type: DataType
+	data_type: type_info.TypeKind
 
-	def __init__(self, name, _range: RangeSpec, data_type: DataType):
+	def __init__(self, name, _range: RangeSpec, data_type: type_info.TypeKind):
 		self.range = _range
 		self.data_type = data_type
 		if not self.data_type:
-			self.data_type = DataType.U
+			self.data_type = type_info.TypeKind.TYPE_UINT
 
 		super().__init__(name)
 
@@ -414,7 +361,7 @@ class BitFieldDescr(SizedRefOrConst):
 	the actual bits it is composed of, for that use BitField.
 	"""
 
-	def __init__(self, name, size: ValOrConst, data_type: DataType):
+	def __init__(self, name, size: ValOrConst, data_type: type_info.TypeKind):
 		self.data_type = data_type
 
 		super().__init__(name, size)
@@ -482,7 +429,7 @@ class Function(SizedRefOrConst):
 	"""A class representing a function."""
 
 	attributes: "dict[FunctionAttribute, list[BaseNode]]"
-	data_type: DataType
+	data_type: type_info.TypeKind
 	args: "list[FnParam]"
 	operation: "Operation"
 	extern: bool
@@ -492,7 +439,7 @@ class Function(SizedRefOrConst):
 	throws: bool
 	static: bool
 
-	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: DataType, args: "list[FnParam]",
+	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: type_info.TypeKind, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""

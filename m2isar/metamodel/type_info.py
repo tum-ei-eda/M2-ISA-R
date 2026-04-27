@@ -12,15 +12,49 @@ anything but the functional behavior of functions and instructions.
 """
 
 from enum import Enum, auto
+from typing import Any, Union, Optional
 
 
-class PrimitiveKind(Enum):
-    NONE = auto()
-    U = auto()
-    S = auto()
-    F = auto()
-    D = auto()
-    Q = auto()
-    BOOL = auto()
-    STR = auto()
+class TypeKind(Enum):
+    TYPE_NONE = auto() # NumberLiteral with no type, e.g. 0 or 1
+    TYPE_VOID = auto()
+    TYPE_UINT = auto()
+    TYPE_INT = auto()
+    TYPE_BOOL = auto()
+    TYPE_FLOAT = auto()
+    TYPE_STR = auto()
+    TYPE_ARRAY = auto()
 
+class PrimitiveType:
+    def __init__(self, kind: TypeKind, size: int):
+        self.kind = kind
+        self.size = size
+
+
+#removed get_const_or_val
+class IntegerType(PrimitiveType):
+    def __init__(self, size: int, signed: bool, ptr: Any=False):
+        self.ptr = ptr
+        super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
+
+    @property
+    def actual_width(self):
+        """Returns the resolved width value rounded to the nearest multiple of 8."""
+
+        if self.size is None:
+            return None
+
+        temp = 1 << (self.size - 1).bit_length()
+        return temp if temp >= 8 else 8
+
+
+class FloatType:
+    def __init__(self, exponent: int, mantissa: int, size: int):
+        self.exponent = exponent
+        self.mantissa = mantissa
+        self.size = size
+
+class ArrayType:
+    def __init__(self, element_type : Union[PrimitiveType, FloatType], length: int):
+        self.element_kind : Union[PrimitiveType, FloatType] = element_type
+        self.length = length # allow shaped later or TYPE_ARRAY in element_type?

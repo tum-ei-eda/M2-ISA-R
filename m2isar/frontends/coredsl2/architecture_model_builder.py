@@ -61,13 +61,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# instantiate M2-ISA-R objects
 		range_spec = arch.RangeSpec(left.value, right.value)
-		return arch.BitField(ctx.name.text, range_spec, arch.DataType.U)
+		return arch.BitField(ctx.name.text, range_spec, type_info.TypeKind.TYPE_UINT)
 
 	def visitBit_value(self, ctx: CoreDSL2Parser.Bit_valueContext):
 		"""Generate a fixed encoding part."""
 
 		val = self.visit(ctx.value)
-		return arch.BitVal(val.size, val.value)
+		return arch.BitVal(val.type.size, val.value)
 
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
 		"""Generate a top-level instruction set object."""
@@ -213,11 +213,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			params = [params]
 
 		return_size = None
-		data_type = arch.DataType.NONE
+		data_type = type_info.TypeKind.TYPE_VOID
 
-		if isinstance(type_, arch.IntegerType):
-			return_size = type_._width
-			data_type = arch.DataType.S if type_.signed else arch.DataType.U
+		if isinstance(type_, type_info.IntegerType):
+			return_size = type_.size
+			data_type = type_.kind
 
 		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 		if not f.extern:
@@ -249,7 +249,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			if ctx.decl.size:
 				size = [self.visit(obj) for obj in ctx.decl.size]
 
-		p = arch.FnParam(name, type_._width, arch.DataType.S if type_.signed else arch.DataType.U)
+		p = arch.FnParam(name, type_.size, type_.kind)
 		return p
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
@@ -280,7 +280,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				width = value.bit_length()
 
-		kind = type_info.PrimitiveKind.U if value >=0 else type_info.PrimitiveKind.S
+		kind = type_info.TypeKind.TYPE_UINT if value >=0 else type_info.TypeKind.TYPE_INT
 		return behav.Literal(value, kind, width)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
@@ -293,6 +293,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# extract data type
 		type_ = self.visit(ctx.type_)
+		assert isinstance(type_, type_info.IntegerType)
 
 		# extract list of contained declarations for the given type
 		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
@@ -333,7 +334,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				#	raise ValueError(f"range mismatch for \"{name}\"")
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
-				m = arch.Memory(name, range_spec, type_._width, attributes)
+				m = arch.Memory(name, range_spec, type_.size, attributes)
 				m.parent = reference
 				m.parent.children.append(m)
 
@@ -354,7 +355,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
-					c = arch.Constant(name, init, [], type_._width, type_.signed)
+					c = arch.Constant(name, init, [], type_.size, True if type_.kind == type_info.TypeKind.TYPE_INT else False)
 
 					self._constants[name] = c
 					ret_decls.append(c)
@@ -381,7 +382,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 					range_spec = arch.RangeSpec(size[0])
-					m = arch.Memory(name, range_spec, type_._width, attributes)
+					m = arch.Memory(name, range_spec, type_.size, attributes)
 
 					# attach init value to memory object
 					if init is not None:
@@ -429,15 +430,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		else:
 			raise M2TypeError("width has wrong type")
 
-		return arch.IntegerType(width, signed, None)
+		return type_info.IntegerType(width, signed)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type."""
-		return arch.VoidType(None)
+		return type_info.PrimitiveType(type_info.TypeKind.TYPE_VOID, None)
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool (alias for unsigned<1>)."""
-		return arch.IntegerType(1, False, None)
+		return type_info.IntegerType(1, False)
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""
@@ -485,7 +486,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		value = SHORTHANDS[ctx.children[0].symbol.text]
-		return behav.Literal(value, type_info.PrimitiveKind.S if value<0 else type_info.PrimitiveKind.U)
+		return behav.Literal(value, type_info.TypeKind.TYPE_NONE)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """

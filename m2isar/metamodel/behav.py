@@ -21,7 +21,7 @@ on which translation module is loaded using :func:`patch_model`.
 """
 
 from typing import TYPE_CHECKING, Union
-from .type_info import PrimitiveKind
+from .type_info import PrimitiveType, TypeKind
 
 
 if TYPE_CHECKING:
@@ -95,21 +95,17 @@ class ConcatOperation(BaseNode):
 
 
 class Literal(BaseNode):
-	def __init__(self, value:int, kind : PrimitiveKind = None, size=None, base=10, line_info=None):
+	def __init__(self, value:int, kind : TypeKind = None, size=None, base=10, line_info=None):
 		super().__init__(line_info)
 
 		self._value : Union[int, str] = value
-		self.kind = kind      # assigned during type checking
+		self.type = PrimitiveType(kind, size)      # assigned during type checking
 
 		#Optional type information (not always given)
-		if size is None:
-			self.size = value.bit_length()
-		else:
-			self.size = size    # optional (important for ISA DSL!)
 		self.base: int = base   # 2, 10, 16
 
 	def __repr__(self):
-		return f"Literal(value={self.value}, kind={self.kind}, size={self.size}, base={self.base})"
+		return f"Literal(value={self.value}, type={self.type}, base={self.base})"
 
 	def __int__(self):
 		if isinstance(self.value, int):

@@ -127,7 +127,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
-			s = arch.Scalar(name, None, StaticType.NONE, type_.width, arch.DataType.S if type_.signed else arch.DataType.U)
+			s = arch.Scalar(name, None, StaticType.NONE, type_.size, type_.kind)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 
@@ -136,7 +136,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 			else:
-				init = behav.Literal(0, type_info.PrimitiveKind.U)
+				init = behav.Literal(0, type_info.TypeKind.TYPE_NONE)
 
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
 			ret_decls.append(a)
@@ -352,7 +352,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			value = int(text, 0)
 			width = value.bit_length()
 
-		kind = type_info.PrimitiveKind.S if value <= 0 else type_info.PrimitiveKind.U
+		kind = type_info.TypeKind.TYPE_INT if value <= 0 else type_info.TypeKind.TYPE_UINT
 
 		return behav.Literal(value, kind, width, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
@@ -363,7 +363,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		value = min(ord(text.replace("'", "")), 255)
 
-		return behav.Literal(value, type_info.PrimitiveKind.U, size=8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(value, type_info.TypeKind.TYPE_UINT, size=8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitString_constant(self, ctx: CoreDSL2Parser.String_constantContext):
 		text: str = ctx.value.text
@@ -371,14 +371,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		assert text[0] == '"' and text[-1] == '"'
 		text = text[1:-1]
 
-		return behav.StringLiteral(text, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(text, type_info.TypeKind.TYPE_STR, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitBool_constant(self, ctx: CoreDSL2Parser.Bool_constantContext):
 		"""Generate a boolean literal. Converts directly to uint1."""
 
 		text: str = ctx.value.text
 
-		return behav.IntLiteral(BOOLCONST[text], 1, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(BOOLCONST[text], type_info.TypeKind.TYPE_UINT, size=1, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
 		"""Generate a type cast."""
@@ -386,12 +386,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		expr = self.visit(ctx.right)
 		if ctx.type_:
 			type_ = self.visit(ctx.type_)
-			sign = arch.DataType.S if type_.signed else arch.DataType.U
-			size = type_.width
+			sign = type_.kind
+			size = type_.size
 
 		if ctx.sign:
 			sign = self.visit(ctx.sign)
-			sign = arch.DataType.S if sign else arch.DataType.U
+			sign = type_info.TypeKind.TYPE_INT if sign else type_info.TypeKind.TYPE_UINT
 			size = None
 
 		return behav.TypeConv(sign, size, expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
@@ -424,17 +424,17 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		else:
 			raise M2TypeError("width has wrong type")
 
-		return arch.IntegerType(width, signed, None)
+		return type_info.IntegerType(width, signed)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type specifier."""
 
-		return arch.VoidType(None)
+		return type_info.PrimitiveType(type_info.TypeKind.TYPE_VOID, None)
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool type specifier. Aliases to unsigned<1>."""
 
-		return arch.IntegerType(1, False, None)
+		return type_info.IntegerType(1, False)
 
 	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
 		"""Generate integer signedness."""
@@ -444,4 +444,4 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		"""Lookup a shorthand type specifier."""
 
-		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], type_info.PrimitiveKind.U, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], type_info.TypeKind.TYPE_NONE, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
