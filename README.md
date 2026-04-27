@@ -27,6 +27,7 @@ This tool serves as a general-purpose instruction set architecture metamodel. A 
 - Make a Python `venv`: `python -m venv venv`
 - Activate said `venv`: `source venv/bin/activate`
 - Install M2-ISA-R for development: `pip install -e .`
+- Install PyPI release: `pip install m2isar`
 
 ## Architecture
 M2-ISA-R consists of 3 components, two of which are exchangeable for different needs:
