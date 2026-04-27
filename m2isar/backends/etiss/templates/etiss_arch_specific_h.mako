@@ -72,8 +72,8 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
   protected:
     virtual uint64_t _read(size_t offset) const
     {
-        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         % if len(main_reg.children) > 0:
         return (uint64_t) *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_];
         % else:
@@ -84,8 +84,8 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
 
     virtual void _write(uint64_t val, size_t offset)
     {
-        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
         % if len(main_reg.children) > 0:
         *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
@@ -101,8 +101,9 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
 {
   private:
     const unsigned gprid_;
+
   public:
-    FloatRegField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
+    FloatRegField_${core_name}(etiss::VirtualStruct &parent, unsigned gprid)
         // clang-format off
             : Field(parent,
               std::string("${float_reg.name}")+etiss::toString(gprid),
@@ -111,11 +112,11 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               ${int(float_reg.size / 8)}
             ),
             gprid_(gprid)
-        // clang-format on
-        {
-        }
+    // clang-format on
+    {
+    }
 
-    FloatRegField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
+    FloatRegField_${core_name}(etiss::VirtualStruct &parent, std::string name, unsigned gprid)
         // clang-format off
         : Field(parent,
               name,
@@ -124,76 +125,92 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               ${int(float_reg.size / 8)}
             ),
             gprid_(gprid)
-        // clang-format on
-        {
-        }
+    // clang-format on
+    {
+    }
 
-    virtual ~FloatRegField_${core_name}(){}
+    virtual ~FloatRegField_${core_name}() {}
 
   protected:
-    virtual uint64_t _read(size_t offset) const {
-      assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-      % if len(main_reg.children) > 0:
-      return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
-      % else:
-      return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
-      % endif
+    virtual uint64_t _read(size_t offset) const
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        % if len(main_reg.children) > 0:
+        return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
+        % else:
+        return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
+        % endif
+        // clang-format on
     }
 
-    virtual void _write(uint64_t val, size_t offset) {
-      assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-      etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-      % if len(main_reg.children) > 0:
-      *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
-      % else:
-      ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
-      % endif
+    virtual void _write(uint64_t val, size_t offset)
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+        % if len(main_reg.children) > 0:
+        *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
+        % else:
+        ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.size}) val;
+        % endif
+        // clang-format on
     }
-  };
+};
 % endif
 
 % if vector_reg:
-class VectorRegField_${core_name} : public etiss::VirtualStruct::Field{
-private:
-       const unsigned gprid_;
-public:
-       VectorRegField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
-               : Field(parent,
-                       std::string("${vector_reg.name}")+etiss::toString(gprid),
-                       std::string("${vector_reg.name}")+etiss::toString(gprid),
-                       R|W,
-                       ${int((vector_reg.range.length // 32) // (vector_reg.size // 8))}
-               ),
-               gprid_(gprid)
-       {}
+class VectorRegField_${core_name} : public etiss::VirtualStruct::Field
+{
+  private:
+    const unsigned gprid_;
 
-       VectorRegField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
-               : Field(parent,
-                       name,
-                       name,
-                       R|W,
-                       ${int((vector_reg.range.length // 32) // (vector_reg.size // 8))}
-               ),
-               gprid_(gprid)
-       {}
+  public:
+    VectorRegField_${core_name}(etiss::VirtualStruct &parent,unsigned gprid)
+        // clang-format off
+        : Field(parent,
+                std::string("${vector_reg.name}")+etiss::toString(gprid),
+                std::string("${vector_reg.name}")+etiss::toString(gprid),
+                R|W,
+                ${int((vector_reg.range.length // 32) // (vector_reg.size // 8))}
+        ),
+        gprid_(gprid)
+    // clang-format on
+    {
+    }
 
-       virtual ~VectorRegField_${core_name}(){}
+    VectorRegField_${core_name}(etiss::VirtualStruct &parent, std::string name, unsigned gprid)
+        // clang-format off
+        : Field(parent,
+                name,
+                name,
+                R|W,
+                ${int((vector_reg.range.length // 32) // (vector_reg.size // 8))}
+        ),
+        gprid_(gprid)
+    // clang-format on
+    {
+    }
 
-protected:
-       virtual uint64_t _read(size_t offset) const {
-               assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-               // printf("v_read with gprid_ %d\n", gprid_);
-               // TODO: check for out of bounds? (offset < width_/8)
-               return (uint64_t) *((uint64_t*)&((${core_name}*)parent_.structure_)->${vector_reg.name}[gprid_ * width_ + sizeof(uint64_t) * offset]);
-       }
+     virtual ~VectorRegField_${core_name}() {}
 
-       virtual void _write(uint64_t val, size_t offset) {
-               assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-               etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-               // printf("v_write (%lu) with gprid_ %d\n", val, gprid_);
-               // TODO: check for out of bounds? (offset < width_/8)
-               *((uint64_t*)&((${core_name}*)parent_.structure_)->${vector_reg.name}[gprid_ * width_ + sizeof(uint64_t)]) = (etiss_uint64) val;  // TODO: write V[gprid_] instead
-       }
+  protected:
+    virtual uint64_t _read(size_t offset) const
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        return (uint64_t) *((uint64_t*)&((${core_name}*)parent_.structure_)->${vector_reg.name}[gprid_ * width_ + sizeof(uint64_t) * offset]);
+        // clang-format on
+    }
+
+    virtual void _write(uint64_t val, size_t offset)
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+        *((uint64_t*)&((${core_name}*)parent_.structure_)->${vector_reg.name}[gprid_ * width_ + sizeof(uint64_t)]) = (etiss_uint64) val;  // TODO: write V[gprid_] instead
+        // clang-format on
+    }
 };
 % endif
 
@@ -202,8 +219,9 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
 {
   private:
     const unsigned gprid_;
+
   public:
-    CSRField_${core_name}(etiss::VirtualStruct & parent,unsigned gprid)
+    CSRField_${core_name}(etiss::VirtualStruct &parent, unsigned gprid)
         // clang-format off
         : Field(parent,
             std::string("${csr_reg.name}")+etiss::toString(gprid),
@@ -216,29 +234,38 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
     {
     }
 
-  CSRField_${core_name}(etiss::VirtualStruct & parent, std::string name, unsigned gprid)
-    : Field(parent,
-      name,
-      name,
-      R|W,
-      ${int(csr_reg.size / 8)}
-    ),
-    gprid_(gprid)
-  {}
+    CSRField_${core_name}(etiss::VirtualStruct &parent, std::string name, unsigned gprid)
+        // clang-format off
+      : Field(parent,
+        name,
+        name,
+        R|W,
+        ${int(csr_reg.size / 8)}
+      ),
+      gprid_(gprid)
+    // clang-format on
+    {
+    }
 
-  virtual ~CSRField_${core_name}(){}
+    virtual ~CSRField_${core_name}() {}
 
-protected:
-  virtual uint64_t _read(size_t offset) const {
-    assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-    return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${csr_reg.size}) gprid_);
-  }
+  protected:
+    virtual uint64_t _read(size_t offset) const
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${csr_reg.size}) gprid_);
+        // clang-format on
+    }
 
-  virtual void _write(uint64_t val, size_t offset) {
-    assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-    etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-    ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${csr_reg.size}) val);
-  }
+    virtual void _write(uint64_t val, size_t offset)
+    {
+        // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
+        etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
+        ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${csr_reg.size}) val);
+        // clang-format on
+    }
 };
 % endif
 
@@ -264,16 +291,16 @@ class pcField_${core_name} : public etiss::VirtualStruct::Field
   protected:
     virtual uint64_t _read(size_t offset) const
     {
-        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         return (uint64_t) ((ETISS_CPU *)parent_.structure_)->instructionPointer;
         // clang-format on
     }
 
     virtual void _write(uint64_t val, size_t offset)
     {
-        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         // clang-format off
+        assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
         ((ETISS_CPU *)parent_.structure_)->instructionPointer = (etiss_uint${main_reg.size}) val;
         // clang-format on

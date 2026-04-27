@@ -65,18 +65,20 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
         }
         % endif
         % endif
-        switch (index){
+        switch (index)
+        {
         % if mapping is not None:
         % for regnum, (name, name2) in mapping.items():
-        case ${regnum}: return "${name2}";  // ${name}
+        case ${regnum}:
+            return "${name2}"; // ${name}
         % endfor
         % else:
         case ${main_reg.range.length}:
             return "instructionPointer";
         % endif
-        /**************************************************************************
-        *   Further register should be added here to send data over gdbserver	  *
-        ***************************************************************************/
+            /**************************************************************************
+             *   Further register should be added here to send data over gdbserver	  *
+             **************************************************************************/
         }
         return "";
   }

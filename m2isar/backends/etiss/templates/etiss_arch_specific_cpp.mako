@@ -156,25 +156,26 @@ ${fill_endianess_compensation}
 
 std::shared_ptr<etiss::VirtualStruct> ${core_name}Arch::getVirtualStruct(ETISS_CPU *cpu)
 {
-	  auto ret = etiss::VirtualStruct::allocate(cpu, [](etiss::VirtualStruct::Field*f) { delete f; });
+    auto ret = etiss::VirtualStruct::allocate(cpu, [](etiss::VirtualStruct::Field *f) { delete f; });
 
-	  % if virtualstruct_regs is not None:
-	  % for virtualstruct_class, idxs in virtualstruct_regs.items():
-	  % for idx in idxs:
-	  % if isinstance(idx, range):
-	  for (uint32_t i = ${idx.start}; i < ${idx.stop}; i += ${idx.step}){
-	  	  ret->addField(new ${virtualstruct_class}_${core_name}(*ret, i));
-	  }
-	  % elif idx is None:
-	  ret->addField(new ${virtualstruct_class}_${core_name}(*ret));
-	  % else:
-	  ret->addField(new ${virtualstruct_class}_${core_name}(*ret, ${idx}));
-	  % endif
-	  % endfor
-	  % endfor
-	  % endif
+    % if virtualstruct_regs is not None:
+    % for virtualstruct_class, idxs in virtualstruct_regs.items():
+    % for idx in idxs:
+    % if isinstance(idx, range):
+    for (uint32_t i = ${idx.start}; i < ${idx.stop}; i += ${idx.step})
+    {
+        ret->addField(new ${virtualstruct_class}_${core_name}(*ret, i));
+    }
+    % elif idx is None:
+    ret->addField(new ${virtualstruct_class}_${core_name}(*ret));
+    % else:
+    ret->addField(new ${virtualstruct_class}_${core_name}(*ret, ${idx}));
+    % endif
+    % endfor
+    % endfor
+    % endif
 
-	  return ret;
+    return ret;
 }
 
 /**
