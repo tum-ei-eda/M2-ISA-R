@@ -699,6 +699,8 @@ class InstructionTransformVisitor(ExprVisitor):
 				# Use a simple base address on one site atleast for ranged_mem access.
 				# Index Codestring is forwarded into MemID class.
 				right = self.generate(expr.right, context)
+				if right.static and not context.ignore_static and not right.is_literal:
+					right.code = context.make_static(right.code, right.signed)
 				if(type(expr.index) == behav.NamedReference):
 					c.mem_ids.append(MemID(referred_mem, context.mem_var_count, index, size))
 				elif(type(expr.right) == behav.NamedReference):
