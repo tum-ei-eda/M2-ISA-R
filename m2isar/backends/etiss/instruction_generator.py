@@ -131,7 +131,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 		asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
 
 		# generate sign extension if necessary
-		if field_descr.data_type == arch.DataType.S and field_descr.size < core_default_width:
+		if field_descr.data_type == type_info.TypeKind.TYPE_INT and field_descr.size < core_default_width:
 			fields_code += '\n'
 			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
 			fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
@@ -237,7 +237,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 					[cond[0]],
 					[
 						instr_def.operation.statements,
-						behav.ProcedureCall(error_fn, [behav.Literal(-11, type_info.PrimitiveKind.S)])
+						behav.ProcedureCall(error_fn, [behav.Literal(-11, type_info.TypeKind.TYPE_NONE)])
 					]
 				)
 			])

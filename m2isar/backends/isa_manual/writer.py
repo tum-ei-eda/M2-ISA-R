@@ -17,6 +17,8 @@ from copy import deepcopy
 from collections import defaultdict
 from mako.template import Template
 
+from m2isar.metamodel import type_info
+
 from .utils import generate_encoding
 from .visitor import ISAmanualVisitor
 
@@ -143,11 +145,11 @@ class CoreDSL2Writer:
             self.write("}", nl=nl)
 
     def write_type(self, data_type, size):
-        if data_type == arch.DataType.U:
+        if data_type == type_info.TypeKind.TYPE_UINT:
             self.write("unsigned")
-        elif data_type == arch.DataType.S:
+        elif data_type == type_info.TypeKind.TYPE_INT:
             self.write("signed")
-        elif data_type == arch.DataType.NONE:
+        elif data_type == type_info.TypeKind.TYPE_NONE:
             self.write("void")
         else:
             raise NotImplementedError(f"Unsupported type: {data_type}")

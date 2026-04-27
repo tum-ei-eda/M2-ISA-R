@@ -13,15 +13,15 @@ from itertools import chain
 from string import Template
 
 from ... import M2ValueError
-from ...metamodel import arch
+from ...metamodel import arch, type_info
 from ...metamodel.code_info import LineInfo
 from ...metamodel.utils import StaticType
 from . import replacements
 
 data_type_map = {
-	arch.DataType.S: 'etiss_int',
-	arch.DataType.U: 'etiss_uint',
-	arch.DataType.NONE: 'void'
+	type_info.TypeKind.TYPE_INT: 'etiss_int',
+	type_info.TypeKind.TYPE_UINT: 'etiss_uint',
+	type_info.TypeKind.TYPE_VOID: 'void'
 }
 
 

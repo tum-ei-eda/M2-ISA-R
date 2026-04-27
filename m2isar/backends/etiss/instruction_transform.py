@@ -195,7 +195,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			f'{data_type_map[expr.scalar.data_type]}{actual_size} {expr.scalar.name}',
 			static,
 			expr.scalar.size,
-			expr.scalar.data_type == arch.DataType.S,
+			expr.scalar.data_type == type_info.TypeKind.TYPE_INT,
 			line_infos=expr.line_info,
 		)
 
@@ -292,7 +292,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# keep track of signedness of function return value
-			signed = fn.data_type == arch.DataType.S
+			signed = fn.data_type == type_info.TypeKind.TYPE_INT
 			# keep track of affected registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
@@ -569,7 +569,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# if only width should be changed assume data type remains unchanged
 		if expr.data_type is None:
-			expr.data_type = arch.DataType.S if expr_str.signed else arch.DataType.U
+			expr.data_type = type_info.TypeKind.TYPE_INT if expr_str.signed else type_info.TypeKind.TYPE_UINT
 
 		# if only data type should be changed assume width remains unchanged
 		if expr.size is None:
@@ -580,7 +580,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		code_str = expr_str.code
 
 		# sign extension for non-2^N datatypes
-		if expr.data_type == arch.DataType.S and expr_str.actual_size != expr_str.size:
+		if expr.data_type == type_info.TypeKind.TYPE_INT and expr_str.actual_size != expr_str.size:
 			target_size = expr.actual_size
 
 			if isinstance(expr.size, int):
@@ -592,7 +592,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			code_str = f'({data_type_map[expr.data_type]}{expr.actual_size})({code_str})'
 
-		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == arch.DataType.S, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.TYPE_INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.mem_ids = expr_str.mem_ids
 
 		return c
@@ -625,12 +625,12 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		elif isinstance(referred_var, arch.BitFieldDescr):
 			# function argument
-			signed = referred_var.data_type == arch.DataType.S
+			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
 			size = referred_var.size
 			static = StaticType.READ
 
 		elif isinstance(referred_var, arch.Scalar):
-			signed = referred_var.data_type == arch.DataType.S
+			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
 			size = referred_var.size
 			if context.static_scalars:
 				static = referred_var.static
@@ -642,7 +642,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
-			signed = referred_var.data_type == arch.DataType.S
+			signed = referred_var.data_type ==  type_info.TypeKind.TYPE_INT
 			size = referred_var.size
 			static = StaticType.RW
 
@@ -650,7 +650,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if context.ignore_static:
 				raise TypeError("intrinsic not allowed in function")
 
-			signed = referred_var.data_type == arch.DataType.S
+			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
 			size = referred_var.size
 			static = StaticType.READ
 
@@ -693,7 +693,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			# generate memory access if main memory is accessed
-			size = expr.inferred_type._width
+			size = expr.inferred_type.size
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
 			if (expr.right != None):
 				# Use a simple base address on one site atleast for ranged_mem access.
@@ -790,40 +790,42 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Literal, context: TransformerContext):
-		if expr.kind is type_info.PrimitiveKind.STR:
+		if expr.type.kind is type_info.TypeKind.TYPE_STR:
 			return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
+
+		# old number NumberLiteral
+		elif expr.type.kind == type_info.TypeKind.TYPE_NONE:
+			lit = int(expr.value)
+			size = min(lit.bit_length(), 64)
+			sign = lit < 0
+
+
+			# TODO: Look in diff. U is sometimes there for negative  vals!!!
+			twocomp_lit = (lit + (1 << 64)) % (1 << 64)
+			postfix = "U" if not sign else ""
+			postfix += "LL"
+			return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
+		# IntLiteral
 		else:
-			# old number NumberLiteral
-			if expr.size is None:
-				lit = int(expr.value)
-				size = min(lit.bit_length(), 64)
-				sign = lit < 0
+			assert(expr.type.kind in [type_info.TypeKind.TYPE_INT, type_info.TypeKind.TYPE_UINT])
+			lit = int(expr.value)
+			if expr.type.size is None:
+				size = lit.bit_length()
+			size = min(expr.type.size, 128)
+			sign = True if expr.type.kind is type_info.TypeKind.TYPE_INT else False
 
+			minus = ""
+			if lit > 0 and sign and (lit >> (size - 1)) & 1:
+				minus = "-"
 
-				# TODO: Look in diff. U is sometimes there for negative  vals!!!
-				twocomp_lit = (lit + (1 << 64)) % (1 << 64)
-				postfix = "U" if not sign else ""
-				postfix += "LL"
-				return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
-			# IntLiteral
-			else:
-				assert(expr.kind in [type_info.PrimitiveKind.S, type_info.PrimitiveKind.U])
-				lit = int(expr.value)
-				size = min(expr.size, 128)
-				sign = True if expr.kind is type_info.PrimitiveKind.S else False
+			_ = (lit + (1 << size)) % (1 << size)
 
-				minus = ""
-				if lit > 0 and sign and (lit >> (size - 1)) & 1:
-					minus = "-"
+			postfix = "U" if not sign else ""
+			postfix += "LL"
 
-				_ = (lit + (1 << size)) % (1 << size)
-
-				postfix = "U" if not sign else ""
-				postfix += "LL"
-
-				ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
-				ret.is_literal = True
-				return ret
+			ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
+			ret.is_literal = True
+			return ret
 
 	@generate.register
 	def _(self, expr: behav.CodeLiteral, context: TransformerContext):
