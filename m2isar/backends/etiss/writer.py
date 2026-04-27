@@ -26,6 +26,7 @@ from .architecture_writer import (write_arch_cmake, write_arch_cpp,
                                   write_arch_specific_header,
                                   write_arch_struct)
 from .instruction_writer import write_functions, write_instructions
+from .virtualstruct_utils import process_gdb_xml_descr_args, get_virtualstruct_regs, get_gdb_mapping
 
 
 # TODO: not required anymore for Python >= v3.9
@@ -86,6 +87,9 @@ def setup():
 		help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
+	parser.add_argument("--gdb-xml-descr", nargs="+", default=[])
+	parser.add_argument("--fill-mode", choices=["auto", "empty"], default="empty")
+	# TODO: add modes for rvv,...
 	args = parser.parse_args()
 
 	# configure logging
@@ -126,11 +130,13 @@ def setup():
 
 	return (model_obj.cores, logger, output_base_path, spec_name, start_time, args)
 
+
 def main():
 	"""etiss_writer main entrypoint function."""
 
 	# setup etiss writer
 	cores, logger, output_base_path, spec_name, start_time, args = setup()
+	descr_mapping = process_gdb_xml_descr_args(args.gdb_xml_descr, cores)
 
 	# preprocess all models
 	for core_name, core in cores.items():
@@ -154,6 +160,9 @@ def main():
 	# generate each core in the model
 	for core_name, core in cores.items():
 		logger.info("processing model %s", core_name)
+		mapping = descr_mapping.get(core_name)
+		virtualstruct_regs = get_virtualstruct_regs(mapping, core.memories, core.memory_aliases)
+		gdb_mapping = get_gdb_mapping(mapping, core.memories, core.memory_aliases)
 
 		# create output files path
 		output_path = output_base_path / spec_name / core_name
@@ -168,10 +177,10 @@ def main():
 		write_arch_header(core, start_time, output_path)
 		write_arch_cpp(core, start_time, output_path, False)
 		write_arch_specific_header(core, start_time, output_path)
-		write_arch_specific_cpp(core, start_time, output_path)
+		write_arch_specific_cpp(core, start_time, output_path, virtualstruct_regs, args.fill_mode)
 		write_arch_lib(core, start_time, output_path)
 		write_arch_cmake(core, start_time, output_path, args.separate)
-		write_arch_gdbcore(core, start_time, output_path)
+		write_arch_gdbcore(core, start_time, output_path, gdb_mapping)
 		write_functions(core, start_time, output_path, args.static_scalars, args.coverage)
 		write_instructions(core, start_time, output_path, args.separate, args.static_scalars, BlockEndType[args.block_end_on.upper()], args.coverage)
 

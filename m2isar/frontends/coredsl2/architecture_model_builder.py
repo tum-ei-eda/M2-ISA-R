@@ -35,6 +35,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]"
 	_instr_classes: "set[int]"
 	_main_reg_file: Union[arch.Memory, None]
+	_float_reg_file: Union[arch.Memory, None]
+	_vector_reg_file: Union[arch.Memory, None]
+	_csr_reg_file: Union[arch.Memory, None]
 
 	def __init__(self):
 		super().__init__()
@@ -51,6 +54,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._overwritten_instrs = []
 		self._instr_classes = set()
 		self._main_reg_file = None
+		self._float_reg_file = None
+		self._vector_reg_file = None
+		self._csr_reg_file = None
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -388,6 +394,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
+					if arch.MemoryAttribute.IS_FLOAT_REG in attributes:
+						self._float_reg_file = m
+					if arch.MemoryAttribute.IS_VECTOR_REG in attributes:
+						self._vector_reg_file = m
+					if arch.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+						self._csr_reg_file = m
 
 					self._memories[name] = m
 					ret_decls.append(m)
