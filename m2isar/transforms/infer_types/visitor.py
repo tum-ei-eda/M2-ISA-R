@@ -10,14 +10,14 @@
 simplifications are done:
 
 * Resolvable :class:`m2isar.metamodel.arch.Constant` s are replaced by
-  `m2isar.metamodel.arch.IntLiteral` s representing their value
+  `m2isar.metamodel.arch.Literal` s representing their value
 * Fully resolvable arithmetic operations are carried out and their results
-  represented as a matching :class:`m2isar.metamodel.arch.IntLiteral`
+  represented as a matching :class:`m2isar.metamodel.arch.Literal`
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
-* Type conversions of :class:`m2isar.metamodel.arch.IntLiteral` s apply the desired
-  type directly to the :class:`IntLiteral` and discard the type conversion
+* Type conversions of :class:`m2isar.metamodel.arch.Literal` s apply the desired
+  type directly to the :class:`Literal` and discard the type conversion
 """
 
 import logging
@@ -401,11 +401,11 @@ def helper_expr_size(sub_expr: behav.BaseNode):
             assert isinstance(expr.left, behav.NamedReference)
 
             if expr.op.value == "+":
-                    if type(expr.right) == behav.IntLiteral:
+                    if type(expr.right) == behav.Literal:
                             return int(expr.right.value)
 
             elif expr.op.value == "-":
-                    if type(expr.right) == behav.IntLiteral:
+                    if type(expr.right) == behav.Literal:
                             return (-1 * int(expr.right.value))
             else:
                     raise(f"Not supported Operation value Type {expr.op.value} within mem access range")

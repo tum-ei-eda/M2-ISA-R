@@ -55,11 +55,7 @@ class ISAmanualVisitor(ExprVisitor):
         self.generate(expr.right, writer)
 
     @generate.register
-    def _(self, expr: behav.IntLiteral, writer):
-        writer.write(expr.value)
-
-    @generate.register
-    def _(self, expr: behav.IntLiteral, writer):
+    def _(self, expr: behav.Literal, writer):
         writer.write(expr.value)
 
     @generate.register

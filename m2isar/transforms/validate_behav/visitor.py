@@ -50,14 +50,14 @@ class ValidateBehavVisitor(ExprVisitor):
         if op.value in ["<<", ">>", ">>>"] and expr.right.inferred_type.signed:
             context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
         if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.inferred_type.signed != expr.right.inferred_type.signed:
-            if isinstance(expr.left, behav.IntLiteral) and expr.left.value == 0:
+            if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
                 pass
-            if isinstance(expr.right, behav.IntLiteral) and expr.right.value == 0:
+            if isinstance(expr.right, behav.Literal) and expr.right.value == 0:
                 pass
             else:
                 context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=expr.line_info)
         # TODO: also check possible range of non-literal rhs?
-        if op.value == "<<" and isinstance(expr.right, behav.IntLiteral) and expr.left.inferred_type.width <= expr.right.value:
+        if op.value == "<<" and isinstance(expr.right, behav.Literal) and expr.left.inferred_type.width <= expr.right.value:
             context.emit_warning(f"Shift count overflow for << operation ({expr.left.inferred_type.width} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
 
 

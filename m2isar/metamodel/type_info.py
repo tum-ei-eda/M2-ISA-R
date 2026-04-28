@@ -12,7 +12,7 @@ anything but the functional behavior of functions and instructions.
 """
 
 from enum import Enum, auto
-from typing import Any, Union, Optional
+from typing import Any, Union
 
 
 class TypeKind(Enum):
@@ -33,7 +33,7 @@ class PrimitiveType:
 
 #removed get_const_or_val
 class IntegerType(PrimitiveType):
-    def __init__(self, size: int, signed: bool, ptr: Any=False):
+    def __init__(self, size: int, signed: bool, ptr: Any=None):
         self.ptr = ptr
         super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
 

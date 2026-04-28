@@ -32,7 +32,7 @@ def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "d
 	simplifier = ExprSimplifierVisitor()
 	# TODO: switch to ExprInterpreterVisitor?
 	op = simplifier.generate(operation, None)
-	if not isinstance(op, behav.IntLiteral):
+	if not isinstance(op, behav.Literal):
 		return None
 	return op.value != 0
 
