@@ -165,7 +165,7 @@ class TransformerContext:
 		self.pc_mem = None
 
 		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if arch.MemoryAttribute.IS_PC in mem_descr.attributes:
+			if type_info.MemoryAttribute.IS_PC in mem_descr.attributes:
 				self.pc_mem = mem_descr
 				break
 
@@ -173,9 +173,9 @@ class TransformerContext:
 		self.mem_raise_fn: arch.Function = None
 
 		for fn_name, fn_def in self.functions.items():
-			if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
+			if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
 				self.raise_fn = fn_def
-			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
+			if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
 				self.mem_raise_fn = fn_def
 
 		self.generates_exception = False

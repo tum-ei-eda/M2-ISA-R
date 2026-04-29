@@ -9,6 +9,8 @@
 import antlr4
 import antlr4.error.ErrorListener
 
+from m2isar.metamodel import arch
+
 from ... import M2SyntaxError
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
 

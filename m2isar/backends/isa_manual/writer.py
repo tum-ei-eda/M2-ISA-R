@@ -149,7 +149,7 @@ class CoreDSL2Writer:
             self.write("unsigned")
         elif data_type == type_info.TypeKind.TYPE_INT:
             self.write("signed")
-        elif data_type == type_info.TypeKind.TYPE_NONE:
+        elif data_type == type_info.TypeKind.TYPE_VOID:
             self.write("void")
         else:
             raise NotImplementedError(f"Unsupported type: {data_type}")

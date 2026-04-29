@@ -67,7 +67,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		"""Generate a fixed encoding part."""
 
 		val = self.visit(ctx.value)
-		return arch.BitVal(val.type.size, val.value)
+		return arch.BitVal(val.ty.size, val.value)
 
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
 		"""Generate a top-level instruction set object."""
@@ -197,8 +197,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# decode attributes
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 
-		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in attributes:
-			attributes[arch.FunctionAttribute.ETISS_NEEDS_ARCH] = []
+		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in attributes:
+			attributes[type_info.FunctionAttribute.ETISS_NEEDS_ARCH] = []
 
 		# decode return type and name
 		type_ = self.visit(ctx.type_)
@@ -262,6 +262,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		tick_pos = text.find("'")
 
 		# decode verilog-style literal
+		value = None
 		if tick_pos != -1:
 			width = int(text[:tick_pos])
 			radix = text[tick_pos+1]
@@ -355,7 +356,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
-					c = arch.Constant(name, init, [], type_.size, True if type_.kind == type_info.TypeKind.TYPE_INT else False)
+					signed = False if type_.kind == type_info.TypeKind.TYPE_INT else False
+
+					c = arch.Constant(name, init, [], type_.size, signed)
 
 					self._constants[name] = c
 					ret_decls.append(c)
@@ -388,7 +391,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
+					if type_info.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
 
 					self._memories[name] = m
@@ -513,8 +516,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# read attribute from enums
 		attr = arch.InstrAttribute._member_map_.get(name.upper()) or \
-			arch.MemoryAttribute._member_map_.get(name.upper()) or \
-			arch.FunctionAttribute._member_map_.get(name.upper())
+			type_info.MemoryAttribute._member_map_.get(name.upper()) or \
+			type_info.FunctionAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

@@ -45,7 +45,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             std::string("${main_reg.name}") + etiss::toString(gprid),
             std::string("${main_reg.name}") + etiss::toString(gprid),
             R|W,
-            ${int(main_reg.size / 8)}
+            ${int(main_reg.ty.size / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -59,7 +59,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             name,
             name,
             R|W,
-            ${int(main_reg.size / 8)}
+            ${int(main_reg.ty.size / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -85,9 +85,9 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
         // clang-format off
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
         % if len(main_reg.children) > 0:
-        *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+        *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.size}) val;
         % else:
-        ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.size}) val;
+        ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.size}) val;
         % endif
         // clang-format on
     }
@@ -103,7 +103,7 @@ class pcField_${core_name} : public etiss::VirtualStruct::Field
             "instructionPointer",
             "instructionPointer",
             R|W,
-            ${int(main_reg.size / 8)}
+            ${int(main_reg.ty.size / 8)}
         )
     // clang-format on
     {
@@ -123,7 +123,7 @@ class pcField_${core_name} : public etiss::VirtualStruct::Field
     {
         // clang-format off
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-        ((ETISS_CPU *)parent_.structure_)->instructionPointer = (etiss_uint${main_reg.size}) val;
+        ((ETISS_CPU *)parent_.structure_)->instructionPointer = (etiss_uint${main_reg.ty.size}) val;
         // clang-format on
     }
 };

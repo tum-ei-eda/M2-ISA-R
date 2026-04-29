@@ -14,7 +14,7 @@ import logging
 from itertools import chain
 
 from ... import M2ValueError
-from .. import arch
+from .. import arch, type_info
 from . import ScalarStaticnessContext
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
@@ -48,7 +48,7 @@ def process_functions(core: arch.CoreDef):
 
 		logger.debug("checking throws for fn %s", fn_name)
 		throws = function_throws_visitor.generate(fn_def.operation, None)
-		fn_def.throws = throws or arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
+		fn_def.throws = throws or type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
 
 		context = ScalarStaticnessContext()
 		logger.debug("examining scalar staticness for fn %s", fn_name)
@@ -56,14 +56,14 @@ def process_functions(core: arch.CoreDef):
 
 		logger.debug("examining function staticness for fn %s", fn_name)
 
-		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
+		if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 			raise M2ValueError("etiss_needs_arch and etiss_staticfn not allowed together, in function %s", fn_name)
 
-		#if not fn_def.extern and (arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
+		#if not fn_def.extern and (type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
 		#	raise M2ValueError("etiss_needs_arch and etiss_staticfn only allowed for extern functions, in function %s", fn_name)
 
-		if fn_def.extern or arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
-			if arch.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
+		if fn_def.extern or type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
+			if type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 				fn_def.static = True
 
 		else:

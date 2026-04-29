@@ -61,17 +61,21 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.right = self.generate(expr.right, context)
 
 		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
-			if expr.left.type.size < expr.right.reference.size:
-				expr.left.size = expr.right.reference.size
+			if expr.left.ty.size < arch.get_const_or_val(expr.right.reference.ty.size):
+				expr.left.ty.size = arch.get_const_or_val(expr.right.reference.ty.size)
 
 		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
-			if expr.right.type.size < expr.left.reference.size:
-				expr.right.type.size = expr.left.reference.size
+			if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.size):
+				expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.size)
 
 		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			return behav.Literal(res, type_info.TypeKind.TYPE_UINT, max(expr.left.type.size, expr.right.type.size, res.bit_length()))
+			if res < 0 or expr.left.ty.kind == type_info.TypeKind.TYPE_INT or expr.right.ty.kind == type_info.TypeKind.TYPE_INT:
+				kind = type_info.TypeKind.TYPE_INT
+			else:
+				kind = type_info.TypeKind.TYPE_UINT
+			return behav.Literal(res, kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length()))
 
 		if expr.op.value == "&&":
 			if isinstance(expr.left, behav.Literal):
@@ -130,8 +134,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.expr = self.generate(expr.expr, context)
 
 		if isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
-			if expr.expr.type.size < expr.target.reference.size:
-				expr.expr.type.size = expr.target.reference.size
+			if expr.expr.ty.size < arch.get_const_or_val(expr.target.reference.ty.size):
+				expr.expr.ty.size = arch.get_const_or_val(expr.target.reference.ty.size)
 
 		return expr
 
@@ -199,14 +203,22 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
-			return behav.Literal(res, type_info.TypeKind.TYPE_UINT, max(expr.right.type.size, res.bit_length()))
+			if res < 0:
+				kind = type_info.TypeKind.TYPE_INT
+			else:
+				kind = expr.right.ty.kind
+			return behav.Literal(res, kind, max(expr.right.ty.size, res.bit_length()))
 
 		return expr
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
 		if isinstance(expr.reference, arch.Constant):
-			return behav.Literal(expr.reference.value, type_info.TypeKind.TYPE_INT if expr.reference.signed else type_info.TypeKind.TYPE_UINT, expr.reference.size)
+			if expr.reference.signed:
+				kind = type_info.TypeKind.TYPE_INT
+			else:
+				kind = type_info.TypeKind.TYPE_UINT
+			return behav.Literal(expr.reference.value, kind, arch.get_const_or_val(expr.reference.size))
 
 		return expr
 
@@ -222,8 +234,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if isinstance(expr.expr, behav.Literal):
 			size = expr.size
 			if size is None:
-				assert expr.inferred_type is not None
-				size = expr.inferred_type.size
+				assert expr.ty is not None
+				size = expr.ty.size
 				assert size is not None
 			expr.expr.bit_size = size
 			assert expr.expr.bit_size is not None

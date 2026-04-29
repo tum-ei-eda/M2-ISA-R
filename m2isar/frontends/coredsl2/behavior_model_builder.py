@@ -91,7 +91,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if ref is None:
 			raise M2NameError(f"function \"{name}\" is not defined")
 
-		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in ref.attributes:
+		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in ref.attributes:
 			raise M2SyntaxError(f"exception entry function \"{name}\" must be called as procedure")
 
 		# generate method arguments
@@ -127,7 +127,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
-			s = arch.Scalar(name, None, StaticType.NONE, type_.size, type_.kind)
+			s = arch.Scalar(name, type_.kind, type_.size, None, StaticType.NONE)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 
@@ -136,7 +136,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 			else:
-				init = behav.Literal(0, type_info.TypeKind.TYPE_NONE)
+				init = behav.Literal(0, type_.kind, type_.size)
 
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
 			ret_decls.append(a)
@@ -386,15 +386,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		expr = self.visit(ctx.right)
 		if ctx.type_:
 			type_ = self.visit(ctx.type_)
-			sign = type_.kind
+			kind = type_.kind
 			size = type_.size
 
 		if ctx.sign:
 			sign = self.visit(ctx.sign)
-			sign = type_info.TypeKind.TYPE_INT if sign else type_info.TypeKind.TYPE_UINT
+			kind = type_info.TypeKind.TYPE_INT if sign else type_info.TypeKind.TYPE_UINT
 			size = None
 
-		return behav.TypeConv(sign, size, expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.TypeConv(kind, size, expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
 		"""Generate a generic type specifier."""

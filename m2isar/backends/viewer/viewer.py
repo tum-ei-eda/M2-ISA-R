@@ -115,12 +115,12 @@ def main():
 		# add memories to tree
 		mems_id = tree.insert(core_id, tk.END, text="Memories")
 		for mem_name, mem_def in sorted(core_def.memories.items()):
-			tree.insert(mems_id, tk.END, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(mems_id, tk.END, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.ty.size}",))
 
 		# add memory aliases to tree
 		alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
-			tree.insert(alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.ty.size}",))
 
 		# add auxillary attributes
 		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
@@ -133,7 +133,7 @@ def main():
 			fn_id = tree.insert(fns_id, tk.END, text=fn_name, values=("extern" if fn_def.extern else ""))
 
 			# add returns and throws information
-			return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
+			return_str = "None" if fn_def.ty.size is None else f"{fn_def.ty.kind} {fn_def.ty.size}"
 			tree.insert(fn_id, tk.END, text="Return", values=(return_str,))
 			tree.insert(fn_id, tk.END, text="Throws", values=(fn_def.throws))
 
@@ -150,7 +150,7 @@ def main():
 			params_id = tree.insert(fn_id, tk.END, text="Parameters")
 
 			for param_name, param_def in fn_def.args.items():
-				tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.data_type} {param_def.size}",))
+				tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.ty.kind} {param_def.ty.size}",))
 
 			# generate and add function behavior
 			context = TreeGenContext(tree, fn_id)

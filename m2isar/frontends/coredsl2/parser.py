@@ -117,7 +117,8 @@ def main():
 			const_def._value = const_def.value
 
 		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
-			mem_def._size = mem_def.size
+			mem_def.ty.size = arch.get_const_or_val(mem_def.ty.size)
+			mem_def._size = mem_def.ty.size
 			mem_def.range._lower_base = mem_def.range.lower_base
 			mem_def.range._upper_base = mem_def.range.upper_base
 
@@ -139,9 +140,10 @@ def main():
 			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
-			fn_def._size = fn_def.size
+			fn_def.ty.size = arch.get_const_or_val(fn_def.ty.size)
+			fn_def._size = fn_def.ty.size
 			for fn_arg in fn_def.args.values():
-				fn_arg._size = fn_arg.size
+				fn_arg._size = fn_arg.ty.size
 				fn_arg._width = fn_arg.width
 
 		logger.debug("generating function behavior")

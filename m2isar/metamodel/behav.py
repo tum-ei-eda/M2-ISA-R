@@ -38,7 +38,7 @@ class BaseNode:
 
 	def __init__(self, line_info: "LineInfo"=None) -> None:
 		self.line_info = line_info
-		self.inferred_type = None
+		self.ty = None
 
 	def generate(self, context):
 		raise NotImplementedError()
@@ -95,17 +95,17 @@ class ConcatOperation(BaseNode):
 
 
 class Literal(BaseNode):
-	def __init__(self, value:int, kind : TypeKind = None, size=None, base=10, line_info=None):
+	def __init__(self, value:int, kind : TypeKind = TypeKind.TYPE_INT, size=None, base=10, line_info=None):
 		super().__init__(line_info)
 
 		self._value : Union[int, str] = value
-		self.type = PrimitiveType(kind, size)      # assigned during type checking
+		self.ty = PrimitiveType(kind, size)      # assigned during type checking
 
 		#Optional type information (not always given)
 		self.base: int = base   # 2, 10, 16
 
 	def __repr__(self):
-		return f"Literal(value={self.value}, type={self.type}, base={self.base})"
+		return f"Literal(value={self.value}, type={self.ty}, base={self.base})"
 
 	def __int__(self):
 		if isinstance(self.value, int):

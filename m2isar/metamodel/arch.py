@@ -202,17 +202,6 @@ class RangeSpec:
 	def __str__(self) -> str:
 		return f'<RangeSpec object>, len {self.length}: {self.upper_base}:{self.lower_base}'
 
-class MemoryAttribute(Enum):
-	IS_PC = auto()
-	IS_MAIN_MEM = auto()
-	IS_MAIN_REG = auto()
-	DELETE = auto()
-	ETISS_CAN_FAIL = auto()
-	ETISS_IS_GLOBAL_IRQ_EN = auto()
-	ETISS_IS_IRQ_EN = auto()
-	ETISS_IS_IRQ_PENDING = auto()
-	ETISS_IS_PROCNO = auto()
-
 class ConstAttribute(Enum):
 	IS_REG_WIDTH = auto()
 	IS_ADDR_WIDTH = auto()
@@ -225,29 +214,18 @@ class InstrAttribute(Enum):
 	ENABLE = auto()
 	ETISS_ERROR_INSTRUCTION = auto()
 
-class FunctionAttribute(Enum):
-	ETISS_STATICFN = auto()
-	ETISS_NEEDS_ARCH = auto()
-	ETISS_TRAP_ENTRY_FN = auto()
-	ETISS_TRAP_TRANSLATE_FN = auto()
 
-class FunctionThrows(IntEnum):
-	NO = 0
-	YES = 1
-	MAYBE = 2
-
-
-class FnParam(SizedRefOrConst):
+class FnParam(Named):
 	"""A function parameter."""
 
-	data_type: type_info.TypeKind
+	ty: type_info.IntegerType
 	_width: Union[int, "Constant", "BaseNode"]
 	"""The array width of this parameter."""
 
-	def __init__(self, name, size, data_type: type_info.TypeKind, width=1):
-		self.data_type = data_type
+	def __init__(self, name, size, kind: type_info.TypeKind, width=1):
+		self.ty = type_info.IntegerType(size, True if kind == type_info.TypeKind.TYPE_INT else False)
 		self._width = width
-		super().__init__(name, size)
+		super().__init__(name)
 
 	@property
 	def width(self):
@@ -256,50 +234,95 @@ class FnParam(SizedRefOrConst):
 		return get_const_or_val(self._width)
 
 	def __str__(self) -> str:
-		return f'{super().__str__()}, data_type={self.data_type}'
+		return f'{super().__str__()}, type={self.ty}'
 
-class Scalar(SizedRefOrConst):
+class Scalar(Named):
 	"""A scalar variable object, used mainly in behavior descriptions."""
 
-	value: int
+	ty: Union[type_info.PrimitiveType]
 	static: bool
-	data_type: type_info.TypeKind
+	value: int
 
-	def __init__(self, name, value: int, static: bool, size, data_type: type_info.TypeKind):
-		self.value = value
+	def __init__(self,
+			name,
+			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
+			size : int,
+			value: int,
+			static: bool, # Compile Time information
+        	storage=None
+			):
+		self.ty = type_info.PrimitiveType(kind, size) if isinstance(kind, type_info.TypeKind) else kind
+
 		self.static = static
-		self.data_type = data_type
-		super().__init__(name, size)
 
-class Intrinsic(SizedRefOrConst):
+		# optional: only for constants/literals
+		self.value = value
+
+        # optional: backend info (register, memory, etc.)
+		self.storage = storage
+		super().__init__(name)
+
+
+class Array(Named):
+	"""A variable object for an Array, used mainly in behavior descriptions."""
+
+	ty: type_info.ArrayType
+	static: bool
+	values: list[int]
+
+	def __init__(self,
+			name,
+			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
+			size : int,
+			length : int,
+			values: list[int],
+			static: bool, # Compile Time information
+        	storage=None
+			):
+		# Explcit casting for now allowed???
+		self.ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), length) if isinstance(kind, type_info.TypeKind) else kind
+
+		self.static = static
+
+		# optional: only for constants/literals
+		self.values = values
+
+        # optional: backend info (register, memory, etc.)
+		self.storage = storage
+		super().__init__(name)
+
+
+class Intrinsic(Named):
 
 	value: int
-	data_type: type_info.TypeKind
+	ty: type_info.PrimitiveType
 
-	def __init__(self, name, size: ValOrConst, data_type: type_info.TypeKind, value: int = None):
-		self.data_type = data_type
+	def __init__(self, name, size: ValOrConst, kind: type_info.TypeKind, value: int = None):
+		self.ty = type_info.PrimitiveType(kind, get_const_or_val(size))
 		self.value = value
-		super().__init__(name, size)
+		super().__init__(name)
 
-class Memory(SizedRefOrConst):
+class Memory(Named):
 	"""A generic memory object. Can have children, which alias to specific indices
 	of their parent memory. Has a variable array size, can therefore represent both
 	scalar and array registers and/or memories.
 	"""
 
-	attributes: "dict[MemoryAttribute, list[BaseNode]]"
+	ty : type_info.MemoryType
 	range: RangeSpec
+	attributes: "dict[type_info.MemoryAttribute, list[BaseNode]]"
 	children: "list[Memory]"
 	parent: Union['Memory', None]
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[MemoryAttribute, list[BaseNode]]"):
+	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[type_info.MemoryAttribute, list[BaseNode]]"):
+		self.ty = type_info.MemoryType(size)
 		self.attributes = attributes if attributes else {}
 		self.range = range_
 		self.children = []
 		self.parent = None
 		self._initval = {}
-		super().__init__(name, size)
+		super().__init__(name)
 
 	def initval(self, idx=None):
 		"""Return the initial value for the given index."""
@@ -318,12 +341,12 @@ class Memory(SizedRefOrConst):
 	@property
 	def is_pc(self):
 		"""Return true if this memory is tagged as being the program counter."""
-		return MemoryAttribute.IS_PC in self.attributes
+		return type_info.MemoryAttribute.IS_PC in self.attributes
 
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
-		return MemoryAttribute.IS_MAIN_MEM in self.attributes
+		return type_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
 
 @dataclasses.dataclass
 class BitVal:
@@ -340,31 +363,30 @@ class BitField(Named):
 	"""
 
 	range: RangeSpec
-	data_type: type_info.TypeKind
+	kind: type_info.TypeKind
 
-	def __init__(self, name, _range: RangeSpec, data_type: type_info.TypeKind):
+	def __init__(self, name, _range: RangeSpec, kind: type_info.TypeKind):
 		self.range = _range
-		self.data_type = data_type
-		if not self.data_type:
-			self.data_type = type_info.TypeKind.TYPE_UINT
+		self.ty = type_info.BitFieldType(kind)
+		if not kind:
+			self.ty = type_info.BitFieldType(type_info.TypeKind.TYPE_UINT)
 
 		super().__init__(name)
 
 	def __str__(self) -> str:
-		return f'{super().__repr__()}, range={self.range}, data_type={self.data_type}'
+		return f'{super().__repr__()}, range={self.range}, data_type={self.kind}'
 
 	def __repr__(self):
 		return self.__str__()
 
-class BitFieldDescr(SizedRefOrConst):
+class BitFieldDescr(Named):
 	"""A class representing a full instruction operand. Has no information about
 	the actual bits it is composed of, for that use BitField.
 	"""
+	def __init__(self, name, size: ValOrConst, kind: type_info.TypeKind):
+		self.ty = type_info.IntegerType(get_const_or_val(size), True if kind == type_info.TypeKind.TYPE_INT else False)
 
-	def __init__(self, name, size: ValOrConst, data_type: type_info.TypeKind):
-		self.data_type = data_type
-
-		super().__init__(name, size)
+		super().__init__(name)
 
 class Instruction(SizedRefOrConst):
 	"""A class representing an instruction."""
@@ -408,12 +430,12 @@ class Instruction(SizedRefOrConst):
 
 				if e.name in self.fields:
 					f = self.fields[e.name]
-					if f.data_type != e.data_type:
+					if f.ty.kind != e.ty.kind:
 						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
-					if e.range.upper + 1 > f._size:
-						f._size = e.range.upper + 1
+					if e.range.upper + 1 > f.ty.size:
+						f.ty.size = e.range.upper + 1
 				else:
-					f = BitFieldDescr(e.name, e.range.upper + 1, e.data_type)
+					f = BitFieldDescr(e.name, e.range.upper + 1, e.ty.kind)
 					self.fields[e.name] = f
 			else:
 				self.mask |= (2**e.length - 1) << self._size
@@ -425,11 +447,11 @@ class Instruction(SizedRefOrConst):
 		code_and_mask = f'code={self.code:#0{self.size+2}x}, mask={self.mask:#0{self.size+2}x}'
 		return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
 
-class Function(SizedRefOrConst):
+class Function(Named):
 	"""A class representing a function."""
 
-	attributes: "dict[FunctionAttribute, list[BaseNode]]"
-	data_type: type_info.TypeKind
+	attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]"
+	ty: type_info.FunctionType
 	args: "list[FnParam]"
 	operation: "Operation"
 	extern: bool
@@ -439,12 +461,12 @@ class Function(SizedRefOrConst):
 	throws: bool
 	static: bool
 
-	def __init__(self, name, attributes: "dict[FunctionAttribute, list[BaseNode]]", return_len, data_type: type_info.TypeKind, args: "list[FnParam]",
+	def __init__(self, name, attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
-		self.data_type = data_type
 		self.attributes = attributes if attributes else {}
+		self.ty = type_info.FunctionType(return_len, kind)
 		self.scalars = {}
 		self.throws = False
 		if args is None:
@@ -466,10 +488,10 @@ class Function(SizedRefOrConst):
 		self.static = False
 		self.extern = extern
 
-		super().__init__(name, return_len)
+		super().__init__(name)
 
 	def __str__(self) -> str:
-		return f'{super().__str__()}, data_type={self.data_type}'
+		return f'{super().__str__()}, type={self.ty}'
 
 def extract_memory_alias(memories: "list[Memory]"):
 	"""Extract and separate parent and children memories from the given list
@@ -492,7 +514,7 @@ def extract_memory_alias(memories: "list[Memory]"):
 	return parents, aliases
 
 class AlwaysBlock(Named):
-	attributes: "dict[FunctionAttribute, list[BaseNode]]"
+	attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]"
 	operation: "Operation"
 
 	def __init__(self, name: str, attributes, operation):
@@ -550,19 +572,19 @@ class CoreDef(Named):
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
-			if MemoryAttribute.IS_MAIN_REG in mem.attributes:
+			if type_info.MemoryAttribute.IS_MAIN_REG in mem.attributes:
 				self.main_reg_file = mem
-			elif MemoryAttribute.IS_PC in mem.attributes:
+			elif type_info.MemoryAttribute.IS_PC in mem.attributes:
 				self.pc_memory = mem
-			elif MemoryAttribute.IS_MAIN_MEM in mem.attributes:
+			elif type_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
 				self.main_memory = mem
-			elif MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+			elif type_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 				self.global_irq_en_memory = mem
-			elif MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
+			elif type_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
 				self.procno_memory = mem
-			elif MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+			elif type_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
 				self.irq_en_memory = mem
-			elif MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+			elif type_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
 				self.irq_pending_memory = mem
 
 		super().__init__(name)

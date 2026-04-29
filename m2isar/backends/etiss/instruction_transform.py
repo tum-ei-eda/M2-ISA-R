@@ -140,7 +140,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				cond_str = ("if (" + " || ".join(return_conditions) + ") ") if return_conditions else ""
 				container.appended_returning_required = f'cp.code() += "{cond_str}return cpu->exception;\\n";'
 
-		elif arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
+		elif type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
 			container.initial_required = "cpu->return_pending = 1;\ncpu->exception = 0;\n" + container.initial_required
 
 		return container
@@ -188,14 +188,14 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			static = StaticType.NONE
 
-		actual_size = 1 << (expr.scalar.size - 1).bit_length()
+		actual_size = 1 << (expr.scalar.ty.size - 1).bit_length()
 		actual_size = max(actual_size, 8)
 
 		return CodeString(
-			f'{data_type_map[expr.scalar.data_type]}{actual_size} {expr.scalar.name}',
+			f'{data_type_map[expr.scalar.ty.kind]}{actual_size} {expr.scalar.name}',
 			static,
-			expr.scalar.size,
-			expr.scalar.data_type == type_info.TypeKind.TYPE_INT,
+			expr.scalar.ty.size,
+			expr.scalar.ty.kind == type_info.TypeKind.TYPE_INT,
 			line_infos=expr.line_info,
 		)
 
@@ -224,7 +224,7 @@ class InstructionTransformVisitor(ExprVisitor):
 						arg.code = context.make_static(arg.code, arg.signed)
 
 			# generate argument string, add ETISS arch data if required
-			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
+			arch_args = ['cpu', 'system', 'plugin_pointers'] if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# check if any argument is a memory access
@@ -237,13 +237,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			# add special behavior if this function is an exception entry point
 			exc_code = ""
 
-			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+			if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 				context.generates_exception = True
 
-			if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
+			if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 				context.generates_exception = True
 
-				if fn.size is not None:
+				if fn.ty.size is not None:
 					exc_code = "cpu->exception = "
 
 			c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None, line_infos=[expr.line_info] + [x.line_infos for x in fn_args])
@@ -251,7 +251,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if fn.throws and not context.ignore_static:
 				c.check_trap = True
 
-				cond = "if (cpu->return_pending) " if fn.throws == arch.FunctionThrows.MAYBE else ""
+				cond = "if (cpu->return_pending) " if fn.throws == type_info.FunctionThrows.MAYBE else ""
 				c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
 				pre = [CodeString("{ // procedure", StaticType.READ, None, None), CodeString("{ // procedure", StaticType.NONE, None, None)]
@@ -288,20 +288,20 @@ class InstructionTransformVisitor(ExprVisitor):
 						arg.code = context.make_static(arg.code, arg.signed)
 
 			# generate argument string, add ETISS arch data if required
-			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
+			arch_args = ['cpu', 'system', 'plugin_pointers'] if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# keep track of signedness of function return value
-			signed = fn.data_type == type_info.TypeKind.TYPE_INT
+			signed = fn.ty.kind == type_info.TypeKind.TYPE_INT
 			# keep track of affected registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
-			c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected, [expr.line_info] + [x.line_infos for x in fn_args])
+			c = CodeString(f'{fn.name}({arg_str})', static, fn.ty.size, signed, regs_affected, [expr.line_info] + [x.line_infos for x in fn_args])
 			c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
 			if fn.throws and not context.ignore_static:
 				fn_id = FnID(fn, context.fn_var_count, c)
-				repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, regs_affected)
+				repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.ty.size, signed, regs_affected)
 				repl_c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 				repl_c.function_calls.append(fn_id)
 				context.fn_var_count += 1
@@ -620,18 +620,19 @@ class InstructionTransformVisitor(ExprVisitor):
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
 			signed = False
-			size = referred_var.size
+			size = referred_var.ty.size
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.BitFieldDescr):
 			# function argument
-			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
-			size = referred_var.size
+			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			size = referred_var.ty.size
 			static = StaticType.READ
 
 		elif isinstance(referred_var, arch.Scalar):
-			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
-			size = referred_var.size
+			assert isinstance(referred_var.ty, type_info.PrimitiveType)
+			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			size = referred_var.ty.size
 			if context.static_scalars:
 				static = referred_var.static
 
@@ -642,16 +643,16 @@ class InstructionTransformVisitor(ExprVisitor):
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
-			signed = referred_var.data_type ==  type_info.TypeKind.TYPE_INT
-			size = referred_var.size
+			signed = referred_var.ty.kind ==  type_info.TypeKind.TYPE_INT
+			size = referred_var.ty.size
 			static = StaticType.RW
 
 		elif isinstance(referred_var, arch.Intrinsic):
 			if context.ignore_static:
 				raise TypeError("intrinsic not allowed in function")
 
-			signed = referred_var.data_type == type_info.TypeKind.TYPE_INT
-			size = referred_var.size
+			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			size = referred_var.ty.size
 			static = StaticType.READ
 
 			if referred_var == context.intrinsics["__encoding_size"]:
@@ -679,7 +680,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		if isinstance(referred_mem, arch.Memory):
 			context.used_arch_data = True
 
-		size = referred_mem.size
+		size = referred_mem.ty.size
 
 		# convert static index expression
 		index_code = index.code
@@ -691,9 +692,9 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			static = StaticType.NONE
 
-		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+		if type_info.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			# generate memory access if main memory is accessed
-			size = expr.inferred_type.size
+			size = expr.ty.size
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
 			if (expr.right != None):
 				# Use a simple base address on one site atleast for ranged_mem access.
@@ -715,7 +716,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
 		c = CodeString(code_str, static, size, False, line_infos=[expr.line_info] + index.line_infos)
-		if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+		if type_info.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
 			c.regs_affected.add(index_code)
 		return c
 
@@ -790,11 +791,11 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Literal, context: TransformerContext):
-		if expr.type.kind is type_info.TypeKind.TYPE_STR:
+		if expr.ty.kind is type_info.TypeKind.TYPE_STR:
 			return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
 
 		# old number NumberLiteral
-		elif expr.type.kind == type_info.TypeKind.TYPE_NONE:
+		elif expr.ty.kind == type_info.TypeKind.TYPE_NONE:
 			lit = int(expr.value)
 			size = min(lit.bit_length(), 64)
 			sign = lit < 0
@@ -807,16 +808,23 @@ class InstructionTransformVisitor(ExprVisitor):
 			return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
 		# IntLiteral
 		else:
-			assert(expr.type.kind in [type_info.TypeKind.TYPE_INT, type_info.TypeKind.TYPE_UINT])
+			assert(expr.ty.kind in [type_info.TypeKind.TYPE_INT, type_info.TypeKind.TYPE_UINT])
 			lit = int(expr.value)
-			if expr.type.size is None:
+			if expr.ty.size is None:
 				size = lit.bit_length()
-			size = min(expr.type.size, 128)
-			sign = True if expr.type.kind is type_info.TypeKind.TYPE_INT else False
+			size = min(expr.ty.size, 128)
+
+			if expr.value < 0 or expr.ty.kind == type_info.TypeKind.TYPE_INT:
+			# 	raise M2ValueError('Negative literal value cannot be represented as unsigned integer!')
+				sign = True
+			else:
+				sign = False
+
 
 			minus = ""
 			if lit > 0 and sign and (lit >> (size - 1)) & 1:
 				minus = "-"
+				sign = True
 
 			_ = (lit + (1 << size)) % (1 << size)
 

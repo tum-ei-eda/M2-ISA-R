@@ -21,7 +21,7 @@ logger = logging.getLogger("instruction_generator")
 
 def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
-	return f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size}{arg_name}'
+	return f'{instruction_utils.data_type_map[arg.ty.kind]}{arg.ty.actual_size}{arg_name}'
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool):
 	"""Return a generator object to generate function behavior code. Uses function
@@ -42,9 +42,9 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		if fn_def.extern and not decls_only:
 			continue
 
-		return_type = instruction_utils.data_type_map[fn_def.data_type]
-		if fn_def.size:
-			return_type += f'{fn_def.actual_size}'
+		return_type = instruction_utils.data_type_map[fn_def.ty.kind]
+		if fn_def.ty.size:
+			return_type += f'{fn_def.ty.actual_size}'
 
 		# set up a transformer context and generate code
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
@@ -66,7 +66,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		args_list = [generate_arg_str(arg) for arg in fn_def.args.values()]
 
 		# if function needs access to ETISS architecture data, add these as arguments to the function
-		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
+		if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
 		fn_args = ', '.join(args_list)
@@ -105,8 +105,8 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 			if enc.name not in seen_fields:
 				# first encounter of this parameter, instantiate a new integer for it
 				seen_fields[enc.name] = 255
-				width = instr_def.fields[enc.name].actual_size
-				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{width} {enc.name} = 0;\n'
+				width = instr_def.fields[enc.name].ty.actual_size
+				fields_code += f'{instruction_utils.data_type_map[enc.ty.kind]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
 			length = enc.range.length
@@ -131,7 +131,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 		asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
 
 		# generate sign extension if necessary
-		if field_descr.data_type == type_info.TypeKind.TYPE_INT and field_descr.size < core_default_width:
+		if field_descr.ty.kind == type_info.TypeKind.TYPE_INT and field_descr.size < core_default_width:
 			fields_code += '\n'
 			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
 			fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
@@ -196,7 +196,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 	error_fn = None
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 

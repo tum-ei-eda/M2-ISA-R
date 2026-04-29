@@ -26,7 +26,7 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 	"""Recursively generate register declarations"""
 
 	logger.debug("processing register %s", reg)
-	if arch.MemoryAttribute.IS_PC in reg.attributes or arch.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
+	if type_info.MemoryAttribute.IS_PC in reg.attributes or type_info.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
 		return
 
@@ -40,10 +40,10 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 		# registers with children (aliases) are defined as two arrays:
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
-		regs.append(f"etiss_uint{reg.actual_size} *{reg.name}{array_txt}")
-		regs.append(f"etiss_uint{reg.actual_size} ins_{reg.name}{array_txt}")
+		regs.append(f"etiss_uint{reg.ty.actual_size} *{reg.name}{array_txt}")
+		regs.append(f"etiss_uint{reg.ty.actual_size} ins_{reg.name}{array_txt}")
 	else:
-		regs.append(f"etiss_uint{reg.actual_size} {reg.name}{array_txt}")
+		regs.append(f"etiss_uint{reg.ty.actual_size} {reg.name}{array_txt}")
 
 def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))
@@ -177,12 +177,12 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	error_fn = None
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
+		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 			error_fn = fn
 			break
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 
@@ -207,7 +207,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 
 	global_irq_en_mask = None
 	if core.global_irq_en_memory is not None:
-		attr = core.global_irq_en_memory.attributes[arch.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
+		attr = core.global_irq_en_memory.attributes[type_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
 		if not isinstance(attr, behav.Literal):
 			raise M2TypeError(f"IRQ enable mask of {core.global_irq_en_memory.name} is not compile static")
 		global_irq_en_mask = attr.value

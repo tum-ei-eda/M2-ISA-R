@@ -43,13 +43,13 @@ class ValidateBehavVisitor(ExprVisitor):
         self.generate(expr.right, context)
         op = expr.op
 
-        assert expr.left.inferred_type is not None
-        assert expr.right.inferred_type is not None
-        if op.value in ["|", "&", "^"] and expr.left.inferred_type.width != expr.right.inferred_type.width:
+        assert expr.left.ty is not None
+        assert expr.right.ty is not None
+        if op.value in ["|", "&", "^"] and expr.left.ty.width != expr.right.ty.width:
             context.emit_warning(f"Bitwise operations with differently size operands are discouraged.", "bit-op-missmatch", logger=logger, line_info=expr.line_info)
-        if op.value in ["<<", ">>", ">>>"] and expr.right.inferred_type.signed:
+        if op.value in ["<<", ">>", ">>>"] and expr.right.ty.signed:
             context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
-        if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.inferred_type.signed != expr.right.inferred_type.signed:
+        if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.signed != expr.right.ty.signed:
             if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
                 pass
             if isinstance(expr.right, behav.Literal) and expr.right.value == 0:
@@ -57,8 +57,8 @@ class ValidateBehavVisitor(ExprVisitor):
             else:
                 context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=expr.line_info)
         # TODO: also check possible range of non-literal rhs?
-        if op.value == "<<" and isinstance(expr.right, behav.Literal) and expr.left.inferred_type.width <= expr.right.value:
-            context.emit_warning(f"Shift count overflow for << operation ({expr.left.inferred_type.width} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
+        if op.value == "<<" and isinstance(expr.right, behav.Literal) and expr.left.ty.width <= expr.right.value:
+            context.emit_warning(f"Shift count overflow for << operation ({expr.left.ty.width} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
 
 
     @generate.register
@@ -80,12 +80,12 @@ class ValidateBehavVisitor(ExprVisitor):
     def _(self, expr: behav.Assignment, context):
         self.generate(expr.target, context)
         self.generate(expr.expr, context)
-        assert expr.target.inferred_type is not None
-        assert expr.expr.inferred_type is not None
-        if expr.target.inferred_type.width < expr.expr.inferred_type.width:
-            context.emit_warning(f"Implicit truncation {expr.expr.inferred_type.width} -> {expr.target.inferred_type.width} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
-        if expr.target.inferred_type.width > expr.expr.inferred_type.width:
-            context.emit_warning(f"Implicit extend {expr.expr.inferred_type.width} -> {expr.target.inferred_type.width} found", "implicit-extend", logger=logger, line_info=expr.line_info)
+        assert expr.target.ty is not None
+        assert expr.expr.ty is not None
+        if expr.target.ty.width < expr.expr.ty.width:
+            context.emit_warning(f"Implicit truncation {expr.expr.ty.width} -> {expr.target.ty.width} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
+        if expr.target.ty.width > expr.expr.ty.width:
+            context.emit_warning(f"Implicit extend {expr.expr.ty.width} -> {expr.target.ty.width} found", "implicit-extend", logger=logger, line_info=expr.line_info)
 
     @generate.register
     def _(self, expr: behav.Conditional, context):
