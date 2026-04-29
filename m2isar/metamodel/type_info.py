@@ -40,15 +40,6 @@ class IntegerType(PrimitiveType):
         self.ptr = ptr
         super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
 
-    @property
-    def actual_size(self):
-        """Returns the resolved size value rounded to the nearest multiple of 8."""
-
-        if self.size is None:
-            return None
-
-        temp = 1 << (self.size - 1).bit_length()
-        return temp if temp >= 8 else 8
 
 
 class FloatType:
@@ -81,16 +72,6 @@ class MemoryType:
     def __init__(self, size: int):
         self.size = size
 
-    @property
-    def actual_size(self):
-        """Returns the resolved size value rounded to the nearest multiple of 8."""
-
-        if self.size is None:
-            return None
-
-        temp = 1 << (self.size - 1).bit_length()
-        return temp if temp >= 8 else 8
-
 
 class FunctionAttribute(Enum):
 	ETISS_STATICFN = auto()
@@ -110,13 +91,3 @@ class FunctionType():
     def __init__(self, size: int, kind: TypeKind):
         self.size = size
         self.kind = kind
-
-    @property
-    def actual_size(self):
-        """Returns the resolved size value rounded to the nearest multiple of 8."""
-
-        if self.size is None:
-            return None
-
-        temp = 1 << (self.size - 1).bit_length()
-        return temp if temp >= 8 else 8

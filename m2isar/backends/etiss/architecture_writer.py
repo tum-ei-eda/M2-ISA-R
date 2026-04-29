@@ -13,6 +13,8 @@ import pathlib
 
 from mako.template import Template
 
+
+from .instruction_utils import actual_size
 from ... import M2TypeError
 from ...metamodel import arch, behav, type_info
 from . import BlockEndType
@@ -40,10 +42,10 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 		# registers with children (aliases) are defined as two arrays:
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
-		regs.append(f"etiss_uint{reg.ty.actual_size} *{reg.name}{array_txt}")
-		regs.append(f"etiss_uint{reg.ty.actual_size} ins_{reg.name}{array_txt}")
+		regs.append(f"etiss_uint{actual_size(reg.ty.size)} *{reg.name}{array_txt}")
+		regs.append(f"etiss_uint{actual_size(reg.ty.size)} ins_{reg.name}{array_txt}")
 	else:
-		regs.append(f"etiss_uint{reg.ty.actual_size} {reg.name}{array_txt}")
+		regs.append(f"etiss_uint{actual_size(reg.ty.size)} {reg.name}{array_txt}")
 
 def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))

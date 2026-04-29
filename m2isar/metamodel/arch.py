@@ -77,20 +77,8 @@ class SizedRefOrConst(Named):
 			return None
 		return int(ret)
 
-	@property
-	def actual_size(self):
-		"""Returns the bits needed in multiples of eight to represent the
-		resolved size of the object.
-		"""
-
-		if self.size is None:
-			return None
-
-		temp = 1 << (self.size - 1).bit_length()
-		return temp if temp >= 8 else 8
-
 	def __str__(self) -> str:
-		return f'{super().__str__()}, size={self.size}, actual_size={self.actual_size}'
+		return f'{super().__str__()}, size={self.size}'
 
 class Constant(SizedRefOrConst):
 	"""An object holding a constant value. Should have a value at some point, also holds attributes

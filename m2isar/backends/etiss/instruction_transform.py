@@ -21,7 +21,7 @@ from ...metamodel.utils.ExprVisitor import ExprVisitor
 from . import CodeInfoTracker, replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
                                 CodeString, FnID, MemID, StaticType,
-                                TransformerContext, data_type_map)
+                                TransformerContext, data_type_map, actual_size)
 
 # pylint: disable=unused-argument
 
@@ -86,7 +86,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				code_lines.append(context.wrap_codestring(f"etiss_coverage_count({len(before_line_infos)}, {', '.join(before_line_infos)});"))
 
 			for f_id in arg.function_calls:
-				code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{f_id.fn_call.actual_size} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
+				code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{actual_size(f_id.fn_call.size)} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
 				code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};', arg.static))
 				code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";', arg.static))
 
@@ -353,10 +353,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		context.dependent_regs.update(expr_str.regs_affected)
 
 		if not target.is_mem_access and not expr_str.is_mem_access:
-			if target.actual_size > target.size:
+			if actual_size(target.size) > target.size:
 				if target.signed:
-					shift = target.actual_size - target.size
-					expr_str.code = f'(((etiss_int{target.actual_size})({expr_str.code})) << {shift}) >> {shift}'
+					shift = actual_size(target.size) - target.size
+					expr_str.code = f'(((etiss_int{actual_size(target.size)})({expr_str.code})) << {shift}) >> {shift}'
 				else:
 					mask = (1 << target.size) - 1
 					mask_bits = log2(mask)
@@ -410,7 +410,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		c = CodeString(
 			f'{left.code} {op.value} {right.code}',
 			left.static and right.static,
-			left.size if left.size > right.size else right.size,
+			arch.get_const_or_val(left.size) if arch.get_const_or_val(left.size) > arch.get_const_or_val(right.size) else arch.get_const_or_val(right.size),
 			left.signed or right.signed,
 			set.union(left.regs_affected, right.regs_affected),
 			[expr.line_info] + left.line_infos + right.line_infos,
@@ -574,14 +574,13 @@ class InstructionTransformVisitor(ExprVisitor):
 		# if only data type should be changed assume width remains unchanged
 		if expr.size is None:
 			expr._size = expr_str.size
-			expr._actual_size = expr_str.actual_size
 
 
 		code_str = expr_str.code
 
 		# sign extension for non-2^N datatypes
-		if expr.data_type == type_info.TypeKind.TYPE_INT and expr_str.actual_size != expr_str.size:
-			target_size = expr.actual_size
+		if expr.data_type == type_info.TypeKind.TYPE_INT and actual_size(expr_str.size) != expr_str.size:
+			target_size = actual_size(expr.size)
 
 			if isinstance(expr.size, int):
 				code_str = f'((etiss_int{target_size})(((etiss_int{target_size}){expr_str.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
@@ -590,7 +589,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		# normal type conversion
 		# TODO: check if behavior adheres to CoreDSL 2 spec
 		else:
-			code_str = f'({data_type_map[expr.data_type]}{expr.actual_size})({code_str})'
+			code_str = f'({data_type_map[expr.data_type]}{actual_size(expr.size)})({code_str})'
 
 		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.TYPE_INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.mem_ids = expr_str.mem_ids

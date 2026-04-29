@@ -31,7 +31,7 @@ FN_VAL_REPL = "fn_val_"
 def actual_size(size, min_=8, max_=128):
 	"""Calculate a fitting c datatype width for any arbitrary size."""
 
-	s = 1 << (size - 1).bit_length()
+	s = 1 << (arch.get_const_or_val(size) - 1).bit_length()
 	if s > max_:
 		raise M2ValueError("value too big")
 
@@ -64,9 +64,6 @@ class CodeString:
 		else:
 			self.line_infos = []
 
-	@property
-	def actual_size(self):
-		return actual_size(self.size)
 
 	@property
 	def needs_fn_call(self):

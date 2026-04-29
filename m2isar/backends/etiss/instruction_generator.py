@@ -15,13 +15,14 @@ from mako.template import Template
 from ...metamodel import arch, behav, type_info
 from . import BlockEndType, instruction_utils
 from .instruction_transform import InstructionTransformVisitor
+from .instruction_utils import actual_size
 from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
 
 def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
-	return f'{instruction_utils.data_type_map[arg.ty.kind]}{arg.ty.actual_size}{arg_name}'
+	return f'{instruction_utils.data_type_map[arg.ty.kind]}{actual_size(arg.ty.size)}{arg_name}'
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool):
 	"""Return a generator object to generate function behavior code. Uses function
@@ -44,7 +45,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 
 		return_type = instruction_utils.data_type_map[fn_def.ty.kind]
 		if fn_def.ty.size:
-			return_type += f'{fn_def.ty.actual_size}'
+			return_type += f'{actual_size(fn_def.ty.size)}'
 
 		# set up a transformer context and generate code
 		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
@@ -105,7 +106,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 			if enc.name not in seen_fields:
 				# first encounter of this parameter, instantiate a new integer for it
 				seen_fields[enc.name] = 255
-				width = instr_def.fields[enc.name].ty.actual_size
+				width = actual_size(instr_def.fields[enc.name].ty.size)
 				fields_code += f'{instruction_utils.data_type_map[enc.ty.kind]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
