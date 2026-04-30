@@ -628,7 +628,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			size = referred_var.ty.size
 			static = attribute_info.StaticAttribute.READ
 
-		elif isinstance(referred_var, arch.Scalar):
+		elif isinstance(referred_var, arch.Symbol):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size

@@ -6,6 +6,9 @@ class MemoryAttribute(Enum):
 	IS_PC = auto()
 	IS_MAIN_MEM = auto()
 	IS_MAIN_REG = auto()
+	IS_FLOAT_REG = auto()
+	IS_VECTOR_REG = auto()
+	IS_CSR_REG = auto()
 	DELETE = auto()
 	ETISS_CAN_FAIL = auto()
 	ETISS_IS_GLOBAL_IRQ_EN = auto()
@@ -40,9 +43,9 @@ class InstrAttribute(Enum):
 class StaticAttribute(IntFlag):
 	"""Describes the staticness of a Scalar or Function"""
 
-	NONE = 0
-	READ = auto()
-	WRITE = auto()
+	NONE = 0 #no access at all
+	READ = auto() # read access only
+	WRITE = auto() # write access only
 	RW = READ | WRITE
 
 @dataclass

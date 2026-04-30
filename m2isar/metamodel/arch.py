@@ -87,13 +87,13 @@ class Constant(SizedRefOrConst):
 	_value: Union[int, "Constant", "BaseNode"]
 	"""The value this object holds. Can be an int, another constant or a statically resolvable BaseNode."""
 
-	attributes: "dict[type_info.ConstAttribute, list[BaseNode]]"
+	attributes: "dict[attribute_info.ConstAttribute, list[BaseNode]]"
 	"""A dictionary of attributes, mapping attribute type to a list of attribute arguments."""
 
 	signed: bool
 	"""The signedness of this constant."""
 
-	def __init__(self, name, value: Union[int, "Constant", "BaseNode"], attributes: "dict[type_info.ConstAttribute, list[BaseNode]]", size=None, signed=False):
+	def __init__(self, name, value: Union[int, "Constant", "BaseNode"], attributes: "dict[attribute_info.ConstAttribute, list[BaseNode]]", size=None, signed=False):
 		self._value = value
 		self.attributes = attributes if attributes else {}
 		self.signed = signed
@@ -211,60 +211,27 @@ class FnParam(Named):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, type={self.ty}'
 
-class Scalar(Named):
-	"""A scalar variable object, used mainly in behavior descriptions."""
 
-	ty: Union[type_info.PrimitiveType]
-	static: attribute_info.StaticAttribute
-	value: int
+class Symbol(Named):
+    def __init__(
+        self,
+        name: str,
+        type: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
+        static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
+        value=None, # Compile Time information
+        storage=None,
+    ):
+        assert isinstance(type, (type_info.PrimitiveType, type_info.IntegerType))
+        assert type.kind.is_scalar
+        self.ty = type
+        self.static = static
 
-	def __init__(self,
-			name,
-			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
-			size : int,
-			value: int, # Compile Time information
-			static: attribute_info.StaticAttribute,
-        	storage=None
-			):
-		self.ty = type_info.PrimitiveType(kind, size) if isinstance(kind, type_info.TypeKind) else kind
-
-		self.static = static
-
-		# optional: only for constants/literals
-		self.value = value
+        # optional: only for constants/literals
+        self.value = value
 
         # optional: backend info (register, memory, etc.)
-		self.storage = storage
-		super().__init__(name)
-
-
-class Array(Named):
-	"""A variable object for an Array, used mainly in behavior descriptions."""
-
-	ty: type_info.ArrayType
-	static: attribute_info.StaticAttribute
-	values: list[int]
-
-	def __init__(self,
-			name,
-			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
-			size : int,
-			length : int,
-			values: list[int],
-			static: attribute_info.StaticAttribute, # Compile Time information
-        	storage=None
-			):
-		# Explcit casting for now allowed???
-		self.ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), length) if isinstance(kind, type_info.TypeKind) else kind
-
-		self.static = static
-
-		# optional: only for constants/literals
-		self.values = values
-
-        # optional: backend info (register, memory, etc.)
-		self.storage = storage
-		super().__init__(name)
+        self.storage = storage
+        super().__init__(name)
 
 
 class Intrinsic(Named):

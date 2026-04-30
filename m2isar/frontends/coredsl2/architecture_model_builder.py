@@ -399,11 +399,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					if attribute_info.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
-					if arch.MemoryAttribute.IS_FLOAT_REG in attributes:
+					if attribute_info.MemoryAttribute.IS_FLOAT_REG in attributes:
 						self._float_reg_file = m
-					if arch.MemoryAttribute.IS_VECTOR_REG in attributes:
+					if attribute_info.MemoryAttribute.IS_VECTOR_REG in attributes:
 						self._vector_reg_file = m
-					if arch.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+					if attribute_info.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
 						self._csr_reg_file = m
 
 					self._memories[name] = m

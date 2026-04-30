@@ -13,7 +13,7 @@ anything but the functional behavior of functions and instructions.
 
 from enum import Enum, auto
 from typing import Any, Union
-
+import logging
 
 logger = logging.getLogger("type_info_logger")
 class TypeKind(Enum):
@@ -41,7 +41,7 @@ class TypeKind(Enum):
 
     @property
     def is_scalar(self):
-        return self not in (TypeKind.ARRAY, TypeKind.VOID, TypeKind.NONE)
+        return self in (TypeKind.INT, TypeKind.UINT, TypeKind.CHAR, TypeKind.FLOAT)
 
 
 class PrimitiveType:

@@ -95,7 +95,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 		else:
 			expr_static = attribute_info.StaticAttribute.NONE
 
-		if isinstance(expr.target, behav.NamedReference) and isinstance(expr.target.reference, arch.Scalar):
+		if isinstance(expr.target, behav.NamedReference) and isinstance(expr.target.reference, arch.Symbol):
 			target_ref = cast(Any, expr.target.reference)
 			target_ref.static &= expr_static
 
@@ -138,7 +138,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context: attribute_info.ScalarStaticnessContext):
-		if isinstance(expr.reference, arch.Scalar):
+		if isinstance(expr.reference, arch.Symbol):
 			return expr.reference.static
 
 		static_map = {

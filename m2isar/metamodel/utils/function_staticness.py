@@ -120,7 +120,7 @@ class FunctionStaticnessVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Scalar):
+		if isinstance(expr.reference, arch.Symbol):
 			return expr.reference.static
 
 		static_map = {
@@ -128,7 +128,7 @@ class FunctionStaticnessVisitor(ExprVisitor):
 			arch.BitFieldDescr: True,
 			arch.Constant: True,
 			arch.FnParam: True,
-			arch.Scalar: True,
+			arch.Symbol: True,
 			arch.Intrinsic: False
 		}
 
