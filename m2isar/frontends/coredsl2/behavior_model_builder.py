@@ -15,7 +15,6 @@ from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
 from ...metamodel import arch, behav, type_info, intrinsics
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoFactory, LineInfoPlacement)
-from ...metamodel.utils import StaticType
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
 from .expr_interpreter import ExprInterpreterVisitor
@@ -127,7 +126,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
-			s = arch.Scalar(name, type_.kind, type_.size, None, StaticType.NONE)
+			s = arch.Scalar(name, type_.kind, type_.size, None, type_info.StaticType.NONE)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 

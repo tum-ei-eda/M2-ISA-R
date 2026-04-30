@@ -216,15 +216,15 @@ class Scalar(Named):
 	"""A scalar variable object, used mainly in behavior descriptions."""
 
 	ty: Union[type_info.PrimitiveType]
-	static: bool
+	static: type_info.StaticType
 	value: int
 
 	def __init__(self,
 			name,
 			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
 			size : int,
-			value: int,
-			static: bool, # Compile Time information
+			value: int, # Compile Time information
+			static: type_info.StaticType,
         	storage=None
 			):
 		self.ty = type_info.PrimitiveType(kind, size) if isinstance(kind, type_info.TypeKind) else kind
@@ -243,7 +243,7 @@ class Array(Named):
 	"""A variable object for an Array, used mainly in behavior descriptions."""
 
 	ty: type_info.ArrayType
-	static: bool
+	static: type_info.StaticType
 	values: list[int]
 
 	def __init__(self,
@@ -252,7 +252,7 @@ class Array(Named):
 			size : int,
 			length : int,
 			values: list[int],
-			static: bool, # Compile Time information
+			static: type_info.StaticType, # Compile Time information
         	storage=None
 			):
 		# Explcit casting for now allowed???
@@ -435,7 +435,7 @@ class Function(Named):
 	ext_name: str
 	scalars: "dict[str, Scalar]"
 	throws: bool
-	static: bool
+	static: type_info.StaticType
 
 	def __init__(self, name, attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
@@ -461,7 +461,7 @@ class Function(Named):
 			self.args[arg_name] = arg
 
 		self.operation = operation if operation is not None else Operation([])
-		self.static = False
+		self.static = type_info.StaticType.NONE
 		self.extern = extern
 
 		super().__init__(name)

@@ -15,7 +15,6 @@ from string import Template
 from ... import M2ValueError
 from ...metamodel import arch, type_info
 from ...metamodel.code_info import LineInfo
-from ...metamodel.utils import StaticType
 from . import replacements
 
 data_type_map = {
@@ -48,7 +47,7 @@ class CodeString:
 
 	def __init__(self, code, static, size, signed, regs_affected=None, line_infos=[]):
 		self.code = code
-		self.static = StaticType(static)
+		self.static = type_info.StaticType(static)
 		self.size = size
 		self.signed = signed
 		self.mem_ids = []

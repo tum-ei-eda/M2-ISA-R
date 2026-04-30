@@ -15,7 +15,6 @@ from itertools import chain
 
 from ... import M2ValueError
 from .. import arch, type_info
-from . import ScalarStaticnessContext
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
 from .function_throws import FunctionThrowsVisitor
@@ -50,7 +49,7 @@ def process_functions(core: arch.CoreDef):
 		throws = function_throws_visitor.generate(fn_def.operation, None)
 		fn_def.throws = throws or type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
 
-		context = ScalarStaticnessContext()
+		context = type_info.ScalarStaticnessContext()
 		logger.debug("examining scalar staticness for fn %s", fn_name)
 		scalar_staticness_visitor.generate(fn_def.operation, context)
 
@@ -85,6 +84,6 @@ def process_instructions(core: arch.CoreDef):
 		throws = function_throws_visitor.generate(instr_def.operation, None)
 		instr_def.throws = throws
 
-		context = ScalarStaticnessContext()
+		context = type_info.ScalarStaticnessContext()
 		logger.debug("examining staticness for instr %s", instr_def.name)
 		scalar_staticness_visitor.generate(instr_def.operation, context)

@@ -11,7 +11,8 @@ for the architectural part of an M2-ISA-R model. The architectural part is
 anything but the functional behavior of functions and instructions.
 """
 
-from enum import Enum, IntEnum, auto
+from dataclasses import dataclass
+from enum import Enum, IntEnum, auto, IntFlag
 from typing import Any, Union
 
 
@@ -20,7 +21,7 @@ class TypeKind(Enum):
     TYPE_VOID = auto()
     TYPE_UINT = auto()
     TYPE_INT = auto()
-    TYPE_BOOL = auto()
+    # TYPE_BOOL = auto() Expressed as unsigned<1>
     TYPE_FLOAT = auto()
     TYPE_STR = auto()
     TYPE_ARRAY = auto()
@@ -39,8 +40,6 @@ class IntegerType(PrimitiveType):
     def __init__(self, size: int, signed: bool, ptr: Any=None):
         self.ptr = ptr
         super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
-
-
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):
@@ -103,3 +102,18 @@ class InstrAttribute(Enum):
 	SIM_EXIT = auto()
 	ENABLE = auto()
 	ETISS_ERROR_INSTRUCTION = auto()
+
+
+class StaticType(IntFlag):
+	"""Describes the staticness of a Scalar or Function"""
+
+	NONE = 0
+	READ = auto()
+	WRITE = auto()
+	RW = READ | WRITE
+
+@dataclass
+class ScalarStaticnessContext:
+	"""A datakeeping class for the scalar staticness transformations."""
+
+	context_is_static: StaticType = StaticType.RW

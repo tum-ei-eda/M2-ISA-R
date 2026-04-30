@@ -20,8 +20,8 @@ from ...metamodel.code_info import LineInfoPlacement
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from . import CodeInfoTracker, replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
-                                CodeString, FnID, MemID, StaticType,
-                                TransformerContext, data_type_map, actual_size)
+                                CodeString, FnID, MemID, TransformerContext,
+								data_type_map, actual_size)
 
 # pylint: disable=unused-argument
 
@@ -149,12 +149,12 @@ class InstructionTransformVisitor(ExprVisitor):
 	def _(self, expr: behav.Block, context: TransformerContext):
 		stmts = [self.generate(stmt, context) for stmt in expr.statements]
 
-		pre = [CodeString("{ // block", StaticType.READ, None, None, line_infos=expr.line_info)]
-		post = [CodeString("} // block", StaticType.READ, None, None)]
+		pre = [CodeString("{ // block", type_info.StaticType.READ, None, None, line_infos=expr.line_info)]
+		post = [CodeString("} // block", type_info.StaticType.READ, None, None)]
 
 		if not context.ignore_static:
-			pre.append(CodeString("{ // block", StaticType.NONE, None, None))
-			post.insert(0, CodeString("} // block", StaticType.NONE, None, None))
+			pre.append(CodeString("{ // block", type_info.StaticType.NONE, None, None))
+			post.insert(0, CodeString("} // block", type_info.StaticType.NONE, None, None))
 
 		return pre + stmts + post
 
@@ -168,13 +168,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			c.code = f'return {c.code};'
 			c.line_infos.append(expr.line_info)
 		else:
-			c = CodeString("return;", StaticType.RW, None, None, line_infos=expr.line_info)
+			c = CodeString("return;", type_info.StaticType.RW, None, None, line_infos=expr.line_info)
 
 		return c
 
 	@generate.register
 	def _(self, expr: behav.Break, context: TransformerContext):
-		return CodeString("break;", StaticType.RW, None, None, line_infos=expr.line_info)
+		return CodeString("break;", type_info.StaticType.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context: TransformerContext):
@@ -182,11 +182,11 @@ class InstructionTransformVisitor(ExprVisitor):
 		a variable instantiation."""
 		if context.static_scalars:
 			if context.ignore_static:
-				static = StaticType.RW
+				static = type_info.StaticType.RW
 			else:
 				static = expr.scalar.static
 		else:
-			static = StaticType.NONE
+			static = type_info.StaticType.NONE
 
 		actual_size = 1 << (expr.scalar.ty.size - 1).bit_length()
 		actual_size = max(actual_size, 8)
@@ -214,7 +214,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 
 			# determine if procedure call is entirely static
-			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
+			static = type_info.StaticType.READ if fn.static and all(arg.static != type_info.StaticType.NONE for arg in fn_args) else type_info.StaticType.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -254,8 +254,8 @@ class InstructionTransformVisitor(ExprVisitor):
 				cond = "if (cpu->return_pending) " if fn.throws == type_info.FunctionThrows.MAYBE else ""
 				c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
-				pre = [CodeString("{ // procedure", StaticType.READ, None, None), CodeString("{ // procedure", StaticType.NONE, None, None)]
-				post = [CodeString("} // procedure", StaticType.NONE, None, None), CodeString("} // procedure", StaticType.READ, None, None)]
+				pre = [CodeString("{ // procedure", type_info.StaticType.READ, None, None), CodeString("{ // procedure", type_info.StaticType.NONE, None, None)]
+				post = [CodeString("} // procedure", type_info.StaticType.NONE, None, None), CodeString("} // procedure", type_info.StaticType.READ, None, None)]
 
 				return pre + [c, c2] + post
 
@@ -278,7 +278,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			fn = ref
 
 			# determine if function call is entirely static
-			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
+			static = type_info.StaticType.READ if fn.static and all(arg.static != type_info.StaticType.NONE for arg in fn_args) else type_info.StaticType.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -329,14 +329,14 @@ class InstructionTransformVisitor(ExprVisitor):
 		expr_str: CodeString = self.generate(expr.expr, context)
 
 		# check staticness
-		static = bool(target.static & StaticType.WRITE) and bool(expr_str.static)
+		static = bool(target.static & type_info.StaticType.WRITE) and bool(expr_str.static)
 
-		if not expr_str.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
+		if not expr_str.static and bool(target.static & type_info.StaticType.WRITE) and not context.ignore_static:
 			raise M2ValueError('Static target cannot be assigned to non-static expression!')
 
 		# convert assignment value staticness
 		if expr_str.static and not expr_str.is_literal:
-			if bool(target.static & StaticType.WRITE):
+			if bool(target.static & type_info.StaticType.WRITE):
 				if context.ignore_static:
 					expr_str.code = Template(f'{expr_str.code}').safe_substitute(**replacements.rename_dynamic)
 				else:
@@ -345,7 +345,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				expr_str.code = context.make_static(expr_str.code, expr_str.signed)
 
 		# convert target staticness
-		if bool(target.static & StaticType.READ):
+		if bool(target.static & type_info.StaticType.READ):
 			target.code = Template(target.code).safe_substitute(replacements.rename_write)
 
 		# keep track of affected and dependent registers
@@ -537,7 +537,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		then_expr = self.generate(expr.then_expr, context)
 		else_expr = self.generate(expr.else_expr, context)
 
-		static = StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
+		static = type_info.StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
 
 		# convert singular static sub-components
 		if not static:
@@ -603,14 +603,14 @@ class InstructionTransformVisitor(ExprVisitor):
 		# extract referred object
 		referred_var = expr.reference
 
-		static = StaticType.NONE
+		static = type_info.StaticType.NONE
 
 		name = referred_var.name
 
 		# check if static name replacement is needed
 		if name in replacements.rename_static:
 			name = f'${{{name}}}'
-			static = StaticType.READ
+			static = type_info.StaticType.READ
 
 		# check which type of reference has to be generated
 		if isinstance(referred_var, arch.Memory):
@@ -626,7 +626,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			# function argument
 			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
 			size = referred_var.ty.size
-			static = StaticType.READ
+			static = type_info.StaticType.READ
 
 		elif isinstance(referred_var, arch.Scalar):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
@@ -638,13 +638,13 @@ class InstructionTransformVisitor(ExprVisitor):
 		elif isinstance(referred_var, arch.Constant):
 			signed = referred_var.value < 0
 			size = context.native_size
-			static = StaticType.READ
+			static = type_info.StaticType.READ
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
 			signed = referred_var.ty.kind ==  type_info.TypeKind.TYPE_INT
 			size = referred_var.ty.size
-			static = StaticType.RW
+			static = type_info.StaticType.RW
 
 		elif isinstance(referred_var, arch.Intrinsic):
 			if context.ignore_static:
@@ -652,7 +652,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
 			size = referred_var.ty.size
-			static = StaticType.READ
+			static = type_info.StaticType.READ
 
 			if referred_var == context.intrinsics["__encoding_size"]:
 				name = str(context.instr_size // 8)
@@ -661,7 +661,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			raise TypeError("wrong type")
 
 		if context.ignore_static:
-			static = StaticType.RW
+			static = type_info.StaticType.RW
 
 		return CodeString(name, static, size, signed, line_infos=expr.line_info)
 
@@ -687,9 +687,9 @@ class InstructionTransformVisitor(ExprVisitor):
 			index.code = context.make_static(index.code, index.signed)
 
 		if context.ignore_static:
-			static = StaticType.RW
+			static = type_info.StaticType.RW
 		else:
-			static = StaticType.NONE
+			static = type_info.StaticType.NONE
 
 		if type_info.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			# generate memory access if main memory is accessed
@@ -728,7 +728,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
 
-		static = StaticType.NONE not in [x.static for x in (expr_str, left, right)]
+		static = type_info.StaticType.NONE not in [x.static for x in (expr_str, left, right)]
 
 		if not static:
 			if expr_str.static and not expr_str.is_literal:
@@ -791,7 +791,7 @@ class InstructionTransformVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Literal, context: TransformerContext):
 		if expr.ty.kind is type_info.TypeKind.TYPE_STR:
-			return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
+			return CodeString(f'"{expr.value}"', type_info.StaticType.READ, None, False, line_infos=expr.line_info)
 
 		# old number NumberLiteral
 		elif expr.ty.kind == type_info.TypeKind.TYPE_NONE:
