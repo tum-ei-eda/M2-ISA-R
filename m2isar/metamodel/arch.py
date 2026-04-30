@@ -198,7 +198,7 @@ class FnParam(Named):
 	"""The array width of this parameter."""
 
 	def __init__(self, name, size, kind: type_info.TypeKind, width=1):
-		self.ty = type_info.IntegerType(size, True if kind == type_info.TypeKind.INT else False)
+		self.ty = type_info.IntegerType(size, kind)
 		self._width = width
 		super().__init__(name)
 
@@ -359,7 +359,7 @@ class BitFieldDescr(Named):
 	the actual bits it is composed of, for that use BitField.
 	"""
 	def __init__(self, name, size: ValOrConst, kind: type_info.TypeKind):
-		self.ty = type_info.IntegerType(get_const_or_val(size), True if kind == type_info.TypeKind.INT else False)
+		self.ty = type_info.IntegerType(get_const_or_val(size), kind)
 
 		super().__init__(name)
 

@@ -53,16 +53,15 @@ class BitFieldType():
     def __init__(self, kind: TypeKind):
         self.kind = kind
 
-#removed get_const_or_val
 class IntegerType(PrimitiveType):
-    def __init__(self, size: int, signed: bool, ptr: Any=None):
+    def __init__(self, size: int, signed_or_kind: Union[bool, TypeKind], ptr: Any=None):
         self.ptr = ptr
-        if type(signed) is not bool:
-            assert signed.is_int, "IntegerType must be of int kind"
-            super().__init__(signed, size)
+        if type(signed_or_kind) is not bool:
+            assert signed_or_kind.is_int, "IntegerType must be of int kind"
+            super().__init__(signed_or_kind, size)
         else:
             logger.warning("Deprecated IntegerType Constructor please use new TypeKind/instead of signed!!!!")
-            super().__init__(TypeKind.INT if signed else TypeKind.UINT, size)
+            super().__init__(TypeKind.INT if signed_or_kind else TypeKind.UINT, size)
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):

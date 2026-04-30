@@ -423,7 +423,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		else:
 			raise M2TypeError("width has wrong type")
 
-		return type_info.IntegerType(width, signed)
+		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
+
+		return type_info.IntegerType(width, kind)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type specifier."""
@@ -433,7 +435,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool type specifier. Aliases to unsigned<1>."""
 
-		return type_info.IntegerType(1, False)
+		return type_info.IntegerType(1, type_info.TypeKind.UINT)
 
 	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
 		"""Generate integer signedness."""
