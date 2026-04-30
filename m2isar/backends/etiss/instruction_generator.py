@@ -156,11 +156,11 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
 
 	# force a block end if necessary
-	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes
-	  			and arch.InstrAttribute.COND not in instr_def.attributes
+	if ((type_info.InstrAttribute.NO_CONT in instr_def.attributes
+	  			and type_info.InstrAttribute.COND not in instr_def.attributes
 				and block_end_on == BlockEndType.UNCOND)
 			or (
-				arch.InstrAttribute.NO_CONT in instr_def.attributes
+				type_info.InstrAttribute.NO_CONT in instr_def.attributes
 				and block_end_on == BlockEndType.ALL)
 			):
 
@@ -231,8 +231,8 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 		code_string = f'{code:#0{int(enc_idx/4)}x}'
 		mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-		if arch.InstrAttribute.ENABLE in instr_def.attributes:
-			cond = instr_def.attributes[arch.InstrAttribute.ENABLE]
+		if type_info.InstrAttribute.ENABLE in instr_def.attributes:
+			cond = instr_def.attributes[type_info.InstrAttribute.ENABLE]
 			new_op = behav.Operation([
 				behav.Conditional(
 					[cond[0]],

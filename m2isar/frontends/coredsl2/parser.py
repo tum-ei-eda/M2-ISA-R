@@ -240,15 +240,15 @@ def main():
 						sys.exit(1)
 
 				instr_def.attributes[attr_name] = ops
-			if arch.InstrAttribute.ENABLE in instr_def.attributes:
-				enable_attr = instr_def.attributes[arch.InstrAttribute.ENABLE]
+			if type_info.InstrAttribute.ENABLE in instr_def.attributes:
+				enable_attr = instr_def.attributes[type_info.InstrAttribute.ENABLE]
 				assert isinstance(enable_attr, list)
 				assert len(enable_attr) == 1
 				enable_attr = enable_attr[0]
 				enable = try_eval_bool(enable_attr, core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
 				if enable is not None:
 					assert isinstance(enable, bool)
-					instr_def.attributes.pop(arch.InstrAttribute.ENABLE)
+					instr_def.attributes.pop(type_info.InstrAttribute.ENABLE)
 					if not enable:
 						continue
 

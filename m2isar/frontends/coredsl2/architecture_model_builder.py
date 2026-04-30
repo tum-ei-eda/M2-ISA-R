@@ -515,7 +515,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		# read attribute from enums
-		attr = arch.InstrAttribute._member_map_.get(name.upper()) or \
+		attr = type_info.InstrAttribute._member_map_.get(name.upper()) or \
 			type_info.MemoryAttribute._member_map_.get(name.upper()) or \
 			type_info.FunctionAttribute._member_map_.get(name.upper())
 

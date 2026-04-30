@@ -91,3 +91,15 @@ class FunctionType():
     def __init__(self, size: int, kind: TypeKind):
         self.size = size
         self.kind = kind
+
+class ConstAttribute(Enum):
+	IS_REG_WIDTH = auto()
+	IS_ADDR_WIDTH = auto()
+
+class InstrAttribute(Enum):
+	NO_CONT = auto()
+	COND = auto()
+	FLUSH = auto()
+	SIM_EXIT = auto()
+	ENABLE = auto()
+	ETISS_ERROR_INSTRUCTION = auto()

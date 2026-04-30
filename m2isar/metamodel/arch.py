@@ -88,13 +88,13 @@ class Constant(SizedRefOrConst):
 	_value: Union[int, "Constant", "BaseNode"]
 	"""The value this object holds. Can be an int, another constant or a statically resolvable BaseNode."""
 
-	attributes: "dict[ConstAttribute, list[BaseNode]]"
+	attributes: "dict[type_info.ConstAttribute, list[BaseNode]]"
 	"""A dictionary of attributes, mapping attribute type to a list of attribute arguments."""
 
 	signed: bool
 	"""The signedness of this constant."""
 
-	def __init__(self, name, value: Union[int, "Constant", "BaseNode"], attributes: "dict[ConstAttribute, list[BaseNode]]", size=None, signed=False):
+	def __init__(self, name, value: Union[int, "Constant", "BaseNode"], attributes: "dict[type_info.ConstAttribute, list[BaseNode]]", size=None, signed=False):
 		self._value = value
 		self.attributes = attributes if attributes else {}
 		self.signed = signed
@@ -189,18 +189,6 @@ class RangeSpec:
 
 	def __str__(self) -> str:
 		return f'<RangeSpec object>, len {self.length}: {self.upper_base}:{self.lower_base}'
-
-class ConstAttribute(Enum):
-	IS_REG_WIDTH = auto()
-	IS_ADDR_WIDTH = auto()
-
-class InstrAttribute(Enum):
-	NO_CONT = auto()
-	COND = auto()
-	FLUSH = auto()
-	SIM_EXIT = auto()
-	ENABLE = auto()
-	ETISS_ERROR_INSTRUCTION = auto()
 
 
 class FnParam(Named):

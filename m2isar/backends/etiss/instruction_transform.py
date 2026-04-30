@@ -117,22 +117,22 @@ class InstructionTransformVisitor(ExprVisitor):
 			return_conditions = []
 			return_needed = any((
 				context.generates_exception,
-				arch.InstrAttribute.NO_CONT in context.attributes,
-				arch.InstrAttribute.COND in context.attributes,
-				arch.InstrAttribute.FLUSH in context.attributes
+				type_info.InstrAttribute.NO_CONT in context.attributes,
+				type_info.InstrAttribute.COND in context.attributes,
+				type_info.InstrAttribute.FLUSH in context.attributes
 			))
 
 			if context.generates_exception:
 				return_conditions.append("cpu->return_pending")
 				return_conditions.append("cpu->exception")
 
-			if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
+			if type_info.InstrAttribute.NO_CONT in context.attributes and type_info.InstrAttribute.COND in context.attributes:
 				return_conditions.append(f'cpu->nextPc != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "ULL')
 
-			elif arch.InstrAttribute.NO_CONT in context.attributes:
+			elif type_info.InstrAttribute.NO_CONT in context.attributes:
 				return_conditions.clear()
 
-			if arch.InstrAttribute.FLUSH in context.attributes:
+			if type_info.InstrAttribute.FLUSH in context.attributes:
 				container.initial_required = 'cp.code() += "cpu->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + container.initial_required
 				return_conditions.clear()
 
