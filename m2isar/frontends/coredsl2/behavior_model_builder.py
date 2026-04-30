@@ -12,7 +12,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
-from ...metamodel import arch, behav, type_info, intrinsics
+from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoFactory, LineInfoPlacement)
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
@@ -90,7 +90,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if ref is None:
 			raise M2NameError(f"function \"{name}\" is not defined")
 
-		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in ref.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in ref.attributes:
 			raise M2SyntaxError(f"exception entry function \"{name}\" must be called as procedure")
 
 		# generate method arguments
@@ -126,7 +126,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
-			s = arch.Scalar(name, type_.kind, type_.size, None, type_info.StaticType.NONE)
+			s = arch.Scalar(name, type_.kind, type_.size, None, attribute_info.StaticAttribute.NONE)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 

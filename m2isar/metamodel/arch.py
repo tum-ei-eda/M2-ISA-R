@@ -14,10 +14,9 @@ behavior of functions and instructions.
 import dataclasses
 import itertools
 from collections import defaultdict
-from enum import Enum, IntEnum, auto
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
-from m2isar.metamodel import type_info
+from m2isar.metamodel import type_info, attribute_info
 
 from .. import M2TypeError
 from .behav import BaseNode, Operation, Literal
@@ -216,7 +215,7 @@ class Scalar(Named):
 	"""A scalar variable object, used mainly in behavior descriptions."""
 
 	ty: Union[type_info.PrimitiveType]
-	static: type_info.StaticType
+	static: attribute_info.StaticAttribute
 	value: int
 
 	def __init__(self,
@@ -224,7 +223,7 @@ class Scalar(Named):
 			kind : Union[type_info.TypeKind, type_info.IntegerType, type_info.FloatType],
 			size : int,
 			value: int, # Compile Time information
-			static: type_info.StaticType,
+			static: attribute_info.StaticAttribute,
         	storage=None
 			):
 		self.ty = type_info.PrimitiveType(kind, size) if isinstance(kind, type_info.TypeKind) else kind
@@ -243,7 +242,7 @@ class Array(Named):
 	"""A variable object for an Array, used mainly in behavior descriptions."""
 
 	ty: type_info.ArrayType
-	static: type_info.StaticType
+	static: attribute_info.StaticAttribute
 	values: list[int]
 
 	def __init__(self,
@@ -252,7 +251,7 @@ class Array(Named):
 			size : int,
 			length : int,
 			values: list[int],
-			static: type_info.StaticType, # Compile Time information
+			static: attribute_info.StaticAttribute, # Compile Time information
         	storage=None
 			):
 		# Explcit casting for now allowed???
@@ -286,12 +285,12 @@ class Memory(Named):
 
 	ty : type_info.MemoryType
 	range: RangeSpec
-	attributes: "dict[type_info.MemoryAttribute, list[BaseNode]]"
+	attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"
 	children: "list[Memory]"
 	parent: Union['Memory', None]
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[type_info.MemoryAttribute, list[BaseNode]]"):
+	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.ty = type_info.MemoryType(size)
 		self.attributes = attributes if attributes else {}
 		self.range = range_
@@ -317,12 +316,12 @@ class Memory(Named):
 	@property
 	def is_pc(self):
 		"""Return true if this memory is tagged as being the program counter."""
-		return type_info.MemoryAttribute.IS_PC in self.attributes
+		return attribute_info.MemoryAttribute.IS_PC in self.attributes
 
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
-		return type_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
+		return attribute_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
 
 @dataclasses.dataclass
 class BitVal:
@@ -426,7 +425,7 @@ class Instruction(SizedRefOrConst):
 class Function(Named):
 	"""A class representing a function."""
 
-	attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]"
+	attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]"
 	ty: type_info.FunctionType
 	args: "list[FnParam]"
 	operation: "Operation"
@@ -435,9 +434,9 @@ class Function(Named):
 	ext_name: str
 	scalars: "dict[str, Scalar]"
 	throws: bool
-	static: type_info.StaticType
+	static: attribute_info.StaticAttribute
 
-	def __init__(self, name, attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
+	def __init__(self, name, attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
@@ -461,7 +460,7 @@ class Function(Named):
 			self.args[arg_name] = arg
 
 		self.operation = operation if operation is not None else Operation([])
-		self.static = type_info.StaticType.NONE
+		self.static = attribute_info.StaticAttribute.NONE
 		self.extern = extern
 
 		super().__init__(name)
@@ -490,7 +489,7 @@ def extract_memory_alias(memories: "list[Memory]"):
 	return parents, aliases
 
 class AlwaysBlock(Named):
-	attributes: "dict[type_info.FunctionAttribute, list[BaseNode]]"
+	attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]"
 	operation: "Operation"
 
 	def __init__(self, name: str, attributes, operation):
@@ -548,19 +547,19 @@ class CoreDef(Named):
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
-			if type_info.MemoryAttribute.IS_MAIN_REG in mem.attributes:
+			if attribute_info.MemoryAttribute.IS_MAIN_REG in mem.attributes:
 				self.main_reg_file = mem
-			elif type_info.MemoryAttribute.IS_PC in mem.attributes:
+			elif attribute_info.MemoryAttribute.IS_PC in mem.attributes:
 				self.pc_memory = mem
-			elif type_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
+			elif attribute_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
 				self.main_memory = mem
-			elif type_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+			elif attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 				self.global_irq_en_memory = mem
-			elif type_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
+			elif attribute_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
 				self.procno_memory = mem
-			elif type_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
 				self.irq_en_memory = mem
-			elif type_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
 				self.irq_pending_memory = mem
 
 		super().__init__(name)

@@ -12,7 +12,7 @@ import logging
 
 from mako.template import Template
 
-from ...metamodel import arch, behav, type_info
+from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType, instruction_utils
 from .instruction_transform import InstructionTransformVisitor
 from .instruction_utils import actual_size
@@ -67,7 +67,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		args_list = [generate_arg_str(arg) for arg in fn_def.args.values()]
 
 		# if function needs access to ETISS architecture data, add these as arguments to the function
-		if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
+		if attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
 		fn_args = ', '.join(args_list)
@@ -156,11 +156,11 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
 
 	# force a block end if necessary
-	if ((type_info.InstrAttribute.NO_CONT in instr_def.attributes
-	  			and type_info.InstrAttribute.COND not in instr_def.attributes
+	if ((attribute_info.InstrAttribute.NO_CONT in instr_def.attributes
+	  			and attribute_info.InstrAttribute.COND not in instr_def.attributes
 				and block_end_on == BlockEndType.UNCOND)
 			or (
-				type_info.InstrAttribute.NO_CONT in instr_def.attributes
+				attribute_info.InstrAttribute.NO_CONT in instr_def.attributes
 				and block_end_on == BlockEndType.ALL)
 			):
 
@@ -197,7 +197,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 	error_fn = None
 	for fn in core.functions.values():
-		if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 
@@ -231,8 +231,8 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 		code_string = f'{code:#0{int(enc_idx/4)}x}'
 		mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-		if type_info.InstrAttribute.ENABLE in instr_def.attributes:
-			cond = instr_def.attributes[type_info.InstrAttribute.ENABLE]
+		if attribute_info.InstrAttribute.ENABLE in instr_def.attributes:
+			cond = instr_def.attributes[attribute_info.InstrAttribute.ENABLE]
 			new_op = behav.Operation([
 				behav.Conditional(
 					[cond[0]],

@@ -12,7 +12,7 @@ from typing import Union
 
 from ... import (M2DuplicateError, M2NameError, M2TypeError, M2ValueError,
                  flatten)
-from ...metamodel import arch, behav, intrinsics, type_info
+from ...metamodel import arch, behav, type_info, attribute_info, intrinsics
 from ...metamodel.code_info import FunctionInfoFactory
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import RADIX, SHORTHANDS, SIGNEDNESS
@@ -197,8 +197,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# decode attributes
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 
-		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in attributes:
-			attributes[type_info.FunctionAttribute.ETISS_NEEDS_ARCH] = []
+		if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in attributes:
+			attributes[attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH] = []
 
 		# decode return type and name
 		type_ = self.visit(ctx.type_)
@@ -391,7 +391,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if type_info.MemoryAttribute.IS_MAIN_REG in attributes:
+					if attribute_info.MemoryAttribute.IS_MAIN_REG in attributes:
 						self._main_reg_file = m
 
 					self._memories[name] = m
@@ -515,9 +515,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		# read attribute from enums
-		attr = type_info.InstrAttribute._member_map_.get(name.upper()) or \
-			type_info.MemoryAttribute._member_map_.get(name.upper()) or \
-			type_info.FunctionAttribute._member_map_.get(name.upper())
+		attr = attribute_info.InstrAttribute._member_map_.get(name.upper()) or \
+			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
+			attribute_info.FunctionAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

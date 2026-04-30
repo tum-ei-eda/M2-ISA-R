@@ -11,8 +11,7 @@ for the architectural part of an M2-ISA-R model. The architectural part is
 anything but the functional behavior of functions and instructions.
 """
 
-from dataclasses import dataclass
-from enum import Enum, IntEnum, auto, IntFlag
+from enum import Enum, auto
 from typing import Any, Union
 
 
@@ -53,35 +52,12 @@ class ArrayType:
         self.length = length # allow shaped later or TYPE_ARRAY in element_type?
 
 
-class MemoryAttribute(Enum):
-	IS_PC = auto()
-	IS_MAIN_MEM = auto()
-	IS_MAIN_REG = auto()
-	DELETE = auto()
-	ETISS_CAN_FAIL = auto()
-	ETISS_IS_GLOBAL_IRQ_EN = auto()
-	ETISS_IS_IRQ_EN = auto()
-	ETISS_IS_IRQ_PENDING = auto()
-	ETISS_IS_PROCNO = auto()
-
-
 class MemoryType:
     size : int
 
     def __init__(self, size: int):
         self.size = size
 
-
-class FunctionAttribute(Enum):
-	ETISS_STATICFN = auto()
-	ETISS_NEEDS_ARCH = auto()
-	ETISS_TRAP_ENTRY_FN = auto()
-	ETISS_TRAP_TRANSLATE_FN = auto()
-
-class FunctionThrows(IntEnum):
-	NO = 0
-	YES = 1
-	MAYBE = 2
 
 class FunctionType():
     size : int
@@ -90,30 +66,3 @@ class FunctionType():
     def __init__(self, size: int, kind: TypeKind):
         self.size = size
         self.kind = kind
-
-class ConstAttribute(Enum):
-	IS_REG_WIDTH = auto()
-	IS_ADDR_WIDTH = auto()
-
-class InstrAttribute(Enum):
-	NO_CONT = auto()
-	COND = auto()
-	FLUSH = auto()
-	SIM_EXIT = auto()
-	ENABLE = auto()
-	ETISS_ERROR_INSTRUCTION = auto()
-
-
-class StaticType(IntFlag):
-	"""Describes the staticness of a Scalar or Function"""
-
-	NONE = 0
-	READ = auto()
-	WRITE = auto()
-	RW = READ | WRITE
-
-@dataclass
-class ScalarStaticnessContext:
-	"""A datakeeping class for the scalar staticness transformations."""
-
-	context_is_static: StaticType = StaticType.RW

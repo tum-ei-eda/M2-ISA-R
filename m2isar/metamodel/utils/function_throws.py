@@ -13,7 +13,7 @@ from functools import singledispatchmethod
 from operator import or_
 from typing import Any
 
-from ...metamodel import arch, behav, type_info
+from ...metamodel import arch, behav, type_info, attribute_info
 from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
@@ -35,12 +35,12 @@ class FunctionThrowsVisitor(ExprVisitor):
 			else:
 				statements.append(temp)
 
-		return reduce(or_, statements, type_info.FunctionThrows.NO)
+		return reduce(or_, statements, attribute_info.FunctionThrows.NO)
 
 	@generate.register
 	def _(self, expr: behav.Block, context):
 		stmts = [self.generate(x, context) for x in expr.statements]
-		return reduce(or_, stmts, type_info.FunctionThrows.NO)
+		return reduce(or_, stmts, attribute_info.FunctionThrows.NO)
 
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context):
@@ -66,15 +66,15 @@ class FunctionThrowsVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Literal, context):
-		return type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context):
-		return type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Break, context):
-		return type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Assignment, context):
@@ -90,7 +90,7 @@ class FunctionThrowsVisitor(ExprVisitor):
 
 		conds.extend(stmts)
 
-		return type_info.FunctionThrows.MAYBE if reduce(or_, conds) else type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.MAYBE if reduce(or_, conds) else attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Loop, context):
@@ -113,7 +113,7 @@ class FunctionThrowsVisitor(ExprVisitor):
 		if expr.expr is not None:
 			return self.generate(expr.expr, context)
 
-		return type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
@@ -123,15 +123,15 @@ class FunctionThrowsVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Memory) and type_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
-			return type_info.FunctionThrows.YES
+		if isinstance(expr.reference, arch.Memory) and attribute_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return attribute_info.FunctionThrows.YES
 
-		return type_info.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.IndexedReference, context):
-		if isinstance(expr.reference, arch.Memory) and type_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
-			return type_info.FunctionThrows.YES
+		if isinstance(expr.reference, arch.Memory) and attribute_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return attribute_info.FunctionThrows.YES
 
 		return self.generate(expr.index, context)
 
@@ -144,16 +144,16 @@ class FunctionThrowsVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Callable, context):
 		args = [self.generate(arg, context) for arg in expr.args]
-		throws = getattr(expr.ref_or_name, "throws", type_info.FunctionThrows.NO)
-		args.append(throws if isinstance(throws, type_info.FunctionThrows) else cast_to_throws(throws))
+		throws = getattr(expr.ref_or_name, "throws", attribute_info.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, attribute_info.FunctionThrows) else cast_to_throws(throws))
 
 		return reduce(or_, args)
 
 	@generate.register
 	def _(self, expr: behav.ProcedureCall, context):
 		args = [self.generate(arg, context) for arg in expr.args]
-		throws = getattr(expr.ref_or_name, "throws", type_info.FunctionThrows.NO)
-		args.append(throws if isinstance(throws, type_info.FunctionThrows) else cast_to_throws(throws))
+		throws = getattr(expr.ref_or_name, "throws", attribute_info.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, attribute_info.FunctionThrows) else cast_to_throws(throws))
 
 		return reduce(or_, args)
 
@@ -164,8 +164,8 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return expr_result
 
 
-def cast_to_throws(throws: Any) -> type_info.FunctionThrows:
+def cast_to_throws(throws: Any) -> attribute_info.FunctionThrows:
 	"""Cast unknown throws values into FunctionThrows for robust visitor dispatch."""
 	if isinstance(throws, bool):
-		return type_info.FunctionThrows.YES if throws else type_info.FunctionThrows.NO
-	return type_info.FunctionThrows(throws)
+		return attribute_info.FunctionThrows.YES if throws else attribute_info.FunctionThrows.NO
+	return attribute_info.FunctionThrows(throws)

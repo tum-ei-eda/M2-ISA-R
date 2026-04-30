@@ -14,7 +14,7 @@ import pickle
 import sys
 
 from ... import M2Error, M2SyntaxError
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, attribute_info
 from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
@@ -240,15 +240,15 @@ def main():
 						sys.exit(1)
 
 				instr_def.attributes[attr_name] = ops
-			if type_info.InstrAttribute.ENABLE in instr_def.attributes:
-				enable_attr = instr_def.attributes[type_info.InstrAttribute.ENABLE]
+			if attribute_info.InstrAttribute.ENABLE in instr_def.attributes:
+				enable_attr = instr_def.attributes[attribute_info.InstrAttribute.ENABLE]
 				assert isinstance(enable_attr, list)
 				assert len(enable_attr) == 1
 				enable_attr = enable_attr[0]
 				enable = try_eval_bool(enable_attr, core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
 				if enable is not None:
 					assert isinstance(enable, bool)
-					instr_def.attributes.pop(type_info.InstrAttribute.ENABLE)
+					instr_def.attributes.pop(attribute_info.InstrAttribute.ENABLE)
 					if not enable:
 						continue
 

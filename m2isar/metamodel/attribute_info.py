@@ -1,0 +1,52 @@
+
+from enum import Enum, IntEnum, auto, IntFlag
+from dataclasses import dataclass
+
+class MemoryAttribute(Enum):
+	IS_PC = auto()
+	IS_MAIN_MEM = auto()
+	IS_MAIN_REG = auto()
+	DELETE = auto()
+	ETISS_CAN_FAIL = auto()
+	ETISS_IS_GLOBAL_IRQ_EN = auto()
+	ETISS_IS_IRQ_EN = auto()
+	ETISS_IS_IRQ_PENDING = auto()
+	ETISS_IS_PROCNO = auto()
+
+class FunctionAttribute(Enum):
+	ETISS_STATICFN = auto()
+	ETISS_NEEDS_ARCH = auto()
+	ETISS_TRAP_ENTRY_FN = auto()
+	ETISS_TRAP_TRANSLATE_FN = auto()
+
+class FunctionThrows(IntEnum):
+	NO = 0
+	YES = 1
+	MAYBE = 2
+
+class ConstAttribute(Enum):
+	IS_REG_WIDTH = auto()
+	IS_ADDR_WIDTH = auto()
+
+class InstrAttribute(Enum):
+	NO_CONT = auto()
+	COND = auto()
+	FLUSH = auto()
+	SIM_EXIT = auto()
+	ENABLE = auto()
+	ETISS_ERROR_INSTRUCTION = auto()
+
+
+class StaticAttribute(IntFlag):
+	"""Describes the staticness of a Scalar or Function"""
+
+	NONE = 0
+	READ = auto()
+	WRITE = auto()
+	RW = READ | WRITE
+
+@dataclass
+class ScalarStaticnessContext:
+	"""A datakeeping class for the scalar staticness transformations."""
+
+	context_is_static: StaticAttribute = StaticAttribute.RW

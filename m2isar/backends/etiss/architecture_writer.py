@@ -16,7 +16,7 @@ from mako.template import Template
 
 from .instruction_utils import actual_size
 from ... import M2TypeError
-from ...metamodel import arch, behav, type_info
+from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType
 from .instruction_generator import (generate_fields,
                                     generate_instruction_callback)
@@ -28,7 +28,7 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 	"""Recursively generate register declarations"""
 
 	logger.debug("processing register %s", reg)
-	if type_info.MemoryAttribute.IS_PC in reg.attributes or type_info.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
+	if attribute_info.MemoryAttribute.IS_PC in reg.attributes or attribute_info.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
 		return
 
@@ -179,12 +179,12 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	error_fn = None
 
 	for fn in core.functions.values():
-		if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 			error_fn = fn
 			break
 
 	for fn in core.functions.values():
-		if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 
@@ -193,7 +193,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	if error_fn is not None:
 		for bitsize in core.instr_classes:
 			error_bitfield = arch.BitField("error_code", arch.RangeSpec(31, 0), type_info.TypeKind.TYPE_UINT)
-			error_instr = arch.Instruction(f"trap_entry {bitsize}", {type_info.InstrAttribute.NO_CONT: None}, [error_bitfield], "", "", None, None)
+			error_instr = arch.Instruction(f"trap_entry {bitsize}", {attribute_info.InstrAttribute.NO_CONT: None}, [error_bitfield], "", "", None, None)
 			error_bitfield_descr = error_instr.fields.get("error_code")
 			error_op = behav.Operation([
 				behav.ProcedureCall(error_fn, [behav.NamedReference(error_bitfield_descr)])
@@ -209,7 +209,7 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 
 	global_irq_en_mask = None
 	if core.global_irq_en_memory is not None:
-		attr = core.global_irq_en_memory.attributes[type_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
+		attr = core.global_irq_en_memory.attributes[attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
 		if not isinstance(attr, behav.Literal):
 			raise M2TypeError(f"IRQ enable mask of {core.global_irq_en_memory.name} is not compile static")
 		global_irq_en_mask = attr.value

@@ -14,7 +14,7 @@ import logging
 from itertools import chain
 
 from ... import M2ValueError
-from .. import arch, type_info
+from .. import arch, attribute_info
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
 from .function_throws import FunctionThrowsVisitor
@@ -47,22 +47,22 @@ def process_functions(core: arch.CoreDef):
 
 		logger.debug("checking throws for fn %s", fn_name)
 		throws = function_throws_visitor.generate(fn_def.operation, None)
-		fn_def.throws = throws or type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
+		fn_def.throws = throws or attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
 
-		context = type_info.ScalarStaticnessContext()
+		context = attribute_info.ScalarStaticnessContext()
 		logger.debug("examining scalar staticness for fn %s", fn_name)
 		scalar_staticness_visitor.generate(fn_def.operation, context)
 
 		logger.debug("examining function staticness for fn %s", fn_name)
 
-		if type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
+		if attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes and attribute_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 			raise M2ValueError("etiss_needs_arch and etiss_staticfn not allowed together, in function %s", fn_name)
 
-		#if not fn_def.extern and (type_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
+		#if not fn_def.extern and (attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or attribute_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes):
 		#	raise M2ValueError("etiss_needs_arch and etiss_staticfn only allowed for extern functions, in function %s", fn_name)
 
-		if fn_def.extern or type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
-			if type_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
+		if fn_def.extern or attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
+			if attribute_info.FunctionAttribute.ETISS_STATICFN in fn_def.attributes:
 				fn_def.static = True
 
 		else:
@@ -84,6 +84,6 @@ def process_instructions(core: arch.CoreDef):
 		throws = function_throws_visitor.generate(instr_def.operation, None)
 		instr_def.throws = throws
 
-		context = type_info.ScalarStaticnessContext()
+		context = attribute_info.ScalarStaticnessContext()
 		logger.debug("examining staticness for instr %s", instr_def.name)
 		scalar_staticness_visitor.generate(instr_def.operation, context)

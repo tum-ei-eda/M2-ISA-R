@@ -13,7 +13,7 @@ from itertools import chain
 from string import Template
 
 from ... import M2ValueError
-from ...metamodel import arch, type_info
+from ...metamodel import arch, type_info, attribute_info
 from ...metamodel.code_info import LineInfo
 from . import replacements
 
@@ -47,7 +47,7 @@ class CodeString:
 
 	def __init__(self, code, static, size, signed, regs_affected=None, line_infos=[]):
 		self.code = code
-		self.static = type_info.StaticType(static)
+		self.static = attribute_info.StaticAttribute(static)
 		self.size = size
 		self.signed = signed
 		self.mem_ids = []
@@ -135,7 +135,7 @@ class TransformerContext:
 	"""
 
 	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
-			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[type_info.InstrAttribute]", functions: "dict[str, arch.Function]",
+			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[attribute_info.InstrAttribute]", functions: "dict[str, arch.Function]",
 			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
 		self.constants = constants
@@ -161,7 +161,7 @@ class TransformerContext:
 		self.pc_mem = None
 
 		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if type_info.MemoryAttribute.IS_PC in mem_descr.attributes:
+			if attribute_info.MemoryAttribute.IS_PC in mem_descr.attributes:
 				self.pc_mem = mem_descr
 				break
 
@@ -169,9 +169,9 @@ class TransformerContext:
 		self.mem_raise_fn: arch.Function = None
 
 		for fn_name, fn_def in self.functions.items():
-			if type_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
 				self.raise_fn = fn_def
-			if type_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
 				self.mem_raise_fn = fn_def
 
 		self.generates_exception = False
