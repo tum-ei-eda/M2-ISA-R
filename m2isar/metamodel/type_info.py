@@ -17,31 +17,31 @@ from typing import Any, Union
 
 logger = logging.getLogger("type_info_logger")
 class TypeKind(Enum):
-    TYPE_NONE = auto() # NumberLiteral with no type, e.g. 0 or 1
-    TYPE_VOID = auto()
-    TYPE_UINT = auto()
-    TYPE_INT = auto()
-    TYPE_CHAR = auto()
-    # TYPE_BOOL = auto() Expressed as unsigned<1>
-    TYPE_FLOAT = auto()
-    TYPE_STR = auto()
-    TYPE_ARRAY = auto()
+    NONE = auto() # NumberLiteral with no type, e.g. 0 or 1
+    VOID = auto()
+    UINT = auto()
+    INT = auto()
+    CHAR = auto()
+    # BOOL = auto() Expressed as unsigned<1>
+    FLOAT = auto()
+    STR = auto()
+    ARRAY = auto()
 
     @property
     def is_int(self):
-        return self in (TypeKind.TYPE_INT, TypeKind.TYPE_UINT)
+        return self in (TypeKind.INT, TypeKind.UINT)
 
     @property
     def is_numeric(self):
-        return self in (TypeKind.TYPE_INT, TypeKind.TYPE_UINT, TypeKind.TYPE_FLOAT)
+        return self in (TypeKind.INT, TypeKind.UINT, TypeKind.FLOAT)
 
     @property
     def is_void(self):
-        return self == TypeKind.TYPE_VOID
+        return self == TypeKind.VOID
 
     @property
     def is_scalar(self):
-        return self not in (TypeKind.TYPE_ARRAY, TypeKind.TYPE_VOID, TypeKind.TYPE_NONE)
+        return self not in (TypeKind.ARRAY, TypeKind.VOID, TypeKind.NONE)
 
 
 class PrimitiveType:
@@ -62,7 +62,7 @@ class IntegerType(PrimitiveType):
             super().__init__(signed, size)
         else:
             logger.warning("Deprecated IntegerType Constructor please use new TypeKind/instead of signed!!!!")
-            super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
+            super().__init__(TypeKind.INT if signed else TypeKind.UINT, size)
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):

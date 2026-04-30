@@ -73,7 +73,7 @@ def patch_model(module):
 		param.annotation.generate = fn
 
 intrinsic_defs = [
-	arch.Intrinsic("__encoding_size", 16, type_info.TypeKind.TYPE_UINT),
+	arch.Intrinsic("__encoding_size", 16, type_info.TypeKind.UINT),
 ]
 
 intrinsics = {x.name: x for x in intrinsic_defs}

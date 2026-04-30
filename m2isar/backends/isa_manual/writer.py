@@ -145,11 +145,11 @@ class CoreDSL2Writer:
             self.write("}", nl=nl)
 
     def write_type(self, data_type, size):
-        if data_type == type_info.TypeKind.TYPE_UINT:
+        if data_type == type_info.TypeKind.UINT:
             self.write("unsigned")
-        elif data_type == type_info.TypeKind.TYPE_INT:
+        elif data_type == type_info.TypeKind.INT:
             self.write("signed")
-        elif data_type == type_info.TypeKind.TYPE_VOID:
+        elif data_type == type_info.TypeKind.VOID:
             self.write("void")
         else:
             raise NotImplementedError(f"Unsupported type: {data_type}")

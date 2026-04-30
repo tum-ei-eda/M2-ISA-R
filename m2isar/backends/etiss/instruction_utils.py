@@ -18,9 +18,9 @@ from ...metamodel.code_info import LineInfo
 from . import replacements
 
 data_type_map = {
-	type_info.TypeKind.TYPE_INT: 'etiss_int',
-	type_info.TypeKind.TYPE_UINT: 'etiss_uint',
-	type_info.TypeKind.TYPE_VOID: 'void'
+	type_info.TypeKind.INT: 'etiss_int',
+	type_info.TypeKind.UINT: 'etiss_uint',
+	type_info.TypeKind.VOID: 'void'
 }
 
 

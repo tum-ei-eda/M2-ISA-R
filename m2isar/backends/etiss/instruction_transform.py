@@ -195,7 +195,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			f'{data_type_map[expr.scalar.ty.kind]}{actual_size} {expr.scalar.name}',
 			static,
 			expr.scalar.ty.size,
-			expr.scalar.ty.kind == type_info.TypeKind.TYPE_INT,
+			expr.scalar.ty.kind == type_info.TypeKind.INT,
 			line_infos=expr.line_info,
 		)
 
@@ -292,7 +292,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# keep track of signedness of function return value
-			signed = fn.ty.kind == type_info.TypeKind.TYPE_INT
+			signed = fn.ty.kind == type_info.TypeKind.INT
 			# keep track of affected registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
@@ -569,7 +569,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# if only width should be changed assume data type remains unchanged
 		if expr.data_type is None:
-			expr.data_type = type_info.TypeKind.TYPE_INT if expr_str.signed else type_info.TypeKind.TYPE_UINT
+			expr.data_type = type_info.TypeKind.INT if expr_str.signed else type_info.TypeKind.UINT
 
 		# if only data type should be changed assume width remains unchanged
 		if expr.size is None:
@@ -579,7 +579,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		code_str = expr_str.code
 
 		# sign extension for non-2^N datatypes
-		if expr.data_type == type_info.TypeKind.TYPE_INT and actual_size(expr_str.size) != expr_str.size:
+		if expr.data_type == type_info.TypeKind.INT and actual_size(expr_str.size) != expr_str.size:
 			target_size = actual_size(expr.size)
 
 			if isinstance(expr.size, int):
@@ -591,7 +591,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			code_str = f'({data_type_map[expr.data_type]}{actual_size(expr.size)})({code_str})'
 
-		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.TYPE_INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.mem_ids = expr_str.mem_ids
 
 		return c
@@ -624,13 +624,13 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		elif isinstance(referred_var, arch.BitFieldDescr):
 			# function argument
-			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			static = attribute_info.StaticAttribute.READ
 
 		elif isinstance(referred_var, arch.Scalar):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
-			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			if context.static_scalars:
 				static = referred_var.static
@@ -642,7 +642,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
-			signed = referred_var.ty.kind ==  type_info.TypeKind.TYPE_INT
+			signed = referred_var.ty.kind ==  type_info.TypeKind.INT
 			size = referred_var.ty.size
 			static = attribute_info.StaticAttribute.RW
 
@@ -650,7 +650,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if context.ignore_static:
 				raise TypeError("intrinsic not allowed in function")
 
-			signed = referred_var.ty.kind == type_info.TypeKind.TYPE_INT
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			static = attribute_info.StaticAttribute.READ
 
@@ -790,11 +790,11 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Literal, context: TransformerContext):
-		if expr.ty.kind is type_info.TypeKind.TYPE_STR:
+		if expr.ty.kind is type_info.TypeKind.STR:
 			return CodeString(f'"{expr.value}"', attribute_info.StaticAttribute.READ, None, False, line_infos=expr.line_info)
 
 		# old number NumberLiteral
-		elif expr.ty.kind == type_info.TypeKind.TYPE_NONE:
+		elif expr.ty.kind == type_info.TypeKind.NONE:
 			lit = int(expr.value)
 			size = min(lit.bit_length(), 64)
 			sign = lit < 0
@@ -807,13 +807,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
 		# IntLiteral
 		else:
-			assert(expr.ty.kind in [type_info.TypeKind.TYPE_INT, type_info.TypeKind.TYPE_UINT])
+			assert(expr.ty.kind in [type_info.TypeKind.INT, type_info.TypeKind.UINT])
 			lit = int(expr.value)
 			if expr.ty.size is None:
 				size = lit.bit_length()
 			size = min(expr.ty.size, 128)
 
-			if expr.value < 0 or expr.ty.kind == type_info.TypeKind.TYPE_INT:
+			if expr.value < 0 or expr.ty.kind == type_info.TypeKind.INT:
 			# 	raise M2ValueError('Negative literal value cannot be represented as unsigned integer!')
 				sign = True
 			else:

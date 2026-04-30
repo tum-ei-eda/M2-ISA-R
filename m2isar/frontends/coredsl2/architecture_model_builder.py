@@ -61,7 +61,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# instantiate M2-ISA-R objects
 		range_spec = arch.RangeSpec(left.value, right.value)
-		return arch.BitField(ctx.name.text, range_spec, type_info.TypeKind.TYPE_UINT)
+		return arch.BitField(ctx.name.text, range_spec, type_info.TypeKind.UINT)
 
 	def visitBit_value(self, ctx: CoreDSL2Parser.Bit_valueContext):
 		"""Generate a fixed encoding part."""
@@ -213,7 +213,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			params = [params]
 
 		return_size = None
-		data_type = type_info.TypeKind.TYPE_VOID
+		data_type = type_info.TypeKind.VOID
 
 		if isinstance(type_, type_info.IntegerType):
 			return_size = type_.size
@@ -281,7 +281,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				width = value.bit_length()
 
-		kind = type_info.TypeKind.TYPE_UINT if value >=0 else type_info.TypeKind.TYPE_INT
+		kind = type_info.TypeKind.UINT if value >=0 else type_info.TypeKind.INT
 		return behav.Literal(value, kind, width)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
@@ -356,7 +356,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
-					signed = False if type_.kind == type_info.TypeKind.TYPE_INT else False
+					signed = False if type_.kind == type_info.TypeKind.INT else False
 
 					c = arch.Constant(name, init, [], type_.size, signed)
 
@@ -437,7 +437,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type."""
-		return type_info.PrimitiveType(type_info.TypeKind.TYPE_VOID, None)
+		return type_info.PrimitiveType(type_info.TypeKind.VOID, None)
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool (alias for unsigned<1>)."""
@@ -489,7 +489,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		value = SHORTHANDS[ctx.children[0].symbol.text]
-		return behav.Literal(value, type_info.TypeKind.TYPE_NONE)
+		return behav.Literal(value, type_info.TypeKind.NONE)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """

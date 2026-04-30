@@ -68,8 +68,8 @@ class InferTypesMutator(ExprMutator):
             assert isinstance(expr.right.ty, type_info.IntegerType)
             w1 = arch.get_const_or_val(expr.left.ty.size)
             w2 = arch.get_const_or_val(expr.right.ty.size)
-            s1 = True if expr.left.ty.kind == type_info.TypeKind.TYPE_INT else False
-            s2 = True if expr.right.ty.kind == type_info.TypeKind.TYPE_INT else False
+            s1 = True if expr.left.ty.kind == type_info.TypeKind.INT else False
+            s2 = True if expr.right.ty.kind == type_info.TypeKind.INT else False
             if expr.op.value == "+":
                 if not s1 and not s2:
                     wr = max(w1, w2) + 1
@@ -182,7 +182,7 @@ class InferTypesMutator(ExprMutator):
         # type inference
         assert(expr.ty.size is not None)
         assert(expr.ty.kind.is_int)
-        signed = True if expr.ty.kind == type_info.TypeKind.TYPE_INT else False #or arch.get_const_or_val(expr.value) < 0 else False
+        signed = True if expr.ty.kind == type_info.TypeKind.INT else False #or arch.get_const_or_val(expr.value) < 0 else False
         expr.ty = type_info.IntegerType(expr.ty.size, signed)
 
         return expr
@@ -282,7 +282,7 @@ class InferTypesMutator(ExprMutator):
         # expr.infered_type = ?
         if isinstance(reference, arch.BitFieldDescr):
             assert expr.reference.ty.kind.is_int
-            ty = type_info.IntegerType(reference.ty.size, reference.ty.kind == type_info.TypeKind.TYPE_INT)
+            ty = type_info.IntegerType(reference.ty.size, reference.ty.kind == type_info.TypeKind.INT)
             expr.ty = ty
 
         elif isinstance(reference, arch.Scalar):
@@ -290,14 +290,14 @@ class InferTypesMutator(ExprMutator):
             dt = reference.ty.kind
             sz = reference.ty.size
             assert dt.is_int
-            signed = dt == type_info.TypeKind.TYPE_INT
+            signed = dt == type_info.TypeKind.INT
             ty = type_info.IntegerType(sz, signed)
             expr.ty = ty
         elif isinstance(reference, arch.Memory):
             expr.ty = type_info.IntegerType(reference.ty.size, False)
         elif isinstance(reference, arch.Intrinsic):
             assert expr.reference.ty.kind.is_int
-            expr.ty = type_info.IntegerType(reference.ty.size, reference.ty.kind == type_info.TypeKind.TYPE_INT)
+            expr.ty = type_info.IntegerType(reference.ty.size, reference.ty.kind == type_info.TypeKind.INT)
         elif isinstance(reference, arch.Constant):
             expr.ty = type_info.IntegerType(reference.size, reference.signed)
         else:
@@ -311,7 +311,7 @@ class InferTypesMutator(ExprMutator):
 
         # type inference
         assert isinstance(expr.reference, arch.Memory)
-        ty = type_info.TypeKind.TYPE_UINT  # TODO: Memory class should keep track of dtype, not only size?
+        ty = type_info.TypeKind.UINT  # TODO: Memory class should keep track of dtype, not only size?
         assert ty.is_int
         single_mem_acc_size = expr.reference.ty.size
 
@@ -328,7 +328,7 @@ class InferTypesMutator(ExprMutator):
                 assert(lhs_offset >= rhs_offset)
                 size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
 
-        ty_ = type_info.IntegerType(size, ty == type_info.TypeKind.TYPE_INT)
+        ty_ = type_info.IntegerType(size, ty == type_info.TypeKind.INT)
 
         expr.ty = ty_
 
@@ -344,7 +344,7 @@ class InferTypesMutator(ExprMutator):
             return expr
         assert isinstance(ty, type_info.IntegerType)
         assert expr.data_type.is_int
-        ty.signed = expr.data_type == type_info.TypeKind.TYPE_INT
+        ty.signed = expr.data_type == type_info.TypeKind.INT
         if expr.size is not None:
             ty.size = expr.size
 
@@ -356,7 +356,7 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Callable, context):
         if isinstance(expr.ref_or_name, arch.Function):
-            if not(expr.ref_or_name.ty.kind == type_info.TypeKind.TYPE_VOID):
+            if not(expr.ref_or_name.ty.kind == type_info.TypeKind.VOID):
                 assert expr.ref_or_name.ty.kind.is_int
                 width = arch.get_const_or_val(expr.ref_or_name.ty.size)
                 expr.ty = type_info.IntegerType(arch.get_const_or_val(width), expr.ref_or_name.ty.kind)

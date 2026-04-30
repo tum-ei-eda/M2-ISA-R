@@ -71,10 +71,10 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			if res < 0 or expr.left.ty.kind == type_info.TypeKind.TYPE_INT or expr.right.ty.kind == type_info.TypeKind.TYPE_INT:
-				kind = type_info.TypeKind.TYPE_INT
+			if res < 0 or expr.left.ty.kind == type_info.TypeKind.INT or expr.right.ty.kind == type_info.TypeKind.INT:
+				kind = type_info.TypeKind.INT
 			else:
-				kind = type_info.TypeKind.TYPE_UINT
+				kind = type_info.TypeKind.UINT
 			return behav.Literal(res, kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length()))
 
 		if expr.op.value == "&&":
@@ -204,7 +204,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
 			if res < 0:
-				kind = type_info.TypeKind.TYPE_INT
+				kind = type_info.TypeKind.INT
 			else:
 				kind = expr.right.ty.kind
 			return behav.Literal(res, kind, max(expr.right.ty.size, res.bit_length()))
@@ -215,9 +215,9 @@ class ExprSimplifierVisitor(ExprVisitor):
 	def _(self, expr: behav.NamedReference, context):
 		if isinstance(expr.reference, arch.Constant):
 			if expr.reference.signed:
-				kind = type_info.TypeKind.TYPE_INT
+				kind = type_info.TypeKind.INT
 			else:
-				kind = type_info.TypeKind.TYPE_UINT
+				kind = type_info.TypeKind.UINT
 			return behav.Literal(expr.reference.value, kind, arch.get_const_or_val(expr.reference.size))
 
 		return expr
@@ -239,7 +239,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				assert size is not None
 			expr.expr.bit_size = size
 			assert expr.expr.bit_size is not None
-			expr.expr.signed = expr.data_type == type_info.TypeKind.TYPE_INT
+			expr.expr.signed = expr.data_type == type_info.TypeKind.INT
 			return expr.expr
 
 		return expr

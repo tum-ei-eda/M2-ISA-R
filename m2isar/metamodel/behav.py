@@ -95,7 +95,7 @@ class ConcatOperation(BaseNode):
 
 
 class Literal(BaseNode):
-	def __init__(self, value:int, kind : TypeKind = TypeKind.TYPE_INT, size=None, base=10, line_info=None):
+	def __init__(self, value:int, kind : TypeKind = TypeKind.INT, size=None, base=10, line_info=None):
 		super().__init__(line_info)
 
 		self._value : Union[int, str] = value
