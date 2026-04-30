@@ -20,10 +20,28 @@ class TypeKind(Enum):
     TYPE_VOID = auto()
     TYPE_UINT = auto()
     TYPE_INT = auto()
+    TYPE_CHAR = auto()
     # TYPE_BOOL = auto() Expressed as unsigned<1>
     TYPE_FLOAT = auto()
     TYPE_STR = auto()
     TYPE_ARRAY = auto()
+
+    @property
+    def is_int(self):
+        return self in (TypeKind.TYPE_INT, TypeKind.TYPE_UINT)
+
+    @property
+    def is_numeric(self):
+        return self in (TypeKind.TYPE_INT, TypeKind.TYPE_UINT, TypeKind.TYPE_FLOAT)
+
+    @property
+    def is_void(self):
+        return self == TypeKind.TYPE_VOID
+
+    @property
+    def is_scalar(self):
+        return self not in (TypeKind.TYPE_ARRAY, TypeKind.TYPE_VOID, TypeKind.TYPE_NONE)
+
 
 class PrimitiveType:
     def __init__(self, kind: TypeKind, size: int):
