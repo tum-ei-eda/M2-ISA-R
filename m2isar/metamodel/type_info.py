@@ -15,6 +15,7 @@ from enum import Enum, auto
 from typing import Any, Union
 
 
+logger = logging.getLogger("type_info_logger")
 class TypeKind(Enum):
     TYPE_NONE = auto() # NumberLiteral with no type, e.g. 0 or 1
     TYPE_VOID = auto()
@@ -56,7 +57,12 @@ class BitFieldType():
 class IntegerType(PrimitiveType):
     def __init__(self, size: int, signed: bool, ptr: Any=None):
         self.ptr = ptr
-        super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
+        if type(signed) is not bool:
+            assert signed.is_int, "IntegerType must be of int kind"
+            super().__init__(signed, size)
+        else:
+            logger.warning("Deprecated IntegerType Constructor please use new TypeKind/instead of signed!!!!")
+            super().__init__(TypeKind.TYPE_INT if signed else TypeKind.TYPE_UINT, size)
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):

@@ -356,13 +356,10 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Callable, context):
         if isinstance(expr.ref_or_name, arch.Function):
-            if expr.ref_or_name.ty.kind == type_info.TypeKind.TYPE_VOID:
-                signed = None
-            else:
+            if not(expr.ref_or_name.ty.kind == type_info.TypeKind.TYPE_VOID):
                 assert expr.ref_or_name.ty.kind.is_int
-                signed = expr.ref_or_name.ty.kind == type_info.TypeKind.TYPE_INT
-            width = arch.get_const_or_val(expr.ref_or_name.ty.size)
-            expr.ty = type_info.IntegerType(arch.get_const_or_val(width), signed)
+                width = arch.get_const_or_val(expr.ref_or_name.ty.size)
+                expr.ty = type_info.IntegerType(arch.get_const_or_val(width), expr.ref_or_name.ty.kind)
         expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
         return expr
