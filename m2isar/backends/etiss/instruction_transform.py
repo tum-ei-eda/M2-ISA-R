@@ -797,7 +797,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		elif expr.ty.kind == type_info.TypeKind.NONE:
 			lit = int(expr.value)
 			size = min(lit.bit_length(), 64)
-			sign = lit < 0
+			sign = lit <= 0
 
 
 			# TODO: Look in diff. U is sometimes there for negative  vals!!!
@@ -813,7 +813,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				size = lit.bit_length()
 			size = min(expr.ty.size, 128)
 
-			if expr.value < 0 or expr.ty.kind == type_info.TypeKind.INT:
+			if expr.value <= 0 or expr.ty.kind == type_info.TypeKind.INT:
 			# 	raise M2ValueError('Negative literal value cannot be represented as unsigned integer!')
 				sign = True
 			else:
