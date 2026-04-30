@@ -43,22 +43,45 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
   public:
     std::string mapRegister(unsigned index)
     {
+        % if mapping is None:
         if (index < ${main_reg.range.length})
         {
             std::stringstream ss;
             ss << "${main_reg.name}" << index;
             return ss.str();
         }
+        % if float_reg is not None:
+        if ((${main_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 1}))
+        {
+            std::stringstream ss;
+            ss << "${float_reg.name}" << (index - ${main_reg.range.length + 1});
+            return ss.str();
+        }
+        if ((${main_reg.range.length + float_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 5}))
+        {  // FCSR
+            std::stringstream ss;
+            ss << "CSR" << (index - ${main_reg.range.length + float_reg.range.length + 1});
+            return ss.str();
+        }
+        % endif
+        % endif
         switch (index)
         {
+        % if mapping is not None:
+        % for regnum, (name, name2) in mapping.items():
+        case ${regnum}:
+            return "${name2}"; // ${name}
+        % endfor
+        % else:
         case ${main_reg.range.length}:
             return "instructionPointer";
+        % endif
             /**************************************************************************
-             *   Further register should be added here to send data over gdbserver    *
+             *   Further register should be added here to send data over gdbserver	  *
              **************************************************************************/
         }
         return "";
-    }
+  }
 
     unsigned mapRegister(std::string name) { return INVALIDMAPPING; }
 

@@ -74,6 +74,13 @@ etiss::int32 ${core_name}Arch::handleException(etiss::int32 cause, ETISS_CPU *cp
 */
 void ${core_name}Arch::initInstrSet(etiss::instr::ModedInstructionSet &mis) const
 {
+% if fill_jit_extensions is not None:
+${fill_jit_extensions}
+% else:
+    /**************************************************************************
+     *             JIT extensions should be defined here               *
+     **************************************************************************/
+% endif
     if (false) {
         // Pre-compilation of instruction set to view instruction tree. Enable by setting 'true' above.
 
@@ -104,9 +111,13 @@ ${callback},
 
     %endfor
 
+% if fill_length_updater is not None:
+${fill_length_updater}
+% else:
     /**************************************************************************
      *             vis->length_updater_ should be replaced here               *
      **************************************************************************/
+% endif
 }
 
 /**
@@ -134,21 +145,36 @@ ${callback},
 */
 void ${core_name}Arch::compensateEndianess(ETISS_CPU *cpu, etiss::instr::BitArray &ba) const
 {
+% if fill_endianess_compensation is not None:
+${fill_endianess_compensation}
+% else:
     /**************************************************************************
      *                       Endianess compensation                           *
      **************************************************************************/
+% endif
 }
 
 std::shared_ptr<etiss::VirtualStruct> ${core_name}Arch::getVirtualStruct(ETISS_CPU *cpu)
 {
     auto ret = etiss::VirtualStruct::allocate(cpu, [](etiss::VirtualStruct::Field *f) { delete f; });
 
-    for (uint32_t i = 0; i < ${main_reg.range.length}; ++i)
+    % if virtualstruct_regs is not None:
+    % for virtualstruct_class, idxs in virtualstruct_regs.items():
+    % for idx in idxs:
+    % if isinstance(idx, range):
+    for (uint32_t i = ${idx.start}; i < ${idx.stop}; i += ${idx.step})
     {
-        ret->addField(new RegField_${core_name}(*ret, i));
+        ret->addField(new ${virtualstruct_class}_${core_name}(*ret, i));
     }
+    % elif idx is None:
+    ret->addField(new ${virtualstruct_class}_${core_name}(*ret));
+    % else:
+    ret->addField(new ${virtualstruct_class}_${core_name}(*ret, ${idx}));
+    % endif
+    % endfor
+    % endfor
+    % endif
 
-    ret->addField(new pcField_${core_name}(*ret));
     return ret;
 }
 

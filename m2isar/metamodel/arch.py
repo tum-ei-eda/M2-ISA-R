@@ -530,6 +530,9 @@ class CoreDef(Named):
 		self.instructions = instructions
 		self.instr_classes = instr_classes
 		self.main_reg_file = None
+		self.float_reg_file = None
+		self.vector_reg_file = None
+		self.csr_reg_file = None
 		self.main_memory = None
 		self.pc_memory = None
 		self.global_irq_en_memory = None
@@ -549,6 +552,12 @@ class CoreDef(Named):
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
 			if attribute_info.MemoryAttribute.IS_MAIN_REG in mem.attributes:
 				self.main_reg_file = mem
+			elif attribute_info.MemoryAttribute.IS_FLOAT_REG in mem.attributes:
+				self.float_reg_file = mem
+			elif attribute_info.MemoryAttribute.IS_VECTOR_REG in mem.attributes:
+				self.vector_reg_file = mem
+			elif attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
+				self.csr_reg_file = mem
 			elif attribute_info.MemoryAttribute.IS_PC in mem.attributes:
 				self.pc_memory = mem
 			elif attribute_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:

@@ -125,6 +125,7 @@ def main():
 		# add auxillary attributes
 		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
 		tree.insert(core_id, tk.END, text="Main Register File Object", values=(core_def.main_reg_file,))
+		# TODO: float_reg_file?
 		tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
 
 		# add functions to tree
