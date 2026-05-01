@@ -213,58 +213,138 @@ class FnParam(Named):
 
 
 class Symbol(Named):
+    """A simple base class for a symbol, which is a named object that
+	can be used as an operand in an instruction or function."""
     def __init__(
         self,
         name: str,
-        type: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
+        ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType, type_info.MemoryType, type_info.BitFieldType, type_info.PointerType],
+        attributes : dict = {}
+    ):
+        self.ty = ty
+        self.attributes = attributes
+        super().__init__(name)
+
+
+class Variable(Symbol):
+    """A variable is only defined in the functional behavior of a function, but not in the architectural part.
+	Archtiectural Parts are depicted as Register Banks or Memories, but not as variables.
+	However, we need to define variables for intermediate results, ..."""
+    def __init__(
+        self,
+        name: str,
+        ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
         static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
         value=None, # Compile Time information
-        storage=None,
     ):
-        assert isinstance(type, (type_info.PrimitiveType, type_info.IntegerType))
-        assert type.kind.is_scalar
-        self.ty = type
-        self.static = static
+        assert isinstance(ty, (type_info.PrimitiveType, type_info.IntegerType))
+        assert ty.kind.is_scalar
 
         # optional: only for constants/literals
         self.value = value
 
-        # optional: backend info (register, memory, etc.)
-        self.storage = storage
-        super().__init__(name)
+        super().__init__(name, ty, attributes={"static": static})
 
-
-class Intrinsic(Named):
+class Intrinsic(Symbol):
 
 	value: int
-	ty: type_info.PrimitiveType
 
 	def __init__(self, name, size: ValOrConst, kind: type_info.TypeKind, value: int = None):
-		self.ty = type_info.PrimitiveType(kind, get_const_or_val(size))
 		self.value = value
-		super().__init__(name)
+		super().__init__(name, type_info.PrimitiveType(kind, get_const_or_val(size)))
 
-class Memory(Named):
+
+class RegisterBank(Symbol):
+	"""A class representing a register bank. A register bank combines structured registers,
+	which is used to represent registers in the architectural part of an M2-ISA-R model."""
+	range: RangeSpec
+	children: "list[Memory]"
+	_initval: "dict[int, Union[int, Constant, BaseNode]]"
+
+	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+		self.range = range_
+		self.children = []
+		self.parent = None
+		self._initval = {}
+		super().__init__(name, type_info.MemoryType(size), attributes)
+
+	def initval(self, idx=None):
+		"""Return the initial value for the given index."""
+
+		return get_const_or_val(self._initval[idx])
+
+	@property
+	def data_range(self):
+		"""Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
+
+		if self.range.upper is None or self.range.lower is None:
+			return None
+
+		return RangeSpec(self.range.upper - self.range.lower, 0)
+
+	@property
+	def is_gpr(self):
+		"""Return true if this memory is tagged as being a general-purpose register."""
+		return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
+
+
+# TODO: decide later if you wanna keep lhs information :
+# unsigned<XLEN>& S0 = X[8]; vs
+# Intention: alias S0 <- X[8];
+
+#TODO IndexedReference without right re-defined???
+class RegisterRef:
+    def __init__(self, reference, index):
+        self.reference = reference
+        self.index = index
+
+
+    def resolve(self, context):
+        bank = context[self.reference]
+        return bank[self.index]
+
+
+class Alias(Symbol):
+    """A class representing a register. A register is a single element of a register bank,
+	  which is used to represent registers in the architectural part of an M2-ISA-R model."""
+    target: Union[RegisterRef, Symbol]
+    initval = 0,
+
+    def __init__(self, name, initval: int, target: RegisterBank, attributes: dict = {}):
+        self.target = target
+        self.initval = initval
+        assert isinstance(target.ty, type_info.PrimitiveType)
+        super().__init__(name, type_info.PointerType(target.ty), attributes)
+
+    def resolve(self, context):
+        target = self.target
+
+        if isinstance(target, RegisterRef):
+            return target.resolve(context)
+
+        while isinstance(target, Alias):
+            target = target.target
+
+        return target
+
+
+class Memory(Symbol):
 	"""A generic memory object. Can have children, which alias to specific indices
 	of their parent memory. Has a variable array size, can therefore represent both
 	scalar and array registers and/or memories.
 	"""
 
-	ty : type_info.MemoryType
 	range: RangeSpec
-	attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"
 	children: "list[Memory]"
 	parent: Union['Memory', None]
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
 	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-		self.ty = type_info.MemoryType(size)
-		self.attributes = attributes if attributes else {}
 		self.range = range_
 		self.children = []
 		self.parent = None
 		self._initval = {}
-		super().__init__(name)
+		super().__init__(name, type_info.MemoryType(size), attributes)
 
 	def initval(self, idx=None):
 		"""Return the initial value for the given index."""
@@ -290,16 +370,8 @@ class Memory(Named):
 		"""Return true if this memory is tagged as being the main memory array."""
 		return attribute_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
 
-@dataclasses.dataclass
-class BitVal:
-	"""A class representing a fixed bit sequence in an instruction encoding.
-	Modeled as length and integral value.
-	"""
 
-	length: int
-	value: int
-
-class BitField(Named):
+class BitField(Symbol):
 	"""A class representing an operand in an instruction encoding. Can be split
 	into multiple parts, if the operand is split over two or more bit ranges.
 	"""
@@ -309,17 +381,25 @@ class BitField(Named):
 
 	def __init__(self, name, _range: RangeSpec, kind: type_info.TypeKind):
 		self.range = _range
-		self.ty = type_info.BitFieldType(kind)
 		if not kind:
 			self.ty = type_info.BitFieldType(type_info.TypeKind.UINT)
 
-		super().__init__(name)
+		super().__init__(name, type_info.BitFieldType(kind), attributes={})
 
 	def __str__(self) -> str:
 		return f'{super().__repr__()}, range={self.range}, data_type={self.kind}'
 
 	def __repr__(self):
 		return self.__str__()
+
+@dataclasses.dataclass
+class BitVal:
+	"""A class representing a fixed bit sequence in an instruction encoding.
+	Modeled as length and integral value.
+	"""
+
+	length: int
+	value: int
 
 class BitFieldDescr(Named):
 	"""A class representing a full instruction operand. Has no information about
@@ -333,7 +413,7 @@ class BitFieldDescr(Named):
 class Instruction(SizedRefOrConst):
 	"""A class representing an instruction."""
 
-	attributes: "dict[InstrAttribute, list[BaseNode]]"
+	attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]"
 	encoding: "list[Union[BitField, BitVal]]"
 	mnemonic: str
 	assembly: str
@@ -341,13 +421,13 @@ class Instruction(SizedRefOrConst):
 
 	ext_name: str
 	fields: "dict[str, BitFieldDescr]"
-	scalars: "dict[str, Scalar]"
+	scalars: "dict[str, Symbol]"
 	throws: bool
 
 	mask: int
 	code: int
 
-	def __init__(self, name, attributes: "dict[InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]",
+	def __init__(self, name, attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]",
 			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"):
 
 		self.ext_name = ""
@@ -399,7 +479,7 @@ class Function(Named):
 	extern: bool
 
 	ext_name: str
-	scalars: "dict[str, Scalar]"
+	scalars: "dict[str, Symbol]"
 	throws: bool
 	static: attribute_info.StaticAttribute
 

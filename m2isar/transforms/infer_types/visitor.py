@@ -286,7 +286,7 @@ class InferTypesMutator(ExprMutator):
             ty = type_info.IntegerType(reference.ty.size, reference.ty.kind)
             expr.ty = ty
 
-        elif isinstance(reference, arch.Symbol):
+        elif isinstance(reference, arch.Variable):
             assert isinstance(reference.ty, type_info.PrimitiveType)
             dt = reference.ty.kind
             sz = reference.ty.size

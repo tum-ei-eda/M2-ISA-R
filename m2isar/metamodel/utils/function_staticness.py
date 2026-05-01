@@ -120,15 +120,15 @@ class FunctionStaticnessVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Symbol):
-			return expr.reference.static
+		if isinstance(expr.reference, arch.Variable):
+			return expr.reference.attributes.get("static")
 
 		static_map = {
 			arch.Memory: False,
 			arch.BitFieldDescr: True,
 			arch.Constant: True,
 			arch.FnParam: True,
-			arch.Symbol: True,
+			arch.Variable: True,
 			arch.Intrinsic: False
 		}
 

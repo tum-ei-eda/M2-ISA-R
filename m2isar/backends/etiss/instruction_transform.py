@@ -628,12 +628,12 @@ class InstructionTransformVisitor(ExprVisitor):
 			size = referred_var.ty.size
 			static = attribute_info.StaticAttribute.READ
 
-		elif isinstance(referred_var, arch.Symbol):
+		elif isinstance(referred_var, arch.Variable):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			if context.static_scalars:
-				static = referred_var.static
+				static = referred_var.attributes.get("static")
 
 		elif isinstance(referred_var, arch.Constant):
 			signed = referred_var.value < 0

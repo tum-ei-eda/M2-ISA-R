@@ -16,6 +16,13 @@ class MemoryAttribute(Enum):
 	ETISS_IS_IRQ_PENDING = auto()
 	ETISS_IS_PROCNO = auto()
 
+class RegisterAttribute(Enum):
+	IS_PC = auto()
+	IS_GPR_REG = auto()
+	IS_FLOAT_REG = auto()
+	IS_VECTOR_REG = auto()
+	IS_CSR_REG = auto()
+
 class FunctionAttribute(Enum):
 	ETISS_STATICFN = auto()
 	ETISS_NEEDS_ARCH = auto()

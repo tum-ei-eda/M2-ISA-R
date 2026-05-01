@@ -126,7 +126,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
-			s = arch.Symbol(name, type_, None, attribute_info.StaticAttribute.NONE)
+			s = arch.Variable(name, type_, attribute_info.StaticAttribute.NONE)
 			self._scalars[name] = s
 			sd = behav.ScalarDefinition(s)
 

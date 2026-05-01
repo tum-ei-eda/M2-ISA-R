@@ -11,6 +11,7 @@ for the architectural part of an M2-ISA-R model. The architectural part is
 anything but the functional behavior of functions and instructions.
 """
 
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Union
 import logging
@@ -25,7 +26,6 @@ class TypeKind(Enum):
     # BOOL = auto() Expressed as unsigned<1>
     FLOAT = auto()
     STR = auto()
-    ARRAY = auto()
 
     @property
     def is_int(self):
@@ -60,7 +60,7 @@ class IntegerType(PrimitiveType):
             assert signed_or_kind.is_int, "IntegerType must be of int kind"
             super().__init__(signed_or_kind, size)
         else:
-            logger.warning("Deprecated IntegerType Constructor please use new TypeKind/instead of signed!!!!")
+            logger.warning("Deprecated IntegerType please use new PrimitiveType instead !!!")
             super().__init__(TypeKind.INT if signed_or_kind else TypeKind.UINT, size)
 
 class FloatType:
@@ -73,6 +73,10 @@ class ArrayType:
     def __init__(self, element_type : Union[PrimitiveType, FloatType], length: int):
         self.element_kind : Union[PrimitiveType, FloatType] = element_type
         self.length = length # allow shaped later or TYPE_ARRAY in element_type?
+
+@dataclass
+class PointerType:
+    ty: PrimitiveType
 
 
 class MemoryType:
