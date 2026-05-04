@@ -76,7 +76,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context: attribute_info.ScalarStaticnessContext):
 		scalar = cast(Any, expr.scalar)
-		scalar.static = attribute_info.StaticAttribute.RW
+		scalar.attributes["static"] = attribute_info.StaticAttribute.RW
 		return attribute_info.StaticAttribute.RW
 
 	@generate.register
@@ -101,7 +101,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 
 		if isinstance(expr.target, behav.ScalarDefinition):
 			target_scalar = cast(Any, expr.target.scalar)
-			target_scalar.static &= expr_static
+			target_scalar.attributes["static"] &= expr_static
 
 	@generate.register
 	def _(self, expr: behav.Conditional, context: attribute_info.ScalarStaticnessContext):
