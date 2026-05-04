@@ -400,7 +400,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		type_ = self.visit(ctx.type_)
 		if ctx.ptr:
-			type_.ptr = ctx.ptr.text
+			type_ = type_info.PointerType(type_)
 		return type_
 
 	def visitInteger_type(self, ctx: CoreDSL2Parser.Integer_typeContext):
@@ -425,7 +425,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 
-		return type_info.IntegerType(width, kind)
+		return type_info.PrimitiveType(kind, width)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type specifier."""
@@ -435,7 +435,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool type specifier. Aliases to unsigned<1>."""
 
-		return type_info.IntegerType(1, type_info.TypeKind.UINT)
+		return type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
 
 	def visitInteger_signedness(self, ctx: CoreDSL2Parser.Integer_signednessContext):
 		"""Generate integer signedness."""

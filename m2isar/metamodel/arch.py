@@ -193,12 +193,12 @@ class RangeSpec:
 class FnParam(Named):
 	"""A function parameter."""
 
-	ty: type_info.IntegerType
+	ty: type_info.PrimitiveType
 	_width: Union[int, "Constant", "BaseNode"]
 	"""The array width of this parameter."""
 
 	def __init__(self, name, size, kind: type_info.TypeKind, width=1):
-		self.ty = type_info.IntegerType(size, kind)
+		self.ty = type_info.PrimitiveType(kind, size)
 		self._width = width
 		super().__init__(name)
 
@@ -237,7 +237,7 @@ class Variable(Symbol):
         static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
         value=None, # Compile Time information
     ):
-        assert isinstance(ty, (type_info.PrimitiveType, type_info.IntegerType))
+        assert isinstance(ty, (type_info.PrimitiveType, type_info.PrimitiveType))
         assert ty.kind.is_scalar
 
         # optional: only for constants/literals
@@ -288,9 +288,6 @@ class RegisterBank(Symbol):
 		return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
 
 
-# TODO: decide later if you wanna keep lhs information :
-# unsigned<XLEN>& S0 = X[8]; vs
-# Intention: alias S0 <- X[8];
 
 #TODO IndexedReference without right re-defined???
 class RegisterRef:
@@ -304,6 +301,9 @@ class RegisterRef:
         return bank[self.index]
 
 
+# TODO: decide later if you wanna keep lhs information :
+# unsigned<XLEN>& S0 = X[8]; vs
+# Intention: alias S0 <- X[8];
 class Alias(Symbol):
     """A class representing a register. A register is a single element of a register bank,
 	  which is used to represent registers in the architectural part of an M2-ISA-R model."""
@@ -406,7 +406,7 @@ class BitFieldDescr(Named):
 	the actual bits it is composed of, for that use BitField.
 	"""
 	def __init__(self, name, size: ValOrConst, kind: type_info.TypeKind):
-		self.ty = type_info.IntegerType(get_const_or_val(size), kind)
+		self.ty = type_info.PrimitiveType(kind, get_const_or_val(size))
 
 		super().__init__(name)
 

@@ -221,7 +221,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return_size = None
 		data_type = type_info.TypeKind.VOID
 
-		if isinstance(type_, type_info.IntegerType):
+		if isinstance(type_, type_info.PrimitiveType):
 			return_size = type_.size
 			data_type = type_.kind
 
@@ -300,7 +300,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# extract data type
 		type_ = self.visit(ctx.type_)
-		assert isinstance(type_, type_info.IntegerType)
+		assert isinstance(type_, (type_info.PrimitiveType, type_info.PointerType))
 
 		# extract list of contained declarations for the given type
 		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
@@ -312,7 +312,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# generate a register alias
-			if type_.ptr == "&":
+			if  isinstance(type_, type_info.PointerType):
 				# error out on duplicate declaration
 				if name in self._memory_aliases:
 					raise M2DuplicateError(f"memory {name} already defined")
@@ -341,7 +341,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				#	raise ValueError(f"range mismatch for \"{name}\"")
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
-				m = arch.Memory(name, range_spec, type_.size, attributes)
+				m = arch.Memory(name, range_spec, type_.ty.size, attributes)
 				m.parent = reference
 				m.parent.children.append(m)
 
@@ -362,7 +362,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
-					signed = False if type_.kind == type_info.TypeKind.INT else False
+					signed = True if type_.kind == type_info.TypeKind.INT else False
 
 					c = arch.Constant(name, init, [], type_.size, signed)
 
@@ -414,7 +414,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
 		type_ = self.visit(ctx.type_)
 		if ctx.ptr:
-			type_.ptr = ctx.ptr.text
+			type_ = type_info.PointerType(type_)
+			# type_.ptr = ctx.ptr.text
 		return type_
 
 	def visitInteger_type(self, ctx: CoreDSL2Parser.Integer_typeContext):
@@ -447,7 +448,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 
-		return type_info.IntegerType(width, kind)
+		return type_info.PrimitiveType(kind, width)
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type."""
@@ -455,7 +456,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool (alias for unsigned<1>)."""
-		return type_info.IntegerType(1, type_info.TypeKind.UINT)
+		return type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""

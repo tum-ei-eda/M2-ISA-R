@@ -53,15 +53,6 @@ class BitFieldType():
     def __init__(self, kind: TypeKind):
         self.kind = kind
 
-class IntegerType(PrimitiveType):
-    def __init__(self, size: int, signed_or_kind: Union[bool, TypeKind], ptr: Any=None):
-        self.ptr = ptr
-        if type(signed_or_kind) is not bool:
-            assert signed_or_kind.is_int, "IntegerType must be of int kind"
-            super().__init__(signed_or_kind, size)
-        else:
-            logger.warning("Deprecated IntegerType please use new PrimitiveType instead !!!")
-            super().__init__(TypeKind.INT if signed_or_kind else TypeKind.UINT, size)
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):

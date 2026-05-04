@@ -184,7 +184,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if context.ignore_static:
 				static = attribute_info.StaticAttribute.RW
 			else:
-				static = expr.scalar.static
+				static = expr.scalar.attributes["static"]
 		else:
 			static = attribute_info.StaticAttribute.NONE
 
@@ -673,6 +673,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# generate index expression
 		index = self.generate(expr.index, context)
+		right = self.generate(expr.right, context) if expr.right else None
 
 		referred_mem = expr.reference
 
@@ -685,6 +686,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		index_code = index.code
 		if index.static and not context.ignore_static and not index.is_literal:
 			index.code = context.make_static(index.code, index.signed)
+
+		if right is not None:
+			if right.static and not context.ignore_static and not right.is_literal:
+				right.code = context.make_static(right.code, right.signed)
 
 		if context.ignore_static:
 			static = attribute_info.StaticAttribute.RW

@@ -26,7 +26,7 @@ from .type_info import PrimitiveType, TypeKind
 
 if TYPE_CHECKING:
 	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
-	                   Memory, Scalar)
+	                   Memory, Variable)
 	from .code_info import LineInfo
 
 # pylint: disable=abstract-method
@@ -166,7 +166,7 @@ class ScalarDefinition(BaseNode):
 	declaring it, use the scalar definition as LHS of an assignment statement.
 	"""
 
-	def __init__(self, scalar: "Scalar", line_info=None):
+	def __init__(self, scalar: "Variable", line_info=None):
 		super().__init__(line_info)
 		self.scalar = scalar
 

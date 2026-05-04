@@ -64,8 +64,8 @@ class InferTypesMutator(ExprMutator):
                 logger.warning("Slice Operation needs inferred type. Skipping...")
                 expr.ty = None
                 return expr
-            assert isinstance(expr.left.ty, type_info.IntegerType)
-            assert isinstance(expr.right.ty, type_info.IntegerType)
+            assert isinstance(expr.left.ty, type_info.PrimitiveType)
+            assert isinstance(expr.right.ty, type_info.PrimitiveType)
             w1 = arch.get_const_or_val(expr.left.ty.size)
             w2 = arch.get_const_or_val(expr.right.ty.size)
             s1 = True if expr.left.ty.kind == type_info.TypeKind.INT else False
@@ -120,12 +120,12 @@ class InferTypesMutator(ExprMutator):
                 sr = s1
 
             kind = type_info.TypeKind.INT if sr else type_info.TypeKind.UINT
-            expr.ty = type_info.IntegerType(wr, kind)
+            expr.ty = type_info.PrimitiveType(kind, wr)
         else:
             if expr.op.value in ["||", "&&"]:
-                expr.ty = type_info.IntegerType(1, type_info.TypeKind.UINT)  # unsigned<1> / bool
+                expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)  # unsigned<1> / bool
             elif expr.op.value in ["<", ">", "==", "!=", ">=", "<="]:
-                expr.ty = type_info.IntegerType(1, type_info.TypeKind.UINT)  # unsigned<1> / bool
+                expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)  # unsigned<1> / bool
         assert expr.ty is not None
 
         return expr
@@ -141,7 +141,7 @@ class InferTypesMutator(ExprMutator):
         if expr.expr.ty is None:
             logger.warning("Slice Operation needs inferred type. Skipping...")
             return expr
-        assert isinstance(expr.expr.ty, type_info.IntegerType)
+        assert isinstance(expr.expr.ty, type_info.PrimitiveType)
         ty = expr.expr.ty
         # For non-static slices, we cann not infer the type!
         if not isinstance(expr.left, behav.Literal):
@@ -172,7 +172,7 @@ class InferTypesMutator(ExprMutator):
             return expr
         width = arch.get_const_or_val(expr.left.ty.size) + arch.get_const_or_val(expr.right.ty.size)
         size = arch.get_const_or_val(width)
-        ty = type_info.IntegerType(size, type_info.TypeKind.UINT)
+        ty = type_info.PrimitiveType(type_info.TypeKind.UINT, size)
         expr.ty = ty
 
         return expr
@@ -184,7 +184,7 @@ class InferTypesMutator(ExprMutator):
         # type inference
         assert(expr.ty.size is not None)
         assert(expr.ty.kind.is_int)
-        expr.ty = type_info.IntegerType(expr.ty.size, expr.ty.kind)
+        expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
 
         return expr
 
@@ -247,7 +247,7 @@ class InferTypesMutator(ExprMutator):
             wt = arch.get_const_or_val(then_ty.size)
             we = arch.get_const_or_val(else_ty.size)
             wr = max(wt, we)
-            expr.ty = type_info.IntegerType(wr, type_info.TypeKind.INT)
+            expr.ty = type_info.PrimitiveType(type_info.TypeKind.INT, wr)
 
         return expr
 
@@ -264,11 +264,11 @@ class InferTypesMutator(ExprMutator):
         if expr.right.ty:
             w1 = expr.right.ty.size
             if expr.op.value == "-":
-                ty = type_info.IntegerType(w1 + 1, type_info.TypeKind.INT)
+                ty = type_info.PrimitiveType(type_info.TypeKind.INT, w1 + 1)
             elif expr.op.value == "~":
-                ty = type_info.IntegerType(w1, type_info.TypeKind.INT)
+                ty = type_info.PrimitiveType(type_info.TypeKind.INT, w1)
             elif expr.op.value == "!":
-                ty = type_info.IntegerType(1, type_info.TypeKind.UINT)
+                ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
             else:
                 ty = None
             expr.ty = ty
@@ -283,7 +283,7 @@ class InferTypesMutator(ExprMutator):
         # expr.infered_type = ?
         if isinstance(reference, arch.BitFieldDescr):
             assert expr.reference.ty.kind.is_int
-            ty = type_info.IntegerType(reference.ty.size, reference.ty.kind)
+            ty = type_info.PrimitiveType(reference.ty.kind, reference.ty.size)
             expr.ty = ty
 
         elif isinstance(reference, arch.Variable):
@@ -291,17 +291,17 @@ class InferTypesMutator(ExprMutator):
             dt = reference.ty.kind
             sz = reference.ty.size
             assert dt.is_int
-            ty = type_info.IntegerType(sz, dt)
+            ty = type_info.PrimitiveType(dt, sz)
             expr.ty = ty
         elif isinstance(reference, arch.Memory):
-            expr.ty = type_info.IntegerType(reference.ty.size, type_info.TypeKind.UINT)
+            expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, reference.ty.size)
         elif isinstance(reference, arch.Intrinsic):
             assert expr.reference.ty.kind.is_int
-            expr.ty = type_info.IntegerType(reference.ty.size, reference.ty.kind)
+            expr.ty = type_info.PrimitiveType(reference.ty.kind, reference.ty.size)
         elif isinstance(reference, arch.Constant):
             kind = type_info.TypeKind.INT if reference.signed else type_info.TypeKind.UINT
 
-            expr.ty = type_info.IntegerType(reference.size, kind)
+            expr.ty = type_info.PrimitiveType(kind, reference.size)
         else:
             assert False, "Unhandled reference"
 
@@ -330,7 +330,7 @@ class InferTypesMutator(ExprMutator):
                 assert(lhs_offset >= rhs_offset)
                 size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
 
-        ty_ = type_info.IntegerType(size, ty)
+        ty_ = type_info.PrimitiveType(ty, size)
 
         expr.ty = ty_
 
@@ -344,7 +344,7 @@ class InferTypesMutator(ExprMutator):
         if ty is None:
             logger.warning("Type conv needs inferred type. Skipping...")
             return expr
-        assert isinstance(ty, type_info.IntegerType)
+        assert isinstance(ty, type_info.PrimitiveType)
         assert expr.data_type.is_int
         ty.signed = expr.data_type == type_info.TypeKind.INT
         if expr.size is not None:
@@ -361,7 +361,7 @@ class InferTypesMutator(ExprMutator):
             if not(expr.ref_or_name.ty.kind == type_info.TypeKind.VOID):
                 assert expr.ref_or_name.ty.kind.is_int
                 width = arch.get_const_or_val(expr.ref_or_name.ty.size)
-                expr.ty = type_info.IntegerType(arch.get_const_or_val(width), expr.ref_or_name.ty.kind)
+                expr.ty = type_info.PrimitiveType(expr.ref_or_name.ty.kind, arch.get_const_or_val(width))
         expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
         return expr
