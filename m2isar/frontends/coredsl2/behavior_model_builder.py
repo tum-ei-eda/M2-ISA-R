@@ -9,7 +9,7 @@
 import copy
 import dataclasses
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
 from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
@@ -31,14 +31,17 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	of a CoreDSL 2 specification.
 	"""
 
-	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
-		fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
+	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
+		register_banks: "dict[str, Union[arch.RegisterBank, arch.Register]]", register_aliases: "dict[str, arch.Alias]", fields: "dict[str, arch.BitFieldDescr]",
+		functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 
 		super().__init__()
 
 		self._constants = constants
 		self._memories = memories
 		self._memory_aliases = memory_aliases
+		self._register_banks = register_banks
+		self._register_aliases = register_aliases
 		self._fields = fields
 		self._scalars = {}
 		self._functions = functions
@@ -275,7 +278,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		"""Generate a slice expression. Depending on context, this is translated
 		to either an actual :class:`m2isar.metamodel.behav.SliceOperation`or
-		an :class:`m2isar.metamodel.behav.IndexedReference` if a :class:`m2isar.metamodel.arch.Memory
+		an :class:`m2isar.metamodel.behav.IndexedReference` if a :class:`m2isar.metamodel.arch.Memory/RegisterBank
 		object is to be sliced.
 		"""
 
@@ -284,14 +287,19 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right else left
 
-		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, arch.Memory) and expr.reference.data_range.length > 1:
+		# TODO distinguish between Multi-Dimensional Slices and BitSlice with ArrayType/PrimitiveType???
+		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, (arch.Memory, arch.RegisterBank)):
+			assert(expr.reference.ty, type_info.ArrayType)
 			#Dont duplicate index to differentiate between index and ranged access
 			if right == left:
-					return behav.IndexedReference(expr.reference, left, None, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+					return behav.IndexedReference(expr.reference, left, None, \
+								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 			else:
-					return behav.IndexedReference(expr.reference, left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+					return behav.IndexedReference(expr.reference, left, right, \
+								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 		else:
-			return behav.SliceOperation(expr, left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+			return behav.SliceOperation(expr, left, right, \
+							   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
 		"""Generate a concatenation expression."""
@@ -299,7 +307,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
 
-		return behav.ConcatOperation(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.ConcatOperation(left, right, \
+							   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. If a combined arithmetic-assignment is present,
@@ -328,6 +337,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			self._constants.get(name) or \
 			self._memory_aliases.get(name) or \
 			self._memories.get(name) or \
+			self._register_aliases.get(name) or \
+			self._register_banks.get(name) or \
 			intrinsics.get(name)
 
 		if var is None:

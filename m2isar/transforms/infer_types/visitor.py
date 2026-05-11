@@ -141,7 +141,7 @@ class InferTypesMutator(ExprMutator):
         if expr.expr.ty is None:
             logger.warning("Slice Operation needs inferred type. Skipping...")
             return expr
-        assert isinstance(expr.expr.ty, type_info.PrimitiveType)
+        assert isinstance(expr.expr.ty, (type_info.PrimitiveType, type_info.ArrayType))
         ty = expr.expr.ty
         # For non-static slices, we cann not infer the type!
         if not isinstance(expr.left, behav.Literal):
@@ -154,9 +154,17 @@ class InferTypesMutator(ExprMutator):
         rval = expr.right.value
         width = lval - rval + 1 if lval > rval else rval - lval + 1
         ty_ = copy(ty)
-        ty_.size = width
-        expr.ty = ty_
+        if isinstance(ty_, type_info.PrimitiveType):
+            ty_.size = width
+        elif isinstance(ty_, type_info.ArrayType):
+            if width == 1: # Array -> PrimitiveTpye
+                ty_ = ty_.element_kind
+            else: # Array Slice
+                ty_.length = width
+        else:
+            raise f"Type Slicing not supported for type {ty_}"
 
+        expr.ty = ty_
         return expr
 
 
@@ -295,6 +303,20 @@ class InferTypesMutator(ExprMutator):
             expr.ty = ty
         elif isinstance(reference, arch.Memory):
             expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, reference.ty.size)
+        elif isinstance(reference, arch.RegisterBank):
+            assert(isinstance(reference.ty, type_info.ArrayType)) #propagate type from element
+            expr.ty = reference.ty
+        elif isinstance(reference, arch.Register):
+            assert(isinstance(reference.ty, type_info.PrimitiveType)) #propagate type from element
+            expr.ty = reference.ty
+        elif isinstance(reference, arch.Alias): # propagate type from aliased mem or reg bank
+            if isinstance(reference.parent, arch.Memory):
+                expr.ty = self.generate(behav.NamedReference(reference.parent), context)
+                expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, reference.parent.ty.size)
+            elif isinstance(reference.parent, arch.RegisterBank):
+                expr.ty = reference.parent.ty.element_kind
+            else:
+                raise NotImplementedError(f"Alias parent type {type(reference.parent)} not supported for type inference")
         elif isinstance(reference, arch.Intrinsic):
             assert expr.reference.ty.kind.is_int
             expr.ty = type_info.PrimitiveType(reference.ty.kind, reference.ty.size)
@@ -312,10 +334,13 @@ class InferTypesMutator(ExprMutator):
         expr.index = self.generate(expr.index, context)
 
         # type inference
-        assert isinstance(expr.reference, arch.Memory)
         ty = type_info.TypeKind.UINT  # TODO: Memory class should keep track of dtype, not only size?
         assert ty.is_int
-        single_mem_acc_size = expr.reference.ty.size
+        assert isinstance(expr.reference, (arch.Memory, arch.RegisterBank))
+        if (isinstance(expr.reference, arch.Memory)):
+            single_mem_acc_size = expr.reference.ty.size
+        else:
+            single_mem_acc_size = expr.reference.ty.element_kind.size
 
         ## Simple eval check for ranged access.
         # Little-endian interpretation:

@@ -26,7 +26,7 @@ from .type_info import PrimitiveType, TypeKind
 
 if TYPE_CHECKING:
 	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
-	                   Memory, Variable)
+	                   Memory, Variable, RegisterBank)
 	from .code_info import LineInfo
 
 # pylint: disable=abstract-method
@@ -189,17 +189,17 @@ class UnaryOperation(BaseNode):
 		self.right = right
 
 class NamedReference(BaseNode):
-	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Scalar, Constant or FnParam."""
+	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Constant or FnParam."""
 
-	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Scalar", "Constant", "FnParam", "Intrinsic"], line_info=None):
+	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Variable", "Constant", "FnParam", "Intrinsic"], line_info=None):
 		super().__init__(line_info)
 		self.reference = reference
 
 class IndexedReference(BaseNode):
-	"""An indexed reference to a :class:`..arch.Memory`. Can optionally specify a range of indices
+	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Memory", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index

@@ -143,6 +143,9 @@ class ScalarStaticnessVisitor(ExprVisitor):
 
 		static_map = {
 			arch.Memory: attribute_info.StaticAttribute.NONE,
+			arch.RegisterBank: attribute_info.StaticAttribute.NONE,
+			arch.Register: attribute_info.StaticAttribute.NONE,
+			arch.Alias: attribute_info.StaticAttribute.NONE,
 			arch.BitFieldDescr: attribute_info.StaticAttribute.READ,
 			arch.Constant: attribute_info.StaticAttribute.READ,
 			arch.FnParam: attribute_info.StaticAttribute.READ

@@ -70,13 +70,6 @@ class PointerType:
     ty: PrimitiveType
 
 
-class MemoryType:
-    size : int
-
-    def __init__(self, size: int):
-        self.size = size
-
-
 class FunctionType():
     size : int
     kind : TypeKind

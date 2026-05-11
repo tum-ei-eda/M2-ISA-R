@@ -19,7 +19,7 @@ from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 from m2isar.metamodel import type_info, attribute_info
 
 from .. import M2TypeError
-from .behav import BaseNode, Operation, Literal
+from .behav import BaseNode, IndexedReference, Operation, Literal
 
 if TYPE_CHECKING:
 	from .code_info import FunctionInfo
@@ -211,14 +211,18 @@ class FnParam(Named):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, type={self.ty}'
 
-
+# ===========================================================
+# START
+# ARCHITECTURE used within the functional
+# behavior of instructions and functions.
+# ===========================================================
 class Symbol(Named):
     """A simple base class for a symbol, which is a named object that
 	can be used as an operand in an instruction or function."""
     def __init__(
         self,
         name: str,
-        ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType, type_info.MemoryType, type_info.BitFieldType, type_info.PointerType],
+        ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType, type_info.BitFieldType, type_info.PointerType],
         attributes : dict = {}
     ):
         self.ty = ty
@@ -257,30 +261,22 @@ class Intrinsic(Symbol):
 class RegisterBank(Symbol):
 	"""A class representing a register bank. A register bank combines structured registers,
 	which is used to represent registers in the architectural part of an M2-ISA-R model."""
-	range: RangeSpec
 	children: "list[Memory]"
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-		self.range = range_
+	def __init__(self, name, nr_ele: Union[int, Constant], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.children = []
-		self.parent = None
 		self._initval = {}
-		super().__init__(name, type_info.MemoryType(size), attributes)
+		ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
 
+		super().__init__(name, ty, attributes)
+
+	# TODO: Implement this
 	def initval(self, idx=None):
 		"""Return the initial value for the given index."""
 
 		return get_const_or_val(self._initval[idx])
 
-	@property
-	def data_range(self):
-		"""Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
-
-		if self.range.upper is None or self.range.lower is None:
-			return None
-
-		return RangeSpec(self.range.upper - self.range.lower, 0)
 
 	@property
 	def is_gpr(self):
@@ -288,44 +284,31 @@ class RegisterBank(Symbol):
 		return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
 
 
+# be careful: This is only for single defined regs (No Alias or indexedReference)
+class Register(Symbol):
+	"""A class representing a register. A register is a single defined Symbols. Dont mix it up
+	bit alias that are IndexedReference of already declared Symbols.
+	This class should simplify different handling to register bank.
+	And is used to represent registers in the architectural part of an M2-ISA-R model."""
+	children: "list[Memory]"
+	_initval: "dict[Union[int, Constant, BaseNode]]"
 
-#TODO IndexedReference without right re-defined???
-class RegisterRef:
-    def __init__(self, reference, index):
-        self.reference = reference
-        self.index = index
+	def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+		self.children = []
+		self._initval = {}
+		ty = type_info.PrimitiveType(kind, size)
+
+		super().__init__(name, ty, attributes)
+
+	# TODO: Implement this
+	def initval(self):
+		"""Return the initial value for the given index."""
+
+		return get_const_or_val(self._initval)
 
 
-    def resolve(self, context):
-        bank = context[self.reference]
-        return bank[self.index]
-
-
-# TODO: decide later if you wanna keep lhs information :
-# unsigned<XLEN>& S0 = X[8]; vs
-# Intention: alias S0 <- X[8];
-class Alias(Symbol):
-    """A class representing a register. A register is a single element of a register bank,
-	  which is used to represent registers in the architectural part of an M2-ISA-R model."""
-    target: Union[RegisterRef, Symbol]
-    initval = 0,
-
-    def __init__(self, name, initval: int, target: RegisterBank, attributes: dict = {}):
-        self.target = target
-        self.initval = initval
-        assert isinstance(target.ty, type_info.PrimitiveType)
-        super().__init__(name, type_info.PointerType(target.ty), attributes)
-
-    def resolve(self, context):
-        target = self.target
-
-        if isinstance(target, RegisterRef):
-            return target.resolve(context)
-
-        while isinstance(target, Alias):
-            target = target.target
-
-        return target
+#Idea extern [const volatile]<- atleast store it
+#class Port -> raise ...
 
 
 class Memory(Symbol):
@@ -339,12 +322,13 @@ class Memory(Symbol):
 	parent: Union['Memory', None]
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, range_: RangeSpec, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+	def __init__(self, name, range_: RangeSpec, kind : type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.range = range_
 		self.children = []
 		self.parent = None
 		self._initval = {}
-		super().__init__(name, type_info.MemoryType(size), attributes)
+		assert kind.is_numeric
+		super().__init__(name, type_info.PrimitiveType(kind, size), attributes)
 
 	def initval(self, idx=None):
 		"""Return the initial value for the given index."""
@@ -369,6 +353,41 @@ class Memory(Symbol):
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
 		return attribute_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
+
+# TODO: decide later if you wanna keep lhs information :
+# unsigned<XLEN>& S0 = X[8]; vs
+# Intention: alias S0 <- X[8];
+class Alias(Symbol):
+    """A class representing a register. A register is a single element of a register bank,
+	  which is used to represent registers in the architectural part of an M2-ISA-R model."""
+    parent: Union[Memory, RegisterBank]
+    initval = 0
+
+    def __init__(self, name, init_val, parent: Union[Memory, RegisterBank], range: RangeSpec, type: type_info.PointerType, attributes: dict = {}):
+        self.parent = parent
+        self.initval = init_val
+        self.range = range
+        self.ty = type
+        assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
+        super().__init__(name, type_info.PointerType(parent.ty), attributes)
+
+    def resolve(self, context):
+        parent = self.parent
+
+        if isinstance(parent, RegisterBank):
+            return parent.resolve(context)
+
+        while isinstance(parent, Alias):
+            parent = parent.parent
+
+        return parent
+
+
+# ============================================================
+# END
+# ARCHITECTURE used within the functional
+# behavior of instructions and functions.
+# ===========================================================
 
 
 class BitField(Symbol):
@@ -535,6 +554,21 @@ def extract_memory_alias(memories: "list[Memory]"):
 
 	return parents, aliases
 
+
+def extract_register_alias(register_banks: "list[RegisterBank]"):
+	"""Extract and separate parent and children register banks from the given list
+	of register bank objects."""
+
+	parents = {}
+	aliases = {}
+	for m in register_banks:
+		for c in m.children:
+			aliases[c.name] = c
+			parents[c.name] = m
+
+	return parents, aliases
+
+
 class AlwaysBlock(Named):
 	attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]"
 	operation: "Operation"
@@ -551,11 +585,12 @@ class InstructionSet(Named):
 	"""
 
 	def __init__(self, name, extension: "list[str]", constants: "dict[str, Constant]", memories: "dict[str, Memory]",
-			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
+			register_banks: "dict[str, RegisterBank]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
 
 		self.extension = extension
 		self.constants = constants
 		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
+		self.register_banks, self.register_aliases = extract_register_alias(register_banks.values())
 		self.functions = functions
 		self.instructions = instructions
 
@@ -565,14 +600,17 @@ class CoreDef(Named):
 	"""A class representing an entire CPU core. Contains the collected attributes of multiple InstructionSets."""
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, constants: "dict[str, Constant]", memories: "dict[str, Memory]",
-			memory_aliases: "dict[str, Memory]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]",
-			instr_classes: "set[int]", intrinsics: "dict[str, Intrinsic]"):
+			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]",
+			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", instr_classes: "set[int]",
+			intrinsics: "dict[str, Intrinsic]"):
 
 		self.contributing_types = contributing_types
 		self.template = template
 		self.constants = constants
 		self.memories = memories
 		self.memory_aliases = memory_aliases
+		self.register_banks = register_banks
+		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
 		self.instr_classes = instr_classes
@@ -597,17 +635,7 @@ class CoreDef(Named):
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
-			if attribute_info.MemoryAttribute.IS_MAIN_REG in mem.attributes:
-				self.main_reg_file = mem
-			elif attribute_info.MemoryAttribute.IS_FLOAT_REG in mem.attributes:
-				self.float_reg_file = mem
-			elif attribute_info.MemoryAttribute.IS_VECTOR_REG in mem.attributes:
-				self.vector_reg_file = mem
-			elif attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
-				self.csr_reg_file = mem
-			elif attribute_info.MemoryAttribute.IS_PC in mem.attributes:
-				self.pc_memory = mem
-			elif attribute_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
+			if attribute_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
 				self.main_memory = mem
 			elif attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 				self.global_irq_en_memory = mem
@@ -617,6 +645,20 @@ class CoreDef(Named):
 				self.irq_en_memory = mem
 			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
 				self.irq_pending_memory = mem
+
+
+		for regs in itertools.chain(self.register_banks.values(), self.register_aliases.values()):
+			if attribute_info.RegisterAttribute.IS_MAIN_REG in regs.attributes:
+				self.main_reg_file = regs
+			elif attribute_info.RegisterAttribute.IS_FLOAT_REG in regs.attributes:
+				self.float_reg_file = regs
+			elif attribute_info.RegisterAttribute.IS_VECTOR_REG in regs.attributes:
+				self.vector_reg_file = regs
+			elif attribute_info.RegisterAttribute.IS_CSR_REG in regs.attributes or regs.name.upper() == "CSR":
+				self.csr_reg_file = regs
+			elif attribute_info.RegisterAttribute.IS_PC in regs.attributes:
+				self.pc_memory = regs
+
 
 		super().__init__(name)
 

@@ -31,13 +31,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_instruction_sets: "dict[str, arch.InstructionSet]"
 	_read_types: "dict[str, str]"
 	_memories: "dict[str, arch.Memory]"
-	_memory_aliases: "dict[str, arch.Memory]"
+	_memory_aliases: "dict[str, arch.Alias]"
+	_register_banks: "dict[str, Union[arch.RegisterBank, arch.Register]]"
+	_register_aliases: "dict[str, arch.Alias]"
 	_overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]"
 	_instr_classes: "set[int]"
-	_main_reg_file: Union[arch.Memory, None]
-	_float_reg_file: Union[arch.Memory, None]
-	_vector_reg_file: Union[arch.Memory, None]
-	_csr_reg_file: Union[arch.Memory, None]
+	_main_reg_file: Union[arch.RegisterBank, None]
+	_float_reg_file: Union[arch.RegisterBank, None]
+	_vector_reg_file: Union[arch.RegisterBank, None]
+	_csr_reg_file: Union[arch.RegisterBank, None]
 
 	def __init__(self):
 		super().__init__()
@@ -50,6 +52,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._read_types = {}
 		self._memories = {}
 		self._memory_aliases = {}
+		self._register_banks = {}
+		self._register_aliases = {}
 
 		self._overwritten_instrs = []
 		self._instr_classes = set()
@@ -91,6 +95,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		constants = {}
 		memories = {}
+		register_banks = {}
 		functions = {}
 		# instructions = {}
 		instructions = []
@@ -101,6 +106,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				constants[item.name] = item
 			elif isinstance(item, arch.Memory):
 				memories[item.name] = item
+			elif isinstance(item, (arch.RegisterBank, arch.Register)):
+				register_banks[item.name] = item
+			elif isinstance(item, arch.Alias): # Aliases are basically handled of children of memories+register banks
+				pass
 			elif isinstance(item, arch.Function):
 				functions[item.name] = item
 				item.ext_name = name
@@ -114,7 +123,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				raise M2ValueError("unexpected item encountered")
 
 		# instantiate M2-ISA-R object
-		i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
+		i = arch.InstructionSet(name, extension, constants, memories, register_banks, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
@@ -143,8 +152,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._constants, self._memories, self._memory_aliases,
-			self._functions, self._instructions, self._instr_classes,
-			intrinsics)
+			self._register_banks, self._register_aliases, self._functions,
+			self._instructions, self._instr_classes, intrinsics)
 
 		return c
 
@@ -312,9 +321,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# generate a register alias
-			if  isinstance(type_, type_info.PointerType):
+			if isinstance(type_, type_info.PointerType):
 				# error out on duplicate declaration
-				if name in self._memory_aliases:
+				if name in self._memory_aliases or name in self._register_aliases:
 					raise M2DuplicateError(f"memory {name} already defined")
 
 				# assume default size
@@ -341,14 +350,32 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				#	raise ValueError(f"range mismatch for \"{name}\"")
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
-				m = arch.Memory(name, range_spec, type_.ty.size, attributes)
-				m.parent = reference
-				m.parent.children.append(m)
+
+				alias = arch.Alias(name, init, reference, range_spec, type_, attributes)
+
+				# # TODO: Decide if alias can have a range ???
+				# Might make sense to do this for vreg0...vreg31 ->
+				# register unsigned<XLEN> V[32][8] [[is_main_reg]];
+
+				# // register aliases
+				# alias vreg0 = V[0];
+				#vs
+				# unsigned<XLEN>& vreg0[16] = V[0][7:0] && V[1][7:0];
+				# or even more complex:
+				# unsigned<XLEN>& vreg0.5[4] = V[0][3:0];
+				# m = arch.Alias(name, ini)
+
+				alias.parent.children.append(alias)
 
 				# keep track of this declaration globally
-				self._memory_aliases[name] = m
+				if isinstance(reference, (arch.RegisterBank, arch.Register)):
+					self._register_aliases[name] = alias
+				elif isinstance(reference, arch.Memory):
+					self._memory_aliases[name] = alias
+				else:
+					raise M2TypeError("invalid alias reference type")
 				# keep track of this declaration for this declaration statement
-				ret_decls.append(m)
+				ret_decls.append(alias)
 
 			# normal declaration
 			else:
@@ -370,7 +397,58 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					ret_decls.append(c)
 
 				# register and extern declaration: "Memory" object in M2-ISA-R
-				elif "register" in storage or "extern" in storage:
+				elif "register" in storage:
+					if name in self._register_banks:
+						raise M2DuplicateError(f"register bank {name} already defined")
+
+					size = [1]
+					init = None
+					attributes = {}
+
+					if decl.size:
+						size = [self.visit(obj) for obj in decl.size]
+
+					if len(size) > 1:
+						raise NotImplementedError("arrays with more than one dimension are not supported")
+
+					if decl.init is not None:
+						init = self.visit(decl.init)
+
+					if decl.attributes:
+						attributes = dict([self.visit(obj) for obj in decl.attributes])
+
+					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
+					if isinstance(size[0], (arch.Constant, behav.NamedReference)):
+						m = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
+					elif isinstance(size[0], behav.Literal):
+						if size[0].value >= 1:
+							m = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
+						elif size[0].value == 1:
+							m = arch.Register(name, type_.kind, type_.size, attributes)
+						else:
+							M2ValueError("Size is negative for Registerbank")
+					elif isinstance(size[0], int):
+						# Unset Case: =1
+						m = arch.Register(name, type_.kind, type_.size, attributes)
+					else:
+						raise NotImplementedError("Only Constants and Int allowed as dimension for register size")
+
+					# attach init value to register bank object
+					if init is not None:
+						m._initval[None] = exprInterpretVisitor.generate(init, None)
+
+					if attribute_info.RegisterAttribute.IS_MAIN_REG in attributes:
+						self._main_reg_file = m
+					if attribute_info.RegisterAttribute.IS_FLOAT_REG in attributes:
+						self._float_reg_file = m
+					if attribute_info.RegisterAttribute.IS_VECTOR_REG in attributes:
+						self._vector_reg_file = m
+					if attribute_info.RegisterAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+						self._csr_reg_file = m
+
+					self._register_banks[name] = m
+					ret_decls.append(m)
+				elif "extern" in storage:
 					if name in self._memories:
 						raise M2DuplicateError(f"memory {name} already defined")
 
@@ -391,20 +469,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 					range_spec = arch.RangeSpec(size[0])
-					m = arch.Memory(name, range_spec, type_.size, attributes)
+					m = arch.Memory(name, range_spec, type_.kind, type_.size, attributes)
 
 					# attach init value to memory object
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
-
-					if attribute_info.MemoryAttribute.IS_MAIN_REG in attributes:
-						self._main_reg_file = m
-					if attribute_info.MemoryAttribute.IS_FLOAT_REG in attributes:
-						self._float_reg_file = m
-					if attribute_info.MemoryAttribute.IS_VECTOR_REG in attributes:
-						self._vector_reg_file = m
-					if attribute_info.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
-						self._csr_reg_file = m
 
 					self._memories[name] = m
 					ret_decls.append(m)
@@ -488,7 +557,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.ref.text
 
 		# try to resolve the reference, error out if invalid
-		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name)
+		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name) \
+			  or self._register_banks.get(name) or self._register_aliases.get(name)
 		if ref is None:
 			raise M2NameError(f"reference \"{name}\" could not be resolved")
 		return behav.NamedReference(ref)
@@ -520,7 +590,6 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 			elif isinstance(left.reference, arch.Memory):
 				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
-
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[exprInterpretVisitor.generate(left.index, None)] = exprInterpretVisitor.generate(right, None)
 
@@ -532,7 +601,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# read attribute from enums
 		attr = attribute_info.InstrAttribute._member_map_.get(name.upper()) or \
 			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
-			attribute_info.FunctionAttribute._member_map_.get(name.upper())
+			attribute_info.FunctionAttribute._member_map_.get(name.upper()) \
+			or attribute_info.RegisterAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:
