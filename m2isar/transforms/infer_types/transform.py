@@ -35,6 +35,9 @@ def infer_types(model_obj):
         for _, instr_def in core_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
             mutator.generate(instr_def.operation, None)
+        for _, func_def in core_def.functions.items():
+            logger.debug("inferring types for functions %s", func_def.name)
+            mutator.generate(func_def.operation, None)
     for _, set_def in model_obj.sets.items():
         logger.debug("inferring types for set %s", set_def.name)
         for _, instr_def in set_def.instructions.items():
