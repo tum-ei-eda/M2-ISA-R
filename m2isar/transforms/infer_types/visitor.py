@@ -157,7 +157,7 @@ class InferTypesMutator(ExprMutator):
         if isinstance(ty_, type_info.PrimitiveType):
             ty_.size = width
         elif isinstance(ty_, type_info.ArrayType):
-            if width == 1: # Array -> PrimitiveTpye
+            if width == 1: # Array -> PrimitiveType
                 ty_ = ty_.element_kind
             else: # Array Slice
                 ty_.length = width
