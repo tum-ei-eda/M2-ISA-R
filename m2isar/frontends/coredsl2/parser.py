@@ -117,11 +117,18 @@ def main():
 			const_def._value = const_def.value
 
 		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
-			mem_def.ty.size = arch.get_const_or_val(mem_def.ty.size) if isinstance(mem_def.ty, type_info.PrimitiveType) else arch.get_const_or_val(mem_def.ty.ty.size)
-			mem_def._size = mem_def.ty.size
-			mem_def.range._lower_base = mem_def.range.lower_base
-			mem_def.range._upper_base = mem_def.range.upper_base
+			if isinstance(mem_def.ty, type_info.ArrayType):
+				size = arch.get_const_or_val(mem_def.ty.element_kind.size)
+			elif isinstance(mem_def.ty, type_info.PrimitiveType):
+				size = arch.get_const_or_val(mem_def.ty.size)
+			else:
+				assert(isinstance(mem_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
+				if isinstance(mem_def.ty.ty, type_info.ArrayType):
+					size = arch.get_const_or_val(mem_def.ty.ty.element_kind.size)
+				else:
+					size = arch.get_const_or_val(mem_def.ty.ty.size)
 
+			mem_def.ty.size = size
 			for attr_name, attr_ops in mem_def.attributes.items():
 				ops = []
 				for attr_op in attr_ops:
@@ -142,14 +149,14 @@ def main():
 				reg_def.ty.element_kind.size = arch.get_const_or_val(reg_def.ty.element_kind.size)
 				reg_def.ty.length = arch.get_const_or_val(reg_def.ty.length)
 			elif isinstance(reg_def.ty, type_info.PrimitiveType):
-				assert(isinstance(reg_def.ty, type_info.PrimitiveType))
 				reg_def.ty.size = arch.get_const_or_val(reg_def.ty.size)
 			else:
 				assert(isinstance(reg_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
-				if isinstance(reg_def.ty.ty, type_info.ArrayType):
-					reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_kind.size)
-				else:
-					reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
+				pass
+				# if isinstance(reg_def.ty.ty, type_info.ArrayType):
+				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_kind.size)
+				# else:
+				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
 
 			for attr_name, attr_ops in reg_def.attributes.items():
 				ops = []

@@ -319,69 +319,65 @@ class Memory(Symbol):
 
 	range: RangeSpec
 	children: "list[Memory]"
-	parent: Union['Memory', None]
+	parent: "Union['Memory', None]"
 	_initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, range_: RangeSpec, kind : type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-		self.range = range_
+	def __init__(self, name, kind : type_info.TypeKind, size, length, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.children = []
-		self.parent = None
 		self._initval = {}
+		self.parent = None # Just Legacy
 		assert kind.is_numeric
-		super().__init__(name, type_info.PrimitiveType(kind, size), attributes)
+		super().__init__(name, type_info.ArrayType(type_info.PrimitiveType(kind, size), length), attributes)
 
-	def initval(self, idx=None):
-		"""Return the initial value for the given index."""
-
-		return get_const_or_val(self._initval[idx])
-
-	@property
-	def data_range(self):
-		"""Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
-
-		if self.range.upper is None or self.range.lower is None:
-			return None
-
-		return RangeSpec(self.range.upper - self.range.lower, 0)
-
-	@property
-	def is_pc(self):
-		"""Return true if this memory is tagged as being the program counter."""
-		return attribute_info.MemoryAttribute.IS_PC in self.attributes
 
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
 		return attribute_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
 
+
 # TODO: decide later if you wanna keep lhs information :
 # unsigned<XLEN>& S0 = X[8]; vs
 # Intention: alias S0 <- X[8];
 class Alias(Symbol):
-    """A class representing a register. A register is a single element of a register bank,
-	  which is used to represent registers in the architectural part of an M2-ISA-R model."""
+    """A class representing an (potentially ranged) alias to a Register/Memory/RegisterBank entity,
+	which refer to the architectural part of an M2-ISA-R model. This access might be ranged"""
     parent: Union[Memory, RegisterBank]
     initval = 0
 
-    def __init__(self, name, init_val, parent: Union[Memory, RegisterBank], range: RangeSpec, type: type_info.PointerType, attributes: dict = {}):
+    def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, init_val, type: type_info.PointerType, attributes: dict = {}):
         self.parent = parent
-        self.initval = init_val
         self.range = range
+        self.initval = init_val
         self.ty = type
         assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
         super().__init__(name, type_info.PointerType(parent.ty), attributes)
 
-    def resolve(self, context):
-        parent = self.parent
 
-        if isinstance(parent, RegisterBank):
-            return parent.resolve(context)
+    @property
+    def data_range(self):
+        """Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
 
-        while isinstance(parent, Alias):
-            parent = parent.parent
+        if self.range.upper is None or self.range.lower is None:
+            return None
 
-        return parent
+        return RangeSpec(self.range.upper - self.range.lower, 0)
 
+    @property
+    def length(self):
+        """Returns the length of the range using following algorithm:
+		if self.upper is None: return None
+		elif self.lower is None: return self.upper
+		else return self.upper - self.lower + 1
+		"""
+
+        if self.range.upper is None:
+            return None
+
+        if self.range.lower is None:
+            return self.range.upper
+
+        return self.range.upper - self.range.lower + 1
 
 # ============================================================
 # END
@@ -645,6 +641,8 @@ class CoreDef(Named):
 				self.irq_en_memory = mem
 			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
 				self.irq_pending_memory = mem
+			elif attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
+				self.csr_reg_file = mem
 
 
 		for regs in itertools.chain(self.register_banks.values(), self.register_aliases.values()):
@@ -654,8 +652,6 @@ class CoreDef(Named):
 				self.float_reg_file = regs
 			elif attribute_info.RegisterAttribute.IS_VECTOR_REG in regs.attributes:
 				self.vector_reg_file = regs
-			elif attribute_info.RegisterAttribute.IS_CSR_REG in regs.attributes or regs.name.upper() == "CSR":
-				self.csr_reg_file = regs
 			elif attribute_info.RegisterAttribute.IS_PC in regs.attributes:
 				self.pc_memory = regs
 

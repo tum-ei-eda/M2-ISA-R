@@ -141,7 +141,7 @@ class InferTypesMutator(ExprMutator):
         if expr.expr.ty is None:
             logger.warning("Slice Operation needs inferred type. Skipping...")
             return expr
-        assert isinstance(expr.expr.ty, (type_info.PrimitiveType, type_info.ArrayType))
+        assert isinstance(expr.expr.ty, (type_info.PrimitiveType))
         ty = expr.expr.ty
         # For non-static slices, we cann not infer the type!
         if not isinstance(expr.left, behav.Literal):
@@ -192,8 +192,8 @@ class InferTypesMutator(ExprMutator):
         # type inference
         assert(expr.ty.size is not None)
         assert(expr.ty.kind.is_int)
-        expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
 
+        expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
         return expr
 
     @generate.register
@@ -287,43 +287,31 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.NamedReference, context):
         reference = expr.reference
 
-        # type inference
-        # expr.infered_type = ?
         if isinstance(reference, arch.BitFieldDescr):
-            assert expr.reference.ty.kind.is_int
-            ty = type_info.PrimitiveType(reference.ty.kind, reference.ty.size)
-            expr.ty = ty
-
-        elif isinstance(reference, arch.Variable):
-            assert isinstance(reference.ty, type_info.PrimitiveType)
-            dt = reference.ty.kind
-            sz = reference.ty.size
-            assert dt.is_int
-            ty = type_info.PrimitiveType(dt, sz)
-            expr.ty = ty
-        elif isinstance(reference, arch.Memory):
-            expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, reference.ty.size)
-        elif isinstance(reference, arch.RegisterBank):
-            assert(isinstance(reference.ty, type_info.ArrayType)) #propagate type from element
+            assert reference.ty.kind.is_int
             expr.ty = reference.ty
-        elif isinstance(reference, arch.Register):
-            assert(isinstance(reference.ty, type_info.PrimitiveType)) #propagate type from element
+        elif isinstance(reference, (arch.Variable, arch.Memory, arch.RegisterBank, arch.Register)):
+            assert isinstance(reference.ty, (type_info.PrimitiveType, type_info.ArrayType))
             expr.ty = reference.ty
         elif isinstance(reference, arch.Alias): # propagate type from aliased mem or reg bank
-            if isinstance(reference.parent, arch.Memory):
-                expr.ty = self.generate(behav.NamedReference(reference.parent), context)
-                expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, reference.parent.ty.size)
-            elif isinstance(reference.parent, arch.RegisterBank):
+            assert(reference.length == 1)
+            if isinstance(reference.parent, (arch.Memory, arch.RegisterBank)):
+                # expr.ty = self.generate(behav.NamedReference(reference.parent), context)
                 expr.ty = reference.parent.ty.element_kind
+                assert (expr.ty is not None)
+            elif isinstance(reference.parent, arch.Register):
+                expr.ty = reference.parent.ty
+                assert (expr.ty is not None)
             else:
                 raise NotImplementedError(f"Alias parent type {type(reference.parent)} not supported for type inference")
         elif isinstance(reference, arch.Intrinsic):
-            assert expr.reference.ty.kind.is_int
-            expr.ty = type_info.PrimitiveType(reference.ty.kind, reference.ty.size)
+            assert reference.ty.kind.is_int and isinstance(reference.ty, type_info.PrimitiveType)
+            expr.ty = reference.ty
         elif isinstance(reference, arch.Constant):
             kind = type_info.TypeKind.INT if reference.signed else type_info.TypeKind.UINT
-
             expr.ty = type_info.PrimitiveType(kind, reference.size)
+        elif isinstance(reference, arch.FnParam):
+            expr.ty = reference.ty
         else:
             assert False, "Unhandled reference"
 
@@ -333,31 +321,33 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.IndexedReference, context):
         expr.index = self.generate(expr.index, context)
 
-        # type inference
-        ty = type_info.TypeKind.UINT  # TODO: Memory class should keep track of dtype, not only size?
-        assert ty.is_int
         assert isinstance(expr.reference, (arch.Memory, arch.RegisterBank))
-        if (isinstance(expr.reference, arch.Memory)):
-            single_mem_acc_size = expr.reference.ty.size
-        else:
-            single_mem_acc_size = expr.reference.ty.element_kind.size
+        # expr.reference = self.generate(behav.NamedReference(expr.reference), context)
+
+        # if expr.right is not None:
+        #     expr.right = self.generate(expr.right, context)
+
+        # type inference
+        assert expr.reference.ty.element_kind.kind.is_int
+        single_mem_acc_size = expr.reference.ty.element_kind.size
 
         ## Simple eval check for ranged access.
         # Little-endian interpretation:
         # - lhs > rhs  → width = lhs - rhs + 1
         # - lhs == rhs → width = 8 bits
 
-        if expr.right == None:
+        if expr.right is None:
             size = single_mem_acc_size
-        if expr.right != None:
-                lhs_offset = helper_expr_size(expr.index)
-                rhs_offset = helper_expr_size(expr.right)
-                assert(lhs_offset >= rhs_offset)
-                size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
+        else:
+            lhs_offset = helper_expr_size(expr.index)
+            rhs_offset = helper_expr_size(expr.right)
+            assert(lhs_offset >= rhs_offset)
+            size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
 
-        ty_ = type_info.PrimitiveType(ty, size)
+        ty_ = type_info.PrimitiveType(expr.reference.ty.element_kind.kind, size)
 
         expr.ty = ty_
+        assert expr.ty is not None
 
         return expr
 

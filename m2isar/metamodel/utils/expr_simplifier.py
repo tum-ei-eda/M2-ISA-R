@@ -65,8 +65,12 @@ class ExprSimplifierVisitor(ExprVisitor):
 				expr.left.ty.size = arch.get_const_or_val(expr.right.reference.ty.size)
 
 		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
-			if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.size):
-				expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.size)
+			if isinstance(expr.left.ty, type_info.ArrayType):
+				if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.element_kind.size):
+					expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.element_kind.size)
+			else:
+				if expr.right.ty.size < arch.get_const_or_val(expr.left.ty.size):
+					expr.right.ty.size = arch.get_const_or_val(expr.left.ty.size)
 
 		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
@@ -134,8 +138,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.expr = self.generate(expr.expr, context)
 
 		if isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
-			if expr.expr.ty.size < arch.get_const_or_val(expr.target.reference.ty.size):
-				expr.expr.ty.size = arch.get_const_or_val(expr.target.reference.ty.size)
+			if expr.expr.ty.size < arch.get_const_or_val(expr.target.ty.size):
+				expr.expr.ty.size = arch.get_const_or_val(expr.target.ty.size)
 
 		return expr
 

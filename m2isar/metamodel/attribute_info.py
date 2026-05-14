@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 class MemoryAttribute(Enum):
 	IS_MAIN_MEM = auto()
+	IS_CSR_REG = auto()
 	DELETE = auto()
 	ETISS_CAN_FAIL = auto()
 	ETISS_IS_GLOBAL_IRQ_EN = auto()
@@ -16,7 +17,6 @@ class RegisterAttribute(Enum):
 	IS_MAIN_REG = auto()
 	IS_FLOAT_REG = auto()
 	IS_VECTOR_REG = auto()
-	IS_CSR_REG = auto()
 
 class FunctionAttribute(Enum):
 	ETISS_STATICFN = auto()

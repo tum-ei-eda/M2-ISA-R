@@ -351,8 +351,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
 
-				alias = arch.Alias(name, init, reference, range_spec, type_, attributes)
-
+				alias = arch.Alias(name, reference, range_spec, init, type_, attributes)
+				self._memory_aliases[name] = alias
 				# # TODO: Decide if alias can have a range ???
 				# Might make sense to do this for vreg0...vreg31 ->
 				# register unsigned<XLEN> V[32][8] [[is_main_reg]];
@@ -363,7 +363,6 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				# unsigned<XLEN>& vreg0[16] = V[0][7:0] && V[1][7:0];
 				# or even more complex:
 				# unsigned<XLEN>& vreg0.5[4] = V[0][3:0];
-				# m = arch.Alias(name, ini)
 
 				alias.parent.children.append(alias)
 
@@ -443,8 +442,6 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						self._float_reg_file = m
 					if attribute_info.RegisterAttribute.IS_VECTOR_REG in attributes:
 						self._vector_reg_file = m
-					if attribute_info.RegisterAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
-						self._csr_reg_file = m
 
 					self._register_banks[name] = m
 					ret_decls.append(m)
@@ -468,12 +465,14 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-					range_spec = arch.RangeSpec(size[0])
-					m = arch.Memory(name, range_spec, type_.kind, type_.size, attributes)
+					m = arch.Memory(name, type_.kind, type_.size, size[0], attributes)
 
 					# attach init value to memory object
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
+
+					if attribute_info.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+						self._csr_reg_file = m
 
 					self._memories[name] = m
 					ret_decls.append(m)
