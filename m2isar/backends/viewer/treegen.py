@@ -257,7 +257,6 @@ class TreeGenVisitor(ExprVisitor):
 		self.generate(expr.expr, context)
 		context.pop()
 
-		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 		context.pop()
 
 	@generate.register
