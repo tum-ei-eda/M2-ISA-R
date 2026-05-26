@@ -259,53 +259,65 @@ class Intrinsic(Symbol):
 
 
 class RegisterBank(Symbol):
-	"""A class representing a register bank. A register bank combines structured registers,
-	which is used to represent registers in the architectural part of an M2-ISA-R model."""
-	children: "list[Memory]"
-	_initval: "dict[int, Union[int, Constant, BaseNode]]"
+    """A class representing a register bank. A register bank combines structured registers,
+    which is used to represent registers in the architectural part of an M2-ISA-R model."""
+    children: "list[Memory]"
+    _initval: "dict[int, Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, nr_ele: Union[int, Constant], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-		self.children = []
-		self._initval = {}
-		ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
+    def __init__(self, name, nr_ele: Union[int, Constant], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+        self.children = []
+        self._initval = {}
+        ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
 
-		super().__init__(name, ty, attributes)
+        super().__init__(name, ty, attributes)
 
-	# TODO: Implement this
-	def initval(self, idx=None):
-		"""Return the initial value for the given index."""
+    # TODO: Implement this
+    def initval(self, idx=None):
+        """Return the initial value for the given index."""
+        return get_const_or_val(self._initval[idx])
 
-		return get_const_or_val(self._initval[idx])
+    @property
+    def is_pc(self):
+        """Return true if this memory is tagged as being the program counter."""
+        return attribute_info.RegisterAttribute.IS_PC in self.attributes
 
-
-	@property
-	def is_gpr(self):
-		"""Return true if this memory is tagged as being a general-purpose register."""
-		return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
+    @property
+    def is_gpr(self):
+        """Return true if this memory is tagged as being a general-purpose register."""
+        return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
 
 
 # be careful: This is only for single defined regs (No Alias or indexedReference)
 class Register(Symbol):
-	"""A class representing a register. A register is a single defined Symbols. Dont mix it up
-	bit alias that are IndexedReference of already declared Symbols.
-	This class should simplify different handling to register bank.
-	And is used to represent registers in the architectural part of an M2-ISA-R model."""
-	children: "list[Memory]"
-	_initval: "dict[Union[int, Constant, BaseNode]]"
+    """A class representing a register. A register is a single defined Symbols. Dont mix it up
+    bit alias that are IndexedReference of already declared Symbols.
+    This class should simplify different handling to register bank.
+    And is used to represent registers in the architectural part of an M2-ISA-R model."""
+    children: "list[Memory]"
+    _initval: "dict[Union[int, Constant, BaseNode]]"
 
-	def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-		self.children = []
-		self._initval = {}
-		ty = type_info.PrimitiveType(kind, size)
+    def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+        self.children = []
+        self._initval = {}
+        ty = type_info.PrimitiveType(kind, size)
 
-		super().__init__(name, ty, attributes)
+        super().__init__(name, ty, attributes)
 
-	# TODO: Implement this
-	def initval(self):
-		"""Return the initial value for the given index."""
+    # TODO: Implement this
+    def initval(self):
+        """Return the initial value for the given index."""
 
-		return get_const_or_val(self._initval)
+        return get_const_or_val(self._initval)
 
+    @property
+    def is_pc(self):
+        """Return true if this memory is tagged as being the program counter."""
+        return attribute_info.RegisterAttribute.IS_PC in self.attributes
+
+    @property
+    def is_gpr(self):
+        """Return true if this memory is tagged as being a general-purpose register."""
+        return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
 
 #Idea extern [const volatile]<- atleast store it
 #class Port -> raise ...
@@ -343,12 +355,12 @@ class Alias(Symbol):
     """A class representing an (potentially ranged) alias to a Register/Memory/RegisterBank entity,
 	which refer to the architectural part of an M2-ISA-R model. This access might be ranged"""
     parent: Union[Memory, RegisterBank]
-    initval = 0
+    _initval = 0
 
     def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, init_val, type: type_info.PointerType, attributes: dict = {}):
         self.parent = parent
         self.range = range
-        self.initval = init_val
+        self._initval = init_val
         self.ty = type
         assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
         super().__init__(name, type_info.PointerType(parent.ty), attributes)

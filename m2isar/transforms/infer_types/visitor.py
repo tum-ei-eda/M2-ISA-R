@@ -160,7 +160,7 @@ class InferTypesMutator(ExprMutator):
             if width == 1: # Array -> PrimitiveType
                 ty_ = ty_.element_kind
             else: # Array Slice
-                ty_.length = width
+                ty_.length =  arch.get_const_or_val(width)
         else:
             raise f"Type Slicing not supported for type {ty_}"
 
@@ -292,6 +292,11 @@ class InferTypesMutator(ExprMutator):
             expr.ty = reference.ty
         elif isinstance(reference, (arch.Variable, arch.Memory, arch.RegisterBank, arch.Register)):
             assert isinstance(reference.ty, (type_info.PrimitiveType, type_info.ArrayType))
+            # Constant-time calculation of sizes
+            if isinstance(reference.ty, type_info.PrimitiveType):
+                reference.ty.size = arch.get_const_or_val(reference.ty.size)
+            elif isinstance(reference.ty, type_info.ArrayType):
+                reference.ty.length = arch.get_const_or_val(reference.ty.length)
             expr.ty = reference.ty
         elif isinstance(reference, arch.Alias): # propagate type from aliased mem or reg bank
             assert(reference.length == 1)
