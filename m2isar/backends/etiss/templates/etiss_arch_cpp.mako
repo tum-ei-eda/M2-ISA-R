@@ -81,8 +81,8 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     cpu->cpuCycleTime_ps = 31250;
 
     % for reg in ptr_regs:
-    % if reg.range.length > 1:
-    for (int i = 0; i < ${reg.data_range.length}; ++i)
+    % if isinstance(reg.ty, type_info.ArrayType):
+    for (int i = 0; i < ${reg.ty.length}; ++i)
     {
         ${core_name.lower()}cpu->ins_${reg.name}[i] = 0;
         ${core_name.lower()}cpu->${reg.name}[i] = &${core_name.lower()}cpu->ins_${reg.name}[i];
@@ -94,9 +94,10 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % endfor
 
     % for reg in actual_regs:
+    % if not isinstance(reg, (arch.Memory, arch.Alias)):
     % if not reg.is_pc:
-    % if reg.range.length > 1:
-    for (int i = 0; i < ${reg.data_range.length}; ++i)
+    % if isinstance(reg.ty, type_info.ArrayType):
+    for (int i = 0; i < ${reg.ty.length}; ++i)
     {
         ${core_name.lower()}cpu->${reg.name}[i] = 0;
     }
@@ -104,31 +105,34 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     ${core_name.lower()}cpu->${reg.name} = 0;
     % endif
     % endif
+    % endif
     % endfor
 
     % for reg, parent in alias_regs.items():
-<% ref = "" if len(reg.children) > 0 else "&" %>\
-    % if reg.range.length > 1:
-    for (int i = 0; i < ${reg.range.length}; ++i)
+<% ref = "&" %>\
+    % if isinstance(reg.ty, type_info.ArrayType):
+    for (int i = 0; i < ${reg.ty.length}; ++i)
     {
-        ${core_name.lower()}cpu->${parent.name}[${reg.range.lower} + i] = ${ref}${core_name.lower()}cpu->${reg.name}[i];
+        ${core_name.lower()}cpu->${parent.name}[i] = ${ref}${core_name.lower()}cpu->${reg.name}[i];
     }
     % else:
+    % if not isinstance(reg, (arch.Memory, arch.Alias)):
     % if reg.is_pc:
-    ${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = (etiss_uint${reg.size}*)&(cpu->instructionPointer);
+    ${core_name.lower()}cpu->${parent.name}[0] = (etiss_uint${reg.size}*)&(cpu->instructionPointer);
     % else:
-    % if parent.range.length > 1:
-    ${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = ${ref}${core_name.lower()}cpu->${reg.name};
+    % if isinstance(reg.ty, type_info.ArrayType):
+    ${core_name.lower()}cpu->${parent.name}[0] = ${ref}${core_name.lower()}cpu->${reg.name};
     % else:
     ${core_name.lower()}cpu->${parent.name} = ${ref}${core_name.lower()}cpu->${reg.name};
+    % endif
     % endif
     % endif
     % endif
     % endfor
 
     % for reg in initval_regs:
-<% ref = "*" if len(reg.children) > 0 else "" %>\
-    % if reg.range.length > 1:
+<% ref = "*" if isinstance(reg.ty, type_info.ArrayType) else "" %>\
+    % if isinstance(reg.ty, type_info.ArrayType):
     % for idx, val in reg._initval.items():
 <% suffix = "ULL" if val > 0 else "LL" %>\
     ${ref}${core_name.lower()}cpu->${reg.name}[${idx}] = ${val}${suffix};
@@ -140,7 +144,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % endif
     % endfor
     % if procno_memory is not None:
-<% ref = "*" if len(reg.children) > 0 else "" %>\
+<% ref = "*" if isinstance(reg.ty, type_info.ArrayType) else "" %>\
     ${ref}${core_name.lower()}cpu->${procno_memory.name} = coreno_;
     % endif
 }

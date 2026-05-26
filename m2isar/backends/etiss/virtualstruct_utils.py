@@ -14,7 +14,7 @@ from typing import List, Union
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from xml.etree import ElementTree, ElementInclude
-from ...metamodel.attribute_info import MemoryAttribute
+from ...metamodel import arch, type_info, attribute_info
 
 DEFAULT_ALIASES = {"zero": "x0", "ra": "x1", "sp": "x2", "gp": "x3", "tp": "x4", "t0": "x5", "t1": "x6", "t2": "x7", "s0": "x8", "fp": "x8", "s1": "x9", "a0": "x10", "a1": "x11", "a2": "x12", "a3": "x13", "a4": "x14", "a5": "x15", "a6": "x16", "a7": "x17", "s2": "x18", "s3": "x19", "s4": "x20", "s5": "x21", "s6": "x22", "s7": "x23", "s8": "x24", "s9": "x25", "s10": "x26", "s11": "x27", "t3": "x28", "t4": "x29", "t5": "x30", "t6": "x31"}
 
@@ -155,23 +155,31 @@ def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
 	return gdb_mapping
 
 
-def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
+def get_virtualstruct_regs(mapping: dict,
+						    registers: "dict[str, Union[arch.RegisterBank, arch.Register]]",
+							register_aliases: "dict[str, arch.Alias]",
+							memories: "dict[str, arch.Memory]",
+							memory_aliases: "dict[str, arch.Alias]"):
 	main_reg = None
 	float_reg = None
 	vector_reg = None
 	csr_reg = None
 	pc_reg = None
-	for mem in memories.values():
-		if mem.is_pc:
+	for mem in registers.values():
+		if attribute_info.RegisterAttribute.IS_PC in mem.attributes:
 			pc_reg = mem
-		elif MemoryAttribute.IS_MAIN_REG in mem.attributes or mem.name == "X":
+		elif attribute_info.RegisterAttribute.IS_MAIN_REG in mem.attributes or mem.name == "X":
 			main_reg = mem
-		elif MemoryAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
+		elif attribute_info.RegisterAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
 			float_reg = mem
-		elif MemoryAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "F":
+		elif attribute_info.RegisterAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "V":
 			vector_reg = mem
-		elif MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
+
+	#CSRREG is memory
+	for mem in memories.values():
+		if attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
 			csr_reg = mem
+
 	aliased_csrs = set()
 	if csr_reg is not None:
 		for mem in memory_aliases.values():
@@ -179,8 +187,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 				if mem.range.length == 1:
 					idx = mem.range.lower
 					aliased_csrs.add(idx)
-	assert main_reg is not None, "Unable to identify main_reg"
-	assert pc_reg is not None, "Unable to identify pc_reg"
+	assert main_reg is not None and isinstance(main_reg, arch.RegisterBank), "Unable to identify main_reg"
+	assert pc_reg is not None and isinstance(pc_reg, arch.Register), "Unable to identify pc_reg"
 	VIRTUALSTRUCT_CLASSES = {
 		main_reg.name: "RegField",
 		**({float_reg.name: "FloatRegField"} if float_reg is not None else {}),
@@ -190,8 +198,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	}
 	aliased_csrs_only = True
 	DEFAULT_VIRTUALSTRUCT_REGS = {
-		"RegField": [range(0, main_reg.range.length)],
-		**({"FloatRegField": [range(0, float_reg.range.length)]} if float_reg is not None else {}),
+		"RegField": [range(0,  arch.get_const_or_val(main_reg.ty.length))],
+		**({"FloatRegField": [range(0, arch.get_const_or_val(float_reg.ty.length) )]} if float_reg is not None else {}),
 		# **({"VectorRegField": [range(0, vector_reg.range.length)]} if vector_reg is not None else {}),
 		**({"VectorRegField": [range(0, 32)]} if vector_reg is not None else {}),
 		**({"CSRField": list(sorted(aliased_csrs)) if aliased_csrs_only else [range(0, csr_reg.range.length)]} if csr_reg is not None else {}),
@@ -202,7 +210,7 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	if mapping is not None:
 		for regnum, data in mapping.items():
 			name, sz = data
-			resolved = resolve_reg(name, memories, memory_aliases)
+			resolved = resolve_reg(name, registers, register_aliases)
 			assert resolved is not None, f"Register lookup failed: {name}"
 			if resolved is not None:
 				mem, idx = resolved

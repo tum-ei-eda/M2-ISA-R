@@ -134,13 +134,16 @@ class TransformerContext:
 	provides helper functions for staticness conversion etc.
 	"""
 
-	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
-			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[attribute_info.InstrAttribute]", functions: "dict[str, arch.Function]",
-			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
+	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
+			registers: "dict[str, arch.Memory]", register_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
+			attributes: "list[attribute_info.InstrAttribute]", functions: "dict[str, arch.Function]", instr_size: int, native_size: int,
+			arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
 		self.constants = constants
 		self.memories = memories
 		self.memory_aliases = memory_aliases
+		self.registers = registers
+		self.register_aliases = register_aliases
 		self.fields = fields
 		self.attributes = attributes if attributes else []
 		self.functions = functions
@@ -160,9 +163,9 @@ class TransformerContext:
 		self.pc_reg = None
 		self.pc_mem = None
 
-		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if attribute_info.MemoryAttribute.IS_PC in mem_descr.attributes:
-				self.pc_mem = mem_descr
+		for _, reg_descr in chain(self.registers.items(), self.register_aliases.items()):
+			if attribute_info.RegisterAttribute.IS_PC in reg_descr.attributes:
+				self.pc_mem = reg_descr
 				break
 
 		self.raise_fn: arch.Function = None

@@ -353,7 +353,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		context.dependent_regs.update(expr_str.regs_affected)
 
 		if not target.is_mem_access and not expr_str.is_mem_access:
-			if actual_size(target.size) > target.size:
+			if actual_size(arch.get_const_or_val(target.size)) > arch.get_const_or_val(target.size):
 				if target.signed:
 					shift = actual_size(target.size) - target.size
 					expr_str.code = f'(((etiss_int{actual_size(target.size)})({expr_str.code})) << {shift}) >> {shift}'
@@ -622,6 +622,35 @@ class InstructionTransformVisitor(ExprVisitor):
 			size = referred_var.ty.size
 			context.used_arch_data = True
 
+		elif isinstance(referred_var, arch.RegisterBank):
+			# architecture constant
+			if not static:
+				ref = "*" if len(referred_var.children) > 0 else ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			size = (referred_var.ty.length)*(referred_var.ty.element_kind.size)
+			context.used_arch_data = True
+
+		elif isinstance(referred_var, arch.Register):
+			# architecture constant
+			if not static:
+				ref = "*" if len(referred_var.children) > 0 else ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			size = referred_var.ty.size
+			context.used_arch_data = True
+
+		elif isinstance(referred_var, arch.Alias):
+			# architecture constant
+			# Limitation: Alias does not haven children
+			if not static:
+				ref = ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			assert(referred_var.ty, type_info.PrimitiveType)
+			size = referred_var.ty.size
+			context.used_arch_data = True
+
 		elif isinstance(referred_var, arch.BitFieldDescr):
 			# function argument
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
@@ -680,7 +709,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		if isinstance(referred_mem, arch.Memory):
 			context.used_arch_data = True
 
-		size = referred_mem.ty.size
+		if isinstance(referred_mem, type_info.PrimitiveType):
+			size = referred_mem.ty.size
+		else:
+			size = referred_mem.ty.element_kind.size
 
 		# convert static index expression
 		index_code = index.code
@@ -722,7 +754,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
 		c = CodeString(code_str, static, size, False, line_infos=[expr.line_info] + index.line_infos)
-		if attribute_info.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+		if attribute_info.RegisterAttribute.IS_MAIN_REG in referred_mem.attributes:
 			c.regs_affected.add(index_code)
 		return c
 

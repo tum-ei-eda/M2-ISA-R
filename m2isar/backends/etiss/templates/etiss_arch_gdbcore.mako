@@ -44,23 +44,23 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
     std::string mapRegister(unsigned index)
     {
         % if mapping is None:
-        if (index < ${main_reg.range.length})
+        if (index < ${main_reg.ty.length})
         {
             std::stringstream ss;
             ss << "${main_reg.name}" << index;
             return ss.str();
         }
         % if float_reg is not None:
-        if ((${main_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 1}))
+        if ((${main_reg.ty.length} < index) && (index < ${main_reg.ty.length + float_reg.ty.length + 1}))
         {
             std::stringstream ss;
-            ss << "${float_reg.name}" << (index - ${main_reg.range.length + 1});
+            ss << "${float_reg.name}" << (index - ${main_reg.ty.length + 1});
             return ss.str();
         }
-        if ((${main_reg.range.length + float_reg.range.length} < index) && (index < ${main_reg.range.length + float_reg.range.length + 5}))
+        if ((${main_reg.ty.length + float_reg.ty.length} < index) && (index < ${main_reg.ty.length + float_reg.ty.length + 5}))
         {  // FCSR
             std::stringstream ss;
-            ss << "CSR" << (index - ${main_reg.range.length + float_reg.range.length + 1});
+            ss << "CSR" << (index - ${main_reg.ty.length + float_reg.ty.length + 1});
             return ss.str();
         }
         % endif
@@ -73,7 +73,7 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
             return "${name2}"; // ${name}
         % endfor
         % else:
-        case ${main_reg.range.length}:
+        case ${main_reg.ty.length}:
             return "instructionPointer";
         % endif
             /**************************************************************************
@@ -88,7 +88,7 @@ class ${core_name}GDBCore : public etiss::plugin::gdb::GDBCore
     unsigned mappedRegisterCount()
     {
         // Modify according to sent register number
-        return ${main_reg.range.length + 1};
+        return ${main_reg.ty.length + 1};
     }
 
     etiss::uint64 getInstructionPointer(ETISS_CPU *cpu) { return cpu->instructionPointer; }
