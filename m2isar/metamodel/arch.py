@@ -357,10 +357,9 @@ class Alias(Symbol):
     parent: Union[Memory, RegisterBank]
     _initval = 0
 
-    def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, init_val, type: type_info.PointerType, attributes: dict = {}):
+    def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, type: type_info.PointerType, attributes: dict = {}):
         self.parent = parent
         self.range = range
-        self._initval = init_val
         self.ty = type
         assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
         super().__init__(name, type_info.PointerType(parent.ty), attributes)
