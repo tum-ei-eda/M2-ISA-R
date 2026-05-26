@@ -43,6 +43,10 @@ class TypeKind(Enum):
     def is_scalar(self):
         return self in (TypeKind.INT, TypeKind.UINT, TypeKind.CHAR, TypeKind.FLOAT)
 
+    @property
+    def is_literal(self):
+        return self is not (TypeKind.VOID, TypeKind.NONE)
+
 
 class PrimitiveType:
     def __init__(self, kind: TypeKind, size: int):

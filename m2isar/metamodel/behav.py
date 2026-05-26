@@ -20,7 +20,7 @@ the `generate` method here. This method is dynamically overwritten during runtim
 on which translation module is loaded using :func:`patch_model`.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
 from .type_info import PrimitiveType, TypeKind
 
 
@@ -95,14 +95,15 @@ class ConcatOperation(BaseNode):
 
 
 class Literal(BaseNode):
-	def __init__(self, value:int, kind : TypeKind = TypeKind.INT, size=None, base=10, line_info=None):
+	def __init__(self, value:int, kind: TypeKind = TypeKind.INT, size=None, base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
 
-		self._value : Union[int, str] = value
+		assert kind.is_literal
+		self._value: Union[int, str] = value
 		self.ty = PrimitiveType(kind, size)      # assigned during type checking
 
 		#Optional type information (not always given)
-		self.base: int = base   # 2, 10, 16
+		self.base:  Optional[int] = base   # 2, 10, 16
 
 	def __repr__(self):
 		return f"Literal(value={self.value}, type={self.ty}, base={self.base})"
