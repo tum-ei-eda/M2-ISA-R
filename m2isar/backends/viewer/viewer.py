@@ -125,7 +125,7 @@ def main():
 		# add memories to tree
 		regs_id = tree.insert(core_id, tk.END, text="Register Banks")
 		for reg_name, reg_def in sorted(core_def.register_banks.items()):
-			length = reg_def.ty.length if isinstance(reg_def.ty, type_info.ArrayType) else 1
+			length = arch.get_const_or_val(reg_def.ty.length) if isinstance(reg_def.ty, type_info.ArrayType) else 1
 			kind = reg_def.ty.element_kind.kind if isinstance(reg_def.ty, type_info.ArrayType) else reg_def.ty.kind
 			size = reg_def.ty.element_kind.size if isinstance(reg_def.ty, type_info.ArrayType) else reg_def.ty.size
 			tree.insert(regs_id, tk.END, text=reg_name, values=(f"NR_ELE: {length}, ELE_TYPE {kind} {size}",))

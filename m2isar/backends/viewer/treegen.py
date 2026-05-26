@@ -213,8 +213,9 @@ class TreeGenVisitor(ExprVisitor):
 	def indexed_reference(self, expr: behav.IndexedReference, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Indexed Reference"))
 
-		context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",))
+		context.push(context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",)))
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.reference.ty,))
+		context.pop()
 
 		# If LHS is a complex expression => RHS also an expression
 		# TODO: Little Endian only so far supported
