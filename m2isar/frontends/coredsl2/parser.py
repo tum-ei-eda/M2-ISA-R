@@ -163,8 +163,8 @@ def main():
 				for attr_op in attr_ops:
 					try:
 
-						behav_builder = BehaviorModelBuilder(core_def.constants, {}, {},{core_def.register_banks},
-										    {core_def.register_aliases}, {}, core_def.functions, warned_fns)
+						behav_builder = BehaviorModelBuilder(core_def.constants, {}, {},core_def.register_banks,
+										    core_def.register_aliases, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
