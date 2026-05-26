@@ -82,7 +82,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
 
     % for reg in ptr_regs:
     % if isinstance(reg.ty, type_info.ArrayType):
-    for (int i = 0; i < ${reg.ty.length}; ++i)
+    for (int i = 0; i < ${arch.get_const_or_val(reg.ty.length)}; ++i)
     {
         ${core_name.lower()}cpu->ins_${reg.name}[i] = 0;
         ${core_name.lower()}cpu->${reg.name}[i] = &${core_name.lower()}cpu->ins_${reg.name}[i];
@@ -97,7 +97,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % if not isinstance(reg, (arch.Memory, arch.Alias)):
     % if not reg.is_pc:
     % if isinstance(reg.ty, type_info.ArrayType):
-    for (int i = 0; i < ${reg.ty.length}; ++i)
+    for (int i = 0; i < ${arch.get_const_or_val(reg.ty.length)}; ++i)
     {
         ${core_name.lower()}cpu->${reg.name}[i] = 0;
     }
@@ -111,7 +111,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % for reg, parent in alias_regs.items():
 <% ref = "&" %>\
     % if isinstance(reg.ty, type_info.ArrayType):
-    for (int i = 0; i < ${reg.ty.length}; ++i)
+    for (int i = 0; i < ${arch.get_const_or_val(reg.ty.length)}; ++i)
     {
         ${core_name.lower()}cpu->${parent.name}[i] = ${ref}${core_name.lower()}cpu->${reg.name}[i];
     }
