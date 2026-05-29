@@ -27,7 +27,7 @@ from ...transforms.infer_types.transform import infer_types
 from ...transforms.validate_behav.validate import validate_behav
 from ...warnings import add_warnings_flags, KNOWN_WARNINGS
 
-def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 	simplifier = ExprSimplifierVisitor()
 	# TODO: switch to ExprInterpreterVisitor?
@@ -101,9 +101,9 @@ def main():
 
 		warned_fns = set()
 
-		logger.debug("checking core constants")
+		logger.debug("checking core parameters")
 		unassigned_const = False
-		for const in core_def.constants.values():
+		for const in core_def.parameters.values():
 			if const.value is None:
 				logger.critical("constant %s in core %s has no value assigned!", const.name, core_name)
 				unassigned_const = True
@@ -113,7 +113,7 @@ def main():
 
 		logger.debug("evaluating core parameters")
 
-		for const_def in core_def.constants.values():
+		for const_def in core_def.parameters.values():
 			const_def._value = const_def.value
 
 		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
@@ -134,7 +134,7 @@ def main():
 				for attr_op in attr_ops:
 					try:
 
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 							{}, {}, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
@@ -163,7 +163,7 @@ def main():
 				for attr_op in attr_ops:
 					try:
 
-						behav_builder = BehaviorModelBuilder(core_def.constants, {}, {},core_def.register_banks,
+						behav_builder = BehaviorModelBuilder(core_def.parameters, {}, {},core_def.register_banks,
 										    core_def.register_aliases, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
@@ -193,7 +193,7 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 							core_def.register_banks, core_def.register_aliases, fn_def.args, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
@@ -203,7 +203,7 @@ def main():
 
 				fn_def.attributes[attr_name] = ops
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 					core_def.register_banks, core_def.register_aliases, fn_def.args, core_def.functions, warned_fns)
 
 			if not isinstance(fn_def.operation, behav.Operation):
@@ -233,7 +233,7 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 							core_def.register_banks, core_def.register_aliases, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
@@ -243,7 +243,7 @@ def main():
 
 				block_def.attributes[attr_name] = ops
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 				core_def.register_banks, core_def.register_aliases, {}, core_def.functions, warned_fns)
 
 			try:
@@ -268,7 +268,7 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 							core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
@@ -282,14 +282,14 @@ def main():
 				assert isinstance(enable_attr, list)
 				assert len(enable_attr) == 1
 				enable_attr = enable_attr[0]
-				enable = try_eval_bool(enable_attr, core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
+				enable = try_eval_bool(enable_attr, core_def.parameters, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
 				if enable is not None:
 					assert isinstance(enable, bool)
 					instr_def.attributes.pop(attribute_info.InstrAttribute.ENABLE)
 					if not enable:
 						continue
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 				core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 
 			try:

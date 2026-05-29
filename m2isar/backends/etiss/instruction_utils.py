@@ -134,12 +134,12 @@ class TransformerContext:
 	provides helper functions for staticness conversion etc.
 	"""
 
-	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
+	def __init__(self, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
 			registers: "dict[str, arch.Memory]", register_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
 			attributes: "list[attribute_info.InstrAttribute]", functions: "dict[str, arch.Function]", instr_size: int, native_size: int,
 			arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
-		self.constants = constants
+		self.parameters = parameters
 		self.memories = memories
 		self.memory_aliases = memory_aliases
 		self.registers = registers
@@ -209,4 +209,4 @@ class TransformerContext:
 		if isinstance(name_or_val, int):
 			return name_or_val
 
-		return self.constants[name_or_val]
+		return self.parameters[name_or_val]

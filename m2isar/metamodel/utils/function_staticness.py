@@ -126,7 +126,7 @@ class FunctionStaticnessVisitor(ExprVisitor):
 		static_map = {
 			arch.Memory: False,
 			arch.BitFieldDescr: True,
-			arch.Constant: True,
+			arch.Parameter: True,
 			arch.FnParam: True,
 			arch.Variable: True,
 			arch.Intrinsic: False

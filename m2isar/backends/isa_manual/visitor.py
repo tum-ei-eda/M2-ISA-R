@@ -130,7 +130,7 @@ class ISAmanualVisitor(ExprVisitor):
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
         writer.write(expr.reference.name)
-        if isinstance(expr.reference, (arch.Constant, arch.Memory, arch.Scalar)):
+        if isinstance(expr.reference, (arch.Parameter, arch.Memory, arch.Scalar)):
             pass
 
     @generate.register

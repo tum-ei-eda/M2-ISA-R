@@ -9,7 +9,7 @@
 """A transformation module for simplifying M2-ISA-R behavior expressions. The following
 simplifications are done:
 
-* Resolvable :class:`m2isar.metamodel.arch.Constant` s are replaced by
+* Resolvable :class:`m2isar.metamodel.arch.Parameter` s are replaced by
   `m2isar.metamodel.arch.Literal` s representing their value
 * Fully resolvable arithmetic operations are carried out and their results
   represented as a matching :class:`m2isar.metamodel.arch.Literal`
@@ -217,7 +217,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Constant):
+		if isinstance(expr.reference, arch.Parameter):
 			if expr.reference.signed:
 				kind = type_info.TypeKind.INT
 			else:

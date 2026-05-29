@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 exprInterpretVisitor = ExprInterpreterVisitor()
 
 def get_const_or_val(arg) -> int:
-	if isinstance(arg, Constant):
+	if isinstance(arg, Parameter):
 		return arg.value
 
 	if isinstance(arg, Literal):
@@ -52,15 +52,15 @@ class Named:
 	def __repr__(self) -> str:
 		return f'<{type(self).__name__} object>: name={self.name}'
 
-ValOrConst = Union[int, "Constant"]
+ValOrConst = Union[int, "Parameter"]
 
 class SizedRefOrConst(Named):
 	"""A simple base class for an object with a name and a size.
-	Size can be either an int, a Constant or a statically resolvable
+	Size can be either an int, a Parameter or a statically resolvable
 	expression, expressed by a BaseNode.
 	"""
 
-	_size: Union[int, "Constant", "BaseNode"]
+	_size: Union[int, "Parameter", "BaseNode"]
 	"""The size of the object"""
 
 	def __init__(self, name, size: ValOrConst):
@@ -79,12 +79,12 @@ class SizedRefOrConst(Named):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, size={self.size}'
 
-class Constant(SizedRefOrConst):
-	"""An object holding a constant value. Should have a value at some point, also holds attributes
-	and signedness information.
+class Parameter(SizedRefOrConst):
+	"""An object holding a ("Parameter") Parameter value.
+	Should have a value at some point, also holds attributes and signedness information.
 	"""
 
-	_value: Union[int, "Constant", "BaseNode"]
+	_value: Union[int, "Parameter", "BaseNode"]
 	"""The value this object holds. Can be an int, another constant or a statically resolvable BaseNode."""
 
 	attributes: "dict[attribute_info.ConstAttribute, list[BaseNode]]"
@@ -93,7 +93,7 @@ class Constant(SizedRefOrConst):
 	signed: bool
 	"""The signedness of this constant."""
 
-	def __init__(self, name, value: Union[int, "Constant", "BaseNode"], attributes: "dict[attribute_info.ConstAttribute, list[BaseNode]]", size=None, signed=False):
+	def __init__(self, name, value: Union[int, "Parameter", "BaseNode"], attributes: "dict[attribute_info.ConstAttribute, list[BaseNode]]", size=None, signed=False):
 		self._value = value
 		self.attributes = attributes if attributes else {}
 		self.signed = signed
@@ -117,13 +117,13 @@ class Constant(SizedRefOrConst):
 class RangeSpec:
 	"""A class holding a range to denote a range of indices or width of a memory bank."""
 
-	_upper_base: Union[int, "Constant", "BaseNode"]
+	_upper_base: Union[int, "Parameter", "BaseNode"]
 	"""The upper bound of the range. Can be an int, a constant or a statically resolvable BaseNode."""
-	_lower_base: Union[int, "Constant", "BaseNode"]
+	_lower_base: Union[int, "Parameter", "BaseNode"]
 	"""The lower bound of the range. Can be an int, a constant or a statically resolvable BaseNode."""
-	_upper_power: Union[int, "Constant", "BaseNode"]
+	_upper_power: Union[int, "Parameter", "BaseNode"]
 	"""Obsolete, do not use"""
-	_lower_power: Union[int, "Constant", "BaseNode"]
+	_lower_power: Union[int, "Parameter", "BaseNode"]
 	"""Obsolete, do not use"""
 
 	def __init__(self, upper_base: ValOrConst, lower_base: ValOrConst=None, upper_power: ValOrConst=1, lower_power: ValOrConst=1):
@@ -194,7 +194,7 @@ class FnParam(Named):
 	"""A function parameter."""
 
 	ty: type_info.PrimitiveType
-	_width: Union[int, "Constant", "BaseNode"]
+	_width: Union[int, "Parameter", "BaseNode"]
 	"""The array width of this parameter."""
 
 	def __init__(self, name, size, kind: type_info.TypeKind, width=1):
@@ -244,7 +244,7 @@ class Variable(Symbol):
         assert isinstance(ty, (type_info.PrimitiveType, type_info.PrimitiveType))
         assert ty.kind.is_scalar
 
-        # optional: only for constants/literals
+        # optional: only for parameters/literals
         self.value = value
 
         super().__init__(name, ty, attributes={"static": static})
@@ -262,9 +262,9 @@ class RegisterBank(Symbol):
     """A class representing a register bank. A register bank combines structured registers,
     which is used to represent registers in the architectural part of an M2-ISA-R model."""
     children: "list[Memory]"
-    _initval: "dict[int, Union[int, Constant, BaseNode]]"
+    _initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
-    def __init__(self, name, nr_ele: Union[int, Constant], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+    def __init__(self, name, nr_ele: Union[int, Parameter], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
         self.children = []
         self._initval = {}
         ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
@@ -294,7 +294,7 @@ class Register(Symbol):
     This class should simplify different handling to register bank.
     And is used to represent registers in the architectural part of an M2-ISA-R model."""
     children: "list[Memory]"
-    _initval: "dict[Union[int, Constant, BaseNode]]"
+    _initval: "dict[Union[int, Parameter, BaseNode]]"
 
     def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
         self.children = []
@@ -332,7 +332,7 @@ class Memory(Symbol):
 	range: RangeSpec
 	children: "list[Memory]"
 	parent: "Union['Memory', None]"
-	_initval: "dict[int, Union[int, Constant, BaseNode]]"
+	_initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
 	def __init__(self, name, kind : type_info.TypeKind, size, length, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.children = []
@@ -587,15 +587,15 @@ class AlwaysBlock(Named):
 		super().__init__(name)
 
 class InstructionSet(Named):
-	"""A class representing an InstructionSet collection. Bundles constants, memories, functions
+	"""A class representing an InstructionSet collection. Bundles parameters, memories, functions
 	and instructions under a common name.
 	"""
 
-	def __init__(self, name, extension: "list[str]", constants: "dict[str, Constant]", memories: "dict[str, Memory]",
+	def __init__(self, name, extension: "list[str]", parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
 			register_banks: "dict[str, RegisterBank]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
 
 		self.extension = extension
-		self.constants = constants
+		self.parameters = parameters
 		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
 		self.register_banks, self.register_aliases = extract_register_alias(register_banks.values())
 		self.functions = functions
@@ -606,14 +606,14 @@ class InstructionSet(Named):
 class CoreDef(Named):
 	"""A class representing an entire CPU core. Contains the collected attributes of multiple InstructionSets."""
 
-	def __init__(self, name, contributing_types: "list[str]", template: str, constants: "dict[str, Constant]", memories: "dict[str, Memory]",
+	def __init__(self, name, contributing_types: "list[str]", template: str, parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]",
 			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", instr_classes: "set[int]",
 			intrinsics: "dict[str, Intrinsic]"):
 
 		self.contributing_types = contributing_types
 		self.template = template
-		self.constants = constants
+		self.parameters = parameters
 		self.memories = memories
 		self.memory_aliases = memory_aliases
 		self.register_banks = register_banks

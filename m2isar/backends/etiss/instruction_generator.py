@@ -34,7 +34,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 
 	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
 
-	core_default_width = core.constants['XLEN'].value
+	core_default_width = core.parameters['XLEN'].value
 	core_name = core.name
 
 	for fn_name, fn_def in core.functions.items():
@@ -48,7 +48,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 			return_type += f'{actual_size(fn_def.ty.size)}'
 
 		# set up a transformer context and generate code
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, core.register_banks,
+		context = instruction_utils.TransformerContext(core.parameters, core.memories, core.memory_aliases, core.register_banks,
 												 core.register_aliases, fn_def.args, fn_def.attributes, core.functions,
 												 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True)
 
@@ -148,12 +148,12 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	instr_name = instr_def.name
 	core_name = core.name
 	misc_code = []
-	core_default_width = core.constants['XLEN'].value
+	core_default_width = core.parameters['XLEN'].value
 	fields_code, _, _, enc_idx = fields
 
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
-	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, core.register_banks, core.register_aliases, instr_def.fields, instr_def.attributes,
+	context = instruction_utils.TransformerContext(core.parameters, core.memories, core.memory_aliases, core.register_banks, core.register_aliases, instr_def.fields, instr_def.attributes,
 							core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
 
 	# force a block end if necessary
@@ -226,7 +226,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 			instr_def.attributes = []
 
 		# generate instruction parameter extraction code
-		fields = generate_fields(core.constants['XLEN'].value, instr_def)
+		fields = generate_fields(core.parameters['XLEN'].value, instr_def)
 		fields_code, asm_printer_code, seen_fields, enc_idx = fields
 
 		code_string = f'{code:#0{int(enc_idx/4)}x}'

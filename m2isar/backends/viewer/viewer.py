@@ -107,9 +107,9 @@ def main():
 	for core_name, core_def in sorted(cores.items()):
 		core_id = tree.insert("", tk.END, text=core_name)
 
-		# add constants to tree
-		consts_id = tree.insert(core_id, tk.END, text="Constants")
-		for const_name, const_def in sorted(core_def.constants.items()):
+		# add parameters to tree
+		consts_id = tree.insert(core_id, tk.END, text="Parameters")
+		for const_name, const_def in sorted(core_def.parameters.items()):
 			tree.insert(consts_id, tk.END, text=const_name, values=(const_def.value,))
 
 		# add memories to tree

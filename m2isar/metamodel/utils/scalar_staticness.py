@@ -147,7 +147,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 			arch.Register: attribute_info.StaticAttribute.NONE,
 			arch.Alias: attribute_info.StaticAttribute.NONE,
 			arch.BitFieldDescr: attribute_info.StaticAttribute.READ,
-			arch.Constant: attribute_info.StaticAttribute.READ,
+			arch.Parameter: attribute_info.StaticAttribute.READ,
 			arch.FnParam: attribute_info.StaticAttribute.READ
 		}
 

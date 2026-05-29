@@ -9,7 +9,7 @@
 """A transformation module for simplifying M2-ISA-R behavior expressions. The following
 simplifications are done:
 
-* Resolvable :class:`m2isar.metamodel.arch.Constant` s are replaced by
+* Resolvable :class:`m2isar.metamodel.arch.Parameter` s are replaced by
   `m2isar.metamodel.arch.Literal` s representing their value
 * Fully resolvable arithmetic operations are carried out and their results
   represented as a matching :class:`m2isar.metamodel.arch.Literal`
@@ -312,7 +312,7 @@ class InferTypesMutator(ExprMutator):
         elif isinstance(reference, arch.Intrinsic):
             assert reference.ty.kind.is_int and isinstance(reference.ty, type_info.PrimitiveType)
             expr.ty = reference.ty
-        elif isinstance(reference, arch.Constant):
+        elif isinstance(reference, arch.Parameter):
             kind = type_info.TypeKind.INT if reference.signed else type_info.TypeKind.UINT
             expr.ty = type_info.PrimitiveType(kind, reference.size)
         elif isinstance(reference, arch.FnParam):

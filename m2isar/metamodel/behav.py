@@ -25,7 +25,7 @@ from .type_info import PrimitiveType, TypeKind
 
 
 if TYPE_CHECKING:
-	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
+	from .arch import (BitFieldDescr, Parameter, FnParam, Function, Intrinsic,
 	                   Memory, Variable, RegisterBank)
 	from .code_info import LineInfo
 
@@ -190,9 +190,9 @@ class UnaryOperation(BaseNode):
 		self.right = right
 
 class NamedReference(BaseNode):
-	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Constant or FnParam."""
+	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
 
-	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Variable", "Constant", "FnParam", "Intrinsic"], line_info=None):
+	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Variable", "Parameter", "FnParam", "Intrinsic"], line_info=None):
 		super().__init__(line_info)
 		self.reference = reference
 

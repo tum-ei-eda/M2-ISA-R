@@ -614,7 +614,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# check which type of reference has to be generated
 		if isinstance(referred_var, arch.Memory):
-			# architecture constant
+			# architecture constant parameter
 			if not static:
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
@@ -623,7 +623,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.RegisterBank):
-			# architecture constant
+			# architecture constant parameter
 			if not static:
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
@@ -632,7 +632,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.Register):
-			# architecture constant
+			# architecture constant parameter
 			if not static:
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
@@ -641,7 +641,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.Alias):
-			# architecture constant
+			# architecture constant parameter
 			# Limitation: Alias does not haven children
 			if not static:
 				ref = ""
@@ -664,7 +664,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			if context.static_scalars:
 				static = referred_var.attributes.get("static")
 
-		elif isinstance(referred_var, arch.Constant):
+		elif isinstance(referred_var, arch.Parameter):
 			signed = referred_var.value < 0
 			size = context.native_size
 			static = attribute_info.StaticAttribute.READ

@@ -31,7 +31,7 @@ class ExprInterpreterVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Constant) and expr.reference.value is not None:
+		if isinstance(expr.reference, arch.Parameter) and expr.reference.value is not None:
 			return expr.reference.value
 		raise M2ValueError("non-interpretable value encountered")
 

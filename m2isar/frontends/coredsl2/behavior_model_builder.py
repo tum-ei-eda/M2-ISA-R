@@ -31,13 +31,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	of a CoreDSL 2 specification.
 	"""
 
-	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
+	def __init__(self, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
 		register_banks: "dict[str, Union[arch.RegisterBank, arch.Register]]", register_aliases: "dict[str, arch.Alias]", fields: "dict[str, arch.BitFieldDescr]",
 		functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 
 		super().__init__()
 
-		self._constants = constants
+		self._parameters = parameters
 		self._memories = memories
 		self._memory_aliases = memory_aliases
 		self._register_banks = register_banks
@@ -334,7 +334,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		var = self._scalars.get(name) or \
 			self._fields.get(name) or \
-			self._constants.get(name) or \
+			self._parameters.get(name) or \
 			self._memory_aliases.get(name) or \
 			self._memories.get(name) or \
 			self._register_aliases.get(name) or \

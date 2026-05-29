@@ -24,7 +24,7 @@ exprInterpretVisitor = ExprInterpreterVisitor()
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
 
-	_constants: "dict[str, arch.Constant]"
+	_parameters: "dict[str, arch.Parameter]"
 	_instructions: "list[arch.Instruction]"
 	_functions: "dict[str, arch.Function]"
 	_always_blocks: "dict[str, arch.AlwaysBlock]"
@@ -43,7 +43,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def __init__(self):
 		super().__init__()
-		self._constants = {}
+		self._parameters = {}
 		# self._instructions = {}
 		self._instructions = []
 		self._functions = {}
@@ -93,7 +93,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# generate flat list of instruction set contents
 		contents = flatten([self.visit(obj) for obj in ctx.sections])
 
-		constants = {}
+		parameters = {}
 		memories = {}
 		register_banks = {}
 		functions = {}
@@ -102,8 +102,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# group contents by type
 		for item in contents:
-			if isinstance(item, arch.Constant):
-				constants[item.name] = item
+			if isinstance(item, arch.Parameter):
+				parameters[item.name] = item
 			elif isinstance(item, arch.Memory):
 				memories[item.name] = item
 			elif isinstance(item, (arch.RegisterBank, arch.Register)):
@@ -123,7 +123,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				raise M2ValueError("unexpected item encountered")
 
 		# instantiate M2-ISA-R object
-		i = arch.InstructionSet(name, extension, constants, memories, register_banks, functions, instructions)
+		i = arch.InstructionSet(name, extension, parameters, memories, register_banks, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
@@ -151,7 +151,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
-			self._constants, self._memories, self._memory_aliases,
+			self._parameters, self._memories, self._memory_aliases,
 			self._register_banks, self._register_aliases, self._functions,
 			self._instructions, self._instr_classes, intrinsics)
 
@@ -380,8 +380,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				# no storage specifier -> implementation parameter, "Constant" in M2-ISA-R
 				if len(storage) == 0:
-					if name in self._constants:
-						raise M2DuplicateError(f"constant {name} already defined")
+					if name in self._parameters:
+						raise M2DuplicateError(f"Parameter {name} already defined")
 
 					# extract initializer if present
 					init = None
@@ -390,9 +390,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					signed = True if type_.kind == type_info.TypeKind.INT else False
 
-					c = arch.Constant(name, init, [], type_.size, signed)
+					c = arch.Parameter(name, init, [], type_.size, signed)
 
-					self._constants[name] = c
+					self._parameters[name] = c
 					ret_decls.append(c)
 
 				# register and extern declaration: "Memory" object in M2-ISA-R
@@ -417,7 +417,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
-					if isinstance(size[0], (arch.Constant, behav.NamedReference)):
+					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
 						m = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
 					elif isinstance(size[0], behav.Literal):
 						if size[0].value >= 1:
@@ -430,7 +430,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						# Unset Case: =1
 						m = arch.Register(name, type_.kind, type_.size, attributes)
 					else:
-						raise NotImplementedError("Only Constants and Int allowed as dimension for register size")
+						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
 
 					# attach init value to register bank object
 					if init is not None:
@@ -556,7 +556,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.ref.text
 
 		# try to resolve the reference, error out if invalid
-		ref = self._constants.get(name) or self._memories.get(name) or self._memory_aliases.get(name) \
+		ref = self._parameters.get(name) or self._memories.get(name) or self._memory_aliases.get(name) \
 			  or self._register_banks.get(name) or self._register_aliases.get(name)
 		if ref is None:
 			raise M2NameError(f"reference \"{name}\" could not be resolved")
@@ -584,7 +584,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# if LHS is a reference, assign RHS as its default value
 		if isinstance(left, behav.NamedReference):
-			if isinstance(left.reference, arch.Constant):
+			if isinstance(left.reference, arch.Parameter):
 				left.reference.value = exprInterpretVisitor.generate(right, None)
 
 			elif isinstance(left.reference, arch.Memory):
