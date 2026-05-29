@@ -118,13 +118,13 @@ def main():
 
 		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
 			if isinstance(mem_def.ty, type_info.ArrayType):
-				size = arch.get_const_or_val(mem_def.ty.element_kind.size)
+				size = arch.get_const_or_val(mem_def.ty.element_type.size)
 			elif isinstance(mem_def.ty, type_info.PrimitiveType):
 				size = arch.get_const_or_val(mem_def.ty.size)
 			else:
 				assert(isinstance(mem_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
 				if isinstance(mem_def.ty.ty, type_info.ArrayType):
-					size = arch.get_const_or_val(mem_def.ty.ty.element_kind.size)
+					size = arch.get_const_or_val(mem_def.ty.ty.element_type.size)
 				else:
 					size = arch.get_const_or_val(mem_def.ty.ty.size)
 
@@ -146,7 +146,7 @@ def main():
 
 		for reg_def in itertools.chain(core_def.register_banks.values(), core_def.register_aliases.values()):
 			if isinstance(reg_def.ty, type_info.ArrayType):
-				reg_def.ty.element_kind.size = arch.get_const_or_val(reg_def.ty.element_kind.size)
+				reg_def.ty.element_type.size = arch.get_const_or_val(reg_def.ty.element_type.size)
 				reg_def.ty.length = arch.get_const_or_val(reg_def.ty.length)
 			elif isinstance(reg_def.ty, type_info.PrimitiveType):
 				reg_def.ty.size = arch.get_const_or_val(reg_def.ty.size)
@@ -154,7 +154,7 @@ def main():
 				assert(isinstance(reg_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
 				pass
 				# if isinstance(reg_def.ty.ty, type_info.ArrayType):
-				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_kind.size)
+				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_type.size)
 				# else:
 				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
 

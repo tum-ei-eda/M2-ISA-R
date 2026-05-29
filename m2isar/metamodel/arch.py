@@ -241,8 +241,13 @@ class Variable(Symbol):
         static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
         value=None, # Compile Time information
     ):
-        assert isinstance(ty, (type_info.PrimitiveType, type_info.PrimitiveType))
-        assert ty.kind.is_scalar
+        assert isinstance(ty, (type_info.PrimitiveType, type_info.ArrayType))
+
+        if isinstance(ty, type_info.PrimitiveType):
+            assert ty.kind.is_scalar
+        elif isinstance(ty, type_info.ArrayType):
+			# only allow 1D arrays for now
+            assert ty.element_type.kind.is_scalar
 
         # optional: only for parameters/literals
         self.value = value

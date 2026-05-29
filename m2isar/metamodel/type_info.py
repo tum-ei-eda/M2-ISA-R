@@ -69,10 +69,10 @@ class FloatType:
 
 class ArrayType:
     def __init__(self, element_type : Union[PrimitiveType, FloatType], length: int):
-        self.element_kind : Union[PrimitiveType, FloatType] = element_type
+        self.element_type : Union[PrimitiveType, FloatType] = element_type
         self.length = length # allow shaped later or TYPE_ARRAY in element_type?
     def __str__(self):
-        return f"ARRAY<{self.element_kind}, {self.length}>"
+        return f"ARRAY<{self.element_type}, {self.length}>"
 
 @dataclass
 class PointerType:

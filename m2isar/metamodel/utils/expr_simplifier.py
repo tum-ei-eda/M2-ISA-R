@@ -66,8 +66,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
 			if isinstance(expr.left.ty, type_info.ArrayType):
-				if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.element_kind.size):
-					expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.element_kind.size)
+				if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.element_type.size):
+					expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.element_type.size)
 			else:
 				if expr.right.ty.size < arch.get_const_or_val(expr.left.ty.size):
 					expr.right.ty.size = arch.get_const_or_val(expr.left.ty.size)

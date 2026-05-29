@@ -52,7 +52,7 @@ def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
 		if isinstance(reg.ty, type_info.ArrayType):
-			size = actual_size(reg.ty.element_kind.size)
+			size = actual_size(reg.ty.element_type.size)
 		elif isinstance(reg.ty, type_info.PrimitiveType):
 			size = actual_size(reg.ty.size)
 		else:
@@ -202,16 +202,16 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 
 	logger.info("writing architecture specific header")
 
-	core.main_reg_file.ty.element_kind.size = arch.get_const_or_val(core.main_reg_file.ty.element_kind.size)
+	core.main_reg_file.ty.element_type.size = arch.get_const_or_val(core.main_reg_file.ty.element_type.size)
 	core.main_reg_file.ty.length = arch.get_const_or_val(core.main_reg_file.ty.length)
 	if core.float_reg_file is not None:
-		core.float_reg_file.ty.element_kind.size = arch.get_const_or_val(core.float_reg_file.ty.element_kind.size)
+		core.float_reg_file.ty.element_type.size = arch.get_const_or_val(core.float_reg_file.ty.element_type.size)
 		core.float_reg_file.ty.length = arch.get_const_or_val(core.float_reg_file.ty.length)
 	if core.vector_reg_file is not None:
-		core.vector_reg_file.ty.element_kind.size = arch.get_const_or_val(core.vector_reg_file.ty.element_kind.size)
+		core.vector_reg_file.ty.element_type.size = arch.get_const_or_val(core.vector_reg_file.ty.element_type.size)
 		core.vector_reg_file.ty.length = arch.get_const_or_val(core.vector_reg_file.ty.length)
 	if core.csr_reg_file is not None:
-		core.csr_reg_file.ty.element_kind.size = arch.get_const_or_val(core.csr_reg_file.ty.element_kind.size)
+		core.csr_reg_file.ty.element_type.size = arch.get_const_or_val(core.csr_reg_file.ty.element_type.size)
 		core.csr_reg_file.ty.length = arch.get_const_or_val(core.csr_reg_file.ty.length)
 
 	txt = arch_specific_header_template.render(

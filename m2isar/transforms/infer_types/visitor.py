@@ -158,7 +158,7 @@ class InferTypesMutator(ExprMutator):
             ty_.size = width
         elif isinstance(ty_, type_info.ArrayType):
             if width == 1: # Array -> PrimitiveType
-                ty_ = ty_.element_kind
+                ty_ = ty_.element_type
             else: # Array Slice
                 ty_.length =  arch.get_const_or_val(width)
         else:
@@ -302,7 +302,7 @@ class InferTypesMutator(ExprMutator):
             assert(reference.length == 1)
             if isinstance(reference.parent, (arch.Memory, arch.RegisterBank)):
                 # expr.ty = self.generate(behav.NamedReference(reference.parent), context)
-                expr.ty = reference.parent.ty.element_kind
+                expr.ty = reference.parent.ty.element_type
                 assert (expr.ty is not None)
             elif isinstance(reference.parent, arch.Register):
                 expr.ty = reference.parent.ty
@@ -333,8 +333,8 @@ class InferTypesMutator(ExprMutator):
         #     expr.right = self.generate(expr.right, context)
 
         # type inference
-        assert expr.reference.ty.element_kind.kind.is_int
-        single_mem_acc_size = expr.reference.ty.element_kind.size
+        assert expr.reference.ty.element_type.kind.is_int
+        single_mem_acc_size = expr.reference.ty.element_type.size
 
         ## Simple eval check for ranged access.
         # Little-endian interpretation:
@@ -349,7 +349,7 @@ class InferTypesMutator(ExprMutator):
             assert(lhs_offset >= rhs_offset)
             size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
 
-        ty_ = type_info.PrimitiveType(expr.reference.ty.element_kind.kind, size)
+        ty_ = type_info.PrimitiveType(expr.reference.ty.element_type.kind, size)
 
         expr.ty = ty_
         assert expr.ty is not None

@@ -628,7 +628,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
 			signed = False
-			size = (referred_var.ty.length)*(referred_var.ty.element_kind.size)
+			size = (referred_var.ty.length)*(referred_var.ty.element_type.size)
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.Register):
@@ -712,7 +712,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		if isinstance(referred_mem, type_info.PrimitiveType):
 			size = referred_mem.ty.size
 		else:
-			size = referred_mem.ty.element_kind.size
+			size = referred_mem.ty.element_type.size
 
 		# convert static index expression
 		index_code = index.code
