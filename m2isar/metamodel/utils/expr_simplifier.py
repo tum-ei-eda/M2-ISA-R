@@ -79,7 +79,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				kind = type_info.TypeKind.INT
 			else:
 				kind = type_info.TypeKind.UINT
-			return behav.Literal(res, kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length()))
+			return behav.Literal(res, type_info.PrimitiveType(kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length())))
 
 		if expr.op.value == "&&":
 			if isinstance(expr.left, behav.Literal):
@@ -211,7 +211,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				kind = type_info.TypeKind.INT
 			else:
 				kind = expr.right.ty.kind
-			return behav.Literal(res, kind, max(expr.right.ty.size, res.bit_length()))
+			return behav.Literal(res, type_info.PrimitiveType(kind, max(expr.right.ty.size, res.bit_length())))
 
 		return expr
 
@@ -222,7 +222,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				kind = type_info.TypeKind.INT
 			else:
 				kind = type_info.TypeKind.UINT
-			return behav.Literal(expr.reference.value, kind, arch.get_const_or_val(expr.reference.size))
+			return behav.Literal(expr.reference.value, type_info.PrimitiveType(kind, arch.get_const_or_val(expr.reference.size)))
 
 		return expr
 

@@ -138,7 +138,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 			else:
-				init = behav.Literal(0, type_.kind, type_.size)
+				if isinstance(type_, type_info.ArrayType):
+					init = behav.Literal(0, type_)
+				elif isinstance(type_, type_info.PrimitiveType):
+					init = behav.Literal(0, type_)
+				else:
+					raise f"Literal has a not supported type {type}"
+
 
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
 			ret_decls.append(a)
@@ -364,7 +370,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		kind = type_info.TypeKind.INT if value <= 0 else type_info.TypeKind.UINT
 
-		return behav.Literal(value, kind, width, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(value,  type_info.PrimitiveType(kind, width), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
 		"""Generate a character literal. Converts directly to uint8."""
@@ -373,7 +379,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		value = min(ord(text.replace("'", "")), 255)
 
-		return behav.Literal(value, type_info.TypeKind.UINT, size=8, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(value, type_info.PrimitiveType(type_info.TypeKind.UINT, size=8), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitString_constant(self, ctx: CoreDSL2Parser.String_constantContext):
 		text: str = ctx.value.text
@@ -381,14 +387,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		assert text[0] == '"' and text[-1] == '"'
 		text = text[1:-1]
 
-		return behav.Literal(text, type_info.TypeKind.STR, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(text, type_info.PrimitiveType(type_info.TypeKind.STR, len(text)), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitBool_constant(self, ctx: CoreDSL2Parser.Bool_constantContext):
 		"""Generate a boolean literal. Converts directly to uint1."""
 
 		text: str = ctx.value.text
 
-		return behav.Literal(BOOLCONST[text], type_info.TypeKind.UINT, size=1, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(BOOLCONST[text], type_info.PrimitiveType(type_info.TypeKind.UINT, 1), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
 		"""Generate a type cast."""
@@ -456,4 +462,4 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		"""Lookup a shorthand type specifier."""
 
-		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], type_info.TypeKind.NONE, line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))

@@ -95,12 +95,12 @@ class ConcatOperation(BaseNode):
 
 
 class Literal(BaseNode):
-	def __init__(self, value:int, kind: TypeKind = TypeKind.INT, size=None, base: Optional[int]=10, line_info=None):
+	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.NONE, None), base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
 
-		assert kind.is_literal
+		assert ty.kind.is_literal
 		self._value: Union[int, str] = value
-		self.ty = PrimitiveType(kind, size)      # assigned during type checking
+		self.ty = ty    # assigned during type checking
 
 		#Optional type information (not always given)
 		self.base:  Optional[int] = base   # 2, 10, 16

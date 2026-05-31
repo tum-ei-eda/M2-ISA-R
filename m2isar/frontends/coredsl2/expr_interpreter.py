@@ -45,6 +45,12 @@ class ExprInterpreterVisitor(ExprVisitor):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
 		return int(eval(f"{left}{expr.op.value}{right}"))
+		# try:
+		# 	val = literal_eval(f"{left}{expr.op.value}{right}")
+		# 	val = int(val)
+		# except:
+		# 	val = expr
+		# return val
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):

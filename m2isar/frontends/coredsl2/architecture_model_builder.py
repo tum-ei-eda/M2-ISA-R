@@ -310,7 +310,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				width = value.bit_length()
 
 		kind = type_info.TypeKind.UINT if value >=0 else type_info.TypeKind.INT
-		return behav.Literal(value, kind, width)
+		return behav.Literal(value, type_info.PrimitiveType(kind, width))
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
@@ -585,7 +585,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		value = SHORTHANDS[ctx.children[0].symbol.text]
-		return behav.Literal(value, type_info.TypeKind.NONE)
+		return behav.Literal(value)
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """
