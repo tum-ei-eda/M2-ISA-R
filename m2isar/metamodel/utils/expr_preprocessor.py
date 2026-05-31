@@ -18,7 +18,7 @@ from .. import arch, attribute_info
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
 from .function_throws import FunctionThrowsVisitor
-from .scalar_staticness import ScalarStaticnessVisitor
+from .variable_staticness import VarStaticnessVisitor
 
 logger = logging.getLogger("preprocessor")
 
@@ -38,7 +38,7 @@ def process_functions(core: arch.CoreDef):
 
 	simplifier = ExprSimplifierVisitor()
 	function_throws_visitor = FunctionThrowsVisitor()
-	scalar_staticness_visitor = ScalarStaticnessVisitor()
+	scalar_staticness_visitor = VarStaticnessVisitor()
 	function_staticness_visitor = FunctionStaticnessVisitor()
 
 	for fn_name, fn_def in core.functions.items():
@@ -74,7 +74,7 @@ def process_instructions(core: arch.CoreDef):
 
 	simplifier = ExprSimplifierVisitor()
 	function_throws_visitor = FunctionThrowsVisitor()
-	scalar_staticness_visitor = ScalarStaticnessVisitor()
+	scalar_staticness_visitor = VarStaticnessVisitor()
 
 	for _, instr_def in core.instructions.items():
 		logger.debug("simplifying expressions for instr %s", instr_def.name)

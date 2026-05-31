@@ -104,7 +104,7 @@ class ExprVisitor(ABC):
         self.generate(expr.right, context)
 
     @default_visit.register
-    def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
+    def visit_var_definition(self, expr: behav.VarDefinition, context):
         pass
 
     @default_visit.register

@@ -61,7 +61,7 @@ class IdTransformVisitor(ExprVisitor):
 		self._store_id(expr, context)
 
 	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context: "IdMatcherContext"):
+	def _(self, expr: behav.VarDefinition, context: "IdMatcherContext"):
 		self._store_id(expr, context)
 
 	@generate.register

@@ -120,7 +120,7 @@ class ValidateBehavVisitor(ExprVisitor):
         return expr
 
     @generate.register
-    def _(self, expr: behav.ScalarDefinition, context):
+    def _(self, expr: behav.VarDefinition, context):
         pass
 
     @generate.register

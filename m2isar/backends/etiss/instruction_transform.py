@@ -177,25 +177,25 @@ class InstructionTransformVisitor(ExprVisitor):
 		return CodeString("break;", attribute_info.StaticAttribute.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context: TransformerContext):
-		"""Generate a scalar definition. Calculates the actual required data width and generates
+	def _(self, expr: behav.VarDefinition, context: TransformerContext):
+		"""Generate a Variable definition. Calculates the actual required data width and generates
 		a variable instantiation."""
-		if context.static_scalars:
+		if context.static_vars:
 			if context.ignore_static:
 				static = attribute_info.StaticAttribute.RW
 			else:
-				static = expr.scalar.attributes["static"]
+				static = expr.var.attributes["static"]
 		else:
 			static = attribute_info.StaticAttribute.NONE
 
-		actual_size = 1 << (expr.scalar.ty.size - 1).bit_length()
+		actual_size = 1 << (expr.var.ty.size - 1).bit_length()
 		actual_size = max(actual_size, 8)
 
 		return CodeString(
-			f'{data_type_map[expr.scalar.ty.kind]}{actual_size} {expr.scalar.name}',
+			f'{data_type_map[expr.var.ty.kind]}{actual_size} {expr.var.name}',
 			static,
-			expr.scalar.ty.size,
-			expr.scalar.ty.kind == type_info.TypeKind.INT,
+			expr.var.ty.size,
+			expr.var.ty.kind == type_info.TypeKind.INT,
 			line_infos=expr.line_info,
 		)
 
@@ -704,7 +704,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
-			if context.static_scalars:
+			if context.static_vars:
 				static = referred_var.attributes.get("static")
 
 		elif isinstance(referred_var, arch.Parameter):

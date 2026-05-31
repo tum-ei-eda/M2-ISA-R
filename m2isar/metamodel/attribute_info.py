@@ -52,6 +52,6 @@ class StaticAttribute(IntFlag):
 
 @dataclass
 class ScalarStaticnessContext:
-	"""A datakeeping class for the scalar staticness transformations."""
+	"""A datakeeping class for the var staticness transformations."""
 
 	context_is_static: StaticAttribute = StaticAttribute.RW

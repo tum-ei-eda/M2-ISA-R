@@ -213,7 +213,7 @@ def main():
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.scalars = behav_builder._scalars
+				fn_def.vars = behav_builder._vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -298,7 +298,7 @@ def main():
 				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e)
 				sys.exit(1)
 
-			instr_def.scalars = behav_builder._scalars
+			instr_def.vars = behav_builder._vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)

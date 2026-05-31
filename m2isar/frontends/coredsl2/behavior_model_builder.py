@@ -43,7 +43,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		self._register_banks = register_banks
 		self._register_aliases = register_aliases
 		self._fields = fields
-		self._scalars = {}
+		self._vars = {}
 		self._functions = functions
 		self.warned_fns = warned_fns if warned_fns is not None else set()
 
@@ -129,12 +129,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			name = decl.name.text
 
 			# instantiate a scalar and its definition
+			# instantiate a .var and its definition
 			s = arch.Variable(name, type_, attribute_info.StaticAttribute.NONE)
-			self._scalars[name] = s
-			sd = behav.ScalarDefinition(s)
+			self._vars[name] = s
+			sd = behav.VarDefinition(s)
 
 			# if initializer is present, generate an assignment to apply
-			# initialization to the scalar
+			# initialization to the Variable
 			if decl.init:
 				init = self.visit(decl.init)
 			else:
@@ -338,7 +339,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		name = ctx.ref.text
 
-		var = self._scalars.get(name) or \
+		var = self._vars.get(name) or \
 			self._fields.get(name) or \
 			self._parameters.get(name) or \
 			self._memory_aliases.get(name) or \

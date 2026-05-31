@@ -232,12 +232,12 @@ class InferTypesMutator(ExprMutator):
         return expr
 
     @generate.register
-    def _(self, expr: behav.ScalarDefinition, context):
+    def _(self, expr: behav.VarDefinition, context):
         # type inference
-        assert isinstance(expr.scalar.ty, type_info.PrimitiveType)
-        assert expr.scalar.ty.size is not None
-        assert expr.scalar.ty.kind.is_int
-        expr.ty = expr.scalar.ty
+        assert isinstance(expr.var.ty, (type_info.PrimitiveType, type_info.ArrayType))
+        assert expr.var.ty.size is not None
+        assert expr.var.ty.kind.is_int
+        expr.ty = expr.var.ty
         return expr
 
     @generate.register
@@ -245,8 +245,8 @@ class InferTypesMutator(ExprMutator):
         expr.target = self.generate(expr.target, context)
         expr.expr = self.generate(expr.expr, context)
 
-        # if isinstance(expr.expr, behav.IntLiteral) and isinstance(expr.target, behav.ScalarDefinition):
-        #       expr.target.scalar.value = expr.expr.value
+        # if isinstance(expr.expr, behav.IntLiteral) and isinstance(expr.target, behav.VarDefinition):
+        #       expr.target.var.value = expr.expr.value
 
         # type inference
         expr.ty = None

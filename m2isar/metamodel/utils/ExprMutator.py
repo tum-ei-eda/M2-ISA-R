@@ -130,7 +130,7 @@ class ExprMutator(ABC):
         return expr
 
     @default_visit.register
-    def visit_scalar_definition(self, expr: behav.ScalarDefinition, context):
+    def visit_var_definition(self, expr: behav.VarDefinition, context):
         return expr
 
     @default_visit.register

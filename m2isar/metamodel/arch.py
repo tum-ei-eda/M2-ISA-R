@@ -452,7 +452,7 @@ class Instruction(SizedRefOrConst):
 
 	ext_name: str
 	fields: "dict[str, BitFieldDescr]"
-	scalars: "dict[str, Symbol]"
+	vars: "dict[str, Symbol]"
 	throws: bool
 
 	mask: int
@@ -465,7 +465,7 @@ class Instruction(SizedRefOrConst):
 		self.attributes = attributes if attributes else {}
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
-		self.scalars = {}
+		self.vars = {}
 		self.mnemonic = name.lower() if mnemonic is None else mnemonic
 		self.assembly = assembly
 		self.operation = operation if operation is not None else Operation([])
@@ -510,7 +510,7 @@ class Function(Named):
 	extern: bool
 
 	ext_name: str
-	scalars: "dict[str, Symbol]"
+	vars: "dict[str, Symbol]"
 	throws: bool
 	static: attribute_info.StaticAttribute
 
@@ -520,7 +520,7 @@ class Function(Named):
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
 		self.ty = type_info.FunctionType(return_len, kind)
-		self.scalars = {}
+		self.vars = {}
 		self.throws = False
 		if args is None:
 			args = []

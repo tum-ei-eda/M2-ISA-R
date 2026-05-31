@@ -98,7 +98,7 @@ class Literal(BaseNode):
 	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.NONE, None), base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
 
-		assert ty.kind.is_literal
+		#assert ty.kind.is_literal
 		self._value: Union[int, str] = value
 		self.ty = ty    # assigned during type checking
 
@@ -162,14 +162,14 @@ class Ternary(BaseNode):
 		self.then_expr = then_expr
 		self.else_expr = else_expr
 
-class ScalarDefinition(BaseNode):
-	"""A scalar declaration without initialization. To initialize the scalar while
-	declaring it, use the scalar definition as LHS of an assignment statement.
+class VarDefinition(BaseNode):
+	"""A var declaration without initialization. To initialize the var while
+	declaring it, use the var definition as LHS of an assignment statement.
 	"""
 
-	def __init__(self, scalar: "Variable", line_info=None):
+	def __init__(self, var: "Variable", line_info=None):
 		super().__init__(line_info)
-		self.scalar = scalar
+		self.var = var
 
 class Return(BaseNode):
 	"""A return expression."""

@@ -105,8 +105,8 @@ class TreeGenVisitor(ExprVisitor):
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
-	def scalar_definition(self, expr: behav.ScalarDefinition, context: "TreeGenContext"):
-		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.scalar.name,))
+	def .var_definition(self, expr: behav.VarDefinition, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.var.name,))
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register

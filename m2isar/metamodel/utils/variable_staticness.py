@@ -6,7 +6,7 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""Transformation functions to determine which scalars in a function or instruction
+"""Transformation functions to determine which vars in a function or instruction
 behavior are to be considered static.
 """
 
@@ -19,8 +19,8 @@ from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
 
-class ScalarStaticnessVisitor(ExprVisitor):
-	"""Visitor that determines scalar staticness for behavior expression trees."""
+class VarStaticnessVisitor(ExprVisitor):
+	"""Visitor that determines Variable staticness for behavior expression trees."""
 
 	@singledispatchmethod
 	def generate(self, expr: behav.BaseNode, context=None):
@@ -74,9 +74,9 @@ class ScalarStaticnessVisitor(ExprVisitor):
 
 
 	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context: attribute_info.ScalarStaticnessContext):
-		scalar = cast(Any, expr.scalar)
-		scalar.attributes["static"] = attribute_info.StaticAttribute.RW
+	def _(self, expr: behav.VarDefinition, context: attribute_info.ScalarStaticnessContext):
+		var = cast(Any, expr.var)
+		var.attributes["static"] = attribute_info.StaticAttribute.RW
 		return attribute_info.StaticAttribute.RW
 
 	@generate.register
@@ -87,7 +87,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 	def _(self, expr: behav.Assignment, context: attribute_info.ScalarStaticnessContext):
 		self.generate(expr.target, context)
 
-		if context.context_is_static != attribute_info.StaticAttribute.NONE or isinstance(expr.target, behav.ScalarDefinition):
+		if context.context_is_static != attribute_info.StaticAttribute.NONE or isinstance(expr.target, behav.VarDefinition):
 			expr_static = self.generate(expr.expr, context)
 
 			if expr_static != attribute_info.StaticAttribute.NONE:
@@ -99,9 +99,9 @@ class ScalarStaticnessVisitor(ExprVisitor):
 			target_ref = cast(Any, expr.target.reference)
 			target_ref.attributes["static"] &= expr_static
 
-		if isinstance(expr.target, behav.ScalarDefinition):
-			target_scalar = cast(Any, expr.target.scalar)
-			target_scalar.attributes["static"] &= expr_static
+		if isinstance(expr.target, behav.VarDefinition):
+			target_var = cast(Any, expr.target.var)
+			target_var.attributes["static"] &= expr_static
 
 	@generate.register
 	def _(self, expr: behav.Conditional, context: attribute_info.ScalarStaticnessContext):

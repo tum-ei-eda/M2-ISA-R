@@ -19,7 +19,7 @@ These functionalities must be implemented manually in the file `<core_name>ArchS
 
 ## Known issues
 - Instruction behavior such as `MEM[X[rs1] + imm] = MEM[X[rs2]]` does not see `X[rs1]` as a dependent register.
-- Staticness (whether the value of a variable is completely known at instruction generation time, i.e. outside of JIT-compilation in ETISS) detection of instruction-level local variables (scalars) is crude and breaks once multiple levels of scoping are necessary.
+- Staticness (whether the value of a variable is completely known at instruction generation time, i.e. outside of JIT-compilation in ETISS) detection of instruction-level local variables (vars) is crude and breaks once multiple levels of scoping are necessary.
 - The above also breaks ETISS's register dependency tracking when scope-restricted variables or expressions are used for register addressing, see [issue #6](https://github.com/tum-ei-eda/M2-ISA-R/issues/6) in this repo.
 
 ## Usage
