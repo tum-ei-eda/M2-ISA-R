@@ -201,10 +201,10 @@ etiss::InterruptVector *${core_name}Arch::createInterruptVector(ETISS_CPU *cpu)
 
     return new etiss::MappedInterruptVector<etiss::uint${irq_en_reg.ty.size}>(vec, mask);
     % else:
-    std::vector<etiss::uint${main_reg.ty.element_kind.size} *> vec;
-    std::vector<etiss::uint${main_reg.ty.element_kind.size} *> mask;
+    std::vector<etiss::uint${main_reg.ty.element_type.size} *> vec;
+    std::vector<etiss::uint${main_reg.ty.element_type.size} *> mask;
 
-    return new etiss::MappedInterruptVector<etiss::uint${main_reg.ty.element_kind.size}>(vec, mask);
+    return new etiss::MappedInterruptVector<etiss::uint${main_reg.ty.element_type.size}>(vec, mask);
     % endif
 }
 
@@ -217,7 +217,7 @@ void ${core_name}Arch::deleteInterruptVector(etiss::InterruptVector *vec, ETISS_
 etiss::InterruptEnable *${core_name}Arch::createInterruptEnable(ETISS_CPU *cpu)
 {
 <% ref = "&" %>\
-    return new etiss::MappedInterruptEnable<etiss::uint${main_reg.ty.element_kind.size}>(${ref}((${core_name} *)cpu)->${global_irq_en_reg.name}, ${global_irq_en_mask});
+    return new etiss::MappedInterruptEnable<etiss::uint${main_reg.ty.element_type.size}>(${ref}((${core_name} *)cpu)->${global_irq_en_reg.name}, ${global_irq_en_mask});
 }
 
 void ${core_name}Arch::deleteInterruptEnable(etiss::InterruptEnable *en, ETISS_CPU *cpu)

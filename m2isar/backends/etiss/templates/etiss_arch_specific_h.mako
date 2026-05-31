@@ -46,7 +46,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             std::string("${main_reg.name}") + etiss::toString(gprid),
             std::string("${main_reg.name}") + etiss::toString(gprid),
             R|W,
-            ${(int(main_reg.ty.length)* int(main_reg.ty.element_kind.size) / 8)}
+            ${(int(main_reg.ty.length)* int(main_reg.ty.element_type.size) / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -60,7 +60,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             name,
             name,
             R|W,
-            ${(int(main_reg.ty.length)* int(main_reg.ty.element_kind.size) / 8)}
+            ${(int(main_reg.ty.length)* int(main_reg.ty.element_type.size) / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -88,9 +88,9 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
         % if len(main_reg.children) > 0:
-        *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.element_kind.size}) val;
+        *((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.element_type.size}) val;
         % else:
-        ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.element_kind.size}) val;
+        ((${core_name}*)parent_.structure_)->${main_reg.name}[gprid_] = (etiss_uint${main_reg.ty.element_type.size}) val;
         % endif
         // clang-format on
     }
@@ -109,7 +109,7 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               std::string("${float_reg.name}")+etiss::toString(gprid),
               std::string("${float_reg.name}")+etiss::toString(gprid),
               R|W,
-              ${(int(float_reg.ty.length)* int(float_reg.ty.element_kind.size) / 8)}
+              ${(int(float_reg.ty.length)* int(float_reg.ty.element_type.size) / 8)}
             ),
             gprid_(gprid)
     // clang-format on
@@ -122,7 +122,7 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               name,
               name,
               R|W,
-              ${(int(float_reg.ty.length)* int(float_reg.ty.element_kind.size) / 8)}
+              ${(int(float_reg.ty.length)* int(float_reg.ty.element_type.size) / 8)}
             ),
             gprid_(gprid)
     // clang-format on
@@ -150,9 +150,9 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
         % if len(main_reg.children) > 0:
-        *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.ty.element_kind.size}) val;
+        *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.ty.element_type.size}) val;
         % else:
-        ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.ty.element_kind.size}) val;
+        ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_] = (etiss_uint${float_reg.ty.element_type.size}) val;
         % endif
         // clang-format on
     }
@@ -172,7 +172,7 @@ class VectorRegField_${core_name} : public etiss::VirtualStruct::Field
                 std::string("${vector_reg.name}")+etiss::toString(gprid),
                 std::string("${vector_reg.name}")+etiss::toString(gprid),
                 R|W,
-                ${int((vector_reg.ty.length // 32) // (vector_reg.ty.element_kind.size // 8))}
+                ${int((vector_reg.ty.length // 32) // (vector_reg.ty.element_type.size // 8))}
         ),
         gprid_(gprid)
     // clang-format on
@@ -185,7 +185,7 @@ class VectorRegField_${core_name} : public etiss::VirtualStruct::Field
                 name,
                 name,
                 R|W,
-                ${int((vector_reg.ty.length // 32) // (vector_reg.ty.element_kind.size // 8))}
+                ${int((vector_reg.ty.length // 32) // (vector_reg.ty.element_type.size // 8))}
         ),
         gprid_(gprid)
     // clang-format on
@@ -227,7 +227,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
             std::string("${csr_reg.name}")+etiss::toString(gprid),
             std::string("${csr_reg.name}")+etiss::toString(gprid),
             R|W,
-            ${int(csr_reg.ty.element_kind.size / 8)}
+            ${int(csr_reg.ty.element_type.size / 8)}
         ),
         gprid_(gprid)
     // clang-format on
@@ -240,7 +240,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
         name,
         name,
         R|W,
-        ${int(csr_reg.ty.element_kind.size / 8)}
+        ${int(csr_reg.ty.element_type.size / 8)}
       ),
       gprid_(gprid)
     // clang-format on
@@ -254,7 +254,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
     {
         // clang-format off
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-        return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${csr_reg.ty.element_kind.size}) gprid_);
+        return (uint64_t) ${core_name}_csr_read((ETISS_CPU*)parent_.structure_, nullptr, nullptr, (etiss_uint${csr_reg.ty.element_type.size}) gprid_);
         // clang-format on
     }
 
@@ -263,7 +263,7 @@ class CSRField_${core_name} : public etiss::VirtualStruct::Field
         // clang-format off
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-        ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${csr_reg.ty.element_kind.size}) val);
+        ${core_name}_csr_write((ETISS_CPU*)parent_.structure_, nullptr, nullptr, gprid_, (etiss_uint${csr_reg.ty.element_type.size}) val);
         // clang-format on
     }
 };
@@ -280,7 +280,7 @@ class pcField_${core_name} : public etiss::VirtualStruct::Field
             "instructionPointer",
             "instructionPointer",
             R|W,
-            ${int(main_reg.ty.element_kind.size / 8)}
+            ${int(main_reg.ty.element_type.size / 8)}
         )
     // clang-format on
     {
@@ -302,7 +302,7 @@ class pcField_${core_name} : public etiss::VirtualStruct::Field
         // clang-format off
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
         etiss::log(etiss::VERBOSE, "write to ETISS cpu state", name_, val);
-        ((ETISS_CPU *)parent_.structure_)->instructionPointer = (etiss_uint${main_reg.ty.element_kind.size}) val;
+        ((ETISS_CPU *)parent_.structure_)->instructionPointer = (etiss_uint${main_reg.ty.element_type.size}) val;
         // clang-format on
     }
 };
