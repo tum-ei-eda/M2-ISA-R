@@ -69,6 +69,10 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return attribute_info.FunctionThrows.NO
 
 	@generate.register
+	def _(self, expr: behav.Tensor, context):
+		return attribute_info.FunctionThrows.NO
+
+	@generate.register
 	def _(self, expr: behav.VarDefinition, context):
 		return attribute_info.FunctionThrows.NO
 

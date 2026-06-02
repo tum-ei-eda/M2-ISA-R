@@ -231,12 +231,26 @@ class InferTypesMutator(ExprMutator):
         expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
         return expr
 
+    # behav.IntLiteral
+    @generate.register
+    def _(self, expr: behav.Tensor, context):
+        # type inference
+        assert(expr.ty.length is not None)
+        assert(expr.ty.element_type.kind.is_int)
+
+        expr.ty = type_info.ArrayType(expr.ty.element_type, expr.ty.length)
+        return expr
+
     @generate.register
     def _(self, expr: behav.VarDefinition, context):
         # type inference
         assert isinstance(expr.var.ty, (type_info.PrimitiveType, type_info.ArrayType))
-        assert expr.var.ty.size is not None
-        assert expr.var.ty.kind.is_int
+        if isinstance(expr.var.ty, type_info.ArrayType):
+            assert expr.var.ty.element_type.size is not None
+            assert expr.var.ty.element_type.kind.is_int
+        elif isinstance(expr.var.ty, type_info.PrimitiveType):
+            assert expr.var.ty.size is not None
+            assert expr.var.ty.kind.is_int
         expr.ty = expr.var.ty
         return expr
 
@@ -362,7 +376,8 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.IndexedReference, context):
         expr.index = self.generate(expr.index, context)
 
-        assert isinstance(expr.reference, (arch.Memory, arch.RegisterBank))
+        assert isinstance(expr.reference, (arch.Memory, arch.RegisterBank, arch.Variable))
+        assert isinstance(expr.reference.ty, type_info.ArrayType)
         # expr.reference = self.generate(behav.NamedReference(expr.reference), context)
 
         if expr.right is not None:

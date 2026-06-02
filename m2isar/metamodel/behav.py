@@ -21,8 +21,8 @@ on which translation module is loaded using :func:`patch_model`.
 """
 
 from typing import TYPE_CHECKING, Union, Optional
-from .type_info import PrimitiveType, TypeKind
-
+from .type_info import PrimitiveType, TypeKind, ArrayType
+import numpy as np
 
 if TYPE_CHECKING:
 	from .arch import (BitFieldDescr, Parameter, FnParam, Function, Intrinsic,
@@ -118,7 +118,25 @@ class Literal(BaseNode):
 	@property
 	def value(self) -> int:
 		"""Returns the resolved value."""
-		return int(self._value)
+		return self._value
+
+### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
+class Tensor(BaseNode):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+		super().__init__(line_info)
+
+		#assert ty.kind.is_literal
+		self._value: np.ndarray = np.array(value)
+		self.ty = ty    # assigned during type checking
+
+	def __repr__(self):
+		return f"Tensor(values={self.value}, type={self.ty})"
+
+	# compile time constant
+	@property
+	def value(self) -> np.ndarray:
+		"""Returns the resolved array."""
+		return self._value
 
 
 class Assignment(BaseNode):

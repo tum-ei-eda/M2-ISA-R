@@ -72,6 +72,9 @@ class VarStaticnessVisitor(ExprVisitor):
 	def _(self, expr: behav.Literal, context: attribute_info.ScalarStaticnessContext):
 		return attribute_info.StaticAttribute.READ
 
+	@generate.register
+	def _(self, expr: behav.Tensor, context: attribute_info.ScalarStaticnessContext):
+		return attribute_info.StaticAttribute.READ
 
 	@generate.register
 	def _(self, expr: behav.VarDefinition, context: attribute_info.ScalarStaticnessContext):
