@@ -9,6 +9,7 @@
 import copy
 import dataclasses
 import logging
+import numpy as np
 from typing import TYPE_CHECKING, Union
 
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
@@ -16,7 +17,7 @@ from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoFactory, LineInfoPlacement)
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS
+from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type, create_np_array_from_literal_array
 from .expr_interpreter import ExprInterpreterVisitor
 
 exprInterpretVisitor = ExprInterpreterVisitor()
@@ -128,7 +129,18 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		for decl in decls:
 			name = decl.name.text
 
-			# instantiate a scalar and its definition
+			if (hasattr(decl, "size")):
+				if len(decl.size) != 0 and decl.size != None:
+					shape = []
+					for ele in reversed(decl.size):
+						m2isar_ele = self.visit(ele)
+						type_ = type_info.ArrayType(type_, m2isar_ele)
+						# # Why even limit this so far?
+						# if (type(m2isar_ele) == behav.IntLiteral):
+						# 	shape.append(m2isar_ele.value)
+						# else:
+						# 	raise(f"Unexpected Type {type(ele)} within Shape array")
+
 			# instantiate a .var and its definition
 			s = arch.Variable(name, type_, attribute_info.StaticAttribute.NONE)
 			self._vars[name] = s
@@ -136,13 +148,26 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 			# if initializer is present, generate an assignment to apply
 			# initialization to the Variable
+			init = None
 			if decl.init:
 				init = self.visit(decl.init)
+				if isinstance(init, list):
+					for ele_nr in range(len(init)):
+						ele = init[ele_nr]
+						if isinstance(ele, behav.UnaryOperation):
+							res : int = int(eval(f"{ele.op.value}{ele.right.value}"))
+							ele = behav.Literal(res, type_.element_type, ele.line_info)
+							init[ele_nr] = ele
+						if not isinstance(ele, behav.Literal):
+							raise M2TypeError(f"Initializer list can only contain literals, but got {type(ele)}")
+					init = behav.Tensor(create_np_array_from_literal_array(init, type_), type_)
 			else:
-				if isinstance(type_, type_info.ArrayType):
+				if isinstance(type_, type_info.PrimitiveType):
 					init = behav.Literal(0, type_)
-				elif isinstance(type_, type_info.PrimitiveType):
-					init = behav.Literal(0, type_)
+				elif isinstance(type_, type_info.ArrayType):
+					shape = []
+					infer_shape_from_type(type_, shape)
+					init = behav.Tensor(np.zeros(shape), type_)
 				else:
 					raise f"Literal has a not supported type {type}"
 
@@ -151,6 +176,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			ret_decls.append(a)
 
 		return ret_decls
+
+	def visitInitializerList(self, ctx: CoreDSL2Parser.InitializerListContext):
+		"""Generate a list of initializers for array/tensor initialization."""
+
+		inits : list[behav.Literal] = [self.visit(obj) for obj in list(ctx.getChildren())
+									if isinstance(obj, CoreDSL2Parser.InitializerContext)]
+		return inits
+
 
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
 		return behav.Break(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
@@ -295,7 +328,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		right = self.visit(ctx.right) if ctx.right else left
 
 		# TODO distinguish between Multi-Dimensional Slices and BitSlice with ArrayType/PrimitiveType???
-		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference, (arch.Memory, arch.RegisterBank)):
+		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference.ty, type_info.ArrayType):
 			assert(expr.reference.ty, type_info.ArrayType)
 			#Dont duplicate index to differentiate between index and ranged access
 			if right == left:
