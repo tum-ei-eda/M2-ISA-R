@@ -105,8 +105,13 @@ class TreeGenVisitor(ExprVisitor):
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
-	def .var_definition(self, expr: behav.VarDefinition, context: "TreeGenContext"):
-		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.var.name,))
+	def number_tensor(self, expr: behav.Tensor, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Tensor", values=(expr.value,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
+
+	@generate.register
+	def var_definition(self, expr: behav.VarDefinition, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Var Definition", values=(expr.var.name,))
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
