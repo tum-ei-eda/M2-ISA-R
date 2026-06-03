@@ -329,7 +329,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		# TODO distinguish between Multi-Dimensional Slices and BitSlice with ArrayType/PrimitiveType???
 		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference.ty, type_info.ArrayType):
-			assert(expr.reference.ty, type_info.ArrayType)
+			assert(isinstance(expr.reference.ty, type_info.ArrayType))
 			#Dont duplicate index to differentiate between index and ranged access
 			if right == left:
 					return behav.IndexedReference(expr.reference, left, None, \

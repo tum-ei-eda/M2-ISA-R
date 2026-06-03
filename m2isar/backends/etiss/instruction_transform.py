@@ -188,14 +188,24 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			static = attribute_info.StaticAttribute.NONE
 
-		actual_size = 1 << (expr.var.ty.size - 1).bit_length()
-		actual_size = max(actual_size, 8)
+		array_str = ""
+		if isinstance(expr.var.ty, type_info.PrimitiveType):
+			actual_ele_size = 1 << (expr.var.ty.size - 1).bit_length()
+			actual_ele_kind = expr.var.ty.kind
+		elif isinstance(expr.var.ty, type_info.ArrayType):
+			actual_ele_size = 1 << (expr.var.ty.element_type.size - 1).bit_length()
+			actual_ele_kind = expr.var.ty.element_type.kind
+			array_str = f"[{arch.get_const_or_val(expr.var.ty.length)}]"
+
+		actual_ele_size = max(actual_ele_size, 8)
+
+
 
 		return CodeString(
-			f'{data_type_map[expr.var.ty.kind]}{actual_size} {expr.var.name}',
+			f'{data_type_map[actual_ele_kind]}{actual_ele_size} {expr.var.name}{array_str}',
 			static,
-			expr.var.ty.size,
-			expr.var.ty.kind == type_info.TypeKind.INT,
+			actual_ele_size,
+			actual_ele_kind == type_info.TypeKind.INT,
 			line_infos=expr.line_info,
 		)
 
@@ -793,7 +803,12 @@ class InstructionTransformVisitor(ExprVisitor):
 			return c
 
 		# generate normal indexed access if not
-		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
+		if isinstance(expr.reference, arch.Variable):
+			prefix = ""
+		else:
+			prefix = replacements.prefixes.get(name, replacements.default_prefix)
+
+		code_str = f'{prefix}{name}[{index.code}]'
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
 		c = CodeString(code_str, static, size, False, line_infos=[expr.line_info] + index.line_infos)
@@ -915,6 +930,20 @@ class InstructionTransformVisitor(ExprVisitor):
 			ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
 			ret.is_literal = True
 			return ret
+
+	@generate.register
+	def _(self, expr: behav.Tensor, context: TransformerContext):
+		assert(expr.ty.element_type.kind in [type_info.TypeKind.INT, type_info.TypeKind.UINT])
+		#  no element_type transformation if sizes dont fit
+		sign = (expr.ty.element_type.kind == type_info.TypeKind.INT)
+		size = expr.ty.element_type.size
+
+
+		c_init = "{" + ", ".join(map(str, expr.value)) + "}"
+		ret = CodeString(c_init, True, size, sign, line_infos=expr.line_info)
+		ret.is_literal = True
+		return ret
+
 
 	@generate.register
 	def _(self, expr: behav.CodeLiteral, context: TransformerContext):

@@ -240,6 +240,7 @@ class Variable(Symbol):
         ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
         static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
         value=None, # Compile Time information
+		children=[] # Array support might require this
     ):
         assert isinstance(ty, (type_info.PrimitiveType, type_info.ArrayType))
 
@@ -251,6 +252,8 @@ class Variable(Symbol):
 
         # optional: only for parameters/literals
         self.value = value
+        self.children = children
+        assert (len(self.children) == 0 or isinstance(ty, type_info.ArrayType))
 
         super().__init__(name, ty, attributes={"static": static})
 
