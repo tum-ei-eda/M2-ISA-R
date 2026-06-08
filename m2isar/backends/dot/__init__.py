@@ -2,12 +2,9 @@
 #
 # This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
 #
-# Copyright (C) 2022
+# Copyright (C) 2026
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-mako
-antlr4-python3-runtime~=4.13.1
-antlr4-tools
-tqdm
-anytree
+"""This module contains a M2-ISA-R DOT (Graphviz) backend."""
+
