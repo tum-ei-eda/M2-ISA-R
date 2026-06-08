@@ -238,7 +238,7 @@ class Variable(Symbol):
         self,
         name: str,
         ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
-        static: attribute_info.StaticAttribute = attribute_info.StaticAttribute.RW,
+        static: attribute_info.AccessAttribute = attribute_info.AccessAttribute.RW,
         value=None, # Compile Time information
 		children=[] # Array support might require this
     ):
@@ -515,7 +515,7 @@ class Function(Named):
 	ext_name: str
 	vars: "dict[str, Symbol]"
 	throws: bool
-	static: attribute_info.StaticAttribute
+	static: attribute_info.AccessAttribute
 
 	def __init__(self, name, attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
@@ -541,7 +541,7 @@ class Function(Named):
 			self.args[arg_name] = arg
 
 		self.operation = operation if operation is not None else Operation([])
-		self.static = attribute_info.StaticAttribute.NONE
+		self.static = attribute_info.AccessAttribute.NONE
 		self.extern = extern
 
 		super().__init__(name)

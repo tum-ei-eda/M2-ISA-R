@@ -149,12 +149,12 @@ class InstructionTransformVisitor(ExprVisitor):
 	def _(self, expr: behav.Block, context: TransformerContext):
 		stmts = [self.generate(stmt, context) for stmt in expr.statements]
 
-		pre = [CodeString("{ // block", attribute_info.StaticAttribute.READ, None, None, line_infos=expr.line_info)]
-		post = [CodeString("} // block", attribute_info.StaticAttribute.READ, None, None)]
+		pre = [CodeString("{ // block", attribute_info.AccessAttribute.READ, None, None, line_infos=expr.line_info)]
+		post = [CodeString("} // block", attribute_info.AccessAttribute.READ, None, None)]
 
 		if not context.ignore_static:
-			pre.append(CodeString("{ // block", attribute_info.StaticAttribute.NONE, None, None))
-			post.insert(0, CodeString("} // block", attribute_info.StaticAttribute.NONE, None, None))
+			pre.append(CodeString("{ // block", attribute_info.AccessAttribute.NONE, None, None))
+			post.insert(0, CodeString("} // block", attribute_info.AccessAttribute.NONE, None, None))
 
 		return pre + stmts + post
 
@@ -168,13 +168,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			c.code = f'return {c.code};'
 			c.line_infos.append(expr.line_info)
 		else:
-			c = CodeString("return;", attribute_info.StaticAttribute.RW, None, None, line_infos=expr.line_info)
+			c = CodeString("return;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 		return c
 
 	@generate.register
 	def _(self, expr: behav.Break, context: TransformerContext):
-		return CodeString("break;", attribute_info.StaticAttribute.RW, None, None, line_infos=expr.line_info)
+		return CodeString("break;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
 	def _(self, expr: behav.VarDefinition, context: TransformerContext):
@@ -182,17 +182,18 @@ class InstructionTransformVisitor(ExprVisitor):
 		a variable instantiation."""
 		if context.static_vars:
 			if context.ignore_static:
-				static = attribute_info.StaticAttribute.RW
+				static = attribute_info.AccessAttribute.RW
 			else:
 				static = expr.var.attributes["static"]
 		else:
-			static = attribute_info.StaticAttribute.NONE
+			static = attribute_info.AccessAttribute.NONE
 
 		array_str = ""
 		if isinstance(expr.var.ty, type_info.PrimitiveType):
 			actual_ele_size = 1 << (expr.var.ty.size - 1).bit_length()
 			actual_ele_kind = expr.var.ty.kind
 		elif isinstance(expr.var.ty, type_info.ArrayType):
+			assert(isinstance(expr.var.ty.element_type, type_info.PrimitiveType))
 			actual_ele_size = 1 << (expr.var.ty.element_type.size - 1).bit_length()
 			actual_ele_kind = expr.var.ty.element_type.kind
 			array_str = f"[{arch.get_const_or_val(expr.var.ty.length)}]"
@@ -224,7 +225,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 
 			# determine if procedure call is entirely static
-			static = attribute_info.StaticAttribute.READ if fn.static and all(arg.static != attribute_info.StaticAttribute.NONE for arg in fn_args) else attribute_info.StaticAttribute.NONE
+			static = attribute_info.AccessAttribute.READ if fn.static and all(arg.static != attribute_info.AccessAttribute.NONE for arg in fn_args) else attribute_info.AccessAttribute.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -264,8 +265,8 @@ class InstructionTransformVisitor(ExprVisitor):
 				cond = "if (cpu->return_pending) " if fn.throws == attribute_info.FunctionThrows.MAYBE else ""
 				c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
-				pre = [CodeString("{ // procedure", attribute_info.StaticAttribute.READ, None, None), CodeString("{ // procedure", attribute_info.StaticAttribute.NONE, None, None)]
-				post = [CodeString("} // procedure", attribute_info.StaticAttribute.NONE, None, None), CodeString("} // procedure", attribute_info.StaticAttribute.READ, None, None)]
+				pre = [CodeString("{ // procedure", attribute_info.AccessAttribute.READ, None, None), CodeString("{ // procedure", attribute_info.AccessAttribute.NONE, None, None)]
+				post = [CodeString("} // procedure", attribute_info.AccessAttribute.NONE, None, None), CodeString("} // procedure", attribute_info.AccessAttribute.READ, None, None)]
 
 				return pre + [c, c2] + post
 
@@ -288,7 +289,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			fn = ref
 
 			# determine if function call is entirely static
-			static = attribute_info.StaticAttribute.READ if fn.static and all(arg.static != attribute_info.StaticAttribute.NONE for arg in fn_args) else attribute_info.StaticAttribute.NONE
+			static = attribute_info.AccessAttribute.READ if fn.static and all(arg.static != attribute_info.AccessAttribute.NONE for arg in fn_args) else attribute_info.AccessAttribute.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -379,14 +380,15 @@ class InstructionTransformVisitor(ExprVisitor):
 			expr_str: CodeString = self.generate(expr.expr, context)
 
 		# check staticness
-		static = bool(target.static & attribute_info.StaticAttribute.WRITE) and bool(expr_str.static)
+		static = bool(target.static & attribute_info.AccessAttribute.WRITE) and bool(expr_str.static)
 
-		if not expr_str.static and bool(target.static & attribute_info.StaticAttribute.WRITE) and not context.ignore_static:
+		if not expr_str.static and bool(target.static & attribute_info.AccessAttribute.WRITE) and not context.ignore_static:
 			raise M2ValueError('Static target cannot be assigned to non-static expression!')
 
 		# convert assignment value staticness
-		if expr_str.static and not expr_str.is_literal:
-			if bool(target.static & attribute_info.StaticAttribute.WRITE):
+
+		if expr_str.static and not  expr_str.is_literal:
+			if bool(target.static & attribute_info.AccessAttribute.WRITE):
 				if context.ignore_static:
 					expr_str.code = Template(f'{expr_str.code}').safe_substitute(**replacements.rename_dynamic)
 				else:
@@ -395,7 +397,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				expr_str.code = context.make_static(expr_str.code, expr_str.signed)
 
 		# convert target staticness
-		if bool(target.static & attribute_info.StaticAttribute.READ):
+		if bool(target.static & attribute_info.AccessAttribute.READ):
 			target.code = Template(target.code).safe_substitute(replacements.rename_write)
 
 		# keep track of affected and dependent registers
@@ -589,7 +591,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		then_expr = self.generate(expr.then_expr, context)
 		else_expr = self.generate(expr.else_expr, context)
 
-		static = attribute_info.StaticAttribute.NONE not in [x.static for x in (cond, then_expr, else_expr)]
+		static = attribute_info.AccessAttribute.NONE not in [x.static for x in (cond, then_expr, else_expr)]
 
 		# convert singular static sub-components
 		if not static:
@@ -656,14 +658,14 @@ class InstructionTransformVisitor(ExprVisitor):
 		# extract referred object
 		referred_var = expr.reference
 
-		static = attribute_info.StaticAttribute.NONE
+		static = attribute_info.AccessAttribute.NONE
 
 		name = referred_var.name
 
 		# check if static name replacement is needed
 		if name in replacements.rename_static:
 			name = f'${{{name}}}'
-			static = attribute_info.StaticAttribute.READ
+			static = attribute_info.AccessAttribute.READ
 
 		# check which type of reference has to be generated
 		if isinstance(referred_var, arch.Memory):
@@ -709,25 +711,25 @@ class InstructionTransformVisitor(ExprVisitor):
 			# function argument
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
-			static = attribute_info.StaticAttribute.READ
+			static = attribute_info.AccessAttribute.READ
 
 		elif isinstance(referred_var, arch.Variable):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			if context.static_vars:
-				static = referred_var.attributes.get("static")
+				static &= referred_var.attributes.get("static")
 
 		elif isinstance(referred_var, arch.Parameter):
 			signed = referred_var.value < 0
 			size = context.native_size
-			static = attribute_info.StaticAttribute.READ
+			static = attribute_info.AccessAttribute.READ
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
 			signed = referred_var.ty.kind ==  type_info.TypeKind.INT
 			size = referred_var.ty.size
-			static = attribute_info.StaticAttribute.RW
+			static = attribute_info.AccessAttribute.RW
 
 		elif isinstance(referred_var, arch.Intrinsic):
 			if context.ignore_static:
@@ -735,7 +737,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
-			static = attribute_info.StaticAttribute.READ
+			static = attribute_info.AccessAttribute.READ
 
 			if referred_var == context.intrinsics["__encoding_size"]:
 				name = str(context.instr_size // 8)
@@ -744,7 +746,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			raise TypeError("wrong type")
 
 		if context.ignore_static:
-			static = attribute_info.StaticAttribute.RW
+			static = attribute_info.AccessAttribute.RW
 
 		return CodeString(name, static, size, signed, line_infos=expr.line_info)
 
@@ -778,9 +780,9 @@ class InstructionTransformVisitor(ExprVisitor):
 				right.code = context.make_static(right.code, right.signed)
 
 		if context.ignore_static:
-			static = attribute_info.StaticAttribute.RW
+			static = attribute_info.AccessAttribute.RW
 		else:
-			static = attribute_info.StaticAttribute.NONE
+			static = attribute_info.AccessAttribute.NONE
 
 		if attribute_info.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			# generate memory access if main memory is accessed
@@ -826,7 +828,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
 
-		static = attribute_info.StaticAttribute.NONE not in [x.static for x in (expr_str, left, right)]
+		static = attribute_info.AccessAttribute.NONE not in [x.static for x in (expr_str, left, right)]
 
 		if not static:
 			if expr_str.static and not expr_str.is_literal:
@@ -889,7 +891,7 @@ class InstructionTransformVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Literal, context: TransformerContext):
 		if expr.ty.kind is type_info.TypeKind.STR:
-			return CodeString(f'"{expr.value}"', attribute_info.StaticAttribute.READ, None, False, line_infos=expr.line_info)
+			return CodeString(f'"{expr.value}"', attribute_info.AccessAttribute.READ, None, False, line_infos=expr.line_info)
 
 		# old number NumberLiteral
 		elif expr.ty.kind == type_info.TypeKind.NONE:
@@ -941,7 +943,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 
 		c_init = "{" + ", ".join(map(str, expr.value)) + "}"
-		ret = CodeString(c_init, True, size, sign, line_infos=expr.line_info)
+		ret = CodeString(c_init, attribute_info.AccessAttribute.READ, size, sign, line_infos=expr.line_info)
 		ret.is_literal = True
 		return ret
 

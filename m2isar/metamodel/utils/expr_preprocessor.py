@@ -18,7 +18,7 @@ from .. import arch, attribute_info
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
 from .function_throws import FunctionThrowsVisitor
-from .variable_staticness import VarStaticnessVisitor
+from .variable_access import VarAccessVisitor
 
 logger = logging.getLogger("preprocessor")
 
@@ -38,7 +38,7 @@ def process_functions(core: arch.CoreDef):
 
 	simplifier = ExprSimplifierVisitor()
 	function_throws_visitor = FunctionThrowsVisitor()
-	scalar_staticness_visitor = VarStaticnessVisitor()
+	scalar_staticness_visitor = VarAccessVisitor()
 	function_staticness_visitor = FunctionStaticnessVisitor()
 
 	for fn_name, fn_def in core.functions.items():
@@ -49,7 +49,7 @@ def process_functions(core: arch.CoreDef):
 		throws = function_throws_visitor.generate(fn_def.operation, None)
 		fn_def.throws = throws or attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes
 
-		context = attribute_info.ScalarStaticnessContext()
+		context = attribute_info.AccessContext()
 		logger.debug("examining scalar staticness for fn %s", fn_name)
 		scalar_staticness_visitor.generate(fn_def.operation, context)
 
@@ -74,7 +74,7 @@ def process_instructions(core: arch.CoreDef):
 
 	simplifier = ExprSimplifierVisitor()
 	function_throws_visitor = FunctionThrowsVisitor()
-	scalar_staticness_visitor = VarStaticnessVisitor()
+	scalar_staticness_visitor = VarAccessVisitor()
 
 	for _, instr_def in core.instructions.items():
 		logger.debug("simplifying expressions for instr %s", instr_def.name)
@@ -84,6 +84,6 @@ def process_instructions(core: arch.CoreDef):
 		throws = function_throws_visitor.generate(instr_def.operation, None)
 		instr_def.throws = throws
 
-		context = attribute_info.ScalarStaticnessContext()
+		context = attribute_info.AccessContext()
 		logger.debug("examining staticness for instr %s", instr_def.name)
 		scalar_staticness_visitor.generate(instr_def.operation, context)

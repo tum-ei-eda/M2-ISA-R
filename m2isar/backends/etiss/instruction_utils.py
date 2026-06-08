@@ -63,7 +63,7 @@ class CodeString:
 
 	def __init__(self, code, static, size, signed, regs_affected=None, line_infos=[]):
 		self.code = code
-		self.static = attribute_info.StaticAttribute(static)
+		self.static = attribute_info.AccessAttribute(static)
 		self.size = size
 		self.signed = signed
 		self.mem_ids = []

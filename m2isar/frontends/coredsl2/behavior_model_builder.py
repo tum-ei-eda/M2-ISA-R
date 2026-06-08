@@ -142,7 +142,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 						# 	raise(f"Unexpected Type {type(ele)} within Shape array")
 
 			# instantiate a .var and its definition
-			s = arch.Variable(name, type_, attribute_info.StaticAttribute.NONE)
+			s = arch.Variable(name, type_, attribute_info.AccessAttribute.NONE)
 			self._vars[name] = s
 			sd = behav.VarDefinition(s)
 

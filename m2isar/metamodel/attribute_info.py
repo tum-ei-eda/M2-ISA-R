@@ -42,7 +42,7 @@ class InstrAttribute(Enum):
 	ETISS_ERROR_INSTRUCTION = auto()
 
 
-class StaticAttribute(IntFlag):
+class AccessAttribute(IntFlag):
 	"""Describes the staticness of a Scalar or Function"""
 
 	NONE = 0 #no access at all
@@ -51,7 +51,12 @@ class StaticAttribute(IntFlag):
 	RW = READ | WRITE
 
 @dataclass
-class ScalarStaticnessContext:
+class AccessContext:
 	"""A datakeeping class for the var staticness transformations."""
 
-	context_is_static: StaticAttribute = StaticAttribute.RW
+	access_is_static: AccessAttribute = AccessAttribute.RW
+
+class Qualifier(IntFlag):
+    NONE = 0
+    CONST = auto()
+    STATIC = auto()
