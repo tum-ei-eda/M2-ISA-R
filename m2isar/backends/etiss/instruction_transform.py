@@ -700,7 +700,8 @@ class InstructionTransformVisitor(ExprVisitor):
 				ref = ""
 				name = f"{ref}{replacements.default_prefix}{name}"
 			signed = False
-			assert(referred_var.ty, type_info.PrimitiveType)
+			assert(isinstance(referred_var.ty, type_info.PointerType))
+			assert(isinstance(referred_var.ty.ty, type_info.PrimitiveType))
 			size = referred_var.ty.size
 			context.used_arch_data = True
 

@@ -349,7 +349,7 @@ class InferTypesMutator(ExprMutator):
             expr.ty = reference.ty
         elif isinstance(reference, arch.Alias): # propagate type from aliased mem or reg bank
             assert(reference.length == 1)
-            if isinstance(reference.parent, (arch.Memory, arch.RegisterBank)):
+            if isinstance(reference.parent, (arch.Memory, arch.RegisterBank, arch.Variable)):
                 # expr.ty = self.generate(behav.NamedReference(reference.parent), context)
                 assert(isinstance(reference.ty, type_info.PointerType))
                 expr.ty = reference.ty.ty
