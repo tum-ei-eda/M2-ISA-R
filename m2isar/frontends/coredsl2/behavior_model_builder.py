@@ -116,7 +116,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		# extract variable qualifiers, currently unused
 		storage = [self.visit(obj) for obj in ctx.storage]
-		qualifiers = [self.visit(obj) for obj in ctx.qualifiers]
+		qualifiers = [obj.getText() for obj in ctx.qualifiers if isinstance(obj, CoreDSL2Parser.Type_qualifierContext)]
 		attributes = [self.visit(obj) for obj in ctx.attributes]
 
 		type_ = self.visit(ctx.type_)
@@ -129,20 +129,26 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		for decl in decls:
 			name = decl.name.text
 
+			if "volatile" in qualifiers:
+				raise M2SyntaxError(f"Volatile qualifier is not supported, in declaration of {name}")
+
 			if (hasattr(decl, "size")):
 				if len(decl.size) != 0 and decl.size != None:
 					shape = []
 					for ele in reversed(decl.size):
 						m2isar_ele = self.visit(ele)
 						type_ = type_info.ArrayType(type_, m2isar_ele)
-						# # Why even limit this so far?
-						# if (type(m2isar_ele) == behav.IntLiteral):
-						# 	shape.append(m2isar_ele.value)
-						# else:
-						# 	raise(f"Unexpected Type {type(ele)} within Shape array")
+
 
 			# instantiate a .var and its definition
-			s = arch.Variable(name, type_, attribute_info.AccessAttribute.NONE)
+			attributes_dict = {"static": attribute_info.AccessAttribute.RW,
+							   **{attr: True for attr in qualifiers}}
+
+			# Const value prohibits Write
+			if attributes_dict.get("const", False):
+				attributes_dict["static"] = attribute_info.AccessAttribute.READ
+
+			s = arch.Variable(name, type_, attributes=attributes_dict)
 			self._vars[name] = s
 			sd = behav.VarDefinition(s)
 
@@ -169,7 +175,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 					infer_shape_from_type(type_, shape)
 					init = behav.Tensor(np.zeros(shape), type_)
 				else:
-					raise f"Literal has a not supported type {type}"
+					raise M2TypeError(f"Literal has a not supported type {type}")
 
 
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))

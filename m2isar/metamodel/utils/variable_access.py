@@ -92,9 +92,6 @@ class VarAccessVisitor(ExprVisitor):
 
 		if context.access_is_static != attribute_info.AccessAttribute.NONE or isinstance(expr.target, behav.VarDefinition):
 			expr_static = self.generate(expr.expr, context)
-			from ...metamodel import type_info
-			if isinstance(expr.target.ty, type_info.ArrayType):
-				pass
 
 			if expr_static != attribute_info.AccessAttribute.NONE:
 				expr_static = attribute_info.AccessAttribute.RW

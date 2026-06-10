@@ -238,8 +238,8 @@ class Variable(Symbol):
         self,
         name: str,
         ty: Union[type_info.PrimitiveType, type_info.FloatType, type_info.ArrayType],
-        static: attribute_info.AccessAttribute = attribute_info.AccessAttribute.RW,
-        value=None, # Compile Time information
+		attributes: dict = {"static": attribute_info.AccessAttribute.RW},
+		value=None, # Compile Time information
 		children=[] # Array support might require this
     ):
         assert isinstance(ty, (type_info.PrimitiveType, type_info.ArrayType))
@@ -255,7 +255,7 @@ class Variable(Symbol):
         self.children = children
         assert (len(self.children) == 0 or isinstance(ty, type_info.ArrayType))
 
-        super().__init__(name, ty, attributes={"static": static})
+        super().__init__(name, ty, attributes)
 
 class Intrinsic(Symbol):
 

@@ -52,8 +52,10 @@ class AccessAttribute(IntFlag):
 
 @dataclass
 class AccessContext:
-	"""A datakeeping class for the var staticness transformations."""
-
+	"""A datakeeping class to track access of Varibles.
+	Important in JIT compilation to know if depictable as
+	a static element
+	"""
 	access_is_static: AccessAttribute = AccessAttribute.RW
 
 class Qualifier(IntFlag):

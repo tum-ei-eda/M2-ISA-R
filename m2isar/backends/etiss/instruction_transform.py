@@ -199,11 +199,10 @@ class InstructionTransformVisitor(ExprVisitor):
 			array_str = f"[{arch.get_const_or_val(expr.var.ty.length)}]"
 
 		actual_ele_size = max(actual_ele_size, 8)
-
-
+		const = "const " if expr.var.attributes.get("const") else ""
 
 		return CodeString(
-			f'{data_type_map[actual_ele_kind]}{actual_ele_size} {expr.var.name}{array_str}',
+			f'{const}{data_type_map[actual_ele_kind]}{actual_ele_size} {expr.var.name}{array_str}',
 			static,
 			actual_ele_size,
 			actual_ele_kind == type_info.TypeKind.INT,
