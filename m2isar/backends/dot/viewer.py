@@ -2,15 +2,13 @@
 #
 # This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
 #
-# Copyright (C) 2022
+# Copyright (C) 2026
 # Chair of Electrical Design Automation
 # Technical University of Munich
-#
-# Copyright (C) 2026
 # Modifed by JK TUW ECS
 
 """Viewer tool to generate a DOT representation for an M2-ISA-R hierarchy."""
-
+import abc
 import argparse
 import logging
 import pathlib
@@ -29,6 +27,48 @@ from .treegen import TreeGenVisitor
 logger = logging.getLogger("viewer")
 
 
+class TreeBuilder:
+
+    def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def _add_node(self, name: str, parent=None, values=None, **kwargs):
+        raise NotImplementedError
+
+    def add_node(self, name: str, parent=None, values=None, **kwargs):
+        return self._add_node(name, parent=parent, values=values, **kwargs)
+
+
+# class TkTreeBuilder(TreeBuilder):
+# 
+#     def __init__(self, name: str):
+#         super().__init__(name)
+#         self.root = tk.Tk()
+#         self.root.title(self.name)
+#         self.treeview = ttk.Treeview(root, columns=(1,))
+#         self.treeview.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+#         scrollbar = ttk.Scrollbar(root, orient=tk.VERTICAL, command=self.treeview.yview)
+#         self.treeview.configure(yscroll=scrollbar.set)
+#         scrollbar.pack(side=tk.LEFT, fill=tk.Y)
+#         self.treeview.heading("#0", text="Item")
+#         self.treeview.heading(1, text="Value")
+# 
+#     def _add_node(self, name: str, parent=None, **kwargs):
+#         return tree.insert(parent, tk.END, text=name)
+
+
+class AnyTreeBuilder(TreeBuilder):
+
+    def __init__(self, name: str):
+        super().__init__()
+        self.root = Node("Tree")
+
+    def _add_node(self, name: str, parent="", **kwargs):
+        return Node(name, parent=parent, **kwargs)
+
+
+
 def sort_instruction(entry: "tuple[tuple[int, int], arch.Instruction]"):
 	"""Instruction sort key function. Sorts most restrictive encoding first."""
 	(code, mask), _ = entry
@@ -43,6 +83,11 @@ def main():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	# parser.add_argument("--text", "-t", action="store_true", help="TODO")
 	parser.add_argument("--operation", "-o", action="store_true", help="TODO")
+	parser.add_argument("--constants", action="store_true", help="TODO")
+	parser.add_argument("--functions", action="store_true", help="TODO")
+	parser.add_argument("--attributes", action="store_true", help="TODO")
+	parser.add_argument("--memories", action="store_true", help="TODO")
+	# TODO: out file/dir
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -90,39 +135,41 @@ def main():
 
 	# load Ttk TreeView transformer functions
 	visitor = TreeGenVisitor()
-	root = Node("Tree")
-	sets_node = Node("Sets", parent=root)
-	cores_node = Node("Cores", parent=root)
+	tree = AnyTreeBuilder("Tree")
+	sets_node = tree.add_node("Sets", parent=tree.root)
+	cores_node = tree.add_node("Cores", parent=tree.root)
 
 	# add each core to the treeview
 	for core_name, core_def in sorted(cores.items()):
-		core_node = Node("Core", parent=cores_node, value=core_name)
+		core_node = tree.add_node("Core", parent=cores_node, values=core_name)
 
 		# add constants to tree
-		consts_node = Node("Constants", parent=core_node)
-		for const_name, const_def in sorted(core_def.constants.items()):
-			break  # TODO: drop
-			_ = Node(f"{const_name}", parent=consts_node, value=const_def.value)
+		if args.constants:
+			consts_node = tree.add_node("Constants", parent=core_node)
+			for const_name, const_def in sorted(core_def.constants.items()):
+				# break  # TODO: drop
+				_ = tree.add_node(f"{const_name}", parent=consts_node, values=const_def.value)
 
 		# add memories to tree
-		mems_node = Node("Memories", parent=core_node, value="{}")
-		for mem_name, mem_def in sorted(core_def.memories.items()):
-			break  # TODO
-			_ = Node(
-				f"{mem_name}",
-				parent=mems_node,
-				value=f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",
-			)
+		if args.memories:
+			mems_node = tree.add_node("Memories", parent=core_node, values="{}")
+			for mem_name, mem_def in sorted(core_def.memories.items()):
+				# break  # TODO
+				_ = tree.add_node(
+					f"{mem_name}",
+					parent=mems_node,
+					values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",),
+				)
 
-		# add memory aliases to tree
-		aliases_node = Node("Memory Aliases", parent=core_node, value="{}")
-		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
-			break  # TODO
-			_ = Node(
-				f"{mem_name} ({mem_def.parent.name})",
-				parent=aliases_node,
-				value=f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",
-			)
+			# add memory aliases to tree
+			aliases_node = tree.add_node("Memory Aliases", parent=core_node, values=("{}",))
+			for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
+				# break  # TODO
+				_ = tree.add_node(
+					f"{mem_name} ({mem_def.parent.name})",
+					parent=aliases_node,
+					values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",),
+				)
 
 		# add auxillary attributes (TODO)
 		# tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
@@ -131,35 +178,37 @@ def main():
 		# tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
 
 		# add functions to tree
-		fns_node = Node("Functions", parent=core_node, value="{}")
-		for fn_name, fn_def in core_def.functions.items():
-			break  # TODO
-			fn_node = Node(fn_name, parent=fns_node, value="extern" if fn_def.extern else "")
+		if args.functions:
+			fns_node = tree.add_node("Functions", parent=core_node, values=("{}",))
+			for fn_name, fn_def in core_def.functions.items():
+				# break  # TODO
+				fn_node = tree.add_node(fn_name, parent=fns_node, values=(("extern" if fn_def.extern else ""),))
 
-			# add returns and throws information
-			return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
-			_ = Node("Return", parent=fn_node, value=return_str)
-			_ = Node("Throws", parent=fn_node, value=fn_def.throws)
+				# add returns and throws information
+				return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
+				_ = tree.add_node("Return", parent=fn_node, values=(return_str,))
+				_ = tree.add_node("Throws", parent=fn_node, values=(fn_def.throws,))
 
-			# generate and add attributes
-			attrs_node = Node("Attributes", parent=fn_node)
+				if args.attributes:
+					# generate and add attributes
+					attrs_node = tree.add_node("Attributes", parent=fn_node)
 
-			for attr, ops in fn_def.attributes.items():
-				attr_node = Node(attr, parent=attrs_node)
-				for op in ops:
-					context = TextTreeGenContext(parent=attr_node)
-					visitor.generate(op, context)
+					for attr, ops in fn_def.attributes.items():
+						attr_node = tree.add_node(attr, parent=attrs_node)
+						for op in ops:
+							context = TextTreeGenContext(parent=attr_node)
+							visitor.generate(op, context)
 
-			# generate and add parameters
-			params_node = Node("Parameters", parent=fn_node)
+				# generate and add parameters
+				params_node = tree.add_node("Parameters", parent=fn_node)
 
-			for param_name, param_def in fn_def.args.items():
-				_ = Node(param_name, parent=params_node, value=f"{param_def.data_type} {param_def.size}")
+				for param_name, param_def in fn_def.args.items():
+					_ = tree.add_node(param_name, parent=params_node, values=(f"{param_def.data_type} {param_def.size}",))
 
-			# generate and add function behavior
-			if args.operation:
-				context = TextTreeGenContext(parent=fn_node)
-				visitor.generate(fn_def.operation, context)
+				# generate and add function behavior
+				if args.operation:
+					context = TextTreeGenContext(parent=fn_node)
+					visitor.generate(fn_def.operation, context)
 
 		# group instructions by size
 		instrs_by_size = defaultdict(dict)
@@ -171,17 +220,19 @@ def main():
 		for k, v in instrs_by_size.items():
 			instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
 
-		instrs_top_node = Node("Instructions", parent=core_node)
+		instrs_top_node = tree.add_node("Instructions", parent=core_node)
 
 		# generate instruction size groups
 		for size, instrs in sorted(instrs_by_size.items()):
-			instrs_node = Node(f"Width {size}", parent=instrs_top_node)
+			if size == 16:
+				continue
+			instrs_node = tree.add_node(f"Width {size}", parent=instrs_top_node)
 
 			# generate instructions
 			for (code, mask), instr_def in instrs.items():
 				opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
 
-				instr_node = Node(f"{instr_def.ext_name} : {instr_def.name}", parent=instrs_node, value=opcode_str)
+				instr_node = tree.add_node(f"{instr_def.ext_name} : {instr_def.name}", parent=instrs_node, values=(opcode_str,))
 
 				# generate encoding
 				enc_str = []
@@ -191,17 +242,18 @@ def main():
 					elif isinstance(enc, arch.BitField):
 						enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
-				_ = Node("Encoding", parent=instr_node, value=" ".join(enc_str))
-				_ = Node("Assembly", parent=instr_node, value=instr_def.assembly)
-				_ = Node("Throws", parent=instr_node, value=instr_def.throws)
-				attrs_node = Node("Attributes", parent=instr_node, value="{}")
+				_ = tree.add_node("Encoding", parent=instr_node, values=(" ".join(enc_str),))
+				_ = tree.add_node("Assembly", parent=instr_node, values=(instr_def.assembly,))
+				_ = tree.add_node("Throws", parent=instr_node, values=(instr_def.throws,))
+				if args.attributes:
+					attrs_node = tree.add_node("Attributes", parent=instr_node, values="{}")
 
-				# generate attributes
-				for attr, ops in instr_def.attributes.items():
-					attr_node = Node(attr.name, parent=attrs_node)
-					for op in ops:
-						context = TextTreeGenContext(parent=attr_node)
-						visitor.generate(op, context)
+					# generate attributes
+					for attr, ops in instr_def.attributes.items():
+						attr_node = tree.add_node(attr.name, parent=attrs_node)
+						for op in ops:
+							context = TextTreeGenContext(parent=attr_node)
+							visitor.generate(op, context)
 
 				# generate behavior
 				if args.operation:
@@ -210,40 +262,41 @@ def main():
 				break # TODO
 	print("============================")
 	# text = ""
-	for pre, fill, node in RenderTree(root):
+	for pre, fill, node in RenderTree(tree.root):
 	    suffix = ""
-	    if hasattr(node, "value"):
-	        if node.value is not None:
-	            suffix = f" [{node.value}]"
+	    if hasattr(node, "values"):
+	        if node.values is not None:
+	            suffix = f" [{node.values}]"
 	    print("%s%s%s" % (pre, node.name, suffix))
 	print("============================")
 	# from anytree.dotexport import RenderTreeGraph
 	from anytree.exporter import UniqueDotExporter
+	from anytree.exporter import MermaidExporter
 	def edgeattrfunc(node, child):
 	    return 'label="%s:%s"' % (node.name, child.name)
 	def edgefunc(node, child):
 		return f"--{child.edge}-->"
-	
+
 	def nodeattrfunc(node):
-		if hasattr(node, "value"):
-			if node.value is not None:
-				if isinstance(node.value, arch.Instruction):
+		if hasattr(node, "values"):
+			if node.values is not None:
+				if isinstance(node.values, arch.Instruction):
 					label = node.name
-					xlabel = node.value
+					xlabel = node.values
 				else:
-					label = node.value
+					label = node.values
 					xlabel = node.name
 			else:
 				label = node.name
 				xlabel = ""
 			return f'shape=box,label="{label}",xlabel="{xlabel}"'
 		return f'shape=box,label="{node.name}"'
-	
+
 	# TODO: update nodenamefunc for memories to point upwards
 	# return
-	
+
 	exporter = UniqueDotExporter(
-		root,
+		tree.root,
 		# options=["rankdir=LR;"],
 		# nodefunc=nodefunc,
 		# nodenamefunc=nodenamefunc,
@@ -252,7 +305,12 @@ def main():
 		maxlevel=100,
 	)
 	# .to_picture("tree2.png")
-	for line in exporter:
+	dot_file = "tree3.dot"
+	with open(dot_file, "w") as f:
+		for line in exporter:
+			print(line)
+			f.write(line + "\n")
+	for line in MermaidExporter(tree.root):
 		print(line)
 
 if __name__ == "__main__":

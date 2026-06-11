@@ -8,7 +8,7 @@
 
 """Utility stuff for M2-ISA-R DOT (Graphviz) backend."""
 
-from anytree import Node, RenderTree
+from anytree import Node
 
 class TreeGenContext:
 	"""Data keeping class for recursive TreeView generation"""
@@ -49,4 +49,4 @@ class TextTreeGenContext(TreeGenContext):
 		if isinstance(values, (list, set, tuple)):
 			if len(values) == 1:
 				values = values[0]
-		return Node(text, parent=self.parent, value=values)
+		return Node(text, parent=self.parent, values=values)

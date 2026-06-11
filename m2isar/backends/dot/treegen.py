@@ -25,18 +25,15 @@ class TreeGenVisitor(ExprVisitor):
 		context.insert(text="Operation")
 
 		for stmt in expr.statements:
-			print("stmt", stmt)
 			self.generate(stmt, context)
 
 		context.pop()
 
 	@generate.register
 	def visit_block(self, expr: behav.Block, context: "TreeGenContext"):
-		print("visit_block")
 		context.insert(text="Block")
 
 		for stmt in expr.statements:
-			print("stmt2", stmt)
 			self.generate(stmt, context)
 
 		context.pop()
