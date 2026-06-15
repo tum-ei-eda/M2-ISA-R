@@ -11,6 +11,7 @@
 # This file contains the CMake build info for the ${core_name} core architecture.
 
 PROJECT(${core_name})
+FIND_PACKAGE(ETISS)
 
 SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 SET(CMAKE_INSTALL_RPATH "\$ORIGIN/../../include/jit/etiss/jit")
