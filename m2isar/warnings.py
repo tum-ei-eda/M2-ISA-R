@@ -10,6 +10,7 @@ KNOWN_WARNINGS = {
 	'sign-compare',
 	'unused-value',
 	'bit-op-missmatch',
+	'infer-non-static-slice',
 }
 
 
