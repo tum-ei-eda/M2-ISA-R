@@ -21,6 +21,7 @@
 #include "${core_name}Arch.h"
 #include "${core_name}ArchSpecificImp.h"
 #include "${core_name}Funcs.h"
+#include "etiss/Memory.h"
 
 /**
     @brief This function will be called automatically in order to handling exceptions such as interrupt, system call,
@@ -46,6 +47,58 @@ etiss::int32 ${core_name}Arch::handleException(etiss::int32 cause, ETISS_CPU *cp
     % endif \
 
     return 0;
+}
+
+/**
+    @brief See etiss/src/Misc.cpp
+*/
+static etiss::ModuleHandle GetCurrentModule()
+{
+    static etiss::ModuleHandle hModule = 0;
+
+    if (!hModule)
+    {
+        hModule = etiss::GetModuleByAddress((uintptr_t)GetCurrentModule);
+    }
+
+    return hModule;
+}
+
+/**
+    @brief See etiss/src/Misc.cpp
+*/
+static std::string GetCurrentModulePath()
+{
+    static std::string modulePath;
+
+    if (modulePath == "")
+    {
+        modulePath = etiss::GetModulePath(GetCurrentModule());
+    }
+
+    return modulePath;
+}
+
+/**
+    @brief Resolves the ETISS install dir for both in-tree  as well as out-of-tree builds
+*/
+std::string ${core_name}Arch::installDir() const
+{
+    auto archLib = GetCurrentModulePath();
+    auto libPathLoc = archLib.find_last_of("/\\");
+    auto libPath = archLib.substr(0, libPathLoc);
+    auto pluginsPathLoc = libPath.find_last_of("/\\");
+    auto pluginsPath = libPath.substr(0, pluginsPathLoc);
+    auto archPathLoc = pluginsPath.find_last_of("/\\");
+    return libPath.substr(0, archPathLoc);
+}
+
+/**
+    @brief This function is called during InstrSet initialization returns path to jit includes
+*/
+std::string ${core_name}Arch::jitFiles() const
+{
+    return installDir() + "/include/jit";
 }
 
 /**
