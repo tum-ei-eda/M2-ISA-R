@@ -27,7 +27,12 @@ class LoadOrder(CoreDSL2Visitor):
 		name = ctx.name.text
 
 		if name in self.instruction_sets:
-			raise M2DuplicateError(f"instruction set {name} specified more than once")
+			files = [
+				str(ctx.start.source[1].fileName),
+				str(self.instruction_sets[name].start.source[1].fileName),
+			]
+			files_str = ", ".join(files)
+			raise M2DuplicateError(f"instruction set {name} specified more than once: {files_str}")
 
 		self.instruction_sets[name] = ctx
 
