@@ -32,6 +32,49 @@ logger = logging.getLogger("infer_types")
 
 # pylint: disable=unused-argument
 
+def infer_slice_sice_helper(expr):
+    # print("infer_slice_sice_helper")
+    width = None
+    if isinstance(expr.left, behav.NamedReference) and isinstance(expr.right, behav.NamedReference):
+        # print("if named:named2")
+        if expr.left.reference.name == expr.right.reference.name:
+            # print("if named:named")
+            return 1
+    elif isinstance(expr.left, behav.NamedReference):
+        # print("if named:?")
+        if isinstance(expr.right, behav.BinaryOperation):
+            # print("if named:binop")
+            if expr.right.op.value in ["+", "-"]:
+                # print("if named:?+-?")
+                if isinstance(expr.right.left, behav.NamedReference) and isinstance(expr.right.right, behav.IntLiteral):
+                    # print("if named:named2+-int")
+                    if expr.left.reference.name == expr.right.left.reference.name:
+                        # print("if named:named+-int")
+                        width = expr.right.right.value + 1
+                elif isinstance(expr.right.right, behav.NamedReference) and isinstance(expr.right.left, behav.IntLiteral):
+                    # print("if named:int+-named2")
+                    if expr.left.reference.name == expr.right.right.reference.name:
+                        # print("if named:int+-named")
+                        width = expr.right.left.value + 1
+    elif isinstance(expr.right, behav.NamedReference):
+        # print("if ?:named")
+        if isinstance(expr.left, behav.BinaryOperation):
+            # print("if binop:named")
+            # print("expr.left.op", expr.left.op, type(expr.left.op), dir(expr.left.op))
+            if expr.left.op.value in ["+", "-"]:
+                # print("if ?+-?:named")
+                if isinstance(expr.left.left, behav.NamedReference) and isinstance(expr.left.right, behav.IntLiteral):
+                    # print("if named2+-int:named")
+                    if expr.right.reference.name == expr.left.left.reference.name:
+                        # print("if named+-int:named")
+                        width = expr.left.right.value + 1
+                elif isinstance(expr.left.right, behav.NamedReference) and isinstance(expr.left.left, behav.IntLiteral):
+                    # print("if int+-named2:named")
+                    if expr.right.reference.name == expr.left.right.reference.name:
+                        # print("if int+-named:named")
+                        width = expr.left.left.value + 1
+    return width
+
 class InferTypesMutator(ExprMutator):
     """Mutator to annote inferred types to a metamodel."""
 
@@ -157,7 +200,7 @@ class InferTypesMutator(ExprMutator):
             context.emit_warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.right.line_info)
             return expr
         else:
-            width = None
+            width = infer_slice_sice_helper(expr)
             if width is None:
                 context.emit_warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.left.line_info)
                 return expr
