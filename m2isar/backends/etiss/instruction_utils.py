@@ -36,6 +36,22 @@ def actual_size(size, min_=8, max_=128):
 
 	return s if s >= min_ else min_
 
+
+def reg_type_info(reg) -> str:
+    if isinstance(reg.ty, type_info.ArrayType):
+        ty = reg.ty.element_type
+    elif isinstance(reg.ty, type_info.PrimitiveType):
+        ty = reg.ty
+    elif isinstance(reg.ty, type_info.PointerType):
+        return reg_type_info(reg.ty)
+    else:
+        raise TypeError("Register type must be ArrayType or PrimitiveType")
+
+    assert ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT)
+
+    return data_type_map[ty.kind]
+
+
 class CodeString:
 	"""Code string object. Tracks generate C++ code and various metadata for recursive
 	code generation.

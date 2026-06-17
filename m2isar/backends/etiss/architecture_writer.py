@@ -16,7 +16,7 @@ from typing import Union
 from mako.template import Template
 
 
-from .instruction_utils import actual_size
+from .instruction_utils import actual_size, reg_type_info
 from ... import M2TypeError
 from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType
@@ -35,8 +35,13 @@ def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register
 		return
 
 	assert(isinstance(reg.ty, (type_info.ArrayType, type_info.PrimitiveType, type_info.PointerType)))
+	type_acc = reg_type_info(reg)
 	if isinstance(reg.ty, type_info.ArrayType):
 		array_txt = f"[{arch.get_const_or_val(reg.ty.length)}]"
+		assert(reg.ty.element_type.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+	elif isinstance(reg.ty, type_info.PrimitiveType):
+		assert(reg.ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+		array_txt = ""
 	elif isinstance(reg.ty, type_info.PointerType):
 			array_txt = f"[{arch.get_const_or_val(reg.data_range.length)}]" if arch.get_const_or_val(reg.data_range.length) > 1 else ""
 	else:
@@ -51,21 +56,31 @@ def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register
 		# registers with children (aliases) are defined as two arrays:
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
+		type_acc == reg_type_info(reg)
 		if isinstance(reg.ty, type_info.ArrayType):
+			assert(reg.ty.element_type.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
 			size = actual_size(reg.ty.element_type.size)
 		elif isinstance(reg.ty, type_info.PrimitiveType):
+			assert(reg.ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
 			size = actual_size(reg.ty.size)
 		else:
 			raise "Register Types needs to be of Array or PrimitiveType"
 
 		if (len(reg.children) > 0):
-			regs.append(f"etiss_uint{size} *{reg.name}{array_txt}")
-			regs.append(f"etiss_uint{size} ins_{reg.name}{array_txt}")
+			regs.append(f"{type_acc}{size} *{reg.name}{array_txt}")
+			regs.append(f"{type_acc}{size} ins_{reg.name}{array_txt}")
 		else:
-			regs.append(f"etiss_uint{actual_size(reg.ty.size)} {reg.name}{array_txt}")
+			regs.append(f"{type_acc}{actual_size(reg.ty.size)} {reg.name}{array_txt}")
 
 	else:
-		regs.append(f"etiss_uint{actual_size(reg.ty.size)} {reg.name}{array_txt}")
+		size = None
+		if isinstance(reg.ty, type_info.PointerType):
+			assert(isinstance(reg.ty.ty, type_info.PrimitiveType))
+			size = actual_size(reg.ty.ty.size)
+		else:
+			assert(isinstance(reg.ty, type_info.PrimitiveType))
+			size = actual_size(reg.ty.size)
+		regs.append(f"{type_acc}{size} {reg.name}{array_txt}")
 
 def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))
