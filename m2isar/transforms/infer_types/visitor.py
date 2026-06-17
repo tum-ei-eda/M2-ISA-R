@@ -302,7 +302,8 @@ class InferTypesMutator(ExprMutator):
             assert(reference.length == 1)
             if isinstance(reference.parent, (arch.Memory, arch.RegisterBank)):
                 # expr.ty = self.generate(behav.NamedReference(reference.parent), context)
-                expr.ty = reference.parent.ty.element_type
+                assert(isinstance(reference.ty, type_info.PointerType))
+                expr.ty = reference.ty.ty
                 assert (expr.ty is not None)
             elif isinstance(reference.parent, arch.Register):
                 expr.ty = reference.parent.ty
@@ -329,8 +330,8 @@ class InferTypesMutator(ExprMutator):
         assert isinstance(expr.reference, (arch.Memory, arch.RegisterBank))
         # expr.reference = self.generate(behav.NamedReference(expr.reference), context)
 
-        # if expr.right is not None:
-        #     expr.right = self.generate(expr.right, context)
+        if expr.right is not None:
+            expr.right = self.generate(expr.right, context)
 
         # type inference
         assert expr.reference.ty.element_type.kind.is_int

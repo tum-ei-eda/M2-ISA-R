@@ -352,7 +352,6 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				# instantiate M2-ISA-R object, keep track of parent - child relations
 
 				alias = arch.Alias(name, reference, range_spec, type_, attributes)
-				self._memory_aliases[name] = alias
 				# # TODO: Decide if alias can have a range ???
 				# Might make sense to do this for vreg0...vreg31 ->
 				# register unsigned<XLEN> V[32][8] [[is_main_reg]];

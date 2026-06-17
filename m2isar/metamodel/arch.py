@@ -367,7 +367,7 @@ class Alias(Symbol):
         self.range = range
         self.ty = type
         assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
-        super().__init__(name, type_info.PointerType(parent.ty), attributes)
+        super().__init__(name, type, attributes)
 
 
     @property

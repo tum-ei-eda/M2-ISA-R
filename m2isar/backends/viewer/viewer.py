@@ -120,7 +120,7 @@ def main():
 		# add memory aliases to tree
 		mem_alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
-			tree.insert(mem_alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.ty.size}",))
+			tree.insert(mem_alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"TYPE: {mem_def.ty}",))
 
 		# add memories to tree
 		regs_id = tree.insert(core_id, tk.END, text="Register Banks")
@@ -133,7 +133,7 @@ def main():
 		# add memory aliases to tree
 		reg_alias_id = tree.insert(core_id, tk.END, text="Register Bank Aliases")
 		for reg_name, reg_def in sorted(core_def.register_aliases.items()):
-			tree.insert(reg_alias_id, tk.END, text=f"{reg_name} ({reg_def.parent.name})", values=(f"{reg_def.range.upper}:{reg_def.range.lower} ({reg_def.range.length})",))
+			tree.insert(reg_alias_id, tk.END, text=f"{reg_name} ({reg_def.parent.name})", values=(f"TYPE: {reg_def.ty}",))
 
 		# add auxillary attributes
 		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
