@@ -141,6 +141,10 @@ class InferTypesMutator(ExprMutator):
             return expr
         assert isinstance(expr.expr.inferred_type, arch.IntegerType)
         ty = expr.expr.inferred_type
+        if isinstance(expr.left, behav.NamedReference) and isinstance(expr.right, behav.NamedReference) and expr.left.reference == expr.right.reference:
+            # single bit
+            expr.inferred_type = arch.IntegerType(1, False, None)
+            return expr
         # For non-static slices, we cann not infer the type!
         if not isinstance(expr.left, behav.IntLiteral):
             logger.warning("Can not infer type of non-static slice operation. Skipping...")
