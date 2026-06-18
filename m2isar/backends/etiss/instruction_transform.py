@@ -174,7 +174,8 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Break, context: TransformerContext):
-		return CodeString("break;", StaticType.RW, None, None, line_infos=expr.line_info)
+		# return CodeString("break;", StaticType.RW, None, None, line_infos=expr.line_info)
+		return CodeString("break;", StaticType.NONE, None, None, line_infos=expr.line_info)
 
 	@generate.register
 	def _(self, expr: behav.ScalarDefinition, context: TransformerContext):
@@ -512,15 +513,17 @@ class InstructionTransformVisitor(ExprVisitor):
 			context.dependent_regs.update(cond.regs_affected)
 
 		outputs: "list[CodeString]" = []
+		# TODO: handle conditional break/continue...
+		cond.static = StaticType.NONE  # workaround to make all loops non-static
 
 		if expr.post_test:
-			start_c = CodeString("do", cond.static, None, None)
+			start_c = CodeString("do {", cond.static, None, None)
 			end_c = cond
-			end_c.code = f'while ({end_c.code})'
+			end_c.code = f'}} while ({end_c.code})'
 		else:
 			start_c = cond
-			start_c.code = f'while ({start_c.code})'
-			end_c = CodeString("", cond.static, None, None)
+			start_c.code = f'while ({start_c.code}) {{'
+			end_c = CodeString("}", cond.static, None, None)
 
 		outputs.append(start_c)
 		outputs.extend(flatten(stmts))
