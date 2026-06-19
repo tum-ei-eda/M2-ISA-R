@@ -33,29 +33,29 @@ logger = logging.getLogger("infer_types")
 # pylint: disable=unused-argument
 
 def infer_slice_sice_helper(expr):
-    width = None
-    if isinstance(expr.left, behav.NamedReference) and isinstance(expr.right, behav.NamedReference):
-        if expr.left.reference.name == expr.right.reference.name:
-            return 1
-    elif isinstance(expr.left, behav.NamedReference):
-        if isinstance(expr.right, behav.BinaryOperation):
-            if expr.right.op.value in ["+", "-"]:
-                if isinstance(expr.right.left, behav.NamedReference) and isinstance(expr.right.right, behav.IntLiteral):
-                    if expr.left.reference.name == expr.right.left.reference.name:
-                        width = expr.right.right.value + 1
-                elif isinstance(expr.right.right, behav.NamedReference) and isinstance(expr.right.left, behav.IntLiteral):
-                    if expr.left.reference.name == expr.right.right.reference.name:
-                        width = expr.right.left.value + 1
-    elif isinstance(expr.right, behav.NamedReference):
-        if isinstance(expr.left, behav.BinaryOperation):
-            if expr.left.op.value in ["+", "-"]:
-                if isinstance(expr.left.left, behav.NamedReference) and isinstance(expr.left.right, behav.IntLiteral):
-                    if expr.right.reference.name == expr.left.left.reference.name:
-                        width = expr.left.right.value + 1
-                elif isinstance(expr.left.right, behav.NamedReference) and isinstance(expr.left.left, behav.IntLiteral):
-                    if expr.right.reference.name == expr.left.right.reference.name:
-                        width = expr.left.left.value + 1
-    return width
+    def name(node):
+        return node.reference.name if isinstance(node, behav.NamedReference) else None
+
+    def int_value(node):
+        return node.value if isinstance(node, behav.IntLiteral) else None
+
+    def width_from(ref, other):
+        if not isinstance(other, behav.BinaryOperation):
+            return None
+        if other.op.value not in {"+", "-"}:
+            return None
+
+        for lhs, rhs in ((other.left, other.right), (other.right, other.left)):
+            if name(lhs) == name(ref) and int_value(rhs) is not None:
+                return rhs.value + 1
+
+        return None
+
+    if name(expr.left) and name(expr.left) == name(expr.right):
+        return 1
+
+    return width_from(expr.left, expr.right) or width_from(expr.right, expr.left)
+
 
 class InferTypesMutator(ExprMutator):
     """Mutator to annote inferred types to a metamodel."""
