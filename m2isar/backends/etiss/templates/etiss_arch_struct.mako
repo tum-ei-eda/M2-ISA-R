@@ -14,7 +14,6 @@
 
 #ifndef ETISS_${core_name}Arch_${core_name}_H_
 #define ETISS_${core_name}Arch_${core_name}_H_
-#include <stdio.h>
 #include "etiss/jit/CPU.h"
 
 #ifdef __cplusplus
