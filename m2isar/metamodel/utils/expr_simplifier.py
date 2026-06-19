@@ -230,10 +230,10 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if isinstance(expr.expr, behav.IntLiteral):
 			size = expr.size
 			if size is None:
-				return expr
-				# assert expr.inferred_type is not None
-				# size = expr.inferred_type.width
-				# assert size is not None
+				if expr.inferred_type is None:
+					return expr
+				size = expr.inferred_type.width
+				assert size is not None
 			expr.expr.bit_size = size
 			assert expr.expr.bit_size is not None
 			expr.expr.signed = expr.data_type == arch.DataType.S
