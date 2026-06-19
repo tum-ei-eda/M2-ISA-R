@@ -32,6 +32,31 @@ logger = logging.getLogger("infer_types")
 
 # pylint: disable=unused-argument
 
+def infer_slice_sice_helper(expr):
+    def name(node):
+        return node.reference.name if isinstance(node, behav.NamedReference) else None
+
+    def int_value(node):
+        return node.value if isinstance(node, behav.IntLiteral) else None
+
+    def width_from(ref, other):
+        if not isinstance(other, behav.BinaryOperation):
+            return None
+        if other.op.value not in {"+", "-"}:
+            return None
+
+        for lhs, rhs in ((other.left, other.right), (other.right, other.left)):
+            if name(lhs) == name(ref) and int_value(rhs) is not None:
+                return rhs.value + 1
+
+        return None
+
+    if name(expr.left) and name(expr.left) == name(expr.right):
+        return 1
+
+    return width_from(expr.left, expr.right) or width_from(expr.right, expr.left)
+
+
 class InferTypesMutator(ExprMutator):
     """Mutator to annote inferred types to a metamodel."""
 
@@ -60,8 +85,12 @@ class InferTypesMutator(ExprMutator):
 
         # see: https://github.com/Minres/CoreDSL/wiki/Expressions#arithmetic-type-rules
         if expr.op.value in ["+", "-", "*", "/", "%", "|", "&", "^", "<<", ">>"]:
-            if expr.left.inferred_type is None or expr.right.inferred_type is None:
-                logger.warning("Slice Operation needs inferred type. Skipping...")
+            if expr.left.inferred_type is None:
+                context.emit_warning("Binary Operation needs inferred type.", "infer-type", logger=logger, line_info=expr.left.line_info)
+                expr.inferred_type = None
+                return expr
+            elif expr.right.inferred_type is None:
+                context.emit_warning("Binary Operation needs inferred type.", "infer-type", logger=logger, line_info=expr.right.line_info)
                 expr.inferred_type = None
                 return expr
             assert isinstance(expr.left.inferred_type, arch.IntegerType)
@@ -137,20 +166,26 @@ class InferTypesMutator(ExprMutator):
 
         # type inference
         if expr.expr.inferred_type is None:
-            logger.warning("Slice Operation needs inferred type. Skipping...")
+            context.emit_warning("Can not infer type of non-static slice operation.", "infer-type", logger=logger, line_info=expr.expr.line_info)
             return expr
         assert isinstance(expr.expr.inferred_type, arch.IntegerType)
         ty = expr.expr.inferred_type
         # For non-static slices, we cann not infer the type!
-        if not isinstance(expr.left, behav.IntLiteral):
-            logger.warning("Can not infer type of non-static slice operation. Skipping...")
+        if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, behav.IntLiteral):
+            lval = expr.left.value
+            rval = expr.right.value
+            width = lval - rval + 1 if lval > rval else rval - lval + 1
+        elif isinstance(expr.left, behav.IntLiteral):
+            context.emit_warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.left.line_info)
             return expr
-        lval = expr.left.value
-        if not isinstance(expr.right, behav.IntLiteral):
-            logger.warning("Can not infer type of non-static slice operation. Skipping...")
+        elif isinstance(expr.right, behav.IntLiteral):
+            context.emit_warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.right.line_info)
             return expr
-        rval = expr.right.value
-        width = lval - rval + 1 if lval > rval else rval - lval + 1
+        else:
+            width = infer_slice_sice_helper(expr)
+            if width is None:
+                context.emit_warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.left.line_info)
+                return expr
         ty_ = copy(ty)
         ty_._width = width
         expr.inferred_type = ty_
@@ -163,10 +198,10 @@ class InferTypesMutator(ExprMutator):
         expr.left = self.generate(expr.left, context)
         expr.right = self.generate(expr.right, context)
         if expr.left.inferred_type is None:
-            logger.warning("Concat Operation needs inferred type. Skipping...")
+            context.emit_warning("Concat Operation needs inferred type.", "infer-type", logger=logger, line_info=expr.left.line_info)
             return expr
         if expr.right.inferred_type is None:
-            logger.warning("Concat Operation needs inferred type. Skipping...")
+            context.emit_warning("Concat Operation needs inferred type.", "infer-type", logger=logger, line_info=expr.right.line_info)
             return expr
         width = expr.left.inferred_type.width + expr.right.inferred_type.width
         ty = arch.IntegerType(width, False, None)
@@ -346,7 +381,7 @@ class InferTypesMutator(ExprMutator):
 
         ty = deepcopy(expr.expr.inferred_type)
         if ty is None:
-            logger.warning("Type conv needs inferred type. Skipping...")
+            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
             return expr
         assert isinstance(ty, arch.IntegerType)
         assert expr.data_type in [arch.DataType.U, arch.DataType.S]
