@@ -295,12 +295,12 @@ def main():
 		CodeInfoBase.database
 	)
 
+	warnings_info = args.warnings
 	if args.infer_types or args.validate:
 		logger.info("Running type inference")
-		model_obj = infer_types(model_obj)
+		model_obj = infer_types(model_obj, warnings_info=warnings_info)
 	if args.validate:
 		logger.info("Running validator")
-		warnings_info = args.warnings
 		validate_behav(model_obj, warnings_info)
 
 	logger.info("dumping model")
