@@ -52,7 +52,7 @@ class LoadOrder(CoreDSL2Visitor):
 			assert len(extensions) == 0
 			ret = [ins_set_name]
 			for combine in combines:
-				ret = self.extend_ins_set(combines) + ret
+				ret = self.extend_ins_set(combine) + ret
 			return ret
 		else:
 			return [ins_set_name]
