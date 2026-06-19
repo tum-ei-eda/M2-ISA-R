@@ -8,10 +8,13 @@
 
 """Classes to determine model building order for CoreDSL2 models."""
 
+import logging
 from antlr4 import ParserRuleContext
 
 from ... import M2DuplicateError, M2NameError
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+
+logger = logging.getLogger("load_order")
 
 
 class CoreContainerContext(ParserRuleContext):
@@ -44,6 +47,8 @@ class LoadOrder(CoreDSL2Visitor):
 		combines = [e.text for e in self.instruction_sets[ins_set_name].combines]
 		if extensions:
 			assert len(combines) == 0
+			if len(extensions) > 1:
+				logger.warning("Multi-inheritance is not fully supported. Please use the combines keyword to group instruction sets.")
 			ret = [ins_set_name]
 			for extension in extensions:
 				ret = self.extend_ins_set(extension) + ret
