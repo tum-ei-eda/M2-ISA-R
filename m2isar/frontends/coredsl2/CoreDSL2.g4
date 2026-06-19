@@ -19,7 +19,7 @@ import_file
 	;
 
 isa
-	: 'InstructionSet' name=IDENTIFIER ('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+=section* '}' # instruction_set
+	: ('InstructionSet' name=IDENTIFIER (('extends' extension+=IDENTIFIER (',' extension+=IDENTIFIER)*)? '{' sections+=section* '}') | (('combines' combines+=IDENTIFIER (',' combines+=IDENTIFIER)*) ';')) # instruction_set
 	| 'Core' name=IDENTIFIER ('provides' contributing_types+=IDENTIFIER (',' contributing_types+=IDENTIFIER)*)? '{' sections+=section* '}' # core_def
 	;
 
