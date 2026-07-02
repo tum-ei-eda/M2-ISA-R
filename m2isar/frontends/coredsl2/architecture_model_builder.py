@@ -88,7 +88,17 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		name = ctx.name.text
 		extension = []
 		if ctx.extension:
+			if len(ctx.extension) > 1:
+				logger.warning("Extending more than one InstrSet is not CoreDSL2 compiliant!")
 			extension = [obj.text for obj in ctx.extension]
+
+		combines = []
+		if ctx.combines:
+			combines = [obj.text for obj in ctx.combines]
+			assert len(ctx.sections) == 0
+			sections = []
+		else:
+			sections = ctx.sections
 
 		# generate flat list of instruction set contents
 		contents = flatten([self.visit(obj) for obj in ctx.sections])
@@ -123,7 +133,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				raise M2ValueError("unexpected item encountered")
 
 		# instantiate M2-ISA-R object
-		i = arch.InstructionSet(name, extension, parameters, memories, register_banks, functions, instructions)
+		if ctx.combines:
+			i = arch.InstructionSetGroup(name, combines)
+		else:
+			i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")

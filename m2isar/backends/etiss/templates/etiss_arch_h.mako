@@ -76,6 +76,20 @@ class ${core_name}Arch : public etiss::CPUArch
     virtual etiss::int32 handleException(etiss::int32 code, ETISS_CPU *cpu);
 
     /**
+        @brief This function will return the base installation directory of the ArchLib
+
+        @see ${core_name}ArchSpecificImp.h
+    */
+    virtual std::string installDir() const;
+
+    /**
+        @brief This function will return the include prefix relative to the base installation directory of the ArchLib
+
+        @see ${core_name}ArchSpecificImp.h
+    */
+    virtual std::string jitFiles() const;
+
+    /**
         @brief This function is called during CPUArch initialization
 
         @see ${core_name}ArchSpecificImp.h

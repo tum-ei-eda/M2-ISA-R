@@ -325,8 +325,48 @@ class InstructionTransformVisitor(ExprVisitor):
 		"""Generate an assignment expression"""
 
 		# generate target and value expressions
-		target: CodeString = self.generate(expr.target, context)
-		expr_str: CodeString = self.generate(expr.expr, context)
+		if isinstance(expr.target, behav.SliceOperation):
+
+			# generate expression to be sliced and lower and upper slice bound
+			expr_str = self.generate(expr.target.expr, context)
+			left = self.generate(expr.target.left, context)
+			right = self.generate(expr.target.right, context)
+
+			static = StaticType.NONE not in [x.static for x in (expr_str, left, right)]
+
+			if not static:
+				if expr_str.static and not expr_str.is_literal:
+					expr_str.code = context.make_static(expr_str.code, expr.signed)
+				if left.static and not left.is_literal:
+					left.code = context.make_static(left.code, left.signed)
+				if right.static and not right.is_literal:
+					right.code = context.make_static(right.code, right.signed)
+
+			# slice with fixed integers if slice bounds are integers
+			try:
+				new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
+				mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
+				shifted_mask = mask << int(right.code.replace("U", "").replace("L", ""))
+				# The following only works for up to 64 bit targets
+				inv_shifted_mask = f"({~shifted_mask & 0xffffffffffffffff}U)"
+
+			# slice with actual lower and upper bound code if not possible to slice with integers
+			except ValueError:
+				new_size = expr_str.size
+				mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
+				shifted_mask = f"({mask} << ({right.code}))"
+				inv_shifted_mask = f"(~{shifted_mask})"
+
+			c = CodeString(expr_str.code, static, new_size, expr_str.signed,
+				set.union(expr_str.regs_affected, left.regs_affected, right.regs_affected))
+			c.mem_ids = expr_str.mem_ids + left.mem_ids + right.mem_ids
+			target: CodeString = c
+			expr_str_ = self.generate(expr.expr, context)
+
+			expr_str: CodeString = CodeString(f"((({target.code}) & {inv_shifted_mask}) | (({expr_str_} << {right}) & {shifted_mask}U))", static and expr_str_.static, max(target.size, expr_str_.size), False, set())
+		else:
+			target: CodeString = self.generate(expr.target, context)
+			expr_str: CodeString = self.generate(expr.expr, context)
 
 		# check staticness
 		static = bool(target.static & attribute_info.StaticAttribute.WRITE) and bool(expr_str.static)
@@ -352,6 +392,8 @@ class InstructionTransformVisitor(ExprVisitor):
 		context.affected_regs.update(target.regs_affected)
 		context.dependent_regs.update(expr_str.regs_affected)
 
+		# TODO: check if required
+		# if not isinstance(expr.target, behav.SliceOperation):
 		if not target.is_mem_access and not expr_str.is_mem_access:
 			if actual_size(arch.get_const_or_val(target.size)) > arch.get_const_or_val(target.size):
 				if target.signed:
@@ -591,7 +633,8 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			code_str = f'({data_type_map[expr.data_type]}{actual_size(expr.size)})({code_str})'
 
-		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == arch.DataType.S, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c.is_literal = expr_str.is_literal
 		c.mem_ids = expr_str.mem_ids
 
 		return c

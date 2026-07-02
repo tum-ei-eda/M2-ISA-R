@@ -33,9 +33,9 @@ jobs:
   trigger_repo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Trigger Seal5 ETISS Test Flow
-      uses: peter-evans/repository-dispatch@v3
+      uses: peter-evans/repository-dispatch@v4
       with:
          token: ${{ secrets.SEAL5_ACCESS_TOKEN }}
          repository: tum-ei-eda/seal5_etiss_test_env

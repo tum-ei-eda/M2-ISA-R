@@ -600,6 +600,7 @@ class InstructionSet(Named):
 			register_banks: "dict[str, RegisterBank]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
 
 		self.extension = extension
+		self.combines = []
 		self.parameters = parameters
 		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
 		self.register_banks, self.register_aliases = extract_register_alias(register_banks.values())
@@ -607,6 +608,13 @@ class InstructionSet(Named):
 		self.instructions = instructions
 
 		super().__init__(name)
+
+class InstructionSetGroup(InstructionSet):
+	"""A group of InstructionSet instances."""
+
+	def __init__(self, name, combines: "list[str]"):
+		super().__init__(name, [], {}, {}, {}, {})
+		self.combines = combines
 
 class CoreDef(Named):
 	"""A class representing an entire CPU core. Contains the collected attributes of multiple InstructionSets."""
