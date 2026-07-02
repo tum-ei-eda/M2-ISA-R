@@ -84,9 +84,9 @@ class ValidateBehavVisitor(ExprVisitor):
         assert expr.target.ty is not None
         assert expr.expr.ty is not None
         assert isinstance(expr.target.ty, type_info.PrimitiveType)
-        if expr.target.ty.size < expr.expr.ty.size:
+        if arch.get_const_or_val(expr.target.ty.size) < arch.get_const_or_val(expr.expr.ty.size):
             context.emit_warning(f"Implicit truncation {expr.expr.ty.size} -> {expr.target.ty.size} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
-        if expr.target.ty.size > expr.expr.ty.size:
+        if arch.get_const_or_val(expr.target.ty.size) > arch.get_const_or_val(expr.expr.ty.size):
             context.emit_warning(f"Implicit extend {expr.expr.ty.size} -> {expr.target.ty.size} found", "implicit-extend", logger=logger, line_info=expr.line_info)
 
     @generate.register
