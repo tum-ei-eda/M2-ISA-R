@@ -50,7 +50,7 @@ class ValidateBehavVisitor(ExprVisitor):
         if op.value in ["<<", ">>", ">>>"] and expr.right.ty.kind == type_info.TypeKind.INT:
             context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
         if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.kind != expr.right.ty.kind:
-            assert(expr.left.ty.is_int and expr.right.ty.is_int)
+            assert(expr.left.ty.kind.is_int and expr.right.ty.kind.is_int)
             if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
                 pass
             if isinstance(expr.right, behav.Literal) and expr.right.value == 0:
