@@ -633,7 +633,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		else:
 			code_str = f'({data_type_map[expr.data_type]}{actual_size(expr.size)})({code_str})'
 
-		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == arch.DataType.S, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.is_literal = expr_str.is_literal
 		c.mem_ids = expr_str.mem_ids
 

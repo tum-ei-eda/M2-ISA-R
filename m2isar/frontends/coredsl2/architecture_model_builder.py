@@ -136,7 +136,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, constants, memories, functions, instructions)
+			i = arch.InstructionSet(name, extension, parameters, memories, register_banks, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
