@@ -56,7 +56,7 @@ def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register
 		# registers with children (aliases) are defined as two arrays:
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
-		type_acc == reg_type_info(reg)
+		type_acc = reg_type_info(reg)
 		if isinstance(reg.ty, type_info.ArrayType):
 			assert(reg.ty.element_type.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
 			size = actual_size(reg.ty.element_type.size)
@@ -70,7 +70,7 @@ def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register
 			regs.append(f"{type_acc}{size} *{reg.name}{array_txt}")
 			regs.append(f"{type_acc}{size} ins_{reg.name}{array_txt}")
 		else:
-			regs.append(f"{type_acc}{actual_size(reg.ty.size)} {reg.name}{array_txt}")
+			regs.append(f"{type_acc}{actual_size(size)} {reg.name}{array_txt}")
 
 	else:
 		size = None
