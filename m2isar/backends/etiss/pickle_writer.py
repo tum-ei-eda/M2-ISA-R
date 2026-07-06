@@ -22,8 +22,8 @@ def main():
 	for core_name, core in models.items():
 		logger.info("processing model %s", core_name)
 
-		functions[core_name] = dict(instruction_generator.generate_functions(core, args.static_vars))
-		instructions[core_name] = {(code, mask): (instr_name, ext_name, templ_str) for instr_name, (code, mask), ext_name, templ_str in instruction_generator.generate_instructions(core, args.static_vars, BlockEndType[args.block_end_on.upper()])}
+		functions[core_name] = dict(instruction_generator.generate_functions(core, args.static_scalars))
+		instructions[core_name] = {(code, mask): (instr_name, ext_name, templ_str) for instr_name, (code, mask), ext_name, templ_str in instruction_generator.generate_instructions(core, args.static_scalars, BlockEndType[args.block_end_on.upper()])}
 
 	output_path = output_base_path / spec_name
 	output_path.mkdir(exist_ok=True, parents=True)

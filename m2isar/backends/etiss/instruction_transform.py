@@ -180,7 +180,7 @@ class InstructionTransformVisitor(ExprVisitor):
 	def _(self, expr: behav.VarDefinition, context: TransformerContext):
 		"""Generate a Variable definition. Calculates the actual required data width and generates
 		a variable instantiation."""
-		if context.static_vars:
+		if context.static_scalars:
 			if context.ignore_static:
 				static = attribute_info.AccessAttribute.RW
 			else:
@@ -716,7 +716,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			assert isinstance(referred_var.ty, type_info.PrimitiveType)
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
-			if context.static_vars:
+			if context.static_scalars:
 				static &= referred_var.attributes.get("static")
 
 		elif isinstance(referred_var, arch.Parameter):
