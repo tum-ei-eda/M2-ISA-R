@@ -405,13 +405,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if arch.MemoryAttribute.IS_MAIN_REG in attributes:
+					if m.is_main_reg:
 						self._main_reg_file = m
-					if arch.MemoryAttribute.IS_FLOAT_REG in attributes:
+					if m.is_float_reg:
 						self._float_reg_file = m
-					if arch.MemoryAttribute.IS_VECTOR_REG in attributes:
+					if m.is_vector_reg:
 						self._vector_reg_file = m
-					if arch.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+					if m.is_csr_reg:
 						self._csr_reg_file = m
 
 					self._memories[name] = m

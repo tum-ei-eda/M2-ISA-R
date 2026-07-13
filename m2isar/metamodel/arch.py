@@ -374,12 +374,41 @@ class Memory(SizedRefOrConst):
 	@property
 	def is_pc(self):
 		"""Return true if this memory is tagged as being the program counter."""
-		return MemoryAttribute.IS_PC in self.attributes
+		return self._is_specific_memory(MemoryAttribute.IS_PC)
 
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
-		return MemoryAttribute.IS_MAIN_MEM in self.attributes
+		return self._is_specific_memory(MemoryAttribute.IS_MAIN_MEM)
+
+	@property
+	def is_main_reg(self) -> bool:
+		"""Return true if this memory is tagged as being the main memory register."""
+		return self._is_specific_memory(MemoryAttribute.IS_MAIN_REG, "X")
+
+	@property
+	def is_float_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a float register array or named F."""
+		return self._is_specific_memory(MemoryAttribute.IS_FLOAT_REG, "F")
+
+	@property
+	def is_vector_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a vector register array or named V."""
+		return self._is_specific_memory(MemoryAttribute.IS_VECTOR_REG, "V")
+
+	@property
+	def is_csr_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a csr register array or named CSR."""
+		return self._is_specific_memory(MemoryAttribute.IS_CSR_REG, "CSR")
+
+	def _is_specific_memory(self, memory_type: MemoryAttribute, expected_name: str = "") -> bool:
+		"""
+		This is a helper function to ensure, that all checks are performed always the same.
+		:param memory_type: The memory attribute qualifying for this check
+		:param expected_name: The fixed name for this specific type of memory
+		:return: True if the memory matches the constraints, False otherwise
+		"""
+		return memory_type in self.attributes or expected_name.upper() == self.name.upper()
 
 @dataclasses.dataclass
 class BitVal:
@@ -617,17 +646,17 @@ class CoreDef(Named):
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
-			if MemoryAttribute.IS_MAIN_REG in mem.attributes:
+			if mem.is_main_reg:
 				self.main_reg_file = mem
-			if MemoryAttribute.IS_FLOAT_REG in mem.attributes:
+			if mem.is_float_reg:
 				self.float_reg_file = mem
-			if MemoryAttribute.IS_VECTOR_REG in mem.attributes:
+			if mem.is_vector_reg:
 				self.vector_reg_file = mem
-			if MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
+			if mem.is_csr_reg:
 				self.csr_reg_file = mem
-			elif MemoryAttribute.IS_PC in mem.attributes:
+			elif mem.is_pc:
 				self.pc_memory = mem
-			elif MemoryAttribute.IS_MAIN_MEM in mem.attributes:
+			elif mem.is_main_mem:
 				self.main_memory = mem
 			elif MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 				self.global_irq_en_memory = mem

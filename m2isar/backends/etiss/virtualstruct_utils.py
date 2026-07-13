@@ -164,13 +164,13 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	for mem in memories.values():
 		if mem.is_pc:
 			pc_reg = mem
-		elif MemoryAttribute.IS_MAIN_REG in mem.attributes or mem.name == "X":
+		elif mem.is_main_reg:
 			main_reg = mem
-		elif MemoryAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
+		elif mem.is_float_reg:
 			float_reg = mem
-		elif MemoryAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "F":
+		elif mem.is_vector_reg:
 			vector_reg = mem
-		elif MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
+		elif mem.is_csr_reg:
 			csr_reg = mem
 	aliased_csrs = set()
 	if csr_reg is not None:
