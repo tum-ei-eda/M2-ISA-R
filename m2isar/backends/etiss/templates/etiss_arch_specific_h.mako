@@ -136,7 +136,7 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
     {
         // clang-format off
         assert((offset == 0 || (offset < (bitwidth_ / sizeof(uint64_t)))) && "Virtualstruct field offset out of range");
-        % if len(main_reg.children) > 0:
+        % if len(float_reg.children) > 0:
         return (uint64_t) *((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];
         % else:
         return (uint64_t) ((${core_name}*)parent_.structure_)->${float_reg.name}[gprid_];

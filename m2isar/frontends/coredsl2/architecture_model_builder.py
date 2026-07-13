@@ -428,6 +428,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
+					m = None
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
 					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
 						m = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
@@ -444,16 +445,20 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					else:
 						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
 
+					assert isinstance(m, Union[arch.Register, arch.RegisterBank])
+					
 					# attach init value to register bank object
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if attribute_info.RegisterAttribute.IS_MAIN_REG in attributes:
+					if m.is_main_reg:
 						self._main_reg_file = m
-					if attribute_info.RegisterAttribute.IS_FLOAT_REG in attributes:
+					elif m.is_float_reg:
 						self._float_reg_file = m
-					if attribute_info.RegisterAttribute.IS_VECTOR_REG in attributes:
+					elif m.is_vector_reg:
 						self._vector_reg_file = m
+
+					assert sum([m.is_main_reg, m.is_float_reg, m.is_vector_reg]) <= 1
 
 					self._register_banks[name] = m
 					ret_decls.append(m)
@@ -483,8 +488,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if init is not None:
 						m._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if attribute_info.MemoryAttribute.IS_CSR_REG in attributes or name.upper() == "CSR":
+
+					if m.is_csr_reg:
 						self._csr_reg_file = m
+					elif m.is_main_mem:
+						self.main_memory = m
 
 					self._memories[name] = m
 					ret_decls.append(m)

@@ -267,65 +267,90 @@ class Intrinsic(Symbol):
 
 
 class RegisterBank(Symbol):
-    """A class representing a register bank. A register bank combines structured registers,
-    which is used to represent registers in the architectural part of an M2-ISA-R model."""
-    children: "list[Memory]"
-    _initval: "dict[int, Union[int, Parameter, BaseNode]]"
+	"""A class representing a register bank. A register bank combines structured registers,
+	which is used to represent registers in the architectural part of an M2-ISA-R model."""
+	children: "list[Memory]"
+	_initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
-    def __init__(self, name, nr_ele: Union[int, Parameter], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-        self.children = []
-        self._initval = {}
-        ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
+	def __init__(self, name, nr_ele: Union[int, Parameter], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+		self.children = []
+		self._initval = {}
+		ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
 
-        super().__init__(name, ty, attributes)
+		super().__init__(name, ty, attributes)
 
-    # TODO: Implement this
-    def initval(self, idx=None):
-        """Return the initial value for the given index."""
-        return get_const_or_val(self._initval[idx])
+	# TODO: Implement this
+	def initval(self, idx=None):
+		"""Return the initial value for the given index."""
+		return get_const_or_val(self._initval[idx])
 
-    @property
-    def is_pc(self):
-        """Return true if this memory is tagged as being the program counter."""
-        return attribute_info.RegisterAttribute.IS_PC in self.attributes
 
-    @property
-    def is_gpr(self):
-        """Return true if this memory is tagged as being a general-purpose register."""
-        return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
+	@property
+	def is_main_reg(self):
+		"""Return true if this memory is tagged as being a general-purpose register."""
+		return self._is_specific_register(attribute_info.RegisterAttribute.IS_MAIN_REG, "X")
+
+	@property
+	def is_float_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a float register array or named F."""
+		return self._is_specific_register(attribute_info.RegisterAttribute.IS_FLOAT_REG, "F")
+
+	@property
+	def is_vector_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a vector register array or named V."""
+		return self._is_specific_register(attribute_info.RegisterAttribute.IS_VECTOR_REG, "V")
+
+
+	def _is_specific_register(self, register_type: attribute_info.RegisterAttribute, expected_name: str = "") -> bool:
+		"""
+		This is a helper function to ensure, that all checks are performed always the same.
+		:param register_type: The register attribute qualifying for this check
+		:param expected_name: The fixed name for this specific type of register
+		:return: True if the register matches the constraints, False otherwise
+		"""
+		return register_type in self.attributes or expected_name.upper() == self.name.upper()
+
+
 
 
 # be careful: This is only for single defined regs (No Alias or indexedReference)
 class Register(Symbol):
-    """A class representing a register. A register is a single defined Symbols. Dont mix it up
-    bit alias that are IndexedReference of already declared Symbols.
-    This class should simplify different handling to register bank.
-    And is used to represent registers in the architectural part of an M2-ISA-R model."""
-    children: "list[Memory]"
-    _initval: "dict[Union[int, Parameter, BaseNode]]"
+	"""A class representing a register. A register is a single defined Symbols. Dont mix it up
+	bit alias that are IndexedReference of already declared Symbols.
+	This class should simplify different handling to register bank.
+	And is used to represent registers in the architectural part of an M2-ISA-R model."""
+	children: "list[Memory]"
+	_initval: "dict[Union[int, Parameter, BaseNode]]"
 
-    def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
-        self.children = []
-        self._initval = {}
-        ty = type_info.PrimitiveType(kind, size)
+	def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.RegisterAttribute, list[BaseNode]]"):
+		self.children = []
+		self._initval = {}
+		ty = type_info.PrimitiveType(kind, size)
 
-        super().__init__(name, ty, attributes)
+		super().__init__(name, ty, attributes)
 
-    # TODO: Implement this
-    def initval(self):
-        """Return the initial value for the given index."""
+	# TODO: Implement this
+	def initval(self):
+		"""Return the initial value for the given index."""
 
-        return get_const_or_val(self._initval)
+		return get_const_or_val(self._initval)
 
-    @property
-    def is_pc(self):
-        """Return true if this memory is tagged as being the program counter."""
-        return attribute_info.RegisterAttribute.IS_PC in self.attributes
+	@property
+	def is_pc(self):
+		"""Return true if this memory is tagged as being the program counter."""
+		return self._is_specific_register(attribute_info.RegisterAttribute.IS_PC)
 
-    @property
-    def is_gpr(self):
-        """Return true if this memory is tagged as being a general-purpose register."""
-        return attribute_info.RegisterAttribute.IS_GPR_REG in self.attributes
+
+	def _is_specific_register(self, register_type: attribute_info.RegisterAttribute, expected_name: str = "") -> bool:
+		"""
+		This is a helper function to ensure, that all checks are performed always the same.
+		:param register_type: The register attribute qualifying for this check
+		:param expected_name: The fixed name for this specific type of memory
+		:return: True if the memory matches the constraints, False otherwise
+		"""
+		return register_type in self.attributes or expected_name.upper() == self.name.upper()
+
+
 
 #Idea extern [const volatile]<- atleast store it
 #class Port -> raise ...
@@ -350,10 +375,44 @@ class Memory(Symbol):
 		super().__init__(name, type_info.ArrayType(type_info.PrimitiveType(kind, size), length), attributes)
 
 
+	def initval(self, idx=None):
+		"""Return the initial value for the given index."""
+
+		return get_const_or_val(self._initval[idx])
+
+	@property
+	def data_range(self):
+		"""Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
+
+		if self.range.upper is None or self.range.lower is None:
+			return None
+
+		return RangeSpec(self.range.upper - self.range.lower, 0)
+
+
+	@property
+	def is_csr_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a csr register array or named CSR."""
+		return self._is_specific_memory(attribute_info.MemoryAttribute.IS_CSR_REG, "CSR")
+
+
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
-		return attribute_info.MemoryAttribute.IS_MAIN_MEM in self.attributes
+		return self._is_specific_memory(attribute_info.MemoryAttribute.IS_MAIN_MEM)
+
+
+	def _is_specific_memory(self, memory_type: attribute_info.MemoryAttribute, expected_name: str = "") -> bool:
+		"""
+		This is a helper function to ensure, that all checks are performed always the same.
+		:param memory_type: The memory attribute qualifying for this check
+		:param expected_name: The fixed name for this specific type of memory
+		:return: True if the memory matches the constraints, False otherwise
+		"""
+		return memory_type in self.attributes or expected_name.upper() == self.name.upper()
+
+
+
 
 
 # TODO: decide later if you wanna keep lhs information :
@@ -425,6 +484,9 @@ class BitField(Symbol):
 
 	def __repr__(self):
 		return self.__str__()
+
+
+
 
 @dataclasses.dataclass
 class BitVal:
@@ -658,29 +720,31 @@ class CoreDef(Named):
 			self.functions_by_ext[fn_def.ext_name][fn_name] = fn_def
 
 		for mem in itertools.chain(self.memories.values(), self.memory_aliases.values()):
-			if attribute_info.MemoryAttribute.IS_MAIN_MEM in mem.attributes:
-				self.main_memory = mem
-			elif attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
-				self.global_irq_en_memory = mem
-			elif attribute_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
-				self.procno_memory = mem
-			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
-				self.irq_en_memory = mem
-			elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
-				self.irq_pending_memory = mem
-			elif attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name.upper() == "CSR":
-				self.csr_reg_file = mem
+			if isinstance(mem, (Memory)):
+				if mem.is_main_mem:
+					self.main_memory = mem
+				elif mem.is_csr_reg:
+					self.csr_reg_file = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+					self.global_irq_en_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
+					self.procno_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+					self.irq_en_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+					self.irq_pending_memory = mem
 
 
 		for regs in itertools.chain(self.register_banks.values(), self.register_aliases.values()):
-			if attribute_info.RegisterAttribute.IS_MAIN_REG in regs.attributes:
-				self.main_reg_file = regs
-			elif attribute_info.RegisterAttribute.IS_FLOAT_REG in regs.attributes:
-				self.float_reg_file = regs
-			elif attribute_info.RegisterAttribute.IS_VECTOR_REG in regs.attributes:
-				self.vector_reg_file = regs
-			elif attribute_info.RegisterAttribute.IS_PC in regs.attributes:
-				self.pc_memory = regs
+			if isinstance(regs, (Register, RegisterBank)):
+				if regs.is_main_reg:
+					self.main_reg_file = regs
+				if regs.is_float_reg:
+					self.float_reg_file = regs
+				if regs.is_vector_reg:
+					self.vector_reg_file = regs
+				elif regs.is_pc:
+					self.pc_memory = regs
 
 
 		super().__init__(name)
