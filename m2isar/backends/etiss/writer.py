@@ -161,8 +161,8 @@ def main():
 	for core_name, core in cores.items():
 		logger.info("processing model %s", core_name)
 		mapping = descr_mapping.get(core_name)
-		virtualstruct_regs = get_virtualstruct_regs(mapping, core.register_banks, core.register_aliases, core.memories, core.memory_aliases)
-		gdb_mapping = get_gdb_mapping(mapping, core.memories, core.memory_aliases)
+		virtualstruct_regs = get_virtualstruct_regs(mapping, core.register_banks, core.register_aliases, core.memories, core.memory_aliases, core.parameters)
+		gdb_mapping = get_gdb_mapping(mapping, core.register_banks, core.register_aliases, core.memories, core.memory_aliases, core.parameters)
 
 		# create output files path
 		output_path = output_base_path / spec_name / core_name

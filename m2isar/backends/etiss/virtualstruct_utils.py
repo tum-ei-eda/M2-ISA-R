@@ -126,19 +126,25 @@ def process_gdb_xml_descr_args(args: List[str], cores: list):
 		descr_mapping[core] = mapping
 	return descr_mapping
 
-def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
+def get_gdb_mapping(mapping: dict,
+						    registers: "dict[str, Union[arch.RegisterBank, arch.Register]]",
+							register_aliases: "dict[str, arch.Alias]",
+							memories: "dict[str, arch.Memory]",
+							memory_aliases: "dict[str, arch.Alias]",
+							parameters : "dict[str, arch.Parameter]"
+							):
 	HARCODED_NAMES = {"PC": "instructionPointer"}
 	gdb_mapping = None
 	if mapping is not None:
 		gdb_mapping = {}
 		for regnum, data in mapping.items():
 			name, sz = data
-			resolved = resolve_reg(name, memories, memory_aliases)
+			resolved = resolve_reg(name, (registers | memories), (register_aliases | memory_aliases | parameters))
 			assert resolved is not None, f"Register lookup failed: {name}"
 			if resolved is not None:
 				mem, idx = resolved
 				assert mem is not None, f"Register lookup failed: {name}"
-				if mem.parent is not None:  # alias
+				if isinstance(mem, arch.Alias):  # alias
 					rng = mem.range
 					assert rng.length == 1, "Aliased ranges are not allowed"
 					assert idx is None
@@ -146,7 +152,16 @@ def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				if isinstance(mem, arch.Parameter):
+					ele_size = mem.size
+				elif isinstance (mem.ty, type_info.ArrayType):
+					ele_size = mem.ty.element_type.size
+				elif isinstance (mem.ty, type_info.PrimitiveType):
+					ele_size = mem.ty.size
+				else:
+					# Alias of Alias is prohibited for now!
+					raise(f"{mem.ty} is not of Array/PrimitiveType!!!")
+				assert arch.get_const_or_val(ele_size) >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {ele_size} vs. {sz} [{name}]"
 				name2 = mem.name
 				name2 = HARCODED_NAMES.get(name2, name2)
 				if idx is not None:
@@ -159,7 +174,9 @@ def get_virtualstruct_regs(mapping: dict,
 						    registers: "dict[str, Union[arch.RegisterBank, arch.Register]]",
 							register_aliases: "dict[str, arch.Alias]",
 							memories: "dict[str, arch.Memory]",
-							memory_aliases: "dict[str, arch.Alias]"):
+							memory_aliases: "dict[str, arch.Alias]",
+							parameters : "dict[str, arch.Parameter]"
+							):
 	main_reg = None
 	float_reg = None
 	vector_reg = None
@@ -210,12 +227,12 @@ def get_virtualstruct_regs(mapping: dict,
 	if mapping is not None:
 		for regnum, data in mapping.items():
 			name, sz = data
-			resolved = resolve_reg(name, registers, register_aliases)
+			resolved = resolve_reg(name, (registers | memories), (register_aliases | memory_aliases | parameters))
 			assert resolved is not None, f"Register lookup failed: {name}"
 			if resolved is not None:
 				mem, idx = resolved
 				assert mem is not None, f"Register lookup failed: {name}"
-				if mem.parent is not None:  # alias
+				if isinstance(mem, arch.Alias):  # alias
 					rng = mem.range
 					assert rng.length == 1, "Aliased ranges are not allowed"
 					assert idx is None
@@ -223,9 +240,19 @@ def get_virtualstruct_regs(mapping: dict,
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				if isinstance(mem, arch.Parameter):
+					ele_size = mem.size
+				elif isinstance (mem.ty, type_info.ArrayType):
+					ele_size = mem.ty.element_type.size
+				elif isinstance (mem.ty, type_info.PrimitiveType):
+					ele_size = mem.ty.size
+				else:
+					# Alias of Alias is prohibited for now!
+					raise(f"{mem.ty} is not of Array/PrimitiveType!!!")
 				name = mem.name
+				assert arch.get_const_or_val(ele_size) >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {ele_size} vs. {sz} [{name}]"
 				virtualstruct_class = VIRTUALSTRUCT_CLASSES.get(name)
+				# if not isinstance(mem, arch.Parameter):
 				assert virtualstruct_class is not None, f"Unable to find VirtualStruct class for reg: {name}"
 				virtualstruct_regs[virtualstruct_class].append(idx)
 	if virtualstruct_regs is not None:
