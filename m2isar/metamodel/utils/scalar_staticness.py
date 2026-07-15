@@ -168,7 +168,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Callable, context: attribute_info.ScalarStaticnessContext):
 		args = [self.generate(arg, context) for arg in expr.args]
-		is_static = bool(getattr(expr.ref_or_name, "static", False))
+		is_static = bool(expr.ref_or_name.attributes.get("static", False))
 		args.append(attribute_info.StaticAttribute.READ if is_static else attribute_info.StaticAttribute.NONE)
 
 		return min(args)
@@ -176,7 +176,7 @@ class ScalarStaticnessVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.ProcedureCall, context: attribute_info.ScalarStaticnessContext):
 		args = [self.generate(arg, context) for arg in expr.args]
-		is_static = bool(getattr(expr.ref_or_name, "static", False))
+		is_static = bool(expr.ref_or_name.attributes.get("static", False))
 		args.append(attribute_info.StaticAttribute.READ if is_static else attribute_info.StaticAttribute.NONE)
 
 		return min(args)
