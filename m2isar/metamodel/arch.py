@@ -736,14 +736,15 @@ class CoreDef(Named):
 
 
 		for regs in itertools.chain(self.register_banks.values(), self.register_aliases.values()):
-			if isinstance(regs, (Register, RegisterBank)):
+			if isinstance(regs, RegisterBank):
 				if regs.is_main_reg:
 					self.main_reg_file = regs
 				if regs.is_float_reg:
 					self.float_reg_file = regs
 				if regs.is_vector_reg:
 					self.vector_reg_file = regs
-				elif regs.is_pc:
+			elif isinstance(regs, Register):
+				if regs.is_pc:
 					self.pc_memory = regs
 
 

@@ -182,29 +182,21 @@ def get_virtualstruct_regs(mapping: dict,
 	vector_reg = None
 	csr_reg = None
 	pc_reg = None
-	for mem in registers.values():
-		if attribute_info.RegisterAttribute.IS_PC in mem.attributes:
-			pc_reg = mem
-<<<<<<< HEAD
-		elif attribute_info.RegisterAttribute.IS_MAIN_REG in mem.attributes or mem.name == "X":
-			main_reg = mem
-		elif attribute_info.RegisterAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
-			float_reg = mem
-		elif attribute_info.RegisterAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "V":
-			vector_reg = mem
+	for reg in registers.values():
+		if isinstance(reg, arch.Register):
+			if reg.is_pc:
+				pc_reg = reg
+		elif isinstance(reg, arch.RegisterBank):
+			if reg.is_main_reg:
+				main_reg = reg
+			elif reg.is_float_reg:
+				float_reg = reg
+			elif reg.is_vector_reg:
+				vector_reg = reg
 
 	#CSRREG is memory
 	for mem in memories.values():
-		if attribute_info.MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
-=======
-		elif mem.is_main_reg:
-			main_reg = mem
-		elif mem.is_float_reg:
-			float_reg = mem
-		elif mem.is_vector_reg:
-			vector_reg = mem
-		elif mem.is_csr_reg:
->>>>>>> e2a2ca0 ([BUGFIX] Fixing inconsistent check to classify Memory Type)
+		if mem.is_csr_reg:
 			csr_reg = mem
 
 	aliased_csrs = set()

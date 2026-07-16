@@ -428,40 +428,40 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-					m = None
+					reg = None
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
 					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
-						m = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
+						reg = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
 					elif isinstance(size[0], behav.Literal):
 						if size[0].value >= 1:
-							m = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
+							reg = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
 						elif size[0].value == 1:
-							m = arch.Register(name, type_.kind, type_.size, attributes)
+							reg = arch.Register(name, type_.kind, type_.size, attributes)
 						else:
 							M2ValueError("Size is negative for Registerbank")
 					elif isinstance(size[0], int):
 						# Unset Case: =1
-						m = arch.Register(name, type_.kind, type_.size, attributes)
+						reg = arch.Register(name, type_.kind, type_.size, attributes)
 					else:
 						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
 
-					assert isinstance(m, Union[arch.Register, arch.RegisterBank])
+					assert isinstance(reg, Union[arch.Register, arch.RegisterBank])
 					
 					# attach init value to register bank object
 					if init is not None:
-						m._initval[None] = exprInterpretVisitor.generate(init, None)
+						reg._initval[None] = exprInterpretVisitor.generate(init, None)
 
-					if m.is_main_reg:
-						self._main_reg_file = m
-					elif m.is_float_reg:
-						self._float_reg_file = m
-					elif m.is_vector_reg:
-						self._vector_reg_file = m
+					if isinstance(reg, arch.RegisterBank):
+						if reg.is_main_reg:
+							self._main_reg_file = reg
+						elif reg.is_float_reg:
+							self._float_reg_file = reg
+						elif reg.is_vector_reg:
+							self._vector_reg_file = reg
+						assert sum([reg.is_main_reg, reg.is_float_reg, reg.is_vector_reg]) <= 1
 
-					assert sum([m.is_main_reg, m.is_float_reg, m.is_vector_reg]) <= 1
-
-					self._register_banks[name] = m
-					ret_decls.append(m)
+					self._register_banks[name] = reg
+					ret_decls.append(reg)
 				elif "extern" in storage:
 					if name in self._memories:
 						raise M2DuplicateError(f"memory {name} already defined")
