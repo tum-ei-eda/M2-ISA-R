@@ -364,17 +364,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 				# instantiate M2-ISA-R object, keep track of parent - child relations
 
-				alias = arch.Alias(name, reference, range_spec, type_, attributes)
-				# # TODO: Decide if alias can have a range ???
-				# Might make sense to do this for vreg0...vreg31 ->
-				# register unsigned<XLEN> V[32][8] [[is_main_reg]];
+				if attribute_info.RegisterAttribute.IS_PC in attributes:
+					raise NotImplementedError(f"The program counter must be a register not an alias with name {name}")
 
-				# // register aliases
-				# alias vreg0 = V[0];
-				#vs
-				# unsigned<XLEN>& vreg0[16] = V[0][7:0] && V[1][7:0];
-				# or even more complex:
-				# unsigned<XLEN>& vreg0.5[4] = V[0][3:0];
+				# Alias require a range to store details in Array, where it exactly points to (Ty is lhs info)
+				alias = arch.Alias(name, reference, range_spec, type_, attributes)
 
 				alias.parent.children.append(alias)
 

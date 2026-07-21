@@ -120,10 +120,10 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 		f.write(txt)
 
 def build_reg_hierarchy(reg: Union[arch.Memory, arch.Alias, arch.Register, arch.RegisterBank],
-						ptr_regs: "list[arch.Memory]", actual_regs: "list[arch.Memory]",
-						alias_regs: "dict[arch.Memory, arch.Memory]", initval_regs: "list[arch.Memory]"):
+						ptr_regs: "list[Union[arch.Memory, arch.RegisterBank]]", actual_regs: "list[Union[arch.Register, arch.RegisterBank]]",
+						alias_regs: "dict[arch.Alias]", initval_regs: "list[Union[arch.Memory, arch.Register, arch.RegisterBank]]"):
 	"""Populate the passed lists with memory objects of their category.
-
+	# CSR is actually an extern memory range but treatet as a reg
 	ptr_regs: Registers that need to be a pointer within ETISS
 	actual_regs: Registers that are not a pointer
 	alias_regs: Registers which are an alias to some other register
@@ -142,6 +142,7 @@ def build_reg_hierarchy(reg: Union[arch.Memory, arch.Alias, arch.Register, arch.
 						logger.warning("main memory is a child memory of %s", reg)
 						continue
 				build_reg_hierarchy(child, ptr_regs, actual_regs, alias_regs, initval_regs)
+				assert isinstance(child, arch.Alias)
 				alias_regs[child] = reg
 			ptr_regs.append(reg)
 		else:
@@ -155,10 +156,10 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 
 	arch_cpp_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
 
-	ptr_regs = []
-	actual_regs = []
-	alias_regs = {}
-	initval_regs = []
+	ptr_regs : list[arch.Memory] = []
+	actual_regs : list[Union[arch.Register, arch.RegisterBank]] = []
+	alias_regs: dict[arch.Alias] = {}
+	initval_regs: list[arch.Memory] = []
 
 	logger.info("writing architecture class file")
 

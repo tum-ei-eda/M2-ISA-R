@@ -279,7 +279,6 @@ class RegisterBank(Symbol):
 
 		super().__init__(name, ty, attributes)
 
-	# TODO: Implement this
 	def initval(self, idx=None):
 		"""Return the initial value for the given index."""
 		return get_const_or_val(self._initval[idx])
@@ -329,7 +328,6 @@ class Register(Symbol):
 
 		super().__init__(name, ty, attributes)
 
-	# TODO: Implement this
 	def initval(self):
 		"""Return the initial value for the given index."""
 

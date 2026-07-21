@@ -110,24 +110,18 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
 
     % for reg, parent in alias_regs.items():
 <% ref = "&" %>\
-    % if isinstance(reg.ty, type_info.ArrayType):
+        % if isinstance(reg.ty.ty, type_info.ArrayType): #Alias if of pointertype
     for (int i = 0; i < ${arch.get_const_or_val(reg.ty.length)}; ++i)
     {
-        ${core_name.lower()}cpu->${parent.name}[i] = ${ref}${core_name.lower()}cpu->${reg.name}[i];
+        ${core_name.lower()}cpu->${parent.name}[${reg.range.lower} + i]  = ${ref}${core_name.lower()}cpu->${reg.name}[i];
     }
-    % else:
-    % if not isinstance(reg, (arch.Memory, arch.Alias)):
-    % if reg.is_pc:
-    ${core_name.lower()}cpu->${parent.name}[0] = (etiss_uint${reg.size}*)&(cpu->instructionPointer);
-    % else:
-    % if isinstance(reg.ty, type_info.ArrayType):
-    ${core_name.lower()}cpu->${parent.name}[0] = ${ref}${core_name.lower()}cpu->${reg.name};
-    % else:
+        % else:
+            % if isinstance(parent.ty, type_info.ArrayType):
+    ${core_name.lower()}cpu->${parent.name}[${reg.range.lower}] = ${ref}${core_name.lower()}cpu->${reg.name};
+            % else:
     ${core_name.lower()}cpu->${parent.name} = ${ref}${core_name.lower()}cpu->${reg.name};
-    % endif
-    % endif
-    % endif
-    % endif
+            % endif
+        % endif
     % endfor
 
     % for reg in initval_regs:
