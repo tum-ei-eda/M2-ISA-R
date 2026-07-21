@@ -46,7 +46,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             std::string("${main_reg.name}") + etiss::toString(gprid),
             std::string("${main_reg.name}") + etiss::toString(gprid),
             R|W,
-            ${(int(main_reg.ty.length)* int(main_reg.ty.element_type.size) / 8)}
+            ${int(main_reg.ty.element_type.size / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -60,7 +60,7 @@ class RegField_${core_name} : public etiss::VirtualStruct::Field
             name,
             name,
             R|W,
-            ${(int(main_reg.ty.length)* int(main_reg.ty.element_type.size) / 8)}
+            ${int(main_reg.ty.element_type.size / 8)}
         ),
         // clang-format on
         gprid_(gprid)
@@ -109,7 +109,7 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               std::string("${float_reg.name}")+etiss::toString(gprid),
               std::string("${float_reg.name}")+etiss::toString(gprid),
               R|W,
-              ${(int(float_reg.ty.length)* int(float_reg.ty.element_type.size) / 8)}
+              ${int(float_reg.ty.element_type.size / 8)}
             ),
             gprid_(gprid)
     // clang-format on
@@ -122,7 +122,7 @@ class FloatRegField_${core_name} : public etiss::VirtualStruct::Field
               name,
               name,
               R|W,
-              ${(int(float_reg.ty.length)* int(float_reg.ty.element_type.size) / 8)}
+              ${int(float_reg.ty.element_type.size / 8)}
             ),
             gprid_(gprid)
     // clang-format on
