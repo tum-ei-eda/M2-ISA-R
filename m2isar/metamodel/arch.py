@@ -733,6 +733,15 @@ class CoreDef(Named):
 					self.irq_en_memory = mem
 				elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
 					self.irq_pending_memory = mem
+			elif isinstance(mem, (Alias)):
+				if attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
+					self.global_irq_en_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
+					self.procno_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_EN in mem.attributes:
+					self.irq_en_memory = mem
+				elif attribute_info.MemoryAttribute.ETISS_IS_IRQ_PENDING in mem.attributes:
+					self.irq_pending_memory = mem
 
 
 		for regs in itertools.chain(self.register_banks.values(), self.register_aliases.values()):
