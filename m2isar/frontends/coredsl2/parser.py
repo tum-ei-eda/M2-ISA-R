@@ -122,7 +122,7 @@ def main():
 			elif isinstance(mem_def.ty, type_info.PrimitiveType):
 				size = arch.get_const_or_val(mem_def.ty.size)
 			else:
-				assert(isinstance(mem_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
+				assert(isinstance(mem_def.ty, type_info.PointerType))
 				if isinstance(mem_def.ty.ty, type_info.ArrayType):
 					size = arch.get_const_or_val(mem_def.ty.ty.element_type.size)
 				else:

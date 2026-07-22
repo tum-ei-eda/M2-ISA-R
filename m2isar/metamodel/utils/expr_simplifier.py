@@ -243,11 +243,10 @@ class ExprSimplifierVisitor(ExprVisitor):
 			size = expr.size
 			if size is None:
 				assert expr.ty is not None
-				size = expr.ty.size
-				assert size is not None
-			expr.expr.bit_size = size
-			assert expr.expr.bit_size is not None
+				assert expr.expr.ty.size is not None
+				expr.ty.size = expr.expr.ty.size
 			expr.expr.signed = expr.data_type == type_info.TypeKind.INT
+			expr.expr.ty.kind = expr.data_type
 			return expr.expr
 
 		return expr

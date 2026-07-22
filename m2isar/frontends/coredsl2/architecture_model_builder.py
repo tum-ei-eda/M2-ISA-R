@@ -309,7 +309,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			else:
 				width = value.bit_length()
 
-		kind = type_info.TypeKind.UINT if value >=0 else type_info.TypeKind.INT
+		kind = type_info.TypeKind.UINT if value>0 else type_info.TypeKind.INT
 		return behav.Literal(value, type_info.PrimitiveType(kind, width))
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):

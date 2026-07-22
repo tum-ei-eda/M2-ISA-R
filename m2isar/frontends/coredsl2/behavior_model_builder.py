@@ -169,6 +169,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 					init = behav.Tensor(create_np_array_from_literal_array(init, type_), type_)
 			else:
 				if isinstance(type_, type_info.PrimitiveType):
+					# force 0 to be signed
+					type_.kind = type_info.TypeKind.INT
 					init = behav.Literal(0, type_)
 				elif isinstance(type_, type_info.ArrayType):
 					shape = []
