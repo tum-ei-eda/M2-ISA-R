@@ -820,7 +820,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.SliceOperation, context: TransformerContext):
-		"""Generate a slice expression"""
+		"""Generate a slice expression."""
 
 		# generate expression to be sliced and lower and upper slice bound
 		expr_str = self.generate(expr.expr, context)

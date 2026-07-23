@@ -43,14 +43,14 @@ autoapi_options = [
     'undoc-members',
     'private-members',
     'show-inheritance',
-    'show-inheritance-diagram',
+    # 'show-inheritance-diagram',
     'show-module-summary',
     'special-members',
-    'imported-members'
+    # 'imported-members'
 ]
 autoapi_ignore = [
     '*migrations*',
-    #'*parser_gen*'
+    '*parser_gen*'
 ]
 
 templates_path = ['_templates']
@@ -71,3 +71,8 @@ html_static_path = ['_static']
 # https://www.sphinx-doc.org/en/master/usage/extensions/todo.html#configuration
 
 todo_include_todos = True
+
+autoapi_keep_files = False
+suppress_warnings = [
+    "autoapi.python_import_resolution",
+]

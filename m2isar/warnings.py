@@ -1,4 +1,5 @@
 import argparse
+import logging
 from dataclasses import dataclass, field
 from typing import Set
 
@@ -38,7 +39,7 @@ class WarningFlagAction(argparse.Action):
 	def __call__(self, parser, namespace, values, option_string=None):
 		warnings_info = getattr(namespace, 'warnings', None)
 		if warnings_info is None:
-				warnings_info = WarningsInfo()
+			warnings_info = WarningsInfo()
 
 		for val in values:
 			if val == 'no-error':
@@ -63,7 +64,12 @@ class WarningFlagAction(argparse.Action):
 
 		setattr(namespace, 'warnings', warnings_info)
 
-def add_warnings_flags(parser, known_warnings: Set[str], default_warnings: Set[str]):
+
+def add_warnings_flags(
+	parser,
+	known_warnings: Set[str],
+	default_warnings: Set[str]
+):
 	parser.add_argument(
 		'-W',
 		dest='warnings',
@@ -105,5 +111,3 @@ class WarningsManager:
 		log_f(msg)
 		if is_err:
 			raise RuntimeError(msg)
-
-

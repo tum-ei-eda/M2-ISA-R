@@ -18,11 +18,15 @@ from functools import singledispatchmethod
 
 class ExprVisitor(ABC):
     """Base class for recursive metamodel traversal with 2 modes:
-        - Generating text by appending context while traversing AST.
-        - Analyzing/Mutating the AST (sometimes with the help of a context) and returning a modified AST.
+
+    - Generating text by appending context while traversing AST.
+    - Analyzing/Mutating the AST (sometimes with the help of a context)
+      and returning a modified AST.
+
     To implement a new visitor, overload the 'generate' method of nodes that need altered visitation behavior.
-    Use self for additonal global state information
-    Use context for stack-based information that is only relevant for the current branch of the AST.
+
+    Use ``self`` for additonal global state information. Use ``context`` for
+    stack-based information that is only relevant for the current AST branch.
     """
     @abstractmethod
     def generate(self, expr : behav.BaseNode, context=None):

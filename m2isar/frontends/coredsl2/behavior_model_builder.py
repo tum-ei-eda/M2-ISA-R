@@ -324,10 +324,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Group(expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
-		"""Generate a slice expression. Depending on context, this is translated
-		to either an actual :class:`m2isar.metamodel.behav.SliceOperation`or
-		an :class:`m2isar.metamodel.behav.IndexedReference` if a :class:`m2isar.metamodel.arch.Memory/RegisterBank
-		object is to be sliced.
+		"""Generate a slice expression.
+
+		Depending on context, this is translated to either an actual
+		:class:`~m2isar.metamodel.behav.SliceOperation` or an
+		:class:`~m2isar.metamodel.behav.IndexedReference` if a
+		:class:`~m2isar.metamodel.arch.Memory` or
+		:class:`~m2isar.metamodel.arch.RegisterBank` object is to be sliced.
 		"""
 
 		expr = self.visit(ctx.expr)
