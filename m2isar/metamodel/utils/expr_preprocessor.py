@@ -18,7 +18,7 @@ from .. import arch, attribute_info
 from .expr_simplifier import ExprSimplifierVisitor
 from .function_staticness import FunctionStaticnessVisitor
 from .function_throws import FunctionThrowsVisitor
-from .variable_access import VarAccessVisitor
+from .scalar_staticness import VarAccessVisitor
 
 logger = logging.getLogger("preprocessor")
 
