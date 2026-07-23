@@ -82,7 +82,7 @@ def setup():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('--separate', action=BooleanOptionalAction, default=True, help="Generate separate .cpp files for each instruction set.")
-	parser.add_argument("--static-scalars", action=BooleanOptionalAction, default=True, help="Enable static detection for scalars.")
+	parser.add_argument("--static-scalars", action=BooleanOptionalAction, default=True, help="Enable static detection for Variables.")
 	parser.add_argument("--block-end-on", default="none", choices=[x.name.lower() for x in BlockEndType],
 		help="Force end translation blocks on no instructions, uncoditional jumps or all jumps.")
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
@@ -161,8 +161,8 @@ def main():
 	for core_name, core in cores.items():
 		logger.info("processing model %s", core_name)
 		mapping = descr_mapping.get(core_name)
-		virtualstruct_regs = get_virtualstruct_regs(mapping, core.memories, core.memory_aliases)
-		gdb_mapping = get_gdb_mapping(mapping, core.memories, core.memory_aliases)
+		virtualstruct_regs = get_virtualstruct_regs(mapping, core.register_banks, core.register_aliases, core.memories, core.memory_aliases, core.parameters)
+		gdb_mapping = get_gdb_mapping(mapping, core.register_banks, core.register_aliases, core.memories, core.memory_aliases, core.parameters)
 
 		# create output files path
 		output_path = output_base_path / spec_name / core_name

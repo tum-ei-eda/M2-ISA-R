@@ -15,13 +15,13 @@ from string import Template
 from functools import singledispatchmethod
 
 from ... import M2NameError, M2SyntaxError, M2ValueError, flatten
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info, attribute_info
 from ...metamodel.code_info import LineInfoPlacement
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from . import CodeInfoTracker, replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
-                                CodeString, FnID, MemID, StaticType,
-                                TransformerContext, data_type_map)
+                                CodeString, FnID, MemID, TransformerContext,
+								data_type_map, actual_size)
 
 # pylint: disable=unused-argument
 
@@ -86,7 +86,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				code_lines.append(context.wrap_codestring(f"etiss_coverage_count({len(before_line_infos)}, {', '.join(before_line_infos)});"))
 
 			for f_id in arg.function_calls:
-				code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{f_id.fn_call.actual_size} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
+				code_lines.append(context.wrap_codestring(f'{data_type_map[f_id.fn_call.data_type]}{actual_size(f_id.fn_call.size)} {FN_VAL_REPL}{f_id.fn_id};', arg.static))
 				code_lines.append(context.wrap_codestring(f'{FN_VAL_REPL}{f_id.fn_id} = {f_id.args};', arg.static))
 				code_lines.append(context.wrap_codestring('if (cpu->return_pending) goto instr_exit_" + std::to_string(ic.current_address_) + ";', arg.static))
 
@@ -117,22 +117,22 @@ class InstructionTransformVisitor(ExprVisitor):
 			return_conditions = []
 			return_needed = any((
 				context.generates_exception,
-				arch.InstrAttribute.NO_CONT in context.attributes,
-				arch.InstrAttribute.COND in context.attributes,
-				arch.InstrAttribute.FLUSH in context.attributes
+				attribute_info.InstrAttribute.NO_CONT in context.attributes,
+				attribute_info.InstrAttribute.COND in context.attributes,
+				attribute_info.InstrAttribute.FLUSH in context.attributes
 			))
 
 			if context.generates_exception:
 				return_conditions.append("cpu->return_pending")
 				return_conditions.append("cpu->exception")
 
-			if arch.InstrAttribute.NO_CONT in context.attributes and arch.InstrAttribute.COND in context.attributes:
+			if attribute_info.InstrAttribute.NO_CONT in context.attributes and attribute_info.InstrAttribute.COND in context.attributes:
 				return_conditions.append(f'cpu->nextPc != " + std::to_string(ic.current_address_ + {int(context.instr_size / 8)}) + "ULL')
 
-			elif arch.InstrAttribute.NO_CONT in context.attributes:
+			elif attribute_info.InstrAttribute.NO_CONT in context.attributes:
 				return_conditions.clear()
 
-			if arch.InstrAttribute.FLUSH in context.attributes:
+			if attribute_info.InstrAttribute.FLUSH in context.attributes:
 				container.initial_required = 'cp.code() += "cpu->exception = ETISS_RETURNCODE_RELOADBLOCKS;\\n";\n' + container.initial_required
 				return_conditions.clear()
 
@@ -140,7 +140,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				cond_str = ("if (" + " || ".join(return_conditions) + ") ") if return_conditions else ""
 				container.appended_returning_required = f'cp.code() += "{cond_str}return cpu->exception;\\n";'
 
-		elif arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
+		elif attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in context.attributes:
 			container.initial_required = "cpu->return_pending = 1;\ncpu->exception = 0;\n" + container.initial_required
 
 		return container
@@ -149,12 +149,12 @@ class InstructionTransformVisitor(ExprVisitor):
 	def _(self, expr: behav.Block, context: TransformerContext):
 		stmts = [self.generate(stmt, context) for stmt in expr.statements]
 
-		pre = [CodeString("{ // block", StaticType.READ, None, None, line_infos=expr.line_info)]
-		post = [CodeString("} // block", StaticType.READ, None, None)]
+		pre = [CodeString("{ // block", attribute_info.AccessAttribute.READ, None, None, line_infos=expr.line_info)]
+		post = [CodeString("} // block", attribute_info.AccessAttribute.READ, None, None)]
 
 		if not context.ignore_static:
-			pre.append(CodeString("{ // block", StaticType.NONE, None, None))
-			post.insert(0, CodeString("} // block", StaticType.NONE, None, None))
+			pre.append(CodeString("{ // block", attribute_info.AccessAttribute.NONE, None, None))
+			post.insert(0, CodeString("} // block", attribute_info.AccessAttribute.NONE, None, None))
 
 		return pre + stmts + post
 
@@ -168,34 +168,44 @@ class InstructionTransformVisitor(ExprVisitor):
 			c.code = f'return {c.code};'
 			c.line_infos.append(expr.line_info)
 		else:
-			c = CodeString("return;", StaticType.RW, None, None, line_infos=expr.line_info)
+			c = CodeString("return;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 		return c
 
 	@generate.register
 	def _(self, expr: behav.Break, context: TransformerContext):
-		return CodeString("break;", StaticType.RW, None, None, line_infos=expr.line_info)
+		return CodeString("break;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context: TransformerContext):
-		"""Generate a scalar definition. Calculates the actual required data width and generates
+	def _(self, expr: behav.VarDefinition, context: TransformerContext):
+		"""Generate a Variable definition. Calculates the actual required data width and generates
 		a variable instantiation."""
 		if context.static_scalars:
 			if context.ignore_static:
-				static = StaticType.RW
+				static = attribute_info.AccessAttribute.RW
 			else:
-				static = expr.scalar.static
+				static = expr.var.attributes["static"]
 		else:
-			static = StaticType.NONE
+			static = attribute_info.AccessAttribute.NONE
 
-		actual_size = 1 << (expr.scalar.size - 1).bit_length()
-		actual_size = max(actual_size, 8)
+		array_str = ""
+		if isinstance(expr.var.ty, type_info.PrimitiveType):
+			actual_ele_size = 1 << (expr.var.ty.size - 1).bit_length()
+			actual_ele_kind = expr.var.ty.kind
+		elif isinstance(expr.var.ty, type_info.ArrayType):
+			assert(isinstance(expr.var.ty.element_type, type_info.PrimitiveType))
+			actual_ele_size = 1 << (expr.var.ty.element_type.size - 1).bit_length()
+			actual_ele_kind = expr.var.ty.element_type.kind
+			array_str = f"[{arch.get_const_or_val(expr.var.ty.length)}]"
+
+		actual_ele_size = max(actual_ele_size, 8)
+		const = "const " if expr.var.attributes.get("const") else ""
 
 		return CodeString(
-			f'{data_type_map[expr.scalar.data_type]}{actual_size} {expr.scalar.name}',
+			f'{const}{data_type_map[actual_ele_kind]}{actual_ele_size} {expr.var.name}{array_str}',
 			static,
-			expr.scalar.size,
-			expr.scalar.data_type == arch.DataType.S,
+			actual_ele_size,
+			actual_ele_kind == type_info.TypeKind.INT,
 			line_infos=expr.line_info,
 		)
 
@@ -214,7 +224,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 
 			# determine if procedure call is entirely static
-			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
+			static = attribute_info.AccessAttribute.READ if fn.static and all(arg.static != attribute_info.AccessAttribute.NONE for arg in fn_args) else attribute_info.AccessAttribute.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -224,7 +234,7 @@ class InstructionTransformVisitor(ExprVisitor):
 						arg.code = context.make_static(arg.code, arg.signed)
 
 			# generate argument string, add ETISS arch data if required
-			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
+			arch_args = ['cpu', 'system', 'plugin_pointers'] if attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# check if any argument is a memory access
@@ -237,13 +247,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			# add special behavior if this function is an exception entry point
 			exc_code = ""
 
-			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 				context.generates_exception = True
 
-			if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 				context.generates_exception = True
 
-				if fn.size is not None:
+				if fn.ty.size is not None:
 					exc_code = "cpu->exception = "
 
 			c = CodeString(f'{exc_code}{fn.name}({arg_str});', static, None, None, line_infos=[expr.line_info] + [x.line_infos for x in fn_args])
@@ -251,11 +261,11 @@ class InstructionTransformVisitor(ExprVisitor):
 			if fn.throws and not context.ignore_static:
 				c.check_trap = True
 
-				cond = "if (cpu->return_pending) " if fn.throws == arch.FunctionThrows.MAYBE else ""
+				cond = "if (cpu->return_pending) " if fn.throws == attribute_info.FunctionThrows.MAYBE else ""
 				c2 = CodeString(cond + 'goto instr_exit_" + std::to_string(ic.current_address_) + ";', static, None, None)
 
-				pre = [CodeString("{ // procedure", StaticType.READ, None, None), CodeString("{ // procedure", StaticType.NONE, None, None)]
-				post = [CodeString("} // procedure", StaticType.NONE, None, None), CodeString("} // procedure", StaticType.READ, None, None)]
+				pre = [CodeString("{ // procedure", attribute_info.AccessAttribute.READ, None, None), CodeString("{ // procedure", attribute_info.AccessAttribute.NONE, None, None)]
+				post = [CodeString("} // procedure", attribute_info.AccessAttribute.NONE, None, None), CodeString("} // procedure", attribute_info.AccessAttribute.READ, None, None)]
 
 				return pre + [c, c2] + post
 
@@ -278,7 +288,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			fn = ref
 
 			# determine if function call is entirely static
-			static = StaticType.READ if fn.static and all(arg.static != StaticType.NONE for arg in fn_args) else StaticType.NONE
+			static = attribute_info.AccessAttribute.READ if fn.static and all(arg.static != attribute_info.AccessAttribute.NONE for arg in fn_args) else attribute_info.AccessAttribute.NONE
 
 			# convert singular static arguments
 			if not static:
@@ -288,20 +298,20 @@ class InstructionTransformVisitor(ExprVisitor):
 						arg.code = context.make_static(arg.code, arg.signed)
 
 			# generate argument string, add ETISS arch data if required
-			arch_args = ['cpu', 'system', 'plugin_pointers'] if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
+			arch_args = ['cpu', 'system', 'plugin_pointers'] if attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn.attributes or (not fn.static and not fn.extern) else []
 			arg_str = ', '.join(arch_args + [arg.code for arg in fn_args])
 
 			# keep track of signedness of function return value
-			signed = fn.data_type == arch.DataType.S
+			signed = fn.ty.kind == type_info.TypeKind.INT
 			# keep track of affected registers
 			regs_affected = set(chain.from_iterable([arg.regs_affected for arg in fn_args]))
 
-			c = CodeString(f'{fn.name}({arg_str})', static, fn.size, signed, regs_affected, [expr.line_info] + [x.line_infos for x in fn_args])
+			c = CodeString(f'{fn.name}({arg_str})', static, fn.ty.size, signed, regs_affected, [expr.line_info] + [x.line_infos for x in fn_args])
 			c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 
 			if fn.throws and not context.ignore_static:
 				fn_id = FnID(fn, context.fn_var_count, c)
-				repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.size, signed, regs_affected)
+				repl_c = CodeString(f'{FN_VAL_REPL}{context.fn_var_count}', static, fn.ty.size, signed, regs_affected)
 				repl_c.mem_ids = list(chain.from_iterable([arg.mem_ids for arg in fn_args]))
 				repl_c.function_calls.append(fn_id)
 				context.fn_var_count += 1
@@ -369,14 +379,15 @@ class InstructionTransformVisitor(ExprVisitor):
 			expr_str: CodeString = self.generate(expr.expr, context)
 
 		# check staticness
-		static = bool(target.static & StaticType.WRITE) and bool(expr_str.static)
+		static = bool(target.static & attribute_info.AccessAttribute.WRITE) and bool(expr_str.static)
 
-		if not expr_str.static and bool(target.static & StaticType.WRITE) and not context.ignore_static:
+		if not expr_str.static and bool(target.static & attribute_info.AccessAttribute.WRITE) and not context.ignore_static:
 			raise M2ValueError('Static target cannot be assigned to non-static expression!')
 
 		# convert assignment value staticness
-		if expr_str.static and not expr_str.is_literal:
-			if bool(target.static & StaticType.WRITE):
+
+		if expr_str.static and not  expr_str.is_literal:
+			if bool(target.static & attribute_info.AccessAttribute.WRITE):
 				if context.ignore_static:
 					expr_str.code = Template(f'{expr_str.code}').safe_substitute(**replacements.rename_dynamic)
 				else:
@@ -385,7 +396,7 @@ class InstructionTransformVisitor(ExprVisitor):
 				expr_str.code = context.make_static(expr_str.code, expr_str.signed)
 
 		# convert target staticness
-		if bool(target.static & StaticType.READ):
+		if bool(target.static & attribute_info.AccessAttribute.READ):
 			target.code = Template(target.code).safe_substitute(replacements.rename_write)
 
 		# keep track of affected and dependent registers
@@ -395,10 +406,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		# TODO: check if required
 		# if not isinstance(expr.target, behav.SliceOperation):
 		if not target.is_mem_access and not expr_str.is_mem_access:
-			if target.actual_size > target.size:
+			if actual_size(arch.get_const_or_val(target.size)) > arch.get_const_or_val(target.size):
 				if target.signed:
-					shift = target.actual_size - target.size
-					expr_str.code = f'(((etiss_int{target.actual_size})({expr_str.code})) << {shift}) >> {shift}'
+					shift = actual_size(target.size) - target.size
+					expr_str.code = f'(((etiss_int{actual_size(target.size)})({expr_str.code})) << {shift}) >> {shift}'
 				else:
 					mask = (1 << target.size) - 1
 					mask_bits = log2(mask)
@@ -452,7 +463,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		c = CodeString(
 			f'{left.code} {op.value} {right.code}',
 			left.static and right.static,
-			left.size if left.size > right.size else right.size,
+			arch.get_const_or_val(left.size) if arch.get_const_or_val(left.size) > arch.get_const_or_val(right.size) else arch.get_const_or_val(right.size),
 			left.signed or right.signed,
 			set.union(left.regs_affected, right.regs_affected),
 			[expr.line_info] + left.line_infos + right.line_infos,
@@ -579,7 +590,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		then_expr = self.generate(expr.then_expr, context)
 		else_expr = self.generate(expr.else_expr, context)
 
-		static = StaticType.NONE not in [x.static for x in (cond, then_expr, else_expr)]
+		static = attribute_info.AccessAttribute.NONE not in [x.static for x in (cond, then_expr, else_expr)]
 
 		# convert singular static sub-components
 		if not static:
@@ -611,19 +622,18 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# if only width should be changed assume data type remains unchanged
 		if expr.data_type is None:
-			expr.data_type = arch.DataType.S if expr_str.signed else arch.DataType.U
+			expr.data_type = type_info.TypeKind.INT if expr_str.signed else type_info.TypeKind.UINT
 
 		# if only data type should be changed assume width remains unchanged
 		if expr.size is None:
 			expr._size = expr_str.size
-			expr._actual_size = expr_str.actual_size
 
 
 		code_str = expr_str.code
 
 		# sign extension for non-2^N datatypes
-		if expr.data_type == arch.DataType.S and expr_str.actual_size != expr_str.size:
-			target_size = expr.actual_size
+		if expr.data_type == type_info.TypeKind.INT and actual_size(expr_str.size) != expr_str.size:
+			target_size = actual_size(expr.size)
 
 			if isinstance(expr.size, int):
 				code_str = f'((etiss_int{target_size})(((etiss_int{target_size}){expr_str.code}) << ({target_size - expr.size})) >> ({target_size - expr.size}))'
@@ -632,9 +642,9 @@ class InstructionTransformVisitor(ExprVisitor):
 		# normal type conversion
 		# TODO: check if behavior adheres to CoreDSL 2 spec
 		else:
-			code_str = f'({data_type_map[expr.data_type]}{expr.actual_size})({code_str})'
+			code_str = f'({data_type_map[expr.data_type]}{actual_size(expr.size)})({code_str})'
 
-		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == arch.DataType.S, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
+		c = CodeString(code_str, expr_str.static, expr.size, expr.data_type == type_info.TypeKind.INT, expr_str.regs_affected, line_infos=[expr.line_info] + expr_str.line_infos)
 		c.is_literal = expr_str.is_literal
 		c.mem_ids = expr_str.mem_ids
 
@@ -647,55 +657,86 @@ class InstructionTransformVisitor(ExprVisitor):
 		# extract referred object
 		referred_var = expr.reference
 
-		static = StaticType.NONE
+		static = attribute_info.AccessAttribute.NONE
 
 		name = referred_var.name
 
 		# check if static name replacement is needed
 		if name in replacements.rename_static:
 			name = f'${{{name}}}'
-			static = StaticType.READ
+			static = attribute_info.AccessAttribute.READ
 
 		# check which type of reference has to be generated
 		if isinstance(referred_var, arch.Memory):
-			# architecture constant
+			# architecture constant parameter
 			if not static:
 				ref = "*" if len(referred_var.children) > 0 else ""
 				name = f"{ref}{replacements.default_prefix}{name}"
 			signed = False
-			size = referred_var.size
+			size = referred_var.ty.size
+			context.used_arch_data = True
+
+		elif isinstance(referred_var, arch.RegisterBank):
+			# architecture constant parameter
+			if not static:
+				ref = "*" if len(referred_var.children) > 0 else ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			size = (referred_var.ty.length)*(referred_var.ty.element_type.size)
+			context.used_arch_data = True
+
+		elif isinstance(referred_var, arch.Register):
+			# architecture constant parameter
+			if not static:
+				ref = "*" if len(referred_var.children) > 0 else ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			size = referred_var.ty.size
+			context.used_arch_data = True
+
+		elif isinstance(referred_var, arch.Alias):
+			# architecture constant parameter
+			# Limitation: Alias does not haven children
+			if not static:
+				ref = ""
+				name = f"{ref}{replacements.default_prefix}{name}"
+			signed = False
+			assert(isinstance(referred_var.ty, type_info.PointerType))
+			assert(isinstance(referred_var.ty.ty, type_info.PrimitiveType))
+			size = referred_var.ty.size
 			context.used_arch_data = True
 
 		elif isinstance(referred_var, arch.BitFieldDescr):
 			# function argument
-			signed = referred_var.data_type == arch.DataType.S
-			size = referred_var.size
-			static = StaticType.READ
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
+			size = referred_var.ty.size
+			static = attribute_info.AccessAttribute.READ
 
-		elif isinstance(referred_var, arch.Scalar):
-			signed = referred_var.data_type == arch.DataType.S
-			size = referred_var.size
+		elif isinstance(referred_var, arch.Variable):
+			assert isinstance(referred_var.ty, type_info.PrimitiveType)
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
+			size = referred_var.ty.size
 			if context.static_scalars:
-				static = referred_var.static
+				static &= referred_var.attributes.get("static")
 
-		elif isinstance(referred_var, arch.Constant):
+		elif isinstance(referred_var, arch.Parameter):
 			signed = referred_var.value < 0
 			size = context.native_size
-			static = StaticType.READ
+			static = attribute_info.AccessAttribute.READ
 			name = f'{referred_var.value}'
 
 		elif isinstance(referred_var, arch.FnParam):
-			signed = referred_var.data_type == arch.DataType.S
-			size = referred_var.size
-			static = StaticType.RW
+			signed = referred_var.ty.kind ==  type_info.TypeKind.INT
+			size = referred_var.ty.size
+			static = attribute_info.AccessAttribute.RW
 
 		elif isinstance(referred_var, arch.Intrinsic):
 			if context.ignore_static:
 				raise TypeError("intrinsic not allowed in function")
 
-			signed = referred_var.data_type == arch.DataType.S
-			size = referred_var.size
-			static = StaticType.READ
+			signed = referred_var.ty.kind == type_info.TypeKind.INT
+			size = referred_var.ty.size
+			static = attribute_info.AccessAttribute.READ
 
 			if referred_var == context.intrinsics["__encoding_size"]:
 				name = str(context.instr_size // 8)
@@ -704,7 +745,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			raise TypeError("wrong type")
 
 		if context.ignore_static:
-			static = StaticType.RW
+			static = attribute_info.AccessAttribute.RW
 
 		return CodeString(name, static, size, signed, line_infos=expr.line_info)
 
@@ -716,27 +757,35 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# generate index expression
 		index = self.generate(expr.index, context)
+		right = self.generate(expr.right, context) if expr.right else None
 
 		referred_mem = expr.reference
 
 		if isinstance(referred_mem, arch.Memory):
 			context.used_arch_data = True
 
-		size = referred_mem.size
+		if isinstance(referred_mem, type_info.PrimitiveType):
+			size = referred_mem.ty.size
+		else:
+			size = referred_mem.ty.element_type.size
 
 		# convert static index expression
 		index_code = index.code
 		if index.static and not context.ignore_static and not index.is_literal:
 			index.code = context.make_static(index.code, index.signed)
 
-		if context.ignore_static:
-			static = StaticType.RW
-		else:
-			static = StaticType.NONE
+		if right is not None:
+			if right.static and not context.ignore_static and not right.is_literal:
+				right.code = context.make_static(right.code, right.signed)
 
-		if arch.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
+		if context.ignore_static:
+			static = attribute_info.AccessAttribute.RW
+		else:
+			static = attribute_info.AccessAttribute.NONE
+
+		if attribute_info.MemoryAttribute.IS_MAIN_MEM in referred_mem.attributes:
 			# generate memory access if main memory is accessed
-			size = expr.inferred_type._width
+			size = expr.ty.size
 			c = CodeString(f'{MEM_VAL_REPL}{context.mem_var_count}', static, size, False, line_infos=[expr.line_info] + index.line_infos)
 			if (expr.right != None):
 				# Use a simple base address on one site atleast for ranged_mem access.
@@ -756,11 +805,16 @@ class InstructionTransformVisitor(ExprVisitor):
 			return c
 
 		# generate normal indexed access if not
-		code_str = f'{replacements.prefixes.get(name, replacements.default_prefix)}{name}[{index.code}]'
+		if isinstance(expr.reference, arch.Variable):
+			prefix = ""
+		else:
+			prefix = replacements.prefixes.get(name, replacements.default_prefix)
+
+		code_str = f'{prefix}{name}[{index.code}]'
 		if len(referred_mem.children) > 0:
 			code_str = '*' + code_str
 		c = CodeString(code_str, static, size, False, line_infos=[expr.line_info] + index.line_infos)
-		if arch.MemoryAttribute.IS_MAIN_REG in referred_mem.attributes:
+		if attribute_info.RegisterAttribute.IS_MAIN_REG in referred_mem.attributes:
 			c.regs_affected.add(index_code)
 		return c
 
@@ -773,7 +827,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
 
-		static = StaticType.NONE not in [x.static for x in (expr_str, left, right)]
+		static = attribute_info.AccessAttribute.NONE not in [x.static for x in (expr_str, left, right)]
 
 		if not static:
 			if expr_str.static and not expr_str.is_literal:
@@ -834,42 +888,64 @@ class InstructionTransformVisitor(ExprVisitor):
 		return c
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context: TransformerContext):
-		"""Generate generic number literal. Currently unused."""
-		lit = int(expr.value)
-		size = min(lit.bit_length(), 64)
-		sign = lit < 0
+	def _(self, expr: behav.Literal, context: TransformerContext):
+		if expr.ty.kind is type_info.TypeKind.STR:
+			return CodeString(f'"{expr.value}"', attribute_info.AccessAttribute.READ, None, False, line_infos=expr.line_info)
 
-		twocomp_lit = (lit + (1 << 64)) % (1 << 64)
+		# old number NumberLiteral
+		elif expr.ty.kind == type_info.TypeKind.NONE:
+			lit = int(expr.value)
+			size = min(lit.bit_length(), 64)
+			sign = lit <= 0
 
-		postfix = "U" if not sign else ""
-		postfix += "LL"
 
-		return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
+			# TODO: Look in diff. U is sometimes there for negative  vals!!!
+			twocomp_lit = (lit + (1 << 64)) % (1 << 64)
+			postfix = "U" if not sign else ""
+			postfix += "LL"
+			return CodeString(str(twocomp_lit) + postfix, True, size, sign, line_infos=expr.line_info)
+		# IntLiteral
+		else:
+			assert(expr.ty.kind in [type_info.TypeKind.INT, type_info.TypeKind.UINT])
+			lit = int(expr.value)
+			if expr.ty.size is None:
+				size = lit.bit_length()
+			size = min(expr.ty.size, 128)
+
+			if expr.value <= 0 or expr.ty.kind == type_info.TypeKind.INT:
+			# 	raise M2ValueError('Negative literal value cannot be represented as unsigned integer!')
+				sign = True
+			else:
+				sign = False
+
+
+			minus = ""
+			if lit > 0 and sign and (lit >> (size - 1)) & 1:
+				minus = "-"
+				sign = True
+
+			_ = (lit + (1 << size)) % (1 << size)
+
+			postfix = "U" if not sign else ""
+			postfix += "LL"
+
+			ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
+			ret.is_literal = True
+			return ret
 
 	@generate.register
-	def _(self, expr: behav.IntLiteral, context: TransformerContext):
-		"""Generate an integer literal."""
-		lit = int(expr.value)
-		size = min(expr.bit_size, 128)
-		sign = expr.signed
+	def _(self, expr: behav.Tensor, context: TransformerContext):
+		assert(expr.ty.element_type.kind in [type_info.TypeKind.INT, type_info.TypeKind.UINT])
+		#  no element_type transformation if sizes dont fit
+		sign = (expr.ty.element_type.kind == type_info.TypeKind.INT)
+		size = expr.ty.element_type.size
 
-		minus = ""
-		if lit > 0 and sign and (lit >> (size - 1)) & 1:
-			minus = "-"
 
-		_ = (lit + (1 << size)) % (1 << size)
-
-		postfix = "U" if not sign else ""
-		postfix += "LL"
-
-		ret = CodeString(minus + str(lit) + postfix, True, size, sign, line_infos=expr.line_info)
+		c_init = "{" + ", ".join(map(str, expr.value)) + "}"
+		ret = CodeString(c_init, attribute_info.AccessAttribute.READ, size, sign, line_infos=expr.line_info)
 		ret.is_literal = True
 		return ret
 
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context: TransformerContext):
-		return CodeString(f'"{expr.value}"', StaticType.READ, None, False, line_infos=expr.line_info)
 
 	@generate.register
 	def _(self, expr: behav.CodeLiteral, context: TransformerContext):

@@ -28,6 +28,9 @@ extern "C"
         % for reg in regs:
         ${reg};
         % endfor
+        % for mem in mems:
+        ${mem};
+        % endfor
     };
 
 #pragma pack(pop) // undo changes

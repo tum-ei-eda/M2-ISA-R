@@ -55,21 +55,17 @@ class ISAmanualVisitor(ExprVisitor):
         self.generate(expr.right, writer)
 
     @generate.register
-    def _(self, expr: behav.IntLiteral, writer):
+    def _(self, expr: behav.Literal, writer):
         writer.write(expr.value)
 
     @generate.register
-    def _(self, expr: behav.IntLiteral, writer):
-        writer.write(expr.value)
-
-    @generate.register
-    def _(self, expr: behav.ScalarDefinition, writer):
-        writer.write_type(expr.scalar.data_type, expr.scalar.size)
+    def _(self, expr: behav.VarDefinition, writer):
+        writer.write_type(expr.var.data_type, expr.var.size)
         writer.write(" ")
-        writer.write(expr.scalar.name)
-        if expr.scalar.value:
+        writer.write(expr.var.name)
+        if expr.var.value:
             writer.write(" = ")
-            writer.write(expr.scalar.value)
+            writer.write(expr.var.value)
 
     @generate.register
     def _(self, expr: behav.Break, writer):
@@ -134,7 +130,7 @@ class ISAmanualVisitor(ExprVisitor):
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
         writer.write(expr.reference.name)
-        if isinstance(expr.reference, (arch.Constant, arch.Memory, arch.Scalar)):
+        if isinstance(expr.reference, (arch.Parameter, arch.Memory, arch.Scalar)):
             pass
 
     @generate.register

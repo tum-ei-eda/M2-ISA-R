@@ -244,20 +244,20 @@ etiss::InterruptVector *${core_name}Arch::createInterruptVector(ETISS_CPU *cpu)
         return 0;
 
     % if irq_en_reg is not None and irq_pending_reg is not None:
-<% en_ref = "" if len(irq_en_reg.children) > 0 else "&" %>\
-<% pending_ref = "" if len(irq_pending_reg.children) > 0 else "&" %>\
-    std::vector<etiss::uint${irq_en_reg.size} *> vec;
-    std::vector<etiss::uint${irq_en_reg.size} *> mask;
+<% en_ref = "&" %>\
+<% pending_ref = "&" %>\
+    std::vector<etiss::uint${irq_en_reg.ty.size} *> vec;
+    std::vector<etiss::uint${irq_en_reg.ty.size} *> mask;
 
     vec.push_back(${en_ref}((${core_name} *)cpu)->${irq_pending_reg.name});
     mask.push_back(${pending_ref}((${core_name} *)cpu)->${irq_en_reg.name});
 
-    return new etiss::MappedInterruptVector<etiss::uint${irq_en_reg.size}>(vec, mask);
+    return new etiss::MappedInterruptVector<etiss::uint${irq_en_reg.ty.size}>(vec, mask);
     % else:
-    std::vector<etiss::uint${main_reg.size} *> vec;
-    std::vector<etiss::uint${main_reg.size} *> mask;
+    std::vector<etiss::uint${main_reg.ty.element_type.size} *> vec;
+    std::vector<etiss::uint${main_reg.ty.element_type.size} *> mask;
 
-    return new etiss::MappedInterruptVector<etiss::uint${main_reg.size}>(vec, mask);
+    return new etiss::MappedInterruptVector<etiss::uint${main_reg.ty.element_type.size}>(vec, mask);
     % endif
 }
 
@@ -269,8 +269,8 @@ void ${core_name}Arch::deleteInterruptVector(etiss::InterruptVector *vec, ETISS_
 % if global_irq_en_reg is not None:
 etiss::InterruptEnable *${core_name}Arch::createInterruptEnable(ETISS_CPU *cpu)
 {
-<% ref = "" if len(global_irq_en_reg.children) > 0 else "&" %>\
-    return new etiss::MappedInterruptEnable<etiss::uint${main_reg.size}>(${ref}((${core_name} *)cpu)->${global_irq_en_reg.name}, ${global_irq_en_mask});
+<% ref = "&" %>\
+    return new etiss::MappedInterruptEnable<etiss::uint${main_reg.ty.element_type.size}>(${ref}((${core_name} *)cpu)->${global_irq_en_reg.name}, ${global_irq_en_mask});
 }
 
 void ${core_name}Arch::deleteInterruptEnable(etiss::InterruptEnable *en, ETISS_CPU *cpu)

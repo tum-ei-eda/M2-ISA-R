@@ -62,19 +62,11 @@ class FunctionStaticnessVisitor(ExprVisitor):
 		return all([left, right])
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
+	def _(self, expr: behav.Literal, context):
 		return True
 
 	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return True
-
-	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
-		return True
-
-	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context):
+	def _(self, expr: behav.VarDefinition, context):
 		return True
 
 	@generate.register
@@ -128,15 +120,15 @@ class FunctionStaticnessVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Scalar):
-			return expr.reference.static
+		if isinstance(expr.reference, arch.Variable):
+			return expr.reference.attributes.get("static")
 
 		static_map = {
 			arch.Memory: False,
 			arch.BitFieldDescr: True,
-			arch.Constant: True,
+			arch.Parameter: True,
 			arch.FnParam: True,
-			arch.Scalar: True,
+			arch.Variable: True,
 			arch.Intrinsic: False
 		}
 

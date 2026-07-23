@@ -13,15 +13,14 @@ from itertools import chain
 from string import Template
 
 from ... import M2ValueError
-from ...metamodel import arch
+from ...metamodel import arch, type_info, attribute_info
 from ...metamodel.code_info import LineInfo
-from ...metamodel.utils import StaticType
 from . import replacements
 
 data_type_map = {
-	arch.DataType.S: 'etiss_int',
-	arch.DataType.U: 'etiss_uint',
-	arch.DataType.NONE: 'void'
+	type_info.TypeKind.INT: 'etiss_int',
+	type_info.TypeKind.UINT: 'etiss_uint',
+	type_info.TypeKind.VOID: 'void'
 }
 
 
@@ -31,11 +30,27 @@ FN_VAL_REPL = "fn_val_"
 def actual_size(size, min_=8, max_=128):
 	"""Calculate a fitting c datatype width for any arbitrary size."""
 
-	s = 1 << (size - 1).bit_length()
+	s = 1 << (arch.get_const_or_val(size) - 1).bit_length()
 	if s > max_:
 		raise M2ValueError("value too big")
 
 	return s if s >= min_ else min_
+
+
+def reg_type_info(reg) -> str:
+    if isinstance(reg.ty, type_info.ArrayType):
+        ty = reg.ty.element_type
+    elif isinstance(reg.ty, type_info.PrimitiveType):
+        ty = reg.ty
+    elif isinstance(reg.ty, type_info.PointerType):
+        return reg_type_info(reg.ty)
+    else:
+        raise TypeError("Register type must be ArrayType or PrimitiveType")
+
+    assert ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT)
+
+    return data_type_map[ty.kind]
+
 
 class CodeString:
 	"""Code string object. Tracks generate C++ code and various metadata for recursive
@@ -48,7 +63,7 @@ class CodeString:
 
 	def __init__(self, code, static, size, signed, regs_affected=None, line_infos=[]):
 		self.code = code
-		self.static = StaticType(static)
+		self.static = attribute_info.AccessAttribute(static)
 		self.size = size
 		self.signed = signed
 		self.mem_ids = []
@@ -64,9 +79,6 @@ class CodeString:
 		else:
 			self.line_infos = []
 
-	@property
-	def actual_size(self):
-		return actual_size(self.size)
 
 	@property
 	def needs_fn_call(self):
@@ -138,13 +150,16 @@ class TransformerContext:
 	provides helper functions for staticness conversion etc.
 	"""
 
-	def __init__(self, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
-			fields: "dict[str, arch.BitFieldDescr]", attributes: "list[arch.InstrAttribute]", functions: "dict[str, arch.Function]",
-			instr_size: int, native_size: int, arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
+	def __init__(self, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Alias]",
+			registers: "dict[str, arch.Memory]", register_aliases: "dict[str, arch.Memory]", fields: "dict[str, arch.BitFieldDescr]",
+			attributes: "list[attribute_info.InstrAttribute]", functions: "dict[str, arch.Function]", instr_size: int, native_size: int,
+			arch_name: str, static_scalars: bool, intrinsics, generate_coverage: bool, ignore_static: bool = False):
 
-		self.constants = constants
+		self.parameters = parameters
 		self.memories = memories
 		self.memory_aliases = memory_aliases
+		self.registers = registers
+		self.register_aliases = register_aliases
 		self.fields = fields
 		self.attributes = attributes if attributes else []
 		self.functions = functions
@@ -164,18 +179,18 @@ class TransformerContext:
 		self.pc_reg = None
 		self.pc_mem = None
 
-		for _, mem_descr in chain(self.memories.items(), self.memory_aliases.items()):
-			if arch.MemoryAttribute.IS_PC in mem_descr.attributes:
-				self.pc_mem = mem_descr
+		for _, reg_descr in chain(self.registers.items(), self.register_aliases.items()):
+			if attribute_info.RegisterAttribute.IS_PC in reg_descr.attributes:
+				self.pc_mem = reg_descr
 				break
 
 		self.raise_fn: arch.Function = None
 		self.mem_raise_fn: arch.Function = None
 
 		for fn_name, fn_def in self.functions.items():
-			if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn_def.attributes:
 				self.raise_fn = fn_def
-			if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
+			if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn_def.attributes:
 				self.mem_raise_fn = fn_def
 
 		self.generates_exception = False
@@ -210,4 +225,4 @@ class TransformerContext:
 		if isinstance(name_or_val, int):
 			return name_or_val
 
-		return self.constants[name_or_val]
+		return self.parameters[name_or_val]

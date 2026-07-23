@@ -13,7 +13,7 @@ from functools import singledispatchmethod
 from operator import or_
 from typing import Any
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info, attribute_info
 from .ExprVisitor import ExprVisitor
 
 # pylint: disable=unused-argument
@@ -35,12 +35,12 @@ class FunctionThrowsVisitor(ExprVisitor):
 			else:
 				statements.append(temp)
 
-		return reduce(or_, statements, arch.FunctionThrows.NO)
+		return reduce(or_, statements, attribute_info.FunctionThrows.NO)
 
 	@generate.register
 	def _(self, expr: behav.Block, context):
 		stmts = [self.generate(x, context) for x in expr.statements]
-		return reduce(or_, stmts, arch.FunctionThrows.NO)
+		return reduce(or_, stmts, attribute_info.FunctionThrows.NO)
 
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context):
@@ -65,24 +65,20 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return reduce(or_, [left, right])
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return arch.FunctionThrows.NO
+	def _(self, expr: behav.Literal, context):
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return arch.FunctionThrows.NO
+	def _(self, expr: behav.Tensor, context):
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
-		return arch.FunctionThrows.NO
-
-	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context):
-		return arch.FunctionThrows.NO
+	def _(self, expr: behav.VarDefinition, context):
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Break, context):
-		return arch.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Assignment, context):
@@ -98,7 +94,7 @@ class FunctionThrowsVisitor(ExprVisitor):
 
 		conds.extend(stmts)
 
-		return arch.FunctionThrows.MAYBE if reduce(or_, conds) else arch.FunctionThrows.NO
+		return attribute_info.FunctionThrows.MAYBE if reduce(or_, conds) else attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.Loop, context):
@@ -121,7 +117,7 @@ class FunctionThrowsVisitor(ExprVisitor):
 		if expr.expr is not None:
 			return self.generate(expr.expr, context)
 
-		return arch.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
@@ -131,15 +127,15 @@ class FunctionThrowsVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
-			return arch.FunctionThrows.YES
+		if isinstance(expr.reference, arch.Memory) and attribute_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return attribute_info.FunctionThrows.YES
 
-		return arch.FunctionThrows.NO
+		return attribute_info.FunctionThrows.NO
 
 	@generate.register
 	def _(self, expr: behav.IndexedReference, context):
-		if isinstance(expr.reference, arch.Memory) and arch.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
-			return arch.FunctionThrows.YES
+		if isinstance(expr.reference, arch.Memory) and attribute_info.MemoryAttribute.ETISS_CAN_FAIL in expr.reference.attributes:
+			return attribute_info.FunctionThrows.YES
 
 		return self.generate(expr.index, context)
 
@@ -152,16 +148,16 @@ class FunctionThrowsVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Callable, context):
 		args = [self.generate(arg, context) for arg in expr.args]
-		throws = getattr(expr.ref_or_name, "throws", arch.FunctionThrows.NO)
-		args.append(throws if isinstance(throws, arch.FunctionThrows) else cast_to_throws(throws))
+		throws = getattr(expr.ref_or_name, "throws", attribute_info.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, attribute_info.FunctionThrows) else cast_to_throws(throws))
 
 		return reduce(or_, args)
 
 	@generate.register
 	def _(self, expr: behav.ProcedureCall, context):
 		args = [self.generate(arg, context) for arg in expr.args]
-		throws = getattr(expr.ref_or_name, "throws", arch.FunctionThrows.NO)
-		args.append(throws if isinstance(throws, arch.FunctionThrows) else cast_to_throws(throws))
+		throws = getattr(expr.ref_or_name, "throws", attribute_info.FunctionThrows.NO)
+		args.append(throws if isinstance(throws, attribute_info.FunctionThrows) else cast_to_throws(throws))
 
 		return reduce(or_, args)
 
@@ -172,8 +168,8 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return expr_result
 
 
-def cast_to_throws(throws: Any) -> arch.FunctionThrows:
+def cast_to_throws(throws: Any) -> attribute_info.FunctionThrows:
 	"""Cast unknown throws values into FunctionThrows for robust visitor dispatch."""
 	if isinstance(throws, bool):
-		return arch.FunctionThrows.YES if throws else arch.FunctionThrows.NO
-	return arch.FunctionThrows(throws)
+		return attribute_info.FunctionThrows.YES if throws else attribute_info.FunctionThrows.NO
+	return attribute_info.FunctionThrows(throws)

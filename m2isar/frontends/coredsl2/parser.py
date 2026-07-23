@@ -14,7 +14,7 @@ import pickle
 import sys
 
 from ... import M2Error, M2SyntaxError
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, attribute_info
 from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
@@ -27,12 +27,12 @@ from ...transforms.infer_types.transform import infer_types
 from ...transforms.validate_behav.validate import validate_behav
 from ...warnings import add_warnings_flags, KNOWN_WARNINGS
 
-def try_eval_bool(operation, constants: "dict[str, arch.Constant]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
+def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
 	simplifier = ExprSimplifierVisitor()
 	# TODO: switch to ExprInterpreterVisitor?
 	op = simplifier.generate(operation, None)
-	if not isinstance(op, behav.IntLiteral):
+	if not isinstance(op, behav.Literal):
 		return None
 	return op.value != 0
 
@@ -101,9 +101,9 @@ def main():
 
 		warned_fns = set()
 
-		logger.debug("checking core constants")
+		logger.debug("checking core parameters")
 		unassigned_const = False
-		for const in core_def.constants.values():
+		for const in core_def.parameters.values():
 			if const.value is None:
 				logger.critical("constant %s in core %s has no value assigned!", const.name, core_name)
 				unassigned_const = True
@@ -113,20 +113,29 @@ def main():
 
 		logger.debug("evaluating core parameters")
 
-		for const_def in core_def.constants.values():
+		for const_def in core_def.parameters.values():
 			const_def._value = const_def.value
 
 		for mem_def in itertools.chain(core_def.memories.values(), core_def.memory_aliases.values()):
-			mem_def._size = mem_def.size
-			mem_def.range._lower_base = mem_def.range.lower_base
-			mem_def.range._upper_base = mem_def.range.upper_base
+			if isinstance(mem_def.ty, type_info.ArrayType):
+				size = arch.get_const_or_val(mem_def.ty.element_type.size)
+			elif isinstance(mem_def.ty, type_info.PrimitiveType):
+				size = arch.get_const_or_val(mem_def.ty.size)
+			else:
+				assert(isinstance(mem_def.ty, type_info.PointerType))
+				if isinstance(mem_def.ty.ty, type_info.ArrayType):
+					size = arch.get_const_or_val(mem_def.ty.ty.element_type.size)
+				else:
+					size = arch.get_const_or_val(mem_def.ty.ty.size)
 
+			mem_def.ty.size = size
 			for attr_name, attr_ops in mem_def.attributes.items():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-							{}, core_def.functions, warned_fns)
+
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+							{}, {}, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
@@ -135,13 +144,43 @@ def main():
 
 				mem_def.attributes[attr_name] = ops
 
+		for reg_def in itertools.chain(core_def.register_banks.values(), core_def.register_aliases.values()):
+			if isinstance(reg_def.ty, type_info.ArrayType):
+				reg_def.ty.element_type.size = arch.get_const_or_val(reg_def.ty.element_type.size)
+				reg_def.ty.length = arch.get_const_or_val(reg_def.ty.length)
+			elif isinstance(reg_def.ty, type_info.PrimitiveType):
+				reg_def.ty.size = arch.get_const_or_val(reg_def.ty.size)
+			else:
+				assert(isinstance(reg_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
+				pass
+				# if isinstance(reg_def.ty.ty, type_info.ArrayType):
+				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_type.size)
+				# else:
+				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
+
+			for attr_name, attr_ops in reg_def.attributes.items():
+				ops = []
+				for attr_op in attr_ops:
+					try:
+
+						behav_builder = BehaviorModelBuilder(core_def.parameters, {}, {},core_def.register_banks,
+										    core_def.register_aliases, {}, core_def.functions, warned_fns)
+						op = behav_builder.visit(attr_op)
+						ops.append(op)
+					except M2Error as e:
+						logger.critical("error processing attribute \"%s\" of memory \"%s\": %s", attr_name, fn_def.name, e)
+						sys.exit(1)
+
+				reg_def.attributes[attr_name] = ops
+
 		for fn_def in core_def.functions.values():
 			if isinstance(fn_def.operation, behav.Operation) and not fn_def.extern:
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
-			fn_def._size = fn_def.size
+			fn_def.ty.size = arch.get_const_or_val(fn_def.ty.size)
+			fn_def._size = fn_def.ty.size
 			for fn_arg in fn_def.args.values():
-				fn_arg._size = fn_arg.size
+				fn_arg._size = fn_arg.ty.size
 				fn_arg._width = fn_arg.width
 
 		logger.debug("generating function behavior")
@@ -154,8 +193,8 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-							fn_def.args, core_def.functions, warned_fns)
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+							core_def.register_banks, core_def.register_aliases, fn_def.args, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
@@ -164,8 +203,8 @@ def main():
 
 				fn_def.attributes[attr_name] = ops
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-				fn_def.args, core_def.functions, warned_fns)
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+					core_def.register_banks, core_def.register_aliases, fn_def.args, core_def.functions, warned_fns)
 
 			if not isinstance(fn_def.operation, behav.Operation):
 				try:
@@ -174,7 +213,7 @@ def main():
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.scalars = behav_builder._scalars
+				fn_def.vars = behav_builder._vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -194,8 +233,8 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-							{}, core_def.functions, warned_fns)
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+							core_def.register_banks, core_def.register_aliases, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
@@ -204,8 +243,8 @@ def main():
 
 				block_def.attributes[attr_name] = ops
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-				{}, core_def.functions, warned_fns)
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+				core_def.register_banks, core_def.register_aliases, {}, core_def.functions, warned_fns)
 
 			try:
 				op = behav_builder.visit(block_def.operation)
@@ -229,8 +268,8 @@ def main():
 				ops = []
 				for attr_op in attr_ops:
 					try:
-						behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-							instr_def.fields, core_def.functions, warned_fns)
+						behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+							core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
@@ -238,20 +277,20 @@ def main():
 						sys.exit(1)
 
 				instr_def.attributes[attr_name] = ops
-			if arch.InstrAttribute.ENABLE in instr_def.attributes:
-				enable_attr = instr_def.attributes[arch.InstrAttribute.ENABLE]
+			if attribute_info.InstrAttribute.ENABLE in instr_def.attributes:
+				enable_attr = instr_def.attributes[attribute_info.InstrAttribute.ENABLE]
 				assert isinstance(enable_attr, list)
 				assert len(enable_attr) == 1
 				enable_attr = enable_attr[0]
-				enable = try_eval_bool(enable_attr, core_def.constants, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
+				enable = try_eval_bool(enable_attr, core_def.parameters, core_def.memories, core_def.memory_aliases, instr_def.fields, core_def.functions, warned_fns)
 				if enable is not None:
 					assert isinstance(enable, bool)
-					instr_def.attributes.pop(arch.InstrAttribute.ENABLE)
+					instr_def.attributes.pop(attribute_info.InstrAttribute.ENABLE)
 					if not enable:
 						continue
 
-			behav_builder = BehaviorModelBuilder(core_def.constants, core_def.memories, core_def.memory_aliases,
-				instr_def.fields, core_def.functions, warned_fns)
+			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
+				core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 
 			try:
 				op = behav_builder.visit(instr_def.operation)
@@ -259,7 +298,7 @@ def main():
 				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e)
 				sys.exit(1)
 
-			instr_def.scalars = behav_builder._scalars
+			instr_def.vars = behav_builder._vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)
@@ -271,7 +310,7 @@ def main():
 				behav.BinaryOperation(
 					behav.NamedReference(core_def.pc_memory),
 					behav.Operator("+"),
-					behav.IntLiteral(int(instr_def.size/8))
+					behav.Literal(int(instr_def.size/8), type_info.PrimitiveType(type_info.TypeKind.UINT, None))
 				)
 			)
 

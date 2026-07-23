@@ -8,6 +8,10 @@
 
 import antlr4
 import antlr4.error.ErrorListener
+import numpy as np
+
+from m2isar.metamodel import arch, type_info, behav
+from typing import Union
 
 from ... import M2SyntaxError
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
@@ -54,3 +58,38 @@ def make_parser(filename):
 	parser.removeErrorListeners()
 	parser.addErrorListener(error_handler)
 	return parser
+
+
+### Infer Type Size (required to be constant for now at compile time)
+def infer_shape_from_type(ty: Union[type_info.PrimitiveType, type_info.ArrayType], shape : list[int]) -> list[int]:
+	if isinstance(ty, type_info.ArrayType):
+		shape.append(arch.get_const_or_val(ty.length))
+		infer_shape_from_type(ty.element_type, shape)
+	elif isinstance(ty, type_info.PrimitiveType):
+		return
+
+
+## Infer the type of the innermost Element (No Array anymore ...)
+def infer_simple_type(ty: Union[type_info.PrimitiveType, type_info.ArrayType]) -> type_info.PrimitiveType:
+	if isinstance(ty, type_info.ArrayType):
+		return infer_simple_type(ty.element_type)
+	elif isinstance(ty, type_info.PrimitiveType):
+		return ty
+
+
+def literal_tree_to_values(expr):
+    if isinstance(expr, behav.Literal):
+        return expr.value
+
+    if isinstance(expr, (list, tuple)):
+        return [literal_tree_to_values(x) for x in expr]
+
+    raise TypeError(f"Expected Literal or nested list, got {type(expr)}")
+
+
+def create_np_array_from_literal_array(values: list[behav.Literal], ty: type_info.ArrayType):
+	shape = []
+	infer_shape_from_type(ty, shape)
+	values = literal_tree_to_values(values)
+
+	return np.array(values)

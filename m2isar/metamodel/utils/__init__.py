@@ -7,21 +7,3 @@
 # Technical University of Munich
 
 """This module contains utility functions for working with M2-ISA-R model hierarchies."""
-
-from dataclasses import dataclass
-from enum import IntFlag, auto
-
-
-class StaticType(IntFlag):
-	"""Describes the staticness of a Scalar or Function"""
-
-	NONE = 0
-	READ = auto()
-	WRITE = auto()
-	RW = READ | WRITE
-
-@dataclass
-class ScalarStaticnessContext:
-	"""A datakeeping class for the scalar staticness transformations."""
-
-	context_is_static: StaticType = StaticType.RW

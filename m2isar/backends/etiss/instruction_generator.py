@@ -12,16 +12,17 @@ import logging
 
 from mako.template import Template
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType, instruction_utils
 from .instruction_transform import InstructionTransformVisitor
+from .instruction_utils import actual_size
 from .templates import template_dir
 
 logger = logging.getLogger("instruction_generator")
 
 def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
-	return f'{instruction_utils.data_type_map[arg.data_type]}{arg.actual_size}{arg_name}'
+	return f'{instruction_utils.data_type_map[arg.ty.kind]}{actual_size(arg.ty.size)}{arg_name}'
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool):
 	"""Return a generator object to generate function behavior code. Uses function
@@ -33,7 +34,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 
 	fn_template = Template(filename=str(template_dir/'etiss_function.mako'))
 
-	core_default_width = core.constants['XLEN'].value
+	core_default_width = core.parameters['XLEN'].value
 	core_name = core.name
 
 	for fn_name, fn_def in core.functions.items():
@@ -42,13 +43,14 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		if fn_def.extern and not decls_only:
 			continue
 
-		return_type = instruction_utils.data_type_map[fn_def.data_type]
-		if fn_def.size:
-			return_type += f'{fn_def.actual_size}'
+		return_type = instruction_utils.data_type_map[fn_def.ty.kind]
+		if fn_def.ty.size:
+			return_type += f'{actual_size(fn_def.ty.size)}'
 
 		# set up a transformer context and generate code
-		context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, fn_def.args, fn_def.attributes,
-			core.functions, 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True)
+		context = instruction_utils.TransformerContext(core.parameters, core.memories, core.memory_aliases, core.register_banks,
+												 core.register_aliases, fn_def.args, fn_def.attributes, core.functions,
+												 0, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, True)
 
 		logger.debug("generating code for %s", fn_name)
 
@@ -66,7 +68,7 @@ def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: boo
 		args_list = [generate_arg_str(arg) for arg in fn_def.args.values()]
 
 		# if function needs access to ETISS architecture data, add these as arguments to the function
-		if arch.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
+		if attribute_info.FunctionAttribute.ETISS_NEEDS_ARCH in fn_def.attributes or (not fn_def.extern and not fn_def.static):
 			args_list = ['ETISS_CPU * const cpu', 'ETISS_System * const system', 'void * const * const plugin_pointers'] + args_list
 
 		fn_args = ', '.join(args_list)
@@ -105,8 +107,8 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 			if enc.name not in seen_fields:
 				# first encounter of this parameter, instantiate a new integer for it
 				seen_fields[enc.name] = 255
-				width = instr_def.fields[enc.name].actual_size
-				fields_code += f'{instruction_utils.data_type_map[enc.data_type]}{width} {enc.name} = 0;\n'
+				width = actual_size(instr_def.fields[enc.name].ty.size)
+				fields_code += f'{instruction_utils.data_type_map[enc.ty.kind]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
 			length = enc.range.length
@@ -131,7 +133,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 		asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
 
 		# generate sign extension if necessary
-		if field_descr.data_type == arch.DataType.S and field_descr.size < core_default_width:
+		if field_descr.ty.kind == type_info.TypeKind.INT and field_descr.size < core_default_width:
 			fields_code += '\n'
 			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
 			fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
@@ -146,20 +148,20 @@ def generate_instruction_callback(core: arch.CoreDef, instr_def: arch.Instructio
 	instr_name = instr_def.name
 	core_name = core.name
 	misc_code = []
-	core_default_width = core.constants['XLEN'].value
+	core_default_width = core.parameters['XLEN'].value
 	fields_code, _, _, enc_idx = fields
 
 	callback_template = Template(filename=str(template_dir/'etiss_instruction_callback.mako'))
 
-	context = instruction_utils.TransformerContext(core.constants, core.memories, core.memory_aliases, instr_def.fields, instr_def.attributes,
-		core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
+	context = instruction_utils.TransformerContext(core.parameters, core.memories, core.memory_aliases, core.register_banks, core.register_aliases, instr_def.fields, instr_def.attributes,
+							core.functions, enc_idx, core_default_width, core_name, static_scalars, core.intrinsics, generate_coverage, False)
 
 	# force a block end if necessary
-	if ((arch.InstrAttribute.NO_CONT in instr_def.attributes
-	  			and arch.InstrAttribute.COND not in instr_def.attributes
+	if ((attribute_info.InstrAttribute.NO_CONT in instr_def.attributes
+	  			and attribute_info.InstrAttribute.COND not in instr_def.attributes
 				and block_end_on == BlockEndType.UNCOND)
 			or (
-				arch.InstrAttribute.NO_CONT in instr_def.attributes
+				attribute_info.InstrAttribute.NO_CONT in instr_def.attributes
 				and block_end_on == BlockEndType.ALL)
 			):
 
@@ -196,7 +198,7 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 
 	error_fn = None
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 
@@ -224,20 +226,20 @@ def generate_instructions(core: arch.CoreDef, static_scalars: bool, block_end_on
 			instr_def.attributes = []
 
 		# generate instruction parameter extraction code
-		fields = generate_fields(core.constants['XLEN'].value, instr_def)
+		fields = generate_fields(core.parameters['XLEN'].value, instr_def)
 		fields_code, asm_printer_code, seen_fields, enc_idx = fields
 
 		code_string = f'{code:#0{int(enc_idx/4)}x}'
 		mask_string = f'{mask:#0{int(enc_idx/4)}x}'
 
-		if arch.InstrAttribute.ENABLE in instr_def.attributes:
-			cond = instr_def.attributes[arch.InstrAttribute.ENABLE]
+		if attribute_info.InstrAttribute.ENABLE in instr_def.attributes:
+			cond = instr_def.attributes[attribute_info.InstrAttribute.ENABLE]
 			new_op = behav.Operation([
 				behav.Conditional(
 					[cond[0]],
 					[
 						instr_def.operation.statements,
-						behav.ProcedureCall(error_fn, [behav.IntLiteral(-11)])
+						behav.ProcedureCall(error_fn, [behav.Literal(-11)])
 					]
 				)
 			])

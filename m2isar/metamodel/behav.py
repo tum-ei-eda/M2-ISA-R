@@ -20,11 +20,13 @@ the `generate` method here. This method is dynamically overwritten during runtim
 on which translation module is loaded using :func:`patch_model`.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
+from .type_info import PrimitiveType, TypeKind, ArrayType
+import numpy as np
 
 if TYPE_CHECKING:
-	from .arch import (BitFieldDescr, Constant, FnParam, Function, Intrinsic,
-	                   Memory, Scalar)
+	from .arch import (BitFieldDescr, Parameter, FnParam, Function, Intrinsic,
+	                   Memory, Variable, RegisterBank)
 	from .code_info import LineInfo
 
 # pylint: disable=abstract-method
@@ -36,7 +38,7 @@ class BaseNode:
 
 	def __init__(self, line_info: "LineInfo"=None) -> None:
 		self.line_info = line_info
-		self.inferred_type = None
+		self.ty = None
 
 	def generate(self, context):
 		raise NotImplementedError()
@@ -91,62 +93,50 @@ class ConcatOperation(BaseNode):
 		self.left = left
 		self.right = right
 
-class NumberLiteral(BaseNode):
-	"""A class holding a generic number literal."""
 
-	def __init__(self, value, line_info=None):
+class Literal(BaseNode):
+	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.NONE, None), base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
-		self._value = value
+
+		#assert ty.kind.is_literal
+		self._value: Union[int, str] = value
+		self.ty = ty    # assigned during type checking
+
+		#Optional type information (not always given)
+		self.base:  Optional[int] = base   # 2, 10, 16
 
 	def __repr__(self):
-		return f"NumberLiteral({self.value})"
+		return f"Literal(value={self.value}, type={self.ty}, base={self.base})"
 
+	def __int__(self):
+		if isinstance(self.value, int):
+			return int(self.value, self.base)
+		else:
+			raise ValueError(f"Cannot convert {self.value} to int")
+
+	# compile time constant
 	@property
 	def value(self) -> int:
 		"""Returns the resolved value."""
-		if isinstance(self, IntLiteral):
-			return int(self._value)
 		return self._value
 
+### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
+class Tensor(BaseNode):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+		super().__init__(line_info)
 
-class IntLiteral(NumberLiteral):
-	"""A more precise class holding only integer literals."""
-
-	def __init__(self, value: int, bit_size: int=None, signed: bool=None, line_info=None):
-		super().__init__(value, line_info)
-
-		if bit_size is None:
-			self.bit_size = value.bit_length()
-		else:
-			self.bit_size = bit_size
-
-		if isinstance(self.bit_size, IntLiteral):
-			self.bit_size = self.bit_size.value
-
-		self.bit_size = max(1, self.bit_size)
-		assert self.bit_size is not None
-
-		if signed is None:
-			self.signed = value <= 0
-		else:
-			self.signed = signed
+		#assert ty.kind.is_literal
+		self._value: np.ndarray = np.array(value)
+		self.ty = ty    # assigned during type checking
 
 	def __repr__(self):
-		return f"IntLiteral({self.value}, {self.bit_size}, {self.signed})"
+		return f"Tensor(values={self.value}, type={self.ty})"
 
-	def __int__(self):
-		return self.value
-
-
-class StringLiteral(BaseNode):
-	"""A string constant"""
-
-	def __init__(self, value: str):
-		super().__init__()
-		self.value = value
-
-	def __repr__(self):
-		return f"StringLiteral(\"{self.value}\")"
+	# compile time constant
+	@property
+	def value(self) -> np.ndarray:
+		"""Returns the resolved array."""
+		return self._value
 
 
 class Assignment(BaseNode):
@@ -190,14 +180,14 @@ class Ternary(BaseNode):
 		self.then_expr = then_expr
 		self.else_expr = else_expr
 
-class ScalarDefinition(BaseNode):
-	"""A scalar declaration without initialization. To initialize the scalar while
-	declaring it, use the scalar definition as LHS of an assignment statement.
+class VarDefinition(BaseNode):
+	"""A var declaration without initialization. To initialize the var while
+	declaring it, use the var definition as LHS of an assignment statement.
 	"""
 
-	def __init__(self, scalar: "Scalar", line_info=None):
+	def __init__(self, var: "Variable", line_info=None):
 		super().__init__(line_info)
-		self.scalar = scalar
+		self.var = var
 
 class Return(BaseNode):
 	"""A return expression."""
@@ -218,17 +208,17 @@ class UnaryOperation(BaseNode):
 		self.right = right
 
 class NamedReference(BaseNode):
-	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Scalar, Constant or FnParam."""
+	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
 
-	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Scalar", "Constant", "FnParam", "Intrinsic"], line_info=None):
+	def __init__(self, reference: Union["Memory", "BitFieldDescr", "Variable", "Parameter", "FnParam", "Intrinsic"], line_info=None):
 		super().__init__(line_info)
 		self.reference = reference
 
 class IndexedReference(BaseNode):
-	"""An indexed reference to a :class:`..arch.Memory`. Can optionally specify a range of indices
+	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Memory", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index
@@ -245,7 +235,7 @@ class TypeConv(BaseNode):
 	@property
 	def size(self) -> int:
 		"""Returns the resolved size."""
-		if isinstance(self._size, IntLiteral):
+		if isinstance(self._size, Literal):
 			return int(self._size)
 		return self._size
 

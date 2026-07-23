@@ -26,16 +26,12 @@ class ExprInterpreterVisitor(ExprVisitor):
 		return self.generate(expr.expr, context)
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
-		return expr.value
-
-	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
-		return expr.value
+	def _(self, expr: behav.Literal, context):
+		return int(expr.value)
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Constant) and expr.reference.value is not None:
+		if isinstance(expr.reference, arch.Parameter) and expr.reference.value is not None:
 			return expr.reference.value
 		raise M2ValueError("non-interpretable value encountered")
 
@@ -49,6 +45,7 @@ class ExprInterpreterVisitor(ExprVisitor):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
 		return int(eval(f"{left}{expr.op.value}{right}"))
+
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):

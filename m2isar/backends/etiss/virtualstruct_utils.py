@@ -14,7 +14,7 @@ from typing import List, Union
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from xml.etree import ElementTree, ElementInclude
-from ...metamodel.arch import MemoryAttribute
+from ...metamodel import arch, type_info, attribute_info
 
 DEFAULT_ALIASES = {"zero": "x0", "ra": "x1", "sp": "x2", "gp": "x3", "tp": "x4", "t0": "x5", "t1": "x6", "t2": "x7", "s0": "x8", "fp": "x8", "s1": "x9", "a0": "x10", "a1": "x11", "a2": "x12", "a3": "x13", "a4": "x14", "a5": "x15", "a6": "x16", "a7": "x17", "s2": "x18", "s3": "x19", "s4": "x20", "s5": "x21", "s6": "x22", "s7": "x23", "s8": "x24", "s9": "x25", "s10": "x26", "s11": "x27", "t3": "x28", "t4": "x29", "t5": "x30", "t6": "x31"}
 
@@ -126,19 +126,25 @@ def process_gdb_xml_descr_args(args: List[str], cores: list):
 		descr_mapping[core] = mapping
 	return descr_mapping
 
-def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
+def get_gdb_mapping(mapping: dict,
+						    registers: "dict[str, Union[arch.RegisterBank, arch.Register]]",
+							register_aliases: "dict[str, arch.Alias]",
+							memories: "dict[str, arch.Memory]",
+							memory_aliases: "dict[str, arch.Alias]",
+							parameters : "dict[str, arch.Parameter]"
+							):
 	HARCODED_NAMES = {"PC": "instructionPointer"}
 	gdb_mapping = None
 	if mapping is not None:
 		gdb_mapping = {}
 		for regnum, data in mapping.items():
 			name, sz = data
-			resolved = resolve_reg(name, memories, memory_aliases)
+			resolved = resolve_reg(name, (registers | memories), (register_aliases | memory_aliases | parameters))
 			assert resolved is not None, f"Register lookup failed: {name}"
 			if resolved is not None:
 				mem, idx = resolved
 				assert mem is not None, f"Register lookup failed: {name}"
-				if mem.parent is not None:  # alias
+				if isinstance(mem, arch.Alias):  # alias
 					rng = mem.range
 					assert rng.length == 1, "Aliased ranges are not allowed"
 					assert idx is None
@@ -146,7 +152,16 @@ def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				if isinstance(mem, arch.Parameter):
+					ele_size = mem.size
+				elif isinstance (mem.ty, type_info.ArrayType):
+					ele_size = mem.ty.element_type.size
+				elif isinstance (mem.ty, type_info.PrimitiveType):
+					ele_size = mem.ty.size
+				else:
+					# Alias of Alias is prohibited for now!
+					raise(f"{mem.ty} is not of Array/PrimitiveType!!!")
+				assert arch.get_const_or_val(ele_size) >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {ele_size} vs. {sz} [{name}]"
 				name2 = mem.name
 				name2 = HARCODED_NAMES.get(name2, name2)
 				if idx is not None:
@@ -155,23 +170,35 @@ def get_gdb_mapping(mapping: dict, memories: dict, memory_aliases: dict):
 	return gdb_mapping
 
 
-def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
+def get_virtualstruct_regs(mapping: dict,
+						    registers: "dict[str, Union[arch.RegisterBank, arch.Register]]",
+							register_aliases: "dict[str, arch.Alias]",
+							memories: "dict[str, arch.Memory]",
+							memory_aliases: "dict[str, arch.Alias]",
+							parameters : "dict[str, arch.Parameter]"
+							):
 	main_reg = None
 	float_reg = None
 	vector_reg = None
 	csr_reg = None
 	pc_reg = None
+	for reg in registers.values():
+		if isinstance(reg, arch.Register):
+			if reg.is_pc:
+				pc_reg = reg
+		elif isinstance(reg, arch.RegisterBank):
+			if reg.is_main_reg:
+				main_reg = reg
+			elif reg.is_float_reg:
+				float_reg = reg
+			elif reg.is_vector_reg:
+				vector_reg = reg
+
+	#CSRREG is memory
 	for mem in memories.values():
-		if mem.is_pc:
-			pc_reg = mem
-		elif MemoryAttribute.IS_MAIN_REG in mem.attributes or mem.name == "X":
-			main_reg = mem
-		elif MemoryAttribute.IS_FLOAT_REG in mem.attributes or mem.name == "F":
-			float_reg = mem
-		elif MemoryAttribute.IS_VECTOR_REG in mem.attributes or mem.name == "F":
-			vector_reg = mem
-		elif MemoryAttribute.IS_CSR_REG in mem.attributes or mem.name == "CSR":
+		if mem.is_csr_reg:
 			csr_reg = mem
+
 	aliased_csrs = set()
 	if csr_reg is not None:
 		for mem in memory_aliases.values():
@@ -179,8 +206,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 				if mem.range.length == 1:
 					idx = mem.range.lower
 					aliased_csrs.add(idx)
-	assert main_reg is not None, "Unable to identify main_reg"
-	assert pc_reg is not None, "Unable to identify pc_reg"
+	assert main_reg is not None and isinstance(main_reg, arch.RegisterBank), "Unable to identify main_reg"
+	assert pc_reg is not None and isinstance(pc_reg, arch.Register), "Unable to identify pc_reg"
 	VIRTUALSTRUCT_CLASSES = {
 		main_reg.name: "RegField",
 		**({float_reg.name: "FloatRegField"} if float_reg is not None else {}),
@@ -190,8 +217,8 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	}
 	aliased_csrs_only = True
 	DEFAULT_VIRTUALSTRUCT_REGS = {
-		"RegField": [range(0, main_reg.range.length)],
-		**({"FloatRegField": [range(0, float_reg.range.length)]} if float_reg is not None else {}),
+		"RegField": [range(0,  arch.get_const_or_val(main_reg.ty.length))],
+		**({"FloatRegField": [range(0, arch.get_const_or_val(float_reg.ty.length) )]} if float_reg is not None else {}),
 		# **({"VectorRegField": [range(0, vector_reg.range.length)]} if vector_reg is not None else {}),
 		**({"VectorRegField": [range(0, 32)]} if vector_reg is not None else {}),
 		**({"CSRField": list(sorted(aliased_csrs)) if aliased_csrs_only else [range(0, csr_reg.range.length)]} if csr_reg is not None else {}),
@@ -202,12 +229,12 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 	if mapping is not None:
 		for regnum, data in mapping.items():
 			name, sz = data
-			resolved = resolve_reg(name, memories, memory_aliases)
+			resolved = resolve_reg(name, (registers | memories), (register_aliases | memory_aliases | parameters))
 			assert resolved is not None, f"Register lookup failed: {name}"
 			if resolved is not None:
 				mem, idx = resolved
 				assert mem is not None, f"Register lookup failed: {name}"
-				if mem.parent is not None:  # alias
+				if isinstance(mem, arch.Alias):  # alias
 					rng = mem.range
 					assert rng.length == 1, "Aliased ranges are not allowed"
 					assert idx is None
@@ -215,9 +242,19 @@ def get_virtualstruct_regs(mapping: dict, memories: dict, memory_aliases: dict):
 					mem = mem.parent
 				# assert mem.size == sz, f"Expected size missmatch: {mem.size} vs. {sz}"
 				# TODO: handle fcsr size
-				assert mem.size >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {mem.size} vs. {sz} [{name}]"
+				if isinstance(mem, arch.Parameter):
+					ele_size = mem.size
+				elif isinstance (mem.ty, type_info.ArrayType):
+					ele_size = mem.ty.element_type.size
+				elif isinstance (mem.ty, type_info.PrimitiveType):
+					ele_size = mem.ty.size
+				else:
+					# Alias of Alias is prohibited for now!
+					raise(f"{mem.ty} is not of Array/PrimitiveType!!!")
 				name = mem.name
+				assert arch.get_const_or_val(ele_size) >= sz or name in [f"v{i}" for i in range(32)], f"Expected size missmatch: {ele_size} vs. {sz} [{name}]"
 				virtualstruct_class = VIRTUALSTRUCT_CLASSES.get(name)
+				# if not isinstance(mem, arch.Parameter):
 				assert virtualstruct_class is not None, f"Unable to find VirtualStruct class for reg: {name}"
 				virtualstruct_regs[virtualstruct_class].append(idx)
 	if virtualstruct_regs is not None:

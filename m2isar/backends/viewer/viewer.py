@@ -21,7 +21,7 @@ from tkinter import ttk
 
 from m2isar.backends.viewer.utils import TreeGenContext
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, type_info
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -107,20 +107,33 @@ def main():
 	for core_name, core_def in sorted(cores.items()):
 		core_id = tree.insert("", tk.END, text=core_name)
 
-		# add constants to tree
-		consts_id = tree.insert(core_id, tk.END, text="Constants")
-		for const_name, const_def in sorted(core_def.constants.items()):
+		# add parameters to tree
+		consts_id = tree.insert(core_id, tk.END, text="Parameters")
+		for const_name, const_def in sorted(core_def.parameters.items()):
 			tree.insert(consts_id, tk.END, text=const_name, values=(const_def.value,))
 
 		# add memories to tree
 		mems_id = tree.insert(core_id, tk.END, text="Memories")
 		for mem_name, mem_def in sorted(core_def.memories.items()):
-			tree.insert(mems_id, tk.END, text=mem_name, values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(mems_id, tk.END, text=mem_name, values=(f"{arch.get_const_or_val(mem_def.ty.length)}:0 ({mem_def.ty.element_type.kind}), {arch.get_const_or_val(mem_def.ty.element_type.size)}",))
 
 		# add memory aliases to tree
-		alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
+		mem_alias_id = tree.insert(core_id, tk.END, text="Memory Aliases")
 		for mem_name, mem_def in sorted(core_def.memory_aliases.items()):
-			tree.insert(alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"{mem_def.range.upper}:{mem_def.range.lower} ({mem_def.range.length}), {mem_def.size}",))
+			tree.insert(mem_alias_id, tk.END, text=f"{mem_name} ({mem_def.parent.name})", values=(f"TYPE: {mem_def.ty}",))
+
+		# add memories to tree
+		regs_id = tree.insert(core_id, tk.END, text="Register Banks")
+		for reg_name, reg_def in sorted(core_def.register_banks.items()):
+			length = arch.get_const_or_val(reg_def.ty.length) if isinstance(reg_def.ty, type_info.ArrayType) else 1
+			kind = reg_def.ty.element_type.kind if isinstance(reg_def.ty, type_info.ArrayType) else reg_def.ty.kind
+			size = reg_def.ty.element_type.size if isinstance(reg_def.ty, type_info.ArrayType) else reg_def.ty.size
+			tree.insert(regs_id, tk.END, text=reg_name, values=(f"NR_ELE: {length}, ELE_TYPE {kind} {size}",))
+
+		# add memory aliases to tree
+		reg_alias_id = tree.insert(core_id, tk.END, text="Register Bank Aliases")
+		for reg_name, reg_def in sorted(core_def.register_aliases.items()):
+			tree.insert(reg_alias_id, tk.END, text=f"{reg_name} ({reg_def.parent.name})", values=(f"TYPE: {reg_def.ty}",))
 
 		# add auxillary attributes
 		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
@@ -134,7 +147,7 @@ def main():
 			fn_id = tree.insert(fns_id, tk.END, text=fn_name, values=("extern" if fn_def.extern else ""))
 
 			# add returns and throws information
-			return_str = "None" if fn_def.size is None else f"{fn_def.data_type} {fn_def.size}"
+			return_str = "None" if fn_def.ty.size is None else f"{fn_def.ty.kind} {fn_def.ty.size}"
 			tree.insert(fn_id, tk.END, text="Return", values=(return_str,))
 			tree.insert(fn_id, tk.END, text="Throws", values=(fn_def.throws))
 
@@ -151,7 +164,7 @@ def main():
 			params_id = tree.insert(fn_id, tk.END, text="Parameters")
 
 			for param_name, param_def in fn_def.args.items():
-				tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.data_type} {param_def.size}",))
+				tree.insert(params_id, tk.END, text=param_name, values=(f"{param_def.ty.kind} {param_def.ty.size}",))
 
 			# generate and add function behavior
 			context = TreeGenContext(tree, fn_id)

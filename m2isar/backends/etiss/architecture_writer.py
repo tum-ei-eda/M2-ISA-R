@@ -10,11 +10,15 @@
 
 import logging
 import pathlib
+from itertools import chain
+from typing import Union
 
 from mako.template import Template
 
+
+from .instruction_utils import actual_size, reg_type_info
 from ... import M2TypeError
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType
 from .instruction_generator import (generate_fields,
                                     generate_instruction_callback)
@@ -22,17 +26,29 @@ from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
 
-def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
-	"""Recursively generate register declarations"""
+def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register], regs: "list[str]"):
+	"""Recursively generate child declarations for Memories and Register(Banks)"""
 
 	logger.debug("processing register %s", reg)
-	if arch.MemoryAttribute.IS_PC in reg.attributes or arch.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
+	if attribute_info.RegisterAttribute.IS_PC in reg.attributes or attribute_info.MemoryAttribute.IS_MAIN_MEM in reg.attributes:
 		logger.debug("this register is either the PC or main memory, skipping")
 		return
 
-	array_txt = f"[{reg.data_range.length}]" if reg.data_range.length > 1 else ""
+	assert(isinstance(reg.ty, (type_info.ArrayType, type_info.PrimitiveType, type_info.PointerType)))
+	type_acc = reg_type_info(reg)
+	if isinstance(reg.ty, type_info.ArrayType):
+		array_txt = f"[{arch.get_const_or_val(reg.ty.length)}]"
+		assert(reg.ty.element_type.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+	elif isinstance(reg.ty, type_info.PrimitiveType):
+		assert(reg.ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+		array_txt = ""
+	elif isinstance(reg.ty, type_info.PointerType):
+			array_txt = f"[{arch.get_const_or_val(reg.data_range.length)}]" if arch.get_const_or_val(reg.data_range.length) > 1 else ""
+	else:
+		array_txt = ""
 
-	if len(reg.children) > 0:
+	if hasattr(reg, "children"):
+
 		logger.debug("processing children")
 		for child in reg.children:
 			write_child_reg_def(child, regs)
@@ -40,24 +56,50 @@ def write_child_reg_def(reg: arch.Memory, regs: "list[str]"):
 		# registers with children (aliases) are defined as two arrays:
 		# 1) array of pointers, used for actual access
 		# 2) array of actual data type, for every index which is not aliased
-		regs.append(f"etiss_uint{reg.actual_size} *{reg.name}{array_txt}")
-		regs.append(f"etiss_uint{reg.actual_size} ins_{reg.name}{array_txt}")
+		type_acc = reg_type_info(reg)
+		if isinstance(reg.ty, type_info.ArrayType):
+			assert(reg.ty.element_type.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+			size = actual_size(reg.ty.element_type.size)
+		elif isinstance(reg.ty, type_info.PrimitiveType):
+			assert(reg.ty.kind in (type_info.TypeKind.UINT, type_info.TypeKind.INT))
+			size = actual_size(reg.ty.size)
+		else:
+			raise "Register Types needs to be of Array or PrimitiveType"
+
+		if (len(reg.children) > 0):
+			regs.append(f"{type_acc}{size} *{reg.name}{array_txt}")
+			regs.append(f"{type_acc}{size} ins_{reg.name}{array_txt}")
+		else:
+			regs.append(f"{type_acc}{actual_size(size)} {reg.name}{array_txt}")
+
 	else:
-		regs.append(f"etiss_uint{reg.actual_size} {reg.name}{array_txt}")
+		size = None
+		if isinstance(reg.ty, type_info.PointerType):
+			assert(isinstance(reg.ty.ty, type_info.PrimitiveType))
+			size = actual_size(reg.ty.ty.size)
+		else:
+			assert(isinstance(reg.ty, type_info.PrimitiveType))
+			size = actual_size(reg.ty.size)
+		regs.append(f"{type_acc}{size} {reg.name}{array_txt}")
 
 def write_arch_struct(core: arch.CoreDef, start_time: str, output_path: pathlib.Path):
 	arch_struct_template = Template(filename=str(template_dir/'etiss_arch_struct.mako'))
 	regs = []
+	mems = []
 
 	logger.info("writing architecture struct")
 
-	for _, mem_desc in core.memories.items():
-		write_child_reg_def(mem_desc, regs)
+	assert core.memories is not None and core.register_banks is not None
+	for _, reg_desc in chain(core.register_banks.items()):
+		write_child_reg_def(reg_desc, regs)
+	for _, mem_desc in chain(core.memories.items()):
+		write_child_reg_def(mem_desc, mems)
 
 	txt = arch_struct_template.render(
 		start_time=start_time,
 		core_name=core.name,
-		regs=regs
+		regs=regs,
+		mems=mems
 	)
 
 	with open(output_path / f"{core.name}.h", "w", encoding="utf-8") as f:
@@ -77,10 +119,11 @@ def write_arch_header(core: arch.CoreDef, start_time: str, output_path: pathlib.
 	with open(output_path / f"{core.name}Arch.h", "w", encoding="utf-8") as f:
 		f.write(txt)
 
-def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_regs: "list[arch.Memory]",
-		alias_regs: "dict[arch.Memory, arch.Memory]", initval_regs: "list[arch.Memory]"):
+def build_reg_hierarchy(reg: Union[arch.Memory, arch.Alias, arch.Register, arch.RegisterBank],
+						ptr_regs: "list[Union[arch.Memory, arch.RegisterBank]]", actual_regs: "list[Union[arch.Register, arch.RegisterBank]]",
+						alias_regs: "dict[arch.Alias]", initval_regs: "list[Union[arch.Memory, arch.Register, arch.RegisterBank]]"):
 	"""Populate the passed lists with memory objects of their category.
-
+	# CSR is actually an extern memory range but treatet as a reg
 	ptr_regs: Registers that need to be a pointer within ETISS
 	actual_regs: Registers that are not a pointer
 	alias_regs: Registers which are an alias to some other register
@@ -91,39 +134,46 @@ def build_reg_hierarchy(reg: arch.Memory, ptr_regs: "list[arch.Memory]", actual_
 	if reg._initval:
 		initval_regs.append(reg)
 
-	if len(reg.children) > 0:
-		for child in reg.children:
-			if child.is_main_mem:
-				logger.warning("main memory is a child memory of %s", reg)
-				continue
-			build_reg_hierarchy(child, ptr_regs, actual_regs, alias_regs, initval_regs)
-			alias_regs[child] = reg
-		ptr_regs.append(reg)
+	if isinstance(reg, (arch.Memory, arch.Register, arch.RegisterBank)):
+		if len(reg.children) > 0:
+			for child in reg.children:
+				if hasattr(child, "is_main_mem"):
+					if child.is_main_mem:
+						logger.warning("main memory is a child memory of %s", reg)
+						continue
+				build_reg_hierarchy(child, ptr_regs, actual_regs, alias_regs, initval_regs)
+				assert isinstance(child, arch.Alias)
+				alias_regs[child] = reg
+			ptr_regs.append(reg)
+		else:
+			actual_regs.append(reg)
 	else:
-		actual_regs.append(reg)
+		assert isinstance(reg, arch.Alias)
+		return
 
 def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
 	"""Generate {CoreName}Arch.cpp file. Contains mainly register initialization code."""
 
 	arch_cpp_template = Template(filename=str(template_dir/'etiss_arch_cpp.mako'))
 
-	ptr_regs = []
-	actual_regs = []
-	alias_regs = {}
-	initval_regs = []
+	ptr_regs : list[arch.Memory] = []
+	actual_regs : list[Union[arch.Register, arch.RegisterBank]] = []
+	alias_regs: dict[arch.Alias] = {}
+	initval_regs: list[arch.Memory] = []
 
 	logger.info("writing architecture class file")
 
 	# determine memory types
-	for _, mem_desc in core.memories.items():
-		if mem_desc.is_main_mem:
-			continue
+	for _, mem_desc in chain(core.memories.items(), core.register_banks.items(), core.memory_aliases.items(), core.register_aliases.items()):
+		if  hasattr(mem_desc, "is_main_mem"):
+			if mem_desc.is_main_mem:
+				continue
 		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs, initval_regs)
 
 	# generate main register file names for ETISS's 'char* reg_name[]'
-	reg_names = [f"{core.main_reg_file.name}{n}" for n in range(core.main_reg_file.data_range.length)]
+	reg_names = [f"{core.main_reg_file.name}{n}" for n in range(core.main_reg_file.ty.length)]
 	if core.float_reg_file is not None:
-		reg_names += [f"{core.float_reg_file.name}{n}" for n in range(core.float_reg_file.data_range.length)]
+		reg_names += [f"{core.float_reg_file.name}{n}" for n in range(core.float_reg_file.ty.length)]
 	# TODO(annnnna42): add float reg names (F0-F31) here
 
 	# if main register file entries have aliases optionally use these for 'char* reg_name[]'
@@ -142,7 +192,9 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		actual_regs=actual_regs,
 		alias_regs=alias_regs,
 		initval_regs=initval_regs,
-		procno_memory=core.procno_memory
+		procno_memory=core.procno_memory,
+		type_info=type_info,
+		arch=arch,
 	)
 
 	with open(output_path / f"{core.name}Arch.cpp", "w", encoding="utf-8") as f:
@@ -166,13 +218,26 @@ def write_arch_specific_header(core: arch.CoreDef, start_time: str, output_path:
 
 	logger.info("writing architecture specific header")
 
+	core.main_reg_file.ty.element_type.size = arch.get_const_or_val(core.main_reg_file.ty.element_type.size)
+	core.main_reg_file.ty.length = arch.get_const_or_val(core.main_reg_file.ty.length)
+	if core.float_reg_file is not None:
+		core.float_reg_file.ty.element_type.size = arch.get_const_or_val(core.float_reg_file.ty.element_type.size)
+		core.float_reg_file.ty.length = arch.get_const_or_val(core.float_reg_file.ty.length)
+	if core.vector_reg_file is not None:
+		core.vector_reg_file.ty.element_type.size = arch.get_const_or_val(core.vector_reg_file.ty.element_type.size)
+		core.vector_reg_file.ty.length = arch.get_const_or_val(core.vector_reg_file.ty.length)
+	if core.csr_reg_file is not None:
+		core.csr_reg_file.ty.element_type.size = arch.get_const_or_val(core.csr_reg_file.ty.element_type.size)
+		core.csr_reg_file.ty.length = arch.get_const_or_val(core.csr_reg_file.ty.length)
+
 	txt = arch_specific_header_template.render(
 		start_time=start_time,
 		core_name=core.name,
 		main_reg=core.main_reg_file,
 		float_reg=core.float_reg_file,
 		vector_reg=core.vector_reg_file,
-		csr_reg=core.csr_reg_file
+		csr_reg=core.csr_reg_file,
+		arch=arch
 	)
 
 	with open(output_path / f"{core.name}ArchSpecificImp.h", "w", encoding="utf-8") as f:
@@ -215,12 +280,12 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 	error_fn = None
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_ENTRY_FN in fn.attributes:
 			error_fn = fn
 			break
 
 	for fn in core.functions.values():
-		if arch.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
+		if attribute_info.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN in fn.attributes:
 			error_fn = fn
 			break
 
@@ -228,8 +293,8 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 
 	if error_fn is not None:
 		for bitsize in core.instr_classes:
-			error_bitfield = arch.BitField("error_code", arch.RangeSpec(31, 0), arch.DataType.U)
-			error_instr = arch.Instruction(f"trap_entry {bitsize}", {arch.InstrAttribute.NO_CONT: None}, [error_bitfield], "", "", None, None)
+			error_bitfield = arch.BitField("error_code", arch.RangeSpec(31, 0), type_info.TypeKind.UINT)
+			error_instr = arch.Instruction(f"trap_entry {bitsize}", {attribute_info.InstrAttribute.NO_CONT: None}, [error_bitfield], "", "", None, None)
 			error_bitfield_descr = error_instr.fields.get("error_code")
 			error_op = behav.Operation([
 				behav.ProcedureCall(error_fn, [behav.NamedReference(error_bitfield_descr)])
@@ -245,8 +310,8 @@ def write_arch_specific_cpp(core: arch.CoreDef, start_time: str, output_path: pa
 
 	global_irq_en_mask = None
 	if core.global_irq_en_memory is not None:
-		attr = core.global_irq_en_memory.attributes[arch.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
-		if not isinstance(attr, behav.IntLiteral):
+		attr = core.global_irq_en_memory.attributes[attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN][0]
+		if not isinstance(attr, behav.Literal):
 			raise M2TypeError(f"IRQ enable mask of {core.global_irq_en_memory.name} is not compile static")
 		global_irq_en_mask = attr.value
 

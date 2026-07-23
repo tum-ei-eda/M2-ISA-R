@@ -9,18 +9,18 @@
 """A transformation module for simplifying M2-ISA-R behavior expressions. The following
 simplifications are done:
 
-* Resolvable :class:`m2isar.metamodel.arch.Constant` s are replaced by
-  `m2isar.metamodel.arch.IntLiteral` s representing their value
+* Resolvable :class:`m2isar.metamodel.arch.Parameter` s are replaced by
+  `m2isar.metamodel.arch.Literal` s representing their value
 * Fully resolvable arithmetic operations are carried out and their results
-  represented as a matching :class:`m2isar.metamodel.arch.IntLiteral`
+  represented as a matching :class:`m2isar.metamodel.arch.Literal`
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
-* Type conversions of :class:`m2isar.metamodel.arch.IntLiteral` s apply the desired
-  type directly to the :class:`IntLiteral` and discard the type conversion
+* Type conversions of :class:`m2isar.metamodel.arch.Literal` s apply the desired
+  type directly to the :class:`Literal` and discard the type conversion
 """
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info
 from .ExprVisitor import ExprVisitor
 from functools import singledispatchmethod
 
@@ -60,37 +60,45 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.left = self.generate(expr.left, context)
 		expr.right = self.generate(expr.right, context)
 
-		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
-			if expr.left.bit_size < expr.right.reference.size:
-				expr.left.bit_size = expr.right.reference.size
+		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
+			if expr.left.ty.size < arch.get_const_or_val(expr.right.reference.ty.size):
+				expr.left.ty.size = arch.get_const_or_val(expr.right.reference.ty.size)
 
-		if isinstance(expr.right, behav.IntLiteral) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
-			if expr.right.bit_size < expr.left.reference.size:
-				expr.right.bit_size = expr.left.reference.size
+		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
+			if isinstance(expr.left.ty, type_info.ArrayType):
+				if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.element_type.size):
+					expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.element_type.size)
+			else:
+				if expr.right.ty.size < arch.get_const_or_val(expr.left.ty.size):
+					expr.right.ty.size = arch.get_const_or_val(expr.left.ty.size)
 
-		if isinstance(expr.left, behav.IntLiteral) and isinstance(expr.right, behav.IntLiteral):
+		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			return behav.IntLiteral(res, max(expr.left.bit_size, expr.right.bit_size, res.bit_length()))
+			if res < 0 or expr.left.ty.kind == type_info.TypeKind.INT or expr.right.ty.kind == type_info.TypeKind.INT:
+				kind = type_info.TypeKind.INT
+			else:
+				kind = type_info.TypeKind.UINT
+			return behav.Literal(res, type_info.PrimitiveType(kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length())))
 
 		if expr.op.value == "&&":
-			if isinstance(expr.left, behav.IntLiteral):
+			if isinstance(expr.left, behav.Literal):
 				if expr.left.value:
 					return expr.right
 				return expr.left
 
-			if isinstance(expr.right, behav.IntLiteral):
+			if isinstance(expr.right, behav.Literal):
 				if expr.right.value:
 					return expr.left
 				return expr.right
 
 		if expr.op.value == "||":
-			if isinstance(expr.left, behav.IntLiteral):
+			if isinstance(expr.left, behav.Literal):
 				if expr.left.value:
 					return expr.left
 				return expr.right
 
-			if isinstance(expr.right, behav.IntLiteral):
+			if isinstance(expr.right, behav.Literal):
 				if expr.right.value:
 					return expr.right
 				return expr.left
@@ -113,19 +121,15 @@ class ExprSimplifierVisitor(ExprVisitor):
 		return expr
 
 	@generate.register
-	def _(self, expr: behav.NumberLiteral, context):
+	def _(self, expr: behav.Literal, context):
 		return expr
 
 	@generate.register
-	def _(self, expr: behav.IntLiteral, context):
+	def _(self, expr: behav.Tensor, context):
 		return expr
 
 	@generate.register
-	def _(self, expr: behav.StringLiteral, context):
-		return expr
-
-	@generate.register
-	def _(self, expr: behav.ScalarDefinition, context):
+	def _(self, expr: behav.VarDefinition, context):
 		return expr
 
 	@generate.register
@@ -137,9 +141,9 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.target = self.generate(expr.target, context)
 		expr.expr = self.generate(expr.expr, context)
 
-		if isinstance(expr.expr, behav.IntLiteral) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
-			if expr.expr.bit_size < expr.target.reference.size:
-				expr.expr.bit_size = expr.target.reference.size
+		if isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
+			if expr.expr.ty.size < arch.get_const_or_val(expr.target.ty.size):
+				expr.expr.ty.size = arch.get_const_or_val(expr.target.ty.size)
 
 		return expr
 
@@ -154,7 +158,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 		stmts = []
 
 		for cond, stmt in zip(expr.conds, expr.stmts):
-			if isinstance(cond, behav.IntLiteral):
+			if isinstance(cond, behav.Literal):
 				if cond.value:
 					return stmt
 			else:
@@ -163,7 +167,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 				eval_false = False
 
 		if len(expr.conds) < len(expr.stmts):
-			if eval_false and isinstance(expr.conds[-1], behav.IntLiteral):
+			if eval_false and isinstance(expr.conds[-1], behav.Literal):
 				if not cond.value:  # pylint: disable=undefined-loop-variable
 					return expr.stmts[-1]
 			stmts.append(expr.stmts[-1])
@@ -186,7 +190,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.then_expr = self.generate(expr.then_expr, context)
 		expr.else_expr = self.generate(expr.else_expr, context)
 
-		if isinstance(expr.cond, behav.IntLiteral):
+		if isinstance(expr.cond, behav.Literal):
 			if expr.cond.value:
 				return expr.then_expr
 
@@ -204,17 +208,25 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
 		expr.right = self.generate(expr.right, context)
-		if isinstance(expr.right, behav.IntLiteral):
+		if isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
-			return behav.IntLiteral(res, max(expr.right.bit_size, res.bit_length()))
+			if res < 0:
+				kind = type_info.TypeKind.INT
+			else:
+				kind = expr.right.ty.kind
+			return behav.Literal(res, type_info.PrimitiveType(kind, max(expr.right.ty.size, res.bit_length())))
 
 		return expr
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
-		if isinstance(expr.reference, arch.Constant):
-			return behav.IntLiteral(expr.reference.value, expr.reference.size, expr.reference.signed)
+		if isinstance(expr.reference, arch.Parameter):
+			if expr.reference.signed:
+				kind = type_info.TypeKind.INT
+			else:
+				kind = type_info.TypeKind.UINT
+			return behav.Literal(expr.reference.value, type_info.PrimitiveType(kind, arch.get_const_or_val(expr.reference.size)))
 
 		return expr
 
@@ -227,16 +239,14 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.TypeConv, context):
 		expr.expr = self.generate(expr.expr, context)
-		if isinstance(expr.expr, behav.IntLiteral):
+		if isinstance(expr.expr, behav.Literal):
 			size = expr.size
 			if size is None:
-				if expr.inferred_type is None:
-					return expr
-				size = expr.inferred_type.width
-				assert size is not None
-			expr.expr.bit_size = size
-			assert expr.expr.bit_size is not None
-			expr.expr.signed = expr.data_type == arch.DataType.S
+				assert expr.ty is not None
+				assert expr.expr.ty.size is not None
+				expr.ty.size = expr.expr.ty.size
+			expr.expr.signed = expr.data_type == type_info.TypeKind.INT
+			expr.expr.ty.kind = expr.data_type
 			return expr.expr
 
 		return expr
@@ -257,7 +267,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 	def _(self, expr: behav.Group, context):
 		expr.expr = self.generate(expr.expr, context)
 
-		if isinstance(expr.expr, behav.IntLiteral):
+		if isinstance(expr.expr, behav.Literal):
 			return expr.expr
 
 		return expr

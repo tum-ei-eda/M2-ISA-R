@@ -13,7 +13,7 @@ import logging
 from copy import copy
 from functools import singledispatchmethod
 
-from m2isar.metamodel import arch, behav
+from m2isar.metamodel import arch, behav, type_info
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 
 logger = logging.getLogger("validate_behav")
@@ -43,22 +43,23 @@ class ValidateBehavVisitor(ExprVisitor):
         self.generate(expr.right, context)
         op = expr.op
 
-        assert expr.left.inferred_type is not None
-        assert expr.right.inferred_type is not None
-        if op.value in ["|", "&", "^"] and expr.left.inferred_type.width != expr.right.inferred_type.width:
+        assert expr.left.ty is not None
+        assert expr.right.ty is not None
+        if op.value in ["|", "&", "^"] and expr.left.ty.size != expr.right.ty.size:
             context.emit_warning(f"Bitwise operations with differently size operands are discouraged.", "bit-op-missmatch", logger=logger, line_info=expr.line_info)
-        if op.value in ["<<", ">>", ">>>"] and expr.right.inferred_type.signed:
+        if op.value in ["<<", ">>", ">>>"] and expr.right.ty.kind == type_info.TypeKind.INT:
             context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
-        if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.inferred_type.signed != expr.right.inferred_type.signed:
-            if isinstance(expr.left, behav.IntLiteral) and expr.left.value == 0:
+        if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.kind != expr.right.ty.kind:
+            assert(expr.left.ty.kind.is_int and expr.right.ty.kind.is_int)
+            if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
                 pass
-            if isinstance(expr.right, behav.IntLiteral) and expr.right.value == 0:
+            if isinstance(expr.right, behav.Literal) and expr.right.value == 0:
                 pass
             else:
                 context.emit_warning(f"Signed vs. unsigned comparison", "sign-compare", logger=logger, line_info=expr.line_info)
         # TODO: also check possible range of non-literal rhs?
-        if op.value == "<<" and isinstance(expr.right, behav.IntLiteral) and expr.left.inferred_type.width <= expr.right.value:
-            context.emit_warning(f"Shift count overflow for << operation ({expr.left.inferred_type.width} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
+        if op.value == "<<" and isinstance(expr.right, behav.Literal) and expr.left.ty.size <= expr.right.value:
+            context.emit_warning(f"Shift count overflow for << operation ({expr.left.ty.size} vs. {expr.right.value})", "shift-overflow", logger=logger, line_info=expr.line_info)
 
 
     @generate.register
@@ -73,27 +74,20 @@ class ValidateBehavVisitor(ExprVisitor):
         self.generate(expr.right, context)
 
     @generate.register
-    def _(self, expr: behav.NumberLiteral, context):
-        pass
-
-    @generate.register
-    def _(self, expr: behav.IntLiteral, context):
-        pass
-
-    @generate.register
-    def _(self, expr: behav.StringLiteral, context):
+    def _(self, expr: behav.Literal, context):
         pass
 
     @generate.register
     def _(self, expr: behav.Assignment, context):
         self.generate(expr.target, context)
         self.generate(expr.expr, context)
-        assert expr.target.inferred_type is not None
-        assert expr.expr.inferred_type is not None
-        if expr.target.inferred_type.width < expr.expr.inferred_type.width:
-            context.emit_warning(f"Implicit truncation {expr.expr.inferred_type.width} -> {expr.target.inferred_type.width} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
-        if expr.target.inferred_type.width > expr.expr.inferred_type.width:
-            context.emit_warning(f"Implicit extend {expr.expr.inferred_type.width} -> {expr.target.inferred_type.width} found", "implicit-extend", logger=logger, line_info=expr.line_info)
+        assert expr.target.ty is not None
+        assert expr.expr.ty is not None
+        assert isinstance(expr.target.ty, type_info.PrimitiveType)
+        if arch.get_const_or_val(expr.target.ty.size) < arch.get_const_or_val(expr.expr.ty.size):
+            context.emit_warning(f"Implicit truncation {expr.expr.ty.size} -> {expr.target.ty.size} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
+        if arch.get_const_or_val(expr.target.ty.size) > arch.get_const_or_val(expr.expr.ty.size):
+            context.emit_warning(f"Implicit extend {expr.expr.ty.size} -> {expr.target.ty.size} found", "implicit-extend", logger=logger, line_info=expr.line_info)
 
     @generate.register
     def _(self, expr: behav.Conditional, context):
@@ -126,7 +120,7 @@ class ValidateBehavVisitor(ExprVisitor):
         return expr
 
     @generate.register
-    def _(self, expr: behav.ScalarDefinition, context):
+    def _(self, expr: behav.VarDefinition, context):
         pass
 
     @generate.register

@@ -58,6 +58,7 @@ class TreeGenVisitor(ExprVisitor):
 		context.pop()
 
 		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 		context.pop()
 
@@ -77,6 +78,8 @@ class TreeGenVisitor(ExprVisitor):
 		self.generate(expr.right, context)
 		context.pop()
 
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
+
 		context.pop()
 
 
@@ -92,19 +95,24 @@ class TreeGenVisitor(ExprVisitor):
 		self.generate(expr.right, context)
 		context.pop()
 
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
+
 		context.pop()
 
 	@generate.register
-	def number_literal(self, expr: behav.NumberLiteral, context: "TreeGenContext"):
+	def number_literal(self, expr: behav.Literal, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Number Literal", values=(expr.value,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
-	def int_literal(self, expr: behav.IntLiteral, context: "TreeGenContext"):
-		context.tree.insert(context.parent, tk.END, text="Int Literal", values=(expr.value,))
+	def number_tensor(self, expr: behav.Tensor, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Tensor", values=(expr.value,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
-	def scalar_definition(self, expr: behav.ScalarDefinition, context: "TreeGenContext"):
-		context.tree.insert(context.parent, tk.END, text="Scalar Definition", values=(expr.scalar.name,))
+	def var_definition(self, expr: behav.VarDefinition, context: "TreeGenContext"):
+		context.tree.insert(context.parent, tk.END, text="Var Definition", values=(expr.var.name,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
 	def break_(self, expr: behav.Break, context: "TreeGenContext"):
@@ -173,6 +181,8 @@ class TreeGenVisitor(ExprVisitor):
 		self.generate(expr.else_expr, context)
 		context.pop()
 
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
+
 		context.pop()
 
 	@generate.register
@@ -195,18 +205,22 @@ class TreeGenVisitor(ExprVisitor):
 		context.pop()
 
 		context.tree.insert(context.parent, tk.END, text="Op", values=(expr.op.value,))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 		context.pop()
 
 	@generate.register
 	def named_reference(self, expr: behav.NamedReference, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Named Reference", values=(f"{expr.reference}",))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 	@generate.register
 	def indexed_reference(self, expr: behav.IndexedReference, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Indexed Reference"))
 
-		context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",))
+		context.push(context.tree.insert(context.parent, tk.END, text="Reference", values=(f"{expr.reference}",)))
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.reference.ty,))
+		context.pop()
 
 		# If LHS is a complex expression => RHS also an expression
 		# TODO: Little Endian only so far supported
@@ -233,6 +247,8 @@ class TreeGenVisitor(ExprVisitor):
 				context.push(context.tree.insert(context.parent, tk.END, text="Index"))
 				self.generate(expr.index, context)
 				context.pop()
+
+		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
 
 		context.pop()
 
