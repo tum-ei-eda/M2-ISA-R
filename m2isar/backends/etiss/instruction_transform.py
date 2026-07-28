@@ -342,7 +342,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			left = self.generate(expr.target.left, context)
 			right = self.generate(expr.target.right, context)
 
-			static = StaticType.NONE not in [x.static for x in (expr_str, left, right)]
+			static = attribute_info.AccessAttribute.NONE not in [x.static for x in (expr_str, left, right)]
 
 			if not static:
 				if expr_str.static and not expr_str.is_literal:
