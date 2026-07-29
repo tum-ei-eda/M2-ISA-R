@@ -141,8 +141,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 
 			# instantiate a .var and its definition
-			attributes_dict = {"static": attribute_info.AccessAttribute.RW,
-							   **{attr: True for attr in qualifiers}}
+			attributes_dict = {**{attr: True for attr in qualifiers}}
 
 			# Const value prohibits Write
 			if attributes_dict.get("const", False):

@@ -386,7 +386,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		# convert assignment value staticness
 
-		if expr_str.static and not  expr_str.is_literal:
+		if expr_str.static and not expr_str.is_literal:
 			if bool(target.static & attribute_info.AccessAttribute.WRITE):
 				if context.ignore_static:
 					expr_str.code = Template(f'{expr_str.code}').safe_substitute(**replacements.rename_dynamic)
@@ -717,7 +717,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			signed = referred_var.ty.kind == type_info.TypeKind.INT
 			size = referred_var.ty.size
 			if context.static_scalars:
-				static &= referred_var.attributes.get("static")
+				static = referred_var.attributes.get("static")
 
 		elif isinstance(referred_var, arch.Parameter):
 			signed = referred_var.value < 0

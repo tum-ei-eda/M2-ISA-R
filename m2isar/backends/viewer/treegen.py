@@ -113,6 +113,7 @@ class TreeGenVisitor(ExprVisitor):
 	def var_definition(self, expr: behav.VarDefinition, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Var Definition", values=(expr.var.name,))
 		context.tree.insert(context.parent, tk.END, text="Type ", values=(expr.ty,))
+		context.tree.insert(context.parent, tk.END, text="Staticness: ", values=(expr.var.attributes["static"],))
 
 	@generate.register
 	def break_(self, expr: behav.Break, context: "TreeGenContext"):
