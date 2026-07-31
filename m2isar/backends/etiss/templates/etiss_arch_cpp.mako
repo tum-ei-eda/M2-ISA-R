@@ -94,18 +94,18 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % endfor
 
     % for reg in actual_regs:
-    % if not isinstance(reg, (arch.Memory, arch.Alias)):
-    % if isinstance(reg, arch.RegisterBank):
-    <% assert isinstance(reg.ty, type_info.ArrayType) %>
+    % if isinstance(reg.ty, type_info.ArrayType):
     for (int i = 0; i < ${arch.get_const_or_val(reg.ty.length)}; ++i)
     {
         ${core_name.lower()}cpu->${reg.name}[i] = 0;
     }
     % else:
-    <% assert isinstance(reg.ty, type_info.PrimitiveType) %>
-    % if not reg.is_pc:
-    ${core_name.lower()}cpu->${reg.name} = 0;
-    % endif
+    % if hasattr(reg, "is_pc"):
+        % if not reg.is_pc:
+            ${core_name.lower()}cpu->${reg.name} = 0;
+        % endif
+    % else:
+        ${core_name.lower()}cpu->${reg.name} = 0;
     % endif
     % endif
     % endfor

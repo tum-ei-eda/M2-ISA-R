@@ -600,8 +600,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if isinstance(left, behav.NamedReference):
 			if isinstance(left.reference, arch.Parameter):
 				left.reference.value = exprInterpretVisitor.generate(right, None)
-
-			elif isinstance(left.reference, arch.Memory):
+			elif isinstance(left.reference, (arch.Register, arch.Alias)):
 				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[exprInterpretVisitor.generate(left.index, None)] = exprInterpretVisitor.generate(right, None)
