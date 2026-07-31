@@ -125,7 +125,7 @@ def build_reg_hierarchy(reg: Union[arch.Memory, arch.Alias, arch.Register, arch.
 	"""Populate the passed lists with memory objects of their category.
 	# CSR is actually an extern memory range but treatet as a reg
 	ptr_regs: Registers that need to be a pointer within ETISS
-	actual_regs: Registers that are not a pointer
+	actual_regs: Registers that are not a pointer/have no children ... (Alias by default)
 	alias_regs: Registers which are an alias to some other register
 	initval_regs: Registers which have initial value(s) defined in the model
 	"""
@@ -148,7 +148,9 @@ def build_reg_hierarchy(reg: Union[arch.Memory, arch.Alias, arch.Register, arch.
 		else:
 			actual_regs.append(reg)
 	else:
-		assert isinstance(reg, arch.Alias)
+		# Alias of Aliases are not implemented => No Children
+		assert isinstance(reg, arch.Alias) and not isinstance(reg.parent, arch.Alias)
+		actual_regs.append(reg)
 		return
 
 def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Path, aliased_regnames: bool=True):
@@ -165,7 +167,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 
 	# determine memory types
 	for _, mem_desc in chain(core.memories.items(), core.register_banks.items(), core.memory_aliases.items(), core.register_aliases.items()):
-		if  hasattr(mem_desc, "is_main_mem"):
+		if hasattr(mem_desc, "is_main_mem"):
 			if mem_desc.is_main_mem:
 				continue
 		build_reg_hierarchy(mem_desc, ptr_regs, actual_regs, alias_regs, initval_regs)
