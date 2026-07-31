@@ -417,43 +417,52 @@ class Memory(Symbol):
 # unsigned<XLEN>& S0 = X[8]; vs
 # Intention: alias S0 <- X[8];
 class Alias(Symbol):
-    """A class representing an (potentially ranged) alias to a Register/Memory/RegisterBank entity,
+	"""A class representing an (potentially ranged) alias to a Register/Memory/RegisterBank entity,
 	which refer to the architectural part of an M2-ISA-R model. This access might be ranged"""
-    parent: Union[Memory, RegisterBank]
-    _initval = 0
+	parent: Union[Memory, RegisterBank]
+	_initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
-    def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, type: type_info.PointerType, attributes: dict = {}):
-        self.parent = parent
-        self.range = range
-        self.ty = type
-        assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
-        super().__init__(name, type, attributes)
+	def __init__(self, name, parent: Union[Memory, RegisterBank], range: RangeSpec, type: type_info.PointerType, attributes: dict = {}):
+		self.parent = parent
+		self.range = range
+		self.ty = type
+		self._initval = {}
+		assert isinstance(parent.ty, (type_info.ArrayType, type_info.PrimitiveType))
+		super().__init__(name, type, attributes)
 
 
-    @property
-    def data_range(self):
-        """Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
+	def initval(self, idx=None):
+		"""Return the initial value for the given index."""
 
-        if self.range.upper is None or self.range.lower is None:
-            return None
+		return get_const_or_val(self._initval[idx])
 
-        return RangeSpec(self.range.upper - self.range.lower, 0)
 
-    @property
-    def length(self):
-        """Returns the length of the range using following algorithm:
+	@property
+	def data_range(self):
+		"""Returns a RangeSpec object with upper=range.upper-range.lower, lower=0."""
+
+		if self.range.upper is None or self.range.lower is None:
+			return None
+
+		return RangeSpec(self.range.upper - self.range.lower, 0)
+
+
+
+	@property
+	def length(self):
+		"""Returns the length of the range using following algorithm:
 		if self.upper is None: return None
 		elif self.lower is None: return self.upper
 		else return self.upper - self.lower + 1
 		"""
 
-        if self.range.upper is None:
-            return None
+		if self.range.upper is None:
+			return None
 
-        if self.range.lower is None:
-            return self.range.upper
+		if self.range.lower is None:
+			return self.range.upper
 
-        return self.range.upper - self.range.lower + 1
+		return self.range.upper - self.range.lower + 1
 
 # ============================================================
 # END
