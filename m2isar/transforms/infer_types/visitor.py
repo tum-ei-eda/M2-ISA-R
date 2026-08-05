@@ -32,12 +32,13 @@ logger = logging.getLogger("infer_types")
 
 # pylint: disable=unused-argument
 
+
 def infer_slice_sice_helper(expr):
     def name(node):
         return node.reference.name if isinstance(node, behav.NamedReference) else None
 
     def int_value(node):
-        return node.value if isinstance(node, behav.IntLiteral) else None
+        return node.value if isinstance(node, behav.Literal) and node.ty.kind.is_int else None
 
     def width_from(ref, other):
         if not isinstance(other, behav.BinaryOperation):
