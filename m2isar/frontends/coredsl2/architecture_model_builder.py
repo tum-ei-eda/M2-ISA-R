@@ -277,7 +277,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			if ctx.decl.size:
 				size = [self.visit(obj) for obj in ctx.decl.size]
 
-		p = arch.FnParam(name, type_.size, type_.kind)
+		p = arch.FnParam(name, type_)
 		return p
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):

@@ -178,10 +178,6 @@ def main():
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
 			fn_def.ty.size = arch.get_const_or_val(fn_def.ty.size)
-			fn_def._size = fn_def.ty.size
-			for fn_arg in fn_def.args.values():
-				fn_arg._size = fn_arg.ty.size
-				fn_arg._width = fn_arg.width
 
 		logger.debug("generating function behavior")
 
