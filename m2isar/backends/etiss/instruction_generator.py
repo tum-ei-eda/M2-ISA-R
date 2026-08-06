@@ -28,9 +28,12 @@ def generate_arg_str(arg: arch.FnParam):
 		full_type = f"{arg_type}{arg_size}"
 	else:
 		assert isinstance(arg.ty, type_info.PointerType) and  isinstance(arg.ty.ty, type_info.PrimitiveType)
-		arg_type = f"{instruction_utils.data_type_map[arg.ty.ty.kind]}* "
-		arg_size = actual_size(arg.ty.ty.size)
-		full_type = f"{arg_type}{arg_size}*"
+		if arg.ty.ty.kind == type_info.TypeKind.VOID:
+			full_type = "void*"
+		else:
+			arg_type = f"{instruction_utils.data_type_map[arg.ty.ty.kind]}* "
+			arg_size = actual_size(arg.ty.ty.size)
+			full_type = f"{arg_type}{arg_size}*"
 
 	return f'{full_type}{arg_name}'
 

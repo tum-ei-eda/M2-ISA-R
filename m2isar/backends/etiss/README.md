@@ -26,16 +26,30 @@ These functionalities must be implemented manually in the file `<core_name>ArchS
 
 ```
 $ etiss_writer --help
-usage: writer.py [-h] [-s] [--log {critical,error,warning,info,debug}] top_level
+usage: writer.py [-h] [--separate | --no-separate] [--static-scalars | --no-static-scalars]
+                 [--block-end-on {none,uncond,all}] [--coverage | --no-coverage]
+                 [--log {critical,error,warning,info,debug}] [--gdb-xml-descr GDB_XML_DESCR [GDB_XML_DESCR ...]]
+                 [--fill-mode {auto,empty}]
+                 top_level
 
 positional arguments:
   top_level             A .m2isarmodel file containing the models to generate.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  -s, --separate        Generate separate .cpp files for each instruction set.
-  --static-scalars      Enable crude static detection for scalars. WARNING: known to break!
+  --separate, --no-separate
+                        Generate separate .cpp files for each instruction set. (default: True)
+  --static-scalars, --no-static-scalars
+                        Enable static detection for Variables. (default: True)
+  --block-end-on {none,uncond,all}
+                        Force end translation blocks on no instructions, uncoditional jumps or all jumps.
+  --coverage, --no-coverage
+                        Generate coverage tracking code into model. (default: False)
   --log {critical,error,warning,info,debug}
+  --gdb-xml-descr GDB_XML_DESCR [GDB_XML_DESCR ...]
+  --fill-mode {auto,empty}
+                        How to deal with generated arch-specific impl files (empty: generate placeholders, auto:
+                        pre-populate using available metadata)
 ```
 
 ## Internals

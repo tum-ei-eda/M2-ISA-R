@@ -88,7 +88,7 @@ def setup():
 	parser.add_argument("--coverage", action=BooleanOptionalAction, default=False, help="Generate coverage tracking code into model.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	parser.add_argument("--gdb-xml-descr", nargs="+", default=[])
-	parser.add_argument("--fill-mode", choices=["auto", "empty"], default="empty")
+	parser.add_argument("--fill-mode", choices=["auto", "empty"], default="empty", help="How to deal with generated arch-specific impl files (empty: generate placeholders, auto: pre-populate using available metadata)")
 	# TODO: add modes for rvv,...
 	args = parser.parse_args()
 
