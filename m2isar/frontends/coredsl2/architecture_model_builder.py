@@ -487,6 +487,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						self._csr_reg_file = m
 					elif m.is_main_mem:
 						self.main_memory = m
+					elif m.is_vector_reg:
+						self._vector_reg_file = m
 
 					self._memories[name] = m
 					ret_decls.append(m)

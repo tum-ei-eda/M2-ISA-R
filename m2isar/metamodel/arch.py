@@ -381,18 +381,20 @@ class Memory(Symbol):
 
 		return RangeSpec(self.range.upper - self.range.lower, 0)
 
-
 	@property
 	def is_csr_reg(self) -> bool:
 		"""Return true if this memory is tagged as being a csr register array or named CSR."""
 		return self._is_specific_memory(attribute_info.MemoryAttribute.IS_CSR_REG, "CSR")
 
+	@property
+	def is_vector_reg(self) -> bool:
+		"""Return true if this memory is tagged as being a vector register array or named V."""
+		return self._is_specific_memory(attribute_info.MemoryAttribute.IS_VECTOR_REG, "V")
 
 	@property
 	def is_main_mem(self):
 		"""Return true if this memory is tagged as being the main memory array."""
 		return self._is_specific_memory(attribute_info.MemoryAttribute.IS_MAIN_MEM)
-
 
 	def _is_specific_memory(self, memory_type: attribute_info.MemoryAttribute, expected_name: str = "") -> bool:
 		"""
@@ -726,6 +728,8 @@ class CoreDef(Named):
 					self.main_memory = mem
 				elif mem.is_csr_reg:
 					self.csr_reg_file = mem
+				elif mem.is_vector_reg:
+					self.vector_reg_file = mem
 				elif attribute_info.MemoryAttribute.ETISS_IS_GLOBAL_IRQ_EN in mem.attributes:
 					self.global_irq_en_memory = mem
 				elif attribute_info.MemoryAttribute.ETISS_IS_PROCNO in mem.attributes:
