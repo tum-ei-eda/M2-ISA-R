@@ -45,16 +45,16 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         mutator = InferTypesMutator()
         for _, instr_def in core_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
-            mutator.generate(instr_def.operation, None)
+            mutator.generate(instr_def.operation, context)
             if not skip_simplify:
-                simplifier.generate(instr_def.operation, None)
+                simplifier.generate(instr_def.operation, context)
             mutator.generate(instr_def.operation, context)
 
         for _, func_def in core_def.functions.items():
             logger.debug("inferring types for functions %s", func_def.name)
-            mutator.generate(func_def.operation, None)
+            mutator.generate(func_def.operation, context)
             if not skip_simplify:
-                simplifier.generate(instr_def.operation, None)
+                simplifier.generate(instr_def.operation, context)
             mutator.generate(instr_def.operation, context)
 
     for _, set_def in model_obj.sets.items():
@@ -62,7 +62,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         for _, instr_def in set_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
             if not skip_simplify:
-                simplifier.generate(instr_def.operation, None)
+                simplifier.generate(instr_def.operation, context)
             mutator.generate(instr_def.operation, context)
     return model_obj
 

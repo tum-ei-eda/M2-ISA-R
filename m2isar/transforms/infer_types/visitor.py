@@ -169,7 +169,7 @@ class InferTypesMutator(ExprMutator):
 
         # type inference
         if expr.expr.ty is None:
-            logger.warning(
+            context.emit_warning(
                 "Can not infer type of non-static slice operation.",
                 "infer-type",
                 logger=logger,
@@ -192,7 +192,7 @@ class InferTypesMutator(ExprMutator):
         else:
             width = infer_slice_sice_helper(expr)
             if width is None:
-                logger.warning(
+                context.emit_warning(
                     "Can not infer type of non-static slice operation.",
                     "infer-non-static-slice",
                     logger=logger,
@@ -424,7 +424,7 @@ class InferTypesMutator(ExprMutator):
 
         ty = deepcopy(expr.expr.ty)
         if ty is None:
-            logger.warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
+            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
             return expr
         assert isinstance(ty, type_info.PrimitiveType)
         assert expr.data_type.is_int
