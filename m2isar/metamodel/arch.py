@@ -193,20 +193,14 @@ class RangeSpec:
 class FnParam(Named):
 	"""A function parameter."""
 
-	ty: type_info.PrimitiveType
+	ty: Union[type_info.PrimitiveType, type_info.PointerType]
 	_width: Union[int, "Parameter", "BaseNode"]
 	"""The array width of this parameter."""
 
-	def __init__(self, name, size, kind: type_info.TypeKind, width=1):
-		self.ty = type_info.PrimitiveType(kind, size)
-		self._width = width
+	def __init__(self, name, param_type : Union[type_info.PrimitiveType, type_info.PointerType]):
+		assert isinstance(param_type, (type_info.PrimitiveType, type_info.PointerType))
+		self.ty = param_type
 		super().__init__(name)
-
-	@property
-	def width(self):
-		"""Returns the resolved array width value."""
-
-		return get_const_or_val(self._width)
 
 	def __str__(self) -> str:
 		return f'{super().__str__()}, type={self.ty}'

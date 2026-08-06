@@ -22,7 +22,17 @@ logger = logging.getLogger("instruction_generator")
 
 def generate_arg_str(arg: arch.FnParam):
 	arg_name = f" {arg.name}" if arg.name is not None else ""
-	return f'{instruction_utils.data_type_map[arg.ty.kind]}{actual_size(arg.ty.size)}{arg_name}'
+	if isinstance(arg.ty, type_info.PrimitiveType):
+		arg_type = instruction_utils.data_type_map[arg.ty.kind]
+		arg_size = actual_size(arg.ty.size)
+		full_type = f"{arg_type}{arg_size}"
+	else:
+		assert isinstance(arg.ty, type_info.PointerType) and  isinstance(arg.ty.ty, type_info.PrimitiveType)
+		arg_type = f"{instruction_utils.data_type_map[arg.ty.ty.kind]}* "
+		arg_size = actual_size(arg.ty.ty.size)
+		full_type = f"{arg_type}{arg_size}*"
+
+	return f'{full_type}{arg_name}'
 
 def generate_functions(core: arch.CoreDef, static_scalars: bool, decls_only: bool, generate_coverage: bool):
 	"""Return a generator object to generate function behavior code. Uses function
