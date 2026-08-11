@@ -102,10 +102,10 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % else:
     % if hasattr(reg, "is_pc"):
         % if not reg.is_pc:
-            ${core_name.lower()}cpu->${reg.name} = 0;
+    ${core_name.lower()}cpu->${reg.name} = 0;
         % endif
     % else:
-        ${core_name.lower()}cpu->${reg.name} = 0;
+    ${core_name.lower()}cpu->${reg.name} = 0;
     % endif
     % endif
     % endfor

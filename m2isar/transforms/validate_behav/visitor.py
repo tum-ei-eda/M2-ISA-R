@@ -43,12 +43,16 @@ class ValidateBehavVisitor(ExprVisitor):
         self.generate(expr.right, context)
         op = expr.op
 
+        if expr.left.ty is None:
+            context.emit_warning("Missing infered LHS binop type.", "incomplete-type-info", logger=logger, line_info=expr.left.line_info)
+        if expr.right.ty is None:
+            context.emit_warning("Missing infered RHS binop type.", "incomplete-type-info", logger=logger, line_info=expr.right.line_info)
         assert expr.left.ty is not None
         assert expr.right.ty is not None
         if op.value in ["|", "&", "^"] and expr.left.ty.size != expr.right.ty.size:
-            context.emit_warning(f"Bitwise operations with differently size operands are discouraged.", "bit-op-missmatch", logger=logger, line_info=expr.line_info)
+            context.emit_warning("Bitwise operations with differently size operands are discouraged.", "bit-op-missmatch", logger=logger, line_info=expr.line_info)
         if op.value in ["<<", ">>", ">>>"] and expr.right.ty.kind == type_info.TypeKind.INT:
-            context.emit_warning(f"Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
+            context.emit_warning("Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
         if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.kind != expr.right.ty.kind:
             assert(expr.left.ty.kind.is_int and expr.right.ty.kind.is_int)
             if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
@@ -81,6 +85,10 @@ class ValidateBehavVisitor(ExprVisitor):
     def _(self, expr: behav.Assignment, context):
         self.generate(expr.target, context)
         self.generate(expr.expr, context)
+        if expr.target.ty is None:
+            context.emit_warning("Missing infered assignment target type.", "incomplete-type-info", logger=logger, line_info=expr.target.line_info)
+        if expr.expr.ty is None:
+            context.emit_warning("Missing infered assignment expr type.", "incomplete-type-info", logger=logger, line_info=expr.expr.line_info)
         assert expr.target.ty is not None
         assert expr.expr.ty is not None
         assert isinstance(expr.target.ty, type_info.PrimitiveType)

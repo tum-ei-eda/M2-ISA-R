@@ -12,6 +12,7 @@ KNOWN_WARNINGS = {
 	'unused-value',
 	'bit-op-missmatch',
 	'infer-non-static-slice',
+	'incomplete-type-info',
 }
 
 

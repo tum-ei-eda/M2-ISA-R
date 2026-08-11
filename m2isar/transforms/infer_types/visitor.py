@@ -32,12 +32,13 @@ logger = logging.getLogger("infer_types")
 
 # pylint: disable=unused-argument
 
+
 def infer_slice_sice_helper(expr):
     def name(node):
         return node.reference.name if isinstance(node, behav.NamedReference) else None
 
     def int_value(node):
-        return node.value if isinstance(node, behav.IntLiteral) else None
+        return node.value if isinstance(node, behav.Literal) and node.ty.kind.is_int else None
 
     def width_from(ref, other):
         if not isinstance(other, behav.BinaryOperation):
@@ -62,7 +63,9 @@ class InferTypesMutator(ExprMutator):
 
     @singledispatchmethod
     def generate(self, expr: behav.BaseNode, context):
-        raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
+        raise NotImplementedError(
+            f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}"
+        )
 
     @generate.register
     def _(self, expr: behav.Operation, context):
@@ -76,7 +79,6 @@ class InferTypesMutator(ExprMutator):
 
         expr.statements = statements
         return expr
-
 
     @generate.register
     def _(self, expr: behav.BinaryOperation, context):
@@ -159,7 +161,6 @@ class InferTypesMutator(ExprMutator):
 
         return expr
 
-
     @generate.register
     def _(self, expr: behav.SliceOperation, context):
         expr.expr = self.generate(expr.expr, context)
@@ -168,7 +169,12 @@ class InferTypesMutator(ExprMutator):
 
         # type inference
         if expr.expr.ty is None:
-            logger.warning("Can not infer type of non-static slice operation.", "infer-type", logger=logger, line_info=expr.expr.line_info)
+            context.emit_warning(
+                "Can not infer type of non-static slice operation.",
+                "infer-type",
+                logger=logger,
+                line_info=expr.expr.line_info,
+            )
             return expr
         assert isinstance(expr.expr.ty, (type_info.PrimitiveType))
         ty = expr.expr.ty
@@ -186,22 +192,26 @@ class InferTypesMutator(ExprMutator):
         else:
             width = infer_slice_sice_helper(expr)
             if width is None:
-                logger.warning("Can not infer type of non-static slice operation.", "infer-non-static-slice", logger=logger, line_info=expr.left.line_info)
+                context.emit_warning(
+                    "Can not infer type of non-static slice operation.",
+                    "infer-non-static-slice",
+                    logger=logger,
+                    line_info=expr.left.line_info,
+                )
                 return expr
         ty_ = copy(ty)
         if isinstance(ty_, type_info.PrimitiveType):
             ty_.size = width
         elif isinstance(ty_, type_info.ArrayType):
-            if width == 1: # Array -> PrimitiveType
+            if width == 1:  # Array -> PrimitiveType
                 ty_ = ty_.element_type
-            else: # Array Slice
-                ty_.length =  arch.get_const_or_val(width)
+            else:  # Array Slice
+                ty_.length = arch.get_const_or_val(width)
         else:
             raise f"Type Slicing not supported for type {ty_}"
 
         expr.ty = ty_
         return expr
-
 
     @generate.register
     def _(self, expr: behav.ConcatOperation, context):
@@ -220,13 +230,12 @@ class InferTypesMutator(ExprMutator):
 
         return expr
 
-
     # behav.IntLiteral
     @generate.register
     def _(self, expr: behav.Literal, context):
         # type inference
-        assert(expr.ty.size is not None)
-        assert(expr.ty.kind.is_int)
+        assert expr.ty.size is not None
+        assert expr.ty.kind.is_int
 
         expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
         return expr
@@ -235,8 +244,8 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Tensor, context):
         # type inference
-        assert(expr.ty.length is not None)
-        assert(expr.ty.element_type.kind.is_int)
+        assert expr.ty.length is not None
+        assert expr.ty.element_type.kind.is_int
 
         expr.ty = type_info.ArrayType(expr.ty.element_type, expr.ty.length)
         return expr
@@ -347,18 +356,20 @@ class InferTypesMutator(ExprMutator):
             elif isinstance(reference.ty, type_info.ArrayType):
                 reference.ty.length = arch.get_const_or_val(reference.ty.length)
             expr.ty = reference.ty
-        elif isinstance(reference, arch.Alias): # propagate type from aliased mem or reg bank
-            assert(reference.length == 1)
+        elif isinstance(reference, arch.Alias):  # propagate type from aliased mem or reg bank
+            assert reference.length == 1
             if isinstance(reference.parent, (arch.Memory, arch.RegisterBank, arch.Variable)):
                 # expr.ty = self.generate(behav.NamedReference(reference.parent), context)
-                assert(isinstance(reference.ty, type_info.PointerType))
+                assert isinstance(reference.ty, type_info.PointerType)
                 expr.ty = reference.ty.ty
-                assert (expr.ty is not None)
+                assert expr.ty is not None
             elif isinstance(reference.parent, arch.Register):
                 expr.ty = reference.parent.ty
-                assert (expr.ty is not None)
+                assert expr.ty is not None
             else:
-                raise NotImplementedError(f"Alias parent type {type(reference.parent)} not supported for type inference")
+                raise NotImplementedError(
+                    f"Alias parent type {type(reference.parent)} not supported for type inference"
+                )
         elif isinstance(reference, arch.Intrinsic):
             assert reference.ty.kind.is_int and isinstance(reference.ty, type_info.PrimitiveType)
             expr.ty = reference.ty
@@ -397,8 +408,8 @@ class InferTypesMutator(ExprMutator):
         else:
             lhs_offset = helper_expr_size(expr.index)
             rhs_offset = helper_expr_size(expr.right)
-            assert(lhs_offset >= rhs_offset)
-            size = (lhs_offset - rhs_offset + 1)*single_mem_acc_size
+            assert lhs_offset >= rhs_offset
+            size = (lhs_offset - rhs_offset + 1) * single_mem_acc_size
 
         ty_ = type_info.PrimitiveType(expr.reference.ty.element_type.kind, size)
 
@@ -413,7 +424,7 @@ class InferTypesMutator(ExprMutator):
 
         ty = deepcopy(expr.expr.ty)
         if ty is None:
-            logger.warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
+            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
             return expr
         assert isinstance(ty, type_info.PrimitiveType)
         assert expr.data_type.is_int
@@ -429,7 +440,7 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.Callable, context):
         if isinstance(expr.ref_or_name, arch.Function):
-            if not(expr.ref_or_name.ty.kind == type_info.TypeKind.VOID):
+            if not (expr.ref_or_name.ty.kind == type_info.TypeKind.VOID):
                 assert expr.ref_or_name.ty.kind.is_int
                 width = arch.get_const_or_val(expr.ref_or_name.ty.size)
                 expr.ty = type_info.PrimitiveType(expr.ref_or_name.ty.kind, arch.get_const_or_val(width))
@@ -465,23 +476,23 @@ class InferTypesMutator(ExprMutator):
 def helper_expr_size(sub_expr: behav.BaseNode):
     expr = None
     if type(sub_expr) == behav.Group:
-            expr = sub_expr.expr
-            return helper_expr_size(expr)
+        expr = sub_expr.expr
+        return helper_expr_size(expr)
     elif type(sub_expr) == behav.BinaryOperation:
-            expr = sub_expr
-            assert isinstance(expr.left, behav.NamedReference)
+        expr = sub_expr
+        assert isinstance(expr.left, behav.NamedReference)
 
-            if expr.op.value == "+":
-                    if type(expr.right) == behav.Literal:
-                            return int(expr.right.value)
+        if expr.op.value == "+":
+            if type(expr.right) == behav.Literal:
+                return int(expr.right.value)
 
-            elif expr.op.value == "-":
-                    if type(expr.right) == behav.Literal:
-                            return (-1 * int(expr.right.value))
-            else:
-                    raise(f"Not supported Operation value Type {expr.op.value} within mem access range")
+        elif expr.op.value == "-":
+            if type(expr.right) == behav.Literal:
+                return -1 * int(expr.right.value)
+        else:
+            raise (f"Not supported Operation value Type {expr.op.value} within mem access range")
 
     elif type(sub_expr) == behav.NamedReference:
-            return 0
+        return 0
     else:
-            raise(f"Not supported expr Type {type(sub_expr)} within mem access range")
+        raise (f"Not supported expr Type {type(sub_expr)} within mem access range")
