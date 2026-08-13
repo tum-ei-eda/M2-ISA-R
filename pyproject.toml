@@ -25,11 +25,12 @@ requires-python = ">=3.8"
 license = "Apache-2.0"
 readme = "README.md"
 dependencies = [
-	"mako",
-    "antlr4-tools",
-	"antlr4-python3-runtime == 4.13.1",
-	"tqdm",
-    "numpy"
+  "mako",
+  "antlr4-tools",
+  "antlr4-python3-runtime == 4.13.1",
+  "tqdm",
+  "numpy",
+  "pyelftools"
 ]
 
 [project.urls]
