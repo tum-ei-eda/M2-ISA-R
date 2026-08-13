@@ -14,9 +14,9 @@ from ... import (M2DuplicateError, M2NameError, M2TypeError, M2ValueError,
                  flatten)
 from ...metamodel import arch, behav, type_info, attribute_info, intrinsics
 from ...metamodel.code_info import FunctionInfoFactory
-from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import RADIX, SHORTHANDS, SIGNEDNESS
-from .expr_interpreter import ExprInterpreterVisitor
+from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+from ..coredsl2.utils import RADIX, SHORTHANDS, SIGNEDNESS
+from ..coredsl2.expr_interpreter import ExprInterpreterVisitor
 
 logger = logging.getLogger("arch_builder")
 exprInterpretVisitor = ExprInterpreterVisitor()
@@ -41,7 +41,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_vector_reg_file: Union[arch.RegisterBank, None]
 	_csr_reg_file: Union[arch.RegisterBank, None]
 
-	def __init__(self):
+	def __init__(self, merge: bool = False):
 		super().__init__()
 		self._parameters = {}
 		# self._instructions = {}
@@ -61,6 +61,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._float_reg_file = None
 		self._vector_reg_file = None
 		self._csr_reg_file = None
+		self.merge = merge
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -111,6 +112,14 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		functions = {}
 		# instructions = {}
 		instructions = []
+		# instructions += self._instructions
+		if self.merge:
+			parameters.update(self._parameters)
+			memories.update(self._memories)
+			memory_aliases.update(self._memory_aliases)
+			register_banks.update(self._register_banks)
+			register_aliases.update(self._register_aliases)
+			functions.update(self._functions)
 
 		# group contents by type
 		for item in contents:
