@@ -101,7 +101,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			sections = ctx.sections
 
 		# generate flat list of instruction set contents
-		contents = flatten([self.visit(obj) for obj in ctx.sections])
+		contents = flatten([self.visit(obj) for obj in sections])
 
 		parameters = {}
 		memories = {}
