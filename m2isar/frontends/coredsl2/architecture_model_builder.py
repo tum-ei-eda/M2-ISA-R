@@ -105,7 +105,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		parameters = {}
 		memories = {}
+		memory_aliases = {}
 		register_banks = {}
+		register_aliases = {}
 		functions = {}
 		# instructions = {}
 		instructions = []
@@ -118,8 +120,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				memories[item.name] = item
 			elif isinstance(item, (arch.RegisterBank, arch.Register)):
 				register_banks[item.name] = item
-			elif isinstance(item, arch.Alias): # Aliases are basically handled of children of memories+register banks
-				pass
+			elif isinstance(item, arch.Alias):
+				assert item.parent is not None
+				if isinstance(item.parent, arch.Memory):
+					memory_aliases[item.name] = item
+				elif isinstance(item.parent, (arch.RegisterBank, arch.Register)):
+					register_aliases[item.name] = item
+				else:
+					raise M2TypeError(f"Unhandled alias parent type: {type(item.parent)}")
+				register_aliases[item.name] = item
 			elif isinstance(item, arch.Function):
 				functions[item.name] = item
 				item.ext_name = name
@@ -136,7 +145,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, parameters, memories, register_banks, functions, instructions)
+			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")

@@ -614,39 +614,41 @@ class Function(Named):
 	def __str__(self) -> str:
 		return f'{super().__str__()}, type={self.ty}'
 
-def extract_memory_alias(memories: "list[Memory]"):
-	"""Extract and separate parent and children memories from the given list
-	of memory objects."""
-
-	parents = {}
-	aliases = {}
-	for m in memories:
-		for c in m.children:
-			aliases[c.name] = c
-
-		p, a = extract_memory_alias(m.children)
-
-		parents.update(p)
-		aliases.update(a)
-
-		if m.parent is None:
-			parents[m.name] = m
-
-	return parents, aliases
-
-
-def extract_register_alias(register_banks: "list[RegisterBank]"):
-	"""Extract and separate parent and children register banks from the given list
-	of register bank objects."""
-
-	parents = {}
-	aliases = {}
-	for m in register_banks:
-		for c in m.children:
-			aliases[c.name] = c
-			parents[c.name] = m
-
-	return parents, aliases
+# def extract_memory_alias(memories: "list[Memory]"):
+# 	"""Extract and separate parent and children memories from the given list
+# 	of memory objects."""
+# 
+# 	parents = {}
+# 	aliases = {}
+# 	for m in memories:
+# 		print("m", m)
+# 		for c in m.children:
+# 			aliases[c.name] = c
+# 
+# 		p, a = extract_memory_alias(m.children)
+# 
+# 		parents.update(p)
+# 		aliases.update(a)
+# 
+# 		if m.parent is None:
+# 			parents[m.name] = m
+# 
+# 	return parents, aliases
+# 
+# 
+# def extract_register_alias(register_banks: "list[RegisterBank]"):
+# 	"""Extract and separate parent and children register banks from the given list
+# 	of register bank objects."""
+# 
+# 	parents = {}
+# 	aliases = {}
+# 	for m in register_banks:
+# 		print("m", m)
+# 		for c in m.children:
+# 			aliases[c.name] = c
+# 			parents[c.name] = m
+# 
+# 	return parents, aliases
 
 
 class AlwaysBlock(Named):
@@ -665,13 +667,15 @@ class InstructionSet(Named):
 	"""
 
 	def __init__(self, name, extension: "list[str]", parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
-			register_banks: "dict[str, RegisterBank]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
+			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
 
 		self.extension = extension
 		self.combines = []
 		self.parameters = parameters
-		self.memories, self.memory_aliases = extract_memory_alias(memories.values())
-		self.register_banks, self.register_aliases = extract_register_alias(register_banks.values())
+		self.memories = memories
+		self.memory_aliases = memory_aliases
+		self.register_banks = register_banks
+		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
 
