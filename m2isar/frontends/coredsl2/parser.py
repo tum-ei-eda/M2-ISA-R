@@ -45,6 +45,7 @@ def main():
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
 	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	parser.add_argument("--output", "-o", type=str, default=None)
 
 	args = parser.parse_args()
 
@@ -76,7 +77,10 @@ def main():
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
 
-	model_path = abs_top_level.parent.joinpath('gen_model')
+	if args.output is None:
+		model_path = abs_top_level.parent.joinpath('gen_model')
+	else:
+		model_path = pathlib.Path(args.output)
 	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
