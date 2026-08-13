@@ -168,11 +168,11 @@ def main():
 					try:
 
 						behav_builder = BehaviorModelBuilder(core_def.parameters, {}, {},core_def.register_banks,
-										    core_def.register_aliases, {}, core_def.functions, warned_fns)
+										core_def.register_aliases, {}, core_def.functions, warned_fns)
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
-						logger.critical("error processing attribute \"%s\" of memory \"%s\": %s", attr_name, fn_def.name, e)
+						logger.critical("error processing attribute \"%s\" of memory \"%s\": %s", attr_name, reg_def.name, e)
 						sys.exit(1)
 
 				reg_def.attributes[attr_name] = ops
