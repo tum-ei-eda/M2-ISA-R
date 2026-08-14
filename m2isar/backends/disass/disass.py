@@ -15,11 +15,165 @@ import logging
 import pathlib
 import pickle
 from collections import defaultdict
-from io import SEEK_CUR
+from io import SEEK_CUR, BytesIO
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
+from elftools.elf.enums import ENUM_ST_INFO_TYPE
+from elftools.elf.constants import SH_FLAGS
 
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from .asm_formatter import AsmFormatter
 
 logger = logging.getLogger("viewer")
+
+def get_function_symbols(elf):
+	symbols = {}
+
+	# Find executable section indices.
+	executable_sections = set()
+
+	for idx, section in enumerate(elf.iter_sections()):
+		if section["sh_flags"] & SH_FLAGS.SHF_EXECINSTR:
+			executable_sections.add(idx)
+
+	for section in elf.iter_sections():
+		if not isinstance(section, SymbolTableSection):
+			continue
+
+		for symbol in section.iter_symbols():
+			name = symbol.name
+			addr = symbol["st_value"]
+			shndx = symbol["st_shndx"]
+			if not name:
+				continue
+			# Ignore undefined/special symbols.
+			if not isinstance(shndx, int):
+				continue
+			# Only symbols belonging to executable sections.
+			if shndx not in executable_sections:
+				continue
+			if name.startswith("$"):
+				continue
+
+			symbols.setdefault(addr, []).append(name)
+			# if symbol["st_info"]["type"] != "STT_FUNC":
+			# 	continue
+			# addr = symbol["st_value"]
+			# name = symbol.name
+			# if addr and name:
+			# 	symbols[addr] = name
+
+	return symbols
+
+def get_disassembly_regions(filename):
+	"""
+	Yield tuples:
+		(name, virtual_address, bytes)
+	"""
+
+	with open(filename, "rb") as f:
+		magic = f.read(4)
+		f.seek(0)
+
+		if magic == b"\x7fELF":
+			elf = ELFFile(f)
+			symbols = get_function_symbols(elf)
+
+			for section in elf.iter_sections():
+				# SHF_EXECINSTR = 0x4
+				if section["sh_flags"] & 0x4:
+					data = section.data()
+
+					if data:
+						yield (
+							section.name,
+							section["sh_addr"],
+							data,
+							symbols,
+						)
+		else:
+			# Raw binary
+			data = f.read()
+			yield (
+				"<binary>",
+				0,
+				data,
+			)
+
+def disassemble_region(data, symbols, base_addr, core, instrs_by_size,
+		readlen, steplen, args):
+
+	f = BytesIO(data)
+
+	prev_count = 0
+
+	while iw_read := f.read(readlen):
+		# read() advances, so rewind to make this equivalent to your old peek()
+		f.seek(-len(iw_read), SEEK_CUR)
+
+		iw = iw_read[:readlen]
+
+		found_ins = None
+
+		for cls in sorted(core.instr_classes):
+			ii = int.from_bytes(iw[:cls // 8], "little")
+			i = find_instr(ii, instrs_by_size[cls])
+
+			if i is not None:
+				found_ins = i
+
+		if found_ins is None:
+			ins_str = "unknown"
+			step = steplen
+
+			if prev_count > 2:
+				print(f"\trepeated {prev_count-2} times.")
+
+			prev_count = 0
+
+		else:
+			if found_ins.name == "DII":
+				prev_count += 1
+
+				if prev_count > 1:
+					f.seek(found_ins.size // 8, SEEK_CUR)
+					continue
+			else:
+				if prev_count > 2:
+					print(f"\trepeated {prev_count-2} times.")
+
+				prev_count = 0
+
+			operands = decode(ii, found_ins)
+
+			if args.format:
+				asm_name = found_ins.mnemonic
+				assembly = found_ins.assembly or ""
+				fmt = AsmFormatter()
+				asm_args = fmt.format(assembly, **operands)
+			else:
+				asm_name = found_ins.name
+				op_str = " | ".join(
+					[f"{k}={v}" for k, v in operands.items()]
+				)
+				asm_args = f"[{op_str}]"
+
+			ins_str = f"{asm_name}\t{asm_args}"
+			step = found_ins.size // 8
+
+		offset = f.tell()
+		address = base_addr + offset
+		if address in symbols:
+			print()
+			for name in symbols[address]:
+				print(f"{address:016x} <{name}>:")
+
+		iword = int.from_bytes(iw[:step], "little")
+		iword = f"{iword:0{step * 2}x}"
+
+		print(f"{address:08x}: {iword:<16} {ins_str}")
+
+		f.seek(step, SEEK_CUR)
 
 def sort_instruction(entry):
 	"""Key function for sorting instructions:
@@ -68,6 +222,8 @@ def main():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument("core_name")
 	parser.add_argument('bin')
+	parser.add_argument("--format", action="store_true", help="Use assembly formatting string and mnemonic")
+	parser.add_argument("--raw", action="store_true", help="Read read bytes (no segments, no virtual addresses) from binary")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	args = parser.parse_args()
 
@@ -116,6 +272,29 @@ def main():
 
 	instrs_by_size = dict(sorted(instrs_by_size.items()))
 
+	prev_count = 0
+
+	if not args.raw:
+		for region_name, base_addr, data, symbols in get_disassembly_regions(args.bin):
+			logger.info(
+				"Disassembling %s at 0x%x (%d bytes)",
+				region_name,
+				base_addr,
+				len(data),
+			)
+
+			disassemble_region(
+				data,
+				symbols,
+				base_addr,
+				core,
+				instrs_by_size,
+				readlen,
+				steplen,
+				args,
+			)
+		return
+	logger.info("Reading raw bytes from binary file")
 	with open(args.bin, "rb") as f:
 		# read at most XLEN bytes at a time
 		while iw_read := f.peek(readlen):
@@ -134,11 +313,36 @@ def main():
 				ins_str = "unknown"
 				step = steplen
 
+				if prev_count > 2:
+					print(f"\trepeated {prev_count-2} times.")
+				prev_count = 0
+
 			# decode instruction operands
 			else:
+				if found_ins and found_ins.name == "DII":
+					prev_count += 1
+					if prev_count > 1:
+						bla = f.tell()
+						f.seek(step, SEEK_CUR)
+						continue
+				else:
+					if prev_count > 2:
+						print(f"\trepeated {prev_count-2} times.")
+					prev_count = 0
+
 				operands = decode(ii, found_ins)
-				op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
-				ins_str = f"{found_ins.name} [{op_str}]"
+				if args.format:
+					asm_name = found_ins.mnemonic
+					assembly = found_ins.assembly
+					fmt = AsmFormatter()
+					if assembly is None:
+						assembly = ""
+					asm_args = fmt.format(assembly, **operands)
+				else:
+					asm_name = found_ins.name
+					op_str = " | ".join([f"{k}={v}" for k, v in operands.items()])
+					asm_args = f"[{op_str}]"
+				ins_str = f"{asm_name}\t{asm_args}"
 				step = found_ins.size // 8
 
 			# print decoded instruction mnemonic
@@ -150,4 +354,7 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	try:
+		main()
+	except BrokenPipeError:
+		pass
