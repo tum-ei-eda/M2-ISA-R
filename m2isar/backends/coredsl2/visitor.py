@@ -6,207 +6,188 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""TODO"""
+"""Visitor-pattern based printer for instruction/function  behavior."""
 
-from m2isar.metamodel import arch, behav
+import logging
+from functools import singledispatchmethod
+
+from ...metamodel import arch, behav
+from ...metamodel.utils.ExprVisitor import ExprVisitor
+
+
+logger = logging.getLogger("coredsl2_writer")
+
 
 # pylint: disable=unused-argument
 
 
-def operation(self: behav.Operation, writer):
-    # print("operation", self.statements)
-    if len(self.statements) > 1:
+
+
+class CDSLWriterVisitor(ExprVisitor):
+    """Visitor to validate a metamodel."""
+
+    def generate_grouped(self, expr, writer):
+        if isinstance(expr, behav.Group):
+            self.generate(expr, writer)
+        else:
+            writer.write("(")
+            self.generate(expr, writer)
+            writer.write(")")
+
+    @singledispatchmethod
+    def generate(self, expr: behav.BaseNode, context):
+        raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
+
+    @generate.register
+    def _(self, expr: behav.Operation, writer):
+        if len(expr.statements) > 1:
+            writer.enter_block()
+        for stmt in expr.statements:
+            self.generate(stmt, writer)
+            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+                writer.write_line(";")
+        if len(expr.statements) > 1:
+            writer.leave_block()
+
+    @generate.register
+    def _(self, expr: behav.BinaryOperation, writer):
+        self.generate_grouped(expr.left, writer)
+        writer.write(f" {expr.op.value} ")
+        self.generate_grouped(expr.right, writer)
+
+    @generate.register
+    def _(self, expr: behav.SliceOperation, writer):
+        self.generate(expr.expr, writer)
+        writer.write("[")
+        self.generate_grouped(expr.left, writer)
+        writer.write(":")
+        self.generate_grouped(expr.right, writer)
+        writer.write("]")
+
+    @generate.register
+    def _(self, expr: behav.ConcatOperation, writer):
+        # TODO: only add () where required
+        self.generate_grouped(expr.left, writer)
+        writer.write(" :: ")
+        self.generate_grouped(expr.right, writer)
+
+    @generate.register
+    def _(self, expr: behav.Literal, writer):
+        writer.write(expr.value)
+
+    @generate.register
+    def _(self, expr: behav.VarDefinition, writer):
+        writer.write_type(expr.var.ty)
+        writer.write(" ")
+        writer.write(expr.var.name)
+        if expr.var.value:
+            writer.write(" = ")
+            writer.write(expr.var.value)
+        # writer.write_line(";")
+
+    @generate.register
+    def _(self, expr: behav.Break, writer):
+        writer.write_line("break;")
+
+    @generate.register
+    def _(self, expr: behav.Assignment, writer):
+        self.generate(expr.target, writer)
+        writer.write(" = ")
+        self.generate(expr.expr, writer)
+        # writer.write_line(";")
+
+    @generate.register
+    def _(self, expr: behav.Conditional, writer):
+        for i, stmt in enumerate(expr.stmts):
+            if i == 0:
+                writer.write("if (")
+                self.generate(expr.conds[i], writer)
+                writer.write(")")
+            elif 0 < i < len(expr.conds):
+                writer.write("else if(")
+                self.generate(expr.conds[i], writer)
+                writer.write(")")
+            else:
+                writer.write("else")
+            writer.enter_block()
+            self.generate(stmt, writer)
+            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+                writer.write_line(";")
+            nl = len(expr.stmts) > i
+            writer.leave_block(nl=nl)
+
+    @generate.register
+    def _(self, expr: behav.Loop, writer):
+        writer.write("while (")
+        self.generate(expr.cond, writer)
+        writer.write(")")
         writer.enter_block()
-    for stmt in self.statements:
-        stmt.generate(writer)
-        if not isinstance(stmt, (behav.Conditional, behav.Operation)):
-            writer.write_line(";")
-    if len(self.statements) > 1:
+        for stmt in expr.stmts:
+            self.generate(stmt, writer)
         writer.leave_block()
 
 
-def binary_operation(self: behav.BinaryOperation, writer):
-    writer.write("(")
-    self.left.generate(writer)
-    writer.write(f") {self.op.value} (")
-    self.right.generate(writer)
-    writer.write(")")
+    @generate.register
+    def _(self, expr: behav.Ternary, writer):
+        self.generate_grouped(expr.cond, writer)
+        writer.write(" ? ")
+        self.generate_grouped(expr.then_expr, writer)
+        writer.write(" : ")
+        self.generate_grouped(expr.else_expr, writer)
 
+    @generate.register
+    def _(self, expr: behav.Return, writer):
+        writer.write("return")
+        if expr.expr is not None:
+            writer.write(" ")
+            self.generate(expr.expr, writer)
+        # writer.write_line(";")
 
-def slice_operation(self: behav.SliceOperation, writer):
-    # print("slice_operation")
-    self.expr.generate(writer)
-    writer.write("[(")
-    self.left.generate(writer)
-    writer.write("):(")
-    self.right.generate(writer)
-    writer.write(")]")
+    @generate.register
+    def _(self, expr: behav.UnaryOperation, writer):
+        writer.write(expr.op.value)
+        self.generate_grouped(expr.right, writer)
 
+    @generate.register
+    def _(self, expr: behav.NamedReference, writer):
+        writer.write(expr.reference.name)
+        # if isinstance(expr.reference, (arch.Constant, arch.Memory, arch.Scalar)):
+        #     # writer.track(self.reference.name)
+        #     pass
 
-def concat_operation(self: behav.ConcatOperation, writer):
-    # print("concat_operation")
-    # TODO: only add () where required
-    writer.write("(")
-    self.left.generate(writer)
-    writer.write(") :: (")
-    self.right.generate(writer)
-    writer.write(")")
+    @generate.register
+    def _(self, expr: behav.IndexedReference, writer):
+        writer.write(expr.reference.name)
+        writer.write("[")
+        # if isinstance(expr.reference, arch.Memory):
+        #     # writer.track(expr.reference.name)
+        #     pass
+        self.generate(expr.index, writer)
+        writer.write("]")
 
+    @generate.register
+    def _(self, expr: behav.TypeConv, writer):
+        writer.write("(")
+        writer.write_type(expr.ty)
+        writer.write(")")
+        self.generate_grouped(expr.expr, writer)
 
-def number_literal(self: behav.IntLiteral, writer):
-    # print("number_literal")
-    writer.write(self.value)
-
-
-def int_literal(self: behav.IntLiteral, writer):
-    # print("int_literal")
-    writer.write(self.value)
-
-
-def scalar_definition(self: behav.ScalarDefinition, writer):
-    # print("scalar_definition", self.scalar, dir(self.scalar))
-    writer.write_type(self.scalar.data_type, self.scalar.size)
-    writer.write(" ")
-    writer.write(self.scalar.name)
-    if self.scalar.value:
-        writer.write(" = ")
-        writer.write(self.scalar.value)
-    # writer.write_line(";")
-
-
-def break_(self: behav.Break, writer):
-    # print("break_")
-    writer.write_line("break;")
-
-
-def assignment(self: behav.Assignment, writer):
-    # print("assignment", self, dir(self))
-    self.target.generate(writer)
-    writer.write(" = ")
-    self.expr.generate(writer)
-    # writer.write_line(";")
-
-
-def conditional(self: behav.Conditional, writer):
-    # print("conditional")
-    for i, stmt in enumerate(self.stmts):
-        if i == 0:
-            writer.write("if (")
-            self.conds[i].generate(writer)
-            writer.write(")")
-        elif 0 < i < len(self.conds):
-            writer.write("else if(")
-            self.conds[i].generate(writer)
-            writer.write(")")
+    @generate.register
+    def _(self, expr: behav.Callable, writer):
+        ref = expr.ref_or_name
+        if isinstance(ref, arch.Function):
+            writer.write(ref.name)
         else:
-            writer.write("else")
-        writer.enter_block()
-        stmt.generate(writer)
-        if not isinstance(stmt, (behav.Conditional, behav.Operation)):
-            writer.write_line(";")
-        nl = len(self.stmts) > i
-        writer.leave_block(nl=nl)
+            raise NotImplementedError
+        writer.write("(")
+        for i, stmt in enumerate(expr.args):
+            self.generate(stmt, writer)
+            if i < len(expr.args) - 1:
+                writer.write(", ")
+        writer.write(")")
 
-
-def loop(self: behav.Loop, writer):
-    # print("loop")
-    writer.write("while (")
-    self.cond.generate(writer)
-    writer.write(")")
-    writer.enter_block()
-    for stmt in self.stmts:
-        stmt.generate(writer)
-    writer.leave_block()
-
-
-def ternary(self: behav.Ternary, writer):
-    # print("ternary")
-    writer.write("(")
-    self.cond.generate(writer)
-    writer.write(") ? (")
-    self.then_expr.generate(writer)
-    writer.write(") : (")
-    self.else_expr.generate(writer)
-    writer.write(")")
-
-
-def return_(self: behav.Return, writer):
-    # print("return_")
-    writer.write("return")
-    if self.expr is not None:
-        writer.write(" ")
-        self.expr.generate(writer)
-    # writer.write_line(";")
-
-
-def unary_operation(self: behav.UnaryOperation, writer):
-    # print("unary_operation")
-    writer.write(self.op.value)
-    writer.write("(")
-    self.right.generate(writer)
-    writer.write(")")
-
-
-def named_reference(self: behav.NamedReference, writer):
-    # print("named_reference", self.reference.name)
-    writer.write(self.reference.name)
-    if isinstance(self.reference, (arch.Constant, arch.Memory, arch.Scalar)):
-        # writer.track(self.reference.name)
-        pass
-    # if isinstance(self.reference, arch.Constant):
-    # 	return behav.IntLiteral(self.reference.value, self.reference.size, self.reference.signed)
-
-    # if isinstance(self.reference, arch.Scalar) and self.reference.value is not None:
-    # 		return behav.IntLiteral(self.reference.value, self.reference.size, self.reference.data_type == arch.DataType.S)
-
-
-def indexed_reference(self: behav.IndexedReference, writer):
-    # print("indexed_reference", self.reference.name)
-    writer.write(self.reference.name)
-    writer.write("[")
-    # if isinstance(self.reference, arch.Memory):
-    #     # writer.track(self.reference.name)
-    #     pass
-    self.index.generate(writer)
-    writer.write("]")
-
-
-def type_conv(self: behav.TypeConv, writer):
-    # print("type_conv", self, dir(self))
-    writer.write("(")
-    writer.write_type(self.data_type, self.size)
-    writer.write(")")
-    writer.write("(")
-    self.expr.generate(writer)
-    writer.write(")")
-
-
-def callable_(self: behav.Callable, writer):
-    # print("callable_", self, dir(self))
-    ref = self.ref_or_name
-    if isinstance(ref, arch.Function):
-        writer.write(ref.name)
-    else:
-        raise NotImplementedError
-    writer.write("(")
-    for i, stmt in enumerate(self.args):
-        stmt.generate(writer)
-        if i < len(self.args) - 1:
-            writer.write(", ")
-    writer.write(")")
-
-
-def group(self: behav.Group, writer):
-    # print("group")
-    # writer.enter_block()
-    writer.write("(")
-    self.expr.generate(writer)
-    writer.write(")")
-    # writer.leave_block()
-
-
-def procedure_call(self: behav.ProcedureCall, context):
-    # print("procedure_call")
-
-    for arg in self.args:
-        arg.generate(context)
+    @generate.register
+    def _(self, expr: behav.Group, writer):
+        # writer.enter_block()
+        self.generate_grouped(expr.expr, writer)
+        # writer.leave_block()
