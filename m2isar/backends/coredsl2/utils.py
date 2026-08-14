@@ -18,10 +18,11 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 class CoreDSL2Writer:
-    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False):
+    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False):
         self.visitor = visitor
         self.reduced = reduced  # Reduced syntax for cdsl2llvm parser
-        self.skip_empty = skip_empty
+        self.drop_first_op = drop_first_op
+        # self.skip_empty = skip_empty
         self.defined_by_ext = defaultdict(set)
         self.text = ""
         self.indent_str = "    "
@@ -175,7 +176,7 @@ class CoreDSL2Writer:
             self.write_line(";")
         else:
             self.enter_block()
-            self.visitor.generate(function.operation, self)
+            self.write_behavior2(function.operation)
             self.leave_block()
         # self.leave_block()
 
@@ -276,16 +277,20 @@ class CoreDSL2Writer:
             self.write("}")
         self.write(";", nl=True)
 
-    def write_behavior(self, instruction):
-        self.write("behavior: ")
+    def write_behavior2(self, op, drop_first: bool = False):
         # TODO: drop explicit PC increments?
-        op = instruction.operation
+        if drop_first:
+            op.statements = op.statements[1:]
         if self.reduced:
             self.enter_block()
         self.visitor.generate(op, self)
         if self.reduced:
             self.leave_block()
         # self.write(";", nl=True)
+
+    def write_behavior(self, instruction, drop_first: bool = False):
+        self.write("behavior: ")
+        self.write_behavior2(instruction.operation, drop_first=drop_first)
 
     def write_instruction(self, instruction):
         print("write_instruction", instruction)
@@ -296,7 +301,7 @@ class CoreDSL2Writer:
         # self.write_instruction_constraints(instruction.constraints, instruction.operands)  # seal5 only
         self.write_encoding(instruction.encoding)
         self.write_assembly(instruction)
-        self.write_behavior(instruction)
+        self.write_behavior(instruction, drop_first=self.drop_first_op)
         self.leave_block()
 
     def write_instructions(self, instructions):

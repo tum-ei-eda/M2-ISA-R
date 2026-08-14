@@ -93,10 +93,10 @@ def main():
                     logger.exception(ex)
     else:
         visitor = CDSLWriterVisitor()
-        writer = CoreDSL2Writer(visitor, reduced=args.reduced)
         num_cores = len(model_obj.cores)
         num_sets = len(model_obj.sets)
         if num_sets > 0:
+            writer = CoreDSL2Writer(visitor, reduced=args.reduced, drop_first_op=False)
             assert num_cores == 0
             for set_name, set_def in model_obj.sets.items():
                 logger.debug("writing set %s", set_def.name)
@@ -105,6 +105,7 @@ def main():
                 except Exception as ex:
                     logger.exception(ex)
         if num_cores > 0:
+            writer = CoreDSL2Writer(visitor, reduced=args.reduced, drop_first_op=True)
             assert num_sets == 0
             for core_name, core_def in model_obj.cores.items():
                 logger.debug("writing core %s", core_def.name)

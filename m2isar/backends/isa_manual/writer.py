@@ -13,16 +13,15 @@ import argparse
 import logging
 import pathlib
 import pickle
-from copy import deepcopy
 from collections import defaultdict
 from mako.template import Template
 
 from m2isar.metamodel import type_info
 
 from .utils import generate_encoding
-from .visitor import ISAmanualVisitor
+from ..coredsl2.writer import CDSLWriterVisitor, CoreDSL2Writer
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, attribute_info
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -98,80 +97,6 @@ N/A
 logger = logging.getLogger("isa_manual")
 
 
-class CoreDSL2Writer:
-    def __init__(self):
-        self.text = ""
-        self.indent_str = "    "
-        self.level = 0
-
-    @property
-    def indent(self):
-        return self.indent_str * self.level
-
-    @property
-    def isstartofline(self):
-        return len(self.text) == 0 or self.text[-1] == "\n"
-
-    @property
-    def needsspace(self):
-        return len(self.text) != 0 and self.text[-1] not in ["\n", " "]
-
-    def write(self, text, nl=False):
-        if isinstance(text, int):
-            text = str(text)
-        assert isinstance(text, str)
-        lines = text.split("\n")
-        for i, line in enumerate(lines):
-            if self.isstartofline:
-                self.text += self.indent
-            self.text += line
-            if (i < len(lines) - 1) or nl:
-                self.text += "\n"
-
-    def write_line(self, text):
-        self.write(text, nl=True)
-
-    def enter_block(self, br=True, nl=True):
-        if br:
-            if self.needsspace:
-                self.write(" ")
-            self.write("{", nl=nl)
-        self.level += 1
-
-    def leave_block(self, br=True, nl=True):
-        assert self.level > 0
-        self.level -= 1
-        if br:
-            self.write("}", nl=nl)
-
-    def write_type(self, data_type, size):
-        if data_type == type_info.TypeKind.UINT:
-            self.write("unsigned")
-        elif data_type == type_info.TypeKind.INT:
-            self.write("signed")
-        elif data_type == type_info.TypeKind.VOID:
-            self.write("void")
-        else:
-            raise NotImplementedError(f"Unsupported type: {data_type}")
-        if size:
-            self.write("<")
-            self.write(size)
-            self.write(">")
-
-    def write_behavior2(self, operation, drop_first=False):
-        # Eliminate PC increment
-        visitor = ISAmanualVisitor()
-        if drop_first:
-            operation.statements = operation.statements[1:]
-        visitor.generate(operation, self)
-
-    def write_behavior(self, instruction):
-        self.write("behavior: ")
-        operation = instruction.operation
-        self.write_operation(operation)
-        # self.write(";", nl=True)
-
-
 def sort_instruction(entry: "tuple[tuple[int, int], arch.Instruction]"):
     """Instruction sort key function. Sorts most restrictive encoding first."""
     (code, mask), _ = entry
@@ -200,11 +125,11 @@ def main():
     output_file = pathlib.Path(args.output)
 
     if args.separate:
-        raise NotImplementedEroor
+        raise NotImplementedError
 
     if abs_top_level.suffix == ".core_desc":
         logger.warning(".core_desc file passed as input. This is deprecated behavior, please change your scripts!")
-        model_path = search_path.joinpath('gen_model')
+        model_path = top_level.parent.joinpath('gen_model')
 
         if not model_path.exists():
             raise FileNotFoundError('Models not generated!')
@@ -249,7 +174,7 @@ def main():
             # generate instructions
             out_text += f"=== {size}-bit Instructions\n"
             for (code, mask), instr_def in instrs.items():
-                opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
+                # opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
                 logger.info("processing instruction %s", instr_def.name)
 
                 # generate encoding
@@ -260,9 +185,9 @@ def main():
                     elif isinstance(enc, arch.BitField):
                         enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
-                writer = CoreDSL2Writer()
-                visitor = ISAmanualVisitor()
-                writer.write_behavior2(instr_def.operation, visitor, drop_first=True)
+                visitor = CDSLWriterVisitor()
+                writer = CoreDSL2Writer(visitor, reduced=False, drop_first_op=True)
+                writer.write_behavior2(instr_def.operation, drop_first=True)
                 behavior_text = writer.text
                 asm_str = None
                 if instr_def.assembly:
@@ -270,7 +195,7 @@ def main():
                     asm_str = re.sub(r"{([a-zA-Z0-9]+)}", r"\g<1>", re.sub(r"{([a-zA-Z0-9]+):[#0-9a-zA-Z\.]+}", r"{\g<1>}", re.sub(r"name\(([a-zA-Z0-9]+)\)", r"\g<1>", asm_str)))
                 content_template = Template(MAKO_TEMPLATE_INSTR)
                 encoding_text = generate_encoding(instr_def.encoding)
-                content_text = content_template.render(name=instr_def.name, mnemonic=instr_def.mnemonic, assembly=asm_str if asm_str else "N/A", encoding=encoding_text, attributes=instr_def.attributes, throws=arch.FunctionThrows(instr_def.throws), behavior=behavior_text)
+                content_text = content_template.render(name=instr_def.name, mnemonic=instr_def.mnemonic, assembly=asm_str if asm_str else "N/A", encoding=encoding_text, attributes=instr_def.attributes, throws=attribute_info.FunctionThrows(instr_def.throws), behavior=behavior_text)
                 out_text += content_text
     with open(output_file, "w") as f:
         f.write(out_text)
