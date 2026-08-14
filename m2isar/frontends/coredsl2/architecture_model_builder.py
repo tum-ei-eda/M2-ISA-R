@@ -14,9 +14,9 @@ from ... import (M2DuplicateError, M2NameError, M2TypeError, M2ValueError,
                  flatten)
 from ...metamodel import arch, behav, type_info, attribute_info, intrinsics
 from ...metamodel.code_info import FunctionInfoFactory
-from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import RADIX, SHORTHANDS, SIGNEDNESS
-from .expr_interpreter import ExprInterpreterVisitor
+from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
+from ..coredsl2.utils import RADIX, SHORTHANDS, SIGNEDNESS
+from ..coredsl2.expr_interpreter import ExprInterpreterVisitor
 
 logger = logging.getLogger("arch_builder")
 exprInterpretVisitor = ExprInterpreterVisitor()
@@ -41,7 +41,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_vector_reg_file: Union[arch.RegisterBank, None]
 	_csr_reg_file: Union[arch.RegisterBank, None]
 
-	def __init__(self):
+	def __init__(self, merge: bool = False):
 		super().__init__()
 		self._parameters = {}
 		# self._instructions = {}
@@ -61,6 +61,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._float_reg_file = None
 		self._vector_reg_file = None
 		self._csr_reg_file = None
+		self.merge = merge
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -101,14 +102,24 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			sections = ctx.sections
 
 		# generate flat list of instruction set contents
-		contents = flatten([self.visit(obj) for obj in ctx.sections])
+		contents = flatten([self.visit(obj) for obj in sections])
 
 		parameters = {}
 		memories = {}
+		memory_aliases = {}
 		register_banks = {}
+		register_aliases = {}
 		functions = {}
 		# instructions = {}
 		instructions = []
+		# instructions += self._instructions
+		if self.merge:
+			parameters.update(self._parameters)
+			memories.update(self._memories)
+			memory_aliases.update(self._memory_aliases)
+			register_banks.update(self._register_banks)
+			register_aliases.update(self._register_aliases)
+			functions.update(self._functions)
 
 		# group contents by type
 		for item in contents:
@@ -118,8 +129,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				memories[item.name] = item
 			elif isinstance(item, (arch.RegisterBank, arch.Register)):
 				register_banks[item.name] = item
-			elif isinstance(item, arch.Alias): # Aliases are basically handled of children of memories+register banks
-				pass
+			elif isinstance(item, arch.Alias):
+				assert item.parent is not None
+				if isinstance(item.parent, arch.Memory):
+					memory_aliases[item.name] = item
+				elif isinstance(item.parent, (arch.RegisterBank, arch.Register)):
+					register_aliases[item.name] = item
+				else:
+					raise M2TypeError(f"Unhandled alias parent type: {type(item.parent)}")
+				register_aliases[item.name] = item
 			elif isinstance(item, arch.Function):
 				functions[item.name] = item
 				item.ext_name = name
@@ -136,7 +154,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, parameters, memories, register_banks, functions, instructions)
+			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")

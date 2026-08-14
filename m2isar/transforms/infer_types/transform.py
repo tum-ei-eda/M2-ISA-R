@@ -59,8 +59,12 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
 
     for _, set_def in model_obj.sets.items():
         logger.debug("inferring types for set %s", set_def.name)
+        context = ValidatorContext(warnings_info)
+        simplifier = ExprSimplifierVisitor()
+        mutator = InferTypesMutator()
         for _, instr_def in set_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
+            mutator.generate(instr_def.operation, context)
             if not skip_simplify:
                 simplifier.generate(instr_def.operation, context)
             mutator.generate(instr_def.operation, context)
