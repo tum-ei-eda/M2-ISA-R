@@ -58,6 +58,13 @@ def patch_model(module):
 	"""
 
 	logger = logging.getLogger("patch_model")
+	# import warnings
+	# warnings.warn(
+	logger.warning(
+		"The monkey-patching based patch_model function is deprecated."
+		"Please move to the new class-based visitors/mutators",
+	# 	DeprecationWarning
+	)
 
 	for _, fn in inspect.getmembers(module, inspect.isfunction):
 		sig = inspect.signature(fn)
