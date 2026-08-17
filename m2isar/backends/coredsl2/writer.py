@@ -74,7 +74,8 @@ def main():
             # metrics["n_sets"] += 1
             for instr_def in set_def.instructions.values():
                 visitor = CDSLWriterVisitor()
-                writer = CoreDSL2Writer(visitor, reduced=args.reduced)
+                allowed_attrs = None  # all
+                writer = CoreDSL2Writer(visitor, reduced=args.reduced, allowed_attrs=allowed_attrs)
                 logger.debug("writing instr %s/%s", set_def.name, instr_def.name)
                 set_def_ = copy.deepcopy(set_def)
                 set_def_.instructions = {

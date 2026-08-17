@@ -9,20 +9,21 @@
 """Clean M2-ISA-R/Seal5 metamodel to .core_desc file."""
 
 import logging
+from typing import Optional, Set
 from collections import defaultdict
 
 from m2isar.metamodel import arch, behav
-from m2isar.metamodel.type_info import FunctionType, TypeKind, ArrayType, PointerType
+from m2isar.metamodel.type_info import TypeKind, ArrayType, PointerType
 
 logger = logging.getLogger("coredsl2_writer")
 
 
 class CoreDSL2Writer:
-    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False):
+    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None):
         self.visitor = visitor
         self.reduced = reduced  # Reduced syntax for cdsl2llvm parser
         self.drop_first_op = drop_first_op
-        # self.skip_empty = skip_empty
+        self.allowed_attrs = allowed_attrs if allowed_attrs is not None else None
         self.defined_by_ext = defaultdict(set)
         self.text = ""
         self.indent_str = "    "
@@ -112,9 +113,10 @@ class CoreDSL2Writer:
         if self.reduced and val is not None:
             return
         # TODO: allow atrbitrary attrs in cdsl2llvm parser, not only for operands
-        allowed_attrs = ["is_unsigned", "is_signed", "is_imm", "is_reg", "in", "out", "inout", "is_32_bit"]
-        if self.reduced and attr.name.lower() not in allowed_attrs:
-            return
+        if self.allowed_attrs is not None:
+            allowed_attrs = [attr.lower() for attr in self.allowed_attrs]
+            if self.reduced and attr.name.lower() not in allowed_attrs:
+                return
         self.write("[[")
         self.write(attr.name.lower())
         if val is not None:
