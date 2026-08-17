@@ -323,17 +323,21 @@ class CoreDSL2Writer:
             self.write_instruction(instruction)
         self.leave_block()
 
-    def write_architectural_state(self, _set_def):
-        self.write("architectural_state")
-        # TODO: use set_def
+    def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
         # print("set_def", set_def, dir(set_def))
-        self.enter_block()
-        # TODO: scalars, memories,...
-        self.leave_block()
+        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
+        if has_arch:
+            self.write("architectural_state")
+            self.enter_block()
+            self.write_parameters(core_set_def.parameters)
+            self.write_register_banks(core_set_def.register_banks)
+            self.write_register_aliases(core_set_def.register_aliases)
+            self.write_memories(core_set_def.memories)
+            self.write_memory_aliases(core_set_def.memory_aliases)
+            self.leave_block()
 
     def write_set(self, set_def):
         print("write_set", set_def)
-        # self.write_architectural_state()
         self.write("InstructionSet ")
         self.write(set_def.name)
         # TODO: attributes
@@ -342,17 +346,8 @@ class CoreDSL2Writer:
             self.write(" extends ")
             self.write(", ".join(set_def.extension))
         self.enter_block()
-        has_arch = sum([len(set_def.parameters), len(set_def.register_banks), len(set_def.register_aliases), len(set_def.memories), len(set_def.memory_aliases)]) > 0
+        self.write_architectural_state(set_def)
         # TODO: reuse for core (write_arch_state)
-        if has_arch:
-            self.write("architectural_state")
-            self.enter_block()
-            self.write_parameters(set_def.parameters)
-            self.write_register_banks(set_def.register_banks)
-            self.write_register_aliases(set_def.register_aliases)
-            self.write_memories(set_def.memories)
-            self.write_memory_aliases(set_def.memory_aliases)
-            self.leave_block()
         self.write_functions(set_def.functions)
         self.write_instructions(set_def.instructions)
         self.leave_block()
@@ -531,6 +526,19 @@ class CoreDSL2Writer:
         for memory_alias in memory_aliases.values():
             self.write_memory_alias(memory_alias)
 
+    def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
+        # print("set_def", set_def, dir(set_def))
+        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
+        if has_arch:
+            self.write("architectural_state")
+            self.enter_block()
+            self.write_parameters(core_set_def.parameters)
+            self.write_register_banks(core_set_def.register_banks)
+            self.write_register_aliases(core_set_def.register_aliases)
+            self.write_memories(core_set_def.memories)
+            self.write_memory_aliases(core_set_def.memory_aliases)
+            self.leave_block()
+
     def write_core(self, core_def):
         # print("write_core", core_def)
         # print("dir(core_def)", dir(core_def))
@@ -565,14 +573,7 @@ class CoreDSL2Writer:
         else:
             self.write(f"Core {core_def.name}")
         self.enter_block()
-        self.write("architectural_state")
-        self.enter_block()
-        self.write_parameters(core_def.parameters)
-        self.write_register_banks(core_def.register_banks)
-        self.write_register_aliases(core_def.register_aliases)
-        self.write_memories(core_def.memories)
-        self.write_memory_aliases(core_def.memory_aliases)
-        self.leave_block()
+        self.write_architectural_state(core_def)
         if not gen_sets:
             self.write_functions(core_def.functions)
             self.write_instructions(core_def.instructions)
