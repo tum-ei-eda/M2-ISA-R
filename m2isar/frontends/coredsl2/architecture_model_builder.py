@@ -123,6 +123,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# group contents by type
 		for item in contents:
+			if item is None:
+				continue
 			if isinstance(item, arch.Parameter):
 				parameters[item.name] = item
 			elif isinstance(item, arch.Memory):
@@ -148,7 +150,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			elif isinstance(item, arch.AlwaysBlock):
 				pass
 			else:
-				raise M2ValueError("unexpected item encountered")
+				raise M2ValueError(f"unexpected item encountered: {type(item)}")
 
 		# instantiate M2-ISA-R object
 		if ctx.combines:

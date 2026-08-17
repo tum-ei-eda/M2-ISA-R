@@ -58,7 +58,8 @@ class PrimitiveType:
 class BitFieldType():
     def __init__(self, kind: TypeKind):
         self.kind = kind
-    def __str__(self):        return f"BITFIELD<{self.kind.name}>"
+    def __str__(self):
+        return f"BITFIELD<{self.kind.name}>"
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):

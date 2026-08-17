@@ -113,6 +113,7 @@ def main():
 			# print("s", s)
 		except M2Error as e:
 			logger.critical("Error building architecture model of set %s: %s", set_name, e)
+			sys.exit(-1)
 
 		# for orig, overwritten in arch_builder._overwritten_instrs:
 		# 	logger.warning(

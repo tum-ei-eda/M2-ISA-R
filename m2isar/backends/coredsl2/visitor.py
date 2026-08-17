@@ -6,20 +6,36 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""Visitor for traversing the behavior in the metamodel and generating the CoreDSL2 syntax."""
+"""Visitor-pattern based printer for instruction/function  behavior."""
 
-from m2isar.metamodel import arch, behav
-from m2isar.metamodel.utils.ExprVisitor import ExprVisitor
+import logging
 from functools import singledispatchmethod
+
+from ...metamodel import arch, behav
+from ...metamodel.utils.ExprVisitor import ExprVisitor
+
+
+logger = logging.getLogger("coredsl2_writer")
+
 
 # pylint: disable=unused-argument
 
 
-class ISAmanualVisitor(ExprVisitor):
-    """Visitor for generating ISA manual CoreDSL2-like behavior text."""
+
+
+class CDSLWriterVisitor(ExprVisitor):
+    """Visitor to validate a metamodel."""
+
+    def generate_grouped(self, expr, writer):
+        if isinstance(expr, behav.Group):
+            self.generate(expr, writer)
+        else:
+            writer.write("(")
+            self.generate(expr, writer)
+            writer.write(")")
 
     @singledispatchmethod
-    def generate(self, expr: behav.BaseNode, context=None):
+    def generate(self, expr: behav.BaseNode, context):
         raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
 
     @generate.register
@@ -35,24 +51,25 @@ class ISAmanualVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.BinaryOperation, writer):
-        self.generate(expr.left, writer)
+        self.generate_grouped(expr.left, writer)
         writer.write(f" {expr.op.value} ")
-        self.generate(expr.right, writer)
+        self.generate_grouped(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.SliceOperation, writer):
         self.generate(expr.expr, writer)
         writer.write("[")
-        self.generate(expr.left, writer)
+        self.generate_grouped(expr.left, writer)
         writer.write(":")
-        self.generate(expr.right, writer)
+        self.generate_grouped(expr.right, writer)
         writer.write("]")
 
     @generate.register
     def _(self, expr: behav.ConcatOperation, writer):
-        self.generate(expr.left, writer)
+        # TODO: only add () where required
+        self.generate_grouped(expr.left, writer)
         writer.write(" :: ")
-        self.generate(expr.right, writer)
+        self.generate_grouped(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.Literal, writer):
@@ -60,12 +77,13 @@ class ISAmanualVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.VarDefinition, writer):
-        writer.write_type(expr.var.data_type, expr.var.size)
+        writer.write_type(expr.var.ty)
         writer.write(" ")
         writer.write(expr.var.name)
         if expr.var.value:
             writer.write(" = ")
             writer.write(expr.var.value)
+        # writer.write_line(";")
 
     @generate.register
     def _(self, expr: behav.Break, writer):
@@ -76,6 +94,7 @@ class ISAmanualVisitor(ExprVisitor):
         self.generate(expr.target, writer)
         writer.write(" = ")
         self.generate(expr.expr, writer)
+        # writer.write_line(";")
 
     @generate.register
     def _(self, expr: behav.Conditional, writer):
@@ -107,13 +126,14 @@ class ISAmanualVisitor(ExprVisitor):
             self.generate(stmt, writer)
         writer.leave_block()
 
+
     @generate.register
     def _(self, expr: behav.Ternary, writer):
-        self.generate(expr.cond, writer)
+        self.generate_grouped(expr.cond, writer)
         writer.write(" ? ")
-        self.generate(expr.then_expr, writer)
+        self.generate_grouped(expr.then_expr, writer)
         writer.write(" : ")
-        self.generate(expr.else_expr, writer)
+        self.generate_grouped(expr.else_expr, writer)
 
     @generate.register
     def _(self, expr: behav.Return, writer):
@@ -121,33 +141,36 @@ class ISAmanualVisitor(ExprVisitor):
         if expr.expr is not None:
             writer.write(" ")
             self.generate(expr.expr, writer)
+        # writer.write_line(";")
 
     @generate.register
     def _(self, expr: behav.UnaryOperation, writer):
         writer.write(expr.op.value)
-        self.generate(expr.right, writer)
+        self.generate_grouped(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
         writer.write(expr.reference.name)
-        if isinstance(expr.reference, (arch.Parameter, arch.Memory, arch.Scalar)):
-            pass
+        # if isinstance(expr.reference, (arch.Constant, arch.Memory, arch.Scalar)):
+        #     # writer.track(self.reference.name)
+        #     pass
 
     @generate.register
     def _(self, expr: behav.IndexedReference, writer):
         writer.write(expr.reference.name)
         writer.write("[")
+        # if isinstance(expr.reference, arch.Memory):
+        #     # writer.track(expr.reference.name)
+        #     pass
         self.generate(expr.index, writer)
         writer.write("]")
 
     @generate.register
     def _(self, expr: behav.TypeConv, writer):
         writer.write("(")
-        writer.write_type(expr.data_type, expr.size)
+        writer.write_type(expr.ty)
         writer.write(")")
-        writer.write("(")
-        self.generate(expr.expr, writer)
-        writer.write(")")
+        self.generate_grouped(expr.expr, writer)
 
     @generate.register
     def _(self, expr: behav.Callable, writer):
@@ -165,6 +188,6 @@ class ISAmanualVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.Group, writer):
-        writer.write("(")
-        self.generate(expr.expr, writer)
-        writer.write(")")
+        # writer.enter_block()
+        self.generate_grouped(expr.expr, writer)
+        # writer.leave_block()

@@ -13,11 +13,10 @@ import argparse
 import logging
 import pathlib
 
-from ...metamodel import patch_model, load_model, dump_model
+from ...metamodel import load_model, dump_model
 from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
 from .visitor import ValidateBehavVisitor
 
-from . import visitor
 
 class ValidatorContext(WarningsManager):
     """Track miscellaneous information throughout the validation process."""

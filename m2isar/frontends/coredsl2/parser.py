@@ -91,8 +91,11 @@ def main():
 		try:
 			arch_builder = ArchitectureModelBuilder()
 			c = arch_builder.visit(core_def)
+			if not isinstance(c, list):
+				c = [c]
 		except M2Error as e:
 			logger.critical("Error building architecture model of core %s: %s", core_name, e)
+			sys.exit(-1)
 
 		# for orig, overwritten in arch_builder._overwritten_instrs:
 		# 	logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)

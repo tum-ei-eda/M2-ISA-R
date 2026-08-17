@@ -16,7 +16,6 @@ import pathlib
 from m2isar.metamodel import load_model, dump_model
 from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
-
 from .visitor import InferTypesMutator
 
 
