@@ -303,7 +303,7 @@ class CoreDSL2Writer:
         self.write_behavior2(instruction.operation, drop_first=drop_first)
 
     def write_instruction(self, instruction):
-        print("write_instruction", instruction)
+        # print("write_instruction", instruction)
         self.write(instruction.name)
         self.write_attributes(instruction.attributes)
         self.enter_block()
@@ -315,7 +315,7 @@ class CoreDSL2Writer:
         self.leave_block()
 
     def write_instructions(self, instructions):
-        print("write_instructions", instructions)
+        # print("write_instructions", instructions)
         self.write("instructions")
         # TODO: attributes?
         self.enter_block()
@@ -337,7 +337,7 @@ class CoreDSL2Writer:
             self.leave_block()
 
     def write_set(self, set_def):
-        print("write_set", set_def)
+        # print("write_set", set_def)
         self.write("InstructionSet ")
         self.write(set_def.name)
         # TODO: attributes

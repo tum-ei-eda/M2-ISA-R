@@ -25,6 +25,8 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=None, writer_cls=None, writer_kwargs=None):
+    assert out_path is not None
+    out_path = pathlib.Path(out_path)
     assert out_path.is_dir(), "Expecting output directory when using --splitted"
     num_cores = len(model_obj.cores)
     num_sets = len(model_obj.sets)
