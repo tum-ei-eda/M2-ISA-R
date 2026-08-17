@@ -283,7 +283,14 @@ class CoreDSL2Writer:
     def write_behavior2(self, op, drop_first: bool = False):
         # TODO: drop explicit PC increments?
         if drop_first:
-            op.statements = op.statements[1:]
+            if len(op.statements) == 1:
+                stmt = op.statements[0]
+                assert isinstance(stmt, behav.Block)
+                if len(stmt.statements) > 1:
+                    stmt.statements = stmt.statements[1:]
+            else:
+                if len(op.statements) > 1:
+                    op.statements = op.statements[1:]
         if self.reduced:
             self.enter_block()
         self.visitor.generate(op, self)
