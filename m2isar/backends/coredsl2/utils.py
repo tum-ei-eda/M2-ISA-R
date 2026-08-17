@@ -9,7 +9,7 @@
 """Clean M2-ISA-R/Seal5 metamodel to .core_desc file."""
 
 import logging
-from typing import Optional, Set
+from typing import Optional, Set, Union
 from collections import defaultdict
 
 from m2isar.metamodel import arch, behav
@@ -206,12 +206,6 @@ class CoreDSL2Writer:
         self.write(name)
         self.write(f"[{rng.upper}:{rng.lower}]")
 
-    def write_operand(self, operand):
-        self.write_type(operand.ty)
-        self.write(" ")
-        self.write(operand.name)
-        self.write_attributes(operand.attributes)
-        self.write_line(";")
 
     def write_constraints(self, constraints):
         for constraint in constraints:
@@ -236,6 +230,13 @@ class CoreDSL2Writer:
     #     self.write_constraints(op_constraints)
     #     self.write_constraints(constraints)
     #     self.leave_block()
+
+    # def write_operand(self, operand):
+    #     self.write_type(operand.ty)
+    #     self.write(" ")
+    #     self.write(operand.name)
+    #     self.write_attributes(operand.attributes)
+    #     self.write_line(";")
 
     # def write_operands(self, operands):
     #     self.write("operands: ")
