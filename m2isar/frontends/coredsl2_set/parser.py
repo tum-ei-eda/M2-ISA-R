@@ -53,6 +53,7 @@ def main():
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
 	parser.add_argument('--allow-undefined-const', action=BooleanOptionalAction, default=False, help="Allow undefined constants.")
+	parser.add_argument('--allow-empty', action=BooleanOptionalAction, default=False, help="Allow empty model (no sets).")
 	parser.add_argument(
 		"-D",
 		dest="defines",
@@ -130,6 +131,7 @@ def main():
 
 		sets[set_name] = s[-1]
 
+	skip_sets = set()
 	for set_name, set_def in sets.items():
 		logger.info("building behavior model for set %s", set_name)
 		# print("set", set_name, set_def, dir(set_def))
@@ -149,13 +151,19 @@ def main():
 				)
 				const.value = defines[const.name]
 			if const.value is None:
+				unassigned_const = True
 				if allow_undefined_const:
 					logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
+					
 					continue
 				logger.critical("constant %s in set %s has no value assigned!", const.name, set_name)
-				unassigned_const = True
+				
 		if unassigned_const:
-			sys.exit(-1)
+			if allow_undefined_const:
+				skip_sets.add(set_name)
+				continue
+			else:
+				sys.exit(-1)
 
 		logger.debug("evaluating set parameters")
 
@@ -424,7 +432,14 @@ def main():
 		assert isinstance(set_def.instructions, dict)
 		for orig, overwritten in overwritten_instrs:
 			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
+	sets = {set_name: set_def for set_name, set_def in sets.items() if set_name not in skip_sets}
 	model_obj = M2Model(M2_METAMODEL_VERSION, {}, sets, CodeInfoBase.database)
+	if len(sets) == 0:
+		if args.allow_empty:
+			logger.warning("no sets were generated, resulting model will be empty")
+		else:
+			logger.critical("no sets were generated, resulting model will be empty")
+			sys.exit(-1)
 	warnings_info = args.warnings
 	if args.infer_types or args.validate:
 		logger.info("Running type inference")
