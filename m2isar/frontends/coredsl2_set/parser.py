@@ -150,7 +150,7 @@ def main():
 				const.value = defines[const.name]
 			if const.value is None:
 				if allow_undefined_const:
-				  logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
+					logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
 					pass
 				logger.critical("constant %s in set %s has no value assigned!", const.name, set_name)
 				unassigned_const = True
