@@ -52,6 +52,7 @@ def main():
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
+	parser.add_argument('--allow-undefined-const', action=BooleanOptionalAction, default=False, help="Allow undefined constants.")
 	parser.add_argument(
 		"-D",
 		dest="defines",
@@ -66,6 +67,7 @@ def main():
 
 	args = parser.parse_args()
 	defines = dict(args.defines)
+	allow_undefined_const = args.allow_undefined_const
 
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("parser")
@@ -146,9 +148,9 @@ def main():
 					defines[const.name],
 				)
 				const.value = defines[const.name]
-			allow_undefined_const = True
 			if const.value is None:
 				if allow_undefined_const:
+				  logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
 					pass
 				logger.critical("constant %s in set %s has no value assigned!", const.name, set_name)
 				unassigned_const = True
