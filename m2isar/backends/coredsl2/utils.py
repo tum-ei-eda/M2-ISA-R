@@ -110,8 +110,6 @@ class CoreDSL2Writer:
         if val is not None:
             if isinstance(val, list) and len(val) == 0:
                 val = None
-        if self.reduced and val is not None:
-            return
         # TODO: allow atrbitrary attrs in cdsl2llvm parser, not only for operands
         if self.allowed_attrs is not None:
             allowed_attrs = [attr.lower() for attr in self.allowed_attrs]
@@ -264,19 +262,19 @@ class CoreDSL2Writer:
             if i < len(encoding) - 1:
                 self.write(" :: ")
         self.write(";", nl=True)
-
+        
     def write_assembly(self, instruction):
         self.write("assembly: ")
         mnemonic = instruction.mnemonic
         assembly = instruction.assembly
-        if mnemonic and not self.reduced:
+        if assembly is None:
+            assembly = ""
+        if mnemonic:
             self.write("{")
             self.write(f'"{mnemonic}"')
             self.write(", ")
-        if assembly is None:
-            assembly = ""
         self.write(f'"{assembly}"')
-        if mnemonic and not self.reduced:
+        if mnemonic:
             self.write("}")
         self.write(";", nl=True)
 
