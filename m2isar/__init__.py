@@ -15,7 +15,7 @@
   CoreDSL 2 ISA models.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 from collections.abc import Iterable
 
