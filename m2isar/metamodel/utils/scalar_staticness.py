@@ -39,12 +39,18 @@ class VarAccessVisitor(ExprVisitor):
 		return expr
 
 	@generate.register
-	def _(self, expr: behav.Block, context):
-		stmts = [self.generate(x, context) for x in expr.statements]
+	def _(self, expr: behav.Block, context: attribute_info.AccessContext):
+		explicit_attrs = getattr(expr, "explicit_attributes", set(expr.attributes))
+		explicit = attribute_info.BlockAttribute.ACCESS in explicit_attrs
+		access = expr.attributes.get(attribute_info.BlockAttribute.ACCESS) if explicit else context.access_is_static
+
+		block_context = dataclasses.replace(context, access_is_static=access)
+		stmts = [self.generate(x, block_context) for x in expr.statements]
 		valid = [s for s in stmts if s is not None]
-		if not valid:
-			return attribute_info.AccessAttribute.NONE
-		return min(valid)
+		result = min([access] + valid)
+		if not explicit:
+			expr.attributes[attribute_info.BlockAttribute.ACCESS] = result
+		return result
 
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context: attribute_info.AccessContext):
@@ -84,12 +90,17 @@ class VarAccessVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Break, context):
-		return attribute_info.AccessAttribute.READ
+		return context.access_is_static
+
+	@generate.register
+	def _(self, expr: behav.Continue, context):
+		return context.access_is_static
 
 	@generate.register
 	def _(self, expr: behav.Assignment, context: attribute_info.AccessContext):
 		self.generate(expr.target, context)
 
+		expr_static = attribute_info.AccessAttribute.NONE
 		if context.access_is_static != attribute_info.AccessAttribute.NONE or isinstance(expr.target, behav.VarDefinition):
 			expr_static = self.generate(expr.expr, context)
 
@@ -110,13 +121,27 @@ class VarAccessVisitor(ExprVisitor):
 	def _(self, expr: behav.Conditional, context: attribute_info.AccessContext):
 		conds = [self.generate(x, context) for x in expr.conds]
 		stmt_context = dataclasses.replace(context, access_is_static=min(conds))
-		_ = [self.generate(x, stmt_context) for x in expr.stmts]
+		stmts = [self.generate(x, stmt_context) for x in expr.stmts]
+		return min(conds + [x for x in stmts if x is not None])
 
 	@generate.register
-	def _(self, expr: behav.Loop, context: attribute_info.AccessContext):
+	def _(self, expr: behav.LoopBase, context: attribute_info.AccessContext):
+		init = [self.generate(x, context) for x in expr.init]
 		cond = self.generate(expr.cond, context)
 		stmt_context = dataclasses.replace(context, access_is_static=cond)
-		_ = [self.generate(x, stmt_context) for x in expr.stmts]
+		stmts = [self.generate(x, stmt_context) for x in expr.stmts]
+		updates = [self.generate(x, stmt_context) for x in expr.updates]
+		valid = [x for x in init + [cond] + stmts + updates if x is not None]
+		loop_access = min(valid) if valid else cond
+
+		# A for-loop iterator belongs to the same execution domain as its loop.
+		# If a runtime-dependent branch (including break/continue) makes the body
+		# dynamic, its initializer and update must not remain generator-static.
+		for init_stmt in expr.init:
+			if isinstance(init_stmt, behav.Assignment) and isinstance(init_stmt.target, behav.VarDefinition):
+				init_stmt.target.var.attributes["static"] &= loop_access
+
+		return loop_access
 
 	@generate.register
 	def _(self, expr: behav.Ternary, context: attribute_info.AccessContext):
