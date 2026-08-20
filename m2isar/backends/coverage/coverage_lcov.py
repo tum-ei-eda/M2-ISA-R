@@ -59,7 +59,8 @@ def generate_coverage(line_data_fname: "pathlib.Path", code_infos: "dict[int, Co
 
 	for lineinfo, count in linedata.items():
 		if isinstance(lineinfo, BranchInfo):
-			branch_counts_by_core_and_file[core_name][lineinfo.file_path][lineinfo.id] += count
+			branch_counts = branch_counts_by_core_and_file.setdefault(core_name, {}).setdefault(lineinfo.file_path, {})
+			branch_counts[lineinfo.id] = branch_counts.get(lineinfo.id, 0) + count
 
 		if isinstance(lineinfo, LineInfo):
 			if already_checked(checked_lineinfo, lineinfo, count):
@@ -75,11 +76,13 @@ def generate_coverage(line_data_fname: "pathlib.Path", code_infos: "dict[int, Co
 
 			checked_fninfo[lineinfo] = count
 
-			fn_counts_by_core_and_file[core_name][lineinfo.file_path][lineinfo.fn_name] += count
+			fn_counts = fn_counts_by_core_and_file.setdefault(core_name, {}).setdefault(lineinfo.file_path, {})
+			fn_counts[lineinfo.fn_name] = fn_counts.get(lineinfo.fn_name, 0) + count
 
 	for filepath, lines in linedata_of_this_file.items():
 		for line_no, line_count in lines.items():
-			line_counts_by_core_and_file[core_name][filepath][line_no] += line_count
+			line_counts = line_counts_by_core_and_file.setdefault(core_name, {}).setdefault(filepath, {})
+			line_counts[line_no] = line_counts.get(line_no, 0) + line_count
 
 	return line_counts_by_core_and_file, fn_counts_by_core_and_file, branch_counts_by_core_and_file
 
@@ -144,6 +147,12 @@ def main():
 	for core_name, core_obj in model_obj.cores.items():
 		ctx.arch_name = core_name
 
+		# Always blocks remain separate in the metamodel but are merged into each
+		# instruction by ETISS before coverage instrumentation. Their IDs must be
+		# present in the reporting database as well.
+		for always_block in core_obj.always_blocks.values():
+			id_transform_visitor.generate(always_block.operation, ctx)
+
 		for fn_name, fn_obj in core_obj.functions.items():
 			if fn_obj.function_info is not None:
 				ctx.id_to_obj_map[core_name][fn_obj.function_info.id] = fn_obj
@@ -200,7 +209,8 @@ def main():
 		for core_name, data in u.items():
 			for filepath, lines in data.items():
 				for line_no, line_count in lines.items():
-					d[core_name][filepath][line_no] += line_count
+					target = d.setdefault(core_name, {}).setdefault(filepath, {})
+					target[line_no] = target.get(line_no, 0) + line_count
 
 	for ret_line_data, ret_fn_data, ret_branch_data in out:
 		update(line_counts_by_core_and_file, ret_line_data)
