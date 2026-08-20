@@ -110,6 +110,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		register_banks = {}
 		register_aliases = {}
 		functions = {}
+		always_blocks = {}
 		# instructions = {}
 		instructions = []
 		# instructions += self._instructions
@@ -148,7 +149,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				instructions.append(item)
 				item.ext_name = name
 			elif isinstance(item, arch.AlwaysBlock):
-				pass
+				always_blocks[item.name] = item
 			else:
 				raise M2ValueError(f"unexpected item encountered: {type(item)}")
 
@@ -156,7 +157,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions)
+			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions, always_blocks)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
@@ -186,7 +187,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._parameters, self._memories, self._memory_aliases,
 			self._register_banks, self._register_aliases, self._functions,
-			self._instructions, self._instr_classes, intrinsics)
+			self._instructions, self._instr_classes, intrinsics, self._always_blocks)
 
 		return c
 
@@ -636,7 +637,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		attr = attribute_info.InstrAttribute._member_map_.get(name.upper()) or \
 			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
 			attribute_info.FunctionAttribute._member_map_.get(name.upper()) \
-			or attribute_info.RegisterAttribute._member_map_.get(name.upper())
+			or attribute_info.RegisterAttribute._member_map_.get(name.upper()) \
+			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

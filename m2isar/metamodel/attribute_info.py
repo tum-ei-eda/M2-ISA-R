@@ -25,6 +25,9 @@ class FunctionAttribute(Enum):
 	ETISS_TRAP_ENTRY_FN = auto()
 	ETISS_TRAP_TRANSLATE_FN = auto()
 
+class AlwaysBlockAttribute(Enum):
+	ORDER = auto()
+
 class FunctionThrows(IntEnum):
 	NO = 0
 	YES = 1

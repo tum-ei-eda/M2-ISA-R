@@ -39,6 +39,9 @@ def validate_behav(model_obj, warnings_info):
         logger.debug("validating behavior for core %s", core_def.name)
         context = ValidatorContext(warnings_info)
         visitor = ValidateBehavVisitor()
+        for always_block in core_def.always_blocks.values():
+            logger.debug("validating behavior for always block %s", always_block.name)
+            visitor.generate(always_block.operation, context)
         for _, instr_def in core_def.instructions.items():
             logger.debug("validating behavior for instr %s", instr_def.name)
             visitor.generate(instr_def.operation, context)
@@ -46,6 +49,9 @@ def validate_behav(model_obj, warnings_info):
         logger.debug("validating behavior for set %s", set_def.name)
         context = ValidatorContext(warnings_info)
         visitor = ValidateBehavVisitor()
+        for always_block in set_def.always_blocks.values():
+            logger.debug("validating behavior for always block %s", always_block.name)
+            visitor.generate(always_block.operation, context)
         for _, instr_def in set_def.instructions.items():
             logger.debug("validating behavior for instr %s", instr_def.name)
             visitor.generate(instr_def.operation, context)

@@ -42,6 +42,12 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         context = ValidatorContext(warnings_info)
         simplifier = ExprSimplifierVisitor()
         mutator = InferTypesMutator()
+        for always_block in core_def.always_blocks.values():
+            logger.debug("inferring types for always block %s", always_block.name)
+            mutator.generate(always_block.operation, context)
+            if not skip_simplify:
+                simplifier.generate(always_block.operation, context)
+            mutator.generate(always_block.operation, context)
         for _, instr_def in core_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
             mutator.generate(instr_def.operation, context)
@@ -61,6 +67,12 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         context = ValidatorContext(warnings_info)
         simplifier = ExprSimplifierVisitor()
         mutator = InferTypesMutator()
+        for always_block in set_def.always_blocks.values():
+            logger.debug("inferring types for always block %s", always_block.name)
+            mutator.generate(always_block.operation, context)
+            if not skip_simplify:
+                simplifier.generate(always_block.operation, context)
+            mutator.generate(always_block.operation, context)
         for _, instr_def in set_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
             mutator.generate(instr_def.operation, context)

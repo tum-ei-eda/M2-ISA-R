@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 from m2isar.metamodel import type_info, attribute_info
 
-from .. import M2TypeError
+from .. import M2TypeError, M2ValueError
 from .behav import BaseNode, IndexedReference, Operation, Literal
 
 if TYPE_CHECKING:
@@ -652,14 +652,34 @@ class Function(Named):
 
 
 class AlwaysBlock(Named):
-	attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]"
-	operation: "Operation"
+	"""Behavior that is executed before every instruction.
 
-	def __init__(self, name: str, attributes, operation):
+	Always blocks remain separate from instruction behavior until a backend
+	explicitly lowers them with the corresponding transform.
+	"""
+	attributes: "dict[attribute_info.AlwaysBlockAttribute, list[BaseNode]]"
+	operation: "Operation"
+	vars: "dict[str, object]"
+
+	def __init__(self, name: str, attributes, operation, vars=None):
 		self.attributes = attributes
 		self.operation = operation
+		self.vars = vars if vars is not None else {}
 
 		super().__init__(name)
+
+	@property
+	def order(self) -> int:
+		"""Return the explicit execution order, defaulting to zero."""
+		values = self.attributes.get(attribute_info.AlwaysBlockAttribute.ORDER)
+		if values is None:
+			return 0
+		if len(values) != 1:
+			raise M2ValueError(f'always block "{self.name}" order attribute requires exactly one value')
+		try:
+			return int(get_const_or_val(values[0]))
+		except (M2ValueError, TypeError, ValueError):
+			raise M2ValueError(f'always block "{self.name}" order attribute must be statically resolvable')
 
 class InstructionSet(Named):
 	"""A class representing an InstructionSet collection. Bundles parameters, memories, functions
@@ -667,7 +687,7 @@ class InstructionSet(Named):
 	"""
 
 	def __init__(self, name, extension: "list[str]", parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
-			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]"):
+			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]", always_blocks=None):
 
 		self.extension = extension
 		self.combines = []
@@ -678,6 +698,7 @@ class InstructionSet(Named):
 		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
+		self.always_blocks = always_blocks if always_blocks is not None else {}
 
 		super().__init__(name)
 
@@ -694,7 +715,7 @@ class CoreDef(Named):
 	def __init__(self, name, contributing_types: "list[str]", template: str, parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]",
 			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", instr_classes: "set[int]",
-			intrinsics: "dict[str, Intrinsic]"):
+			intrinsics: "dict[str, Intrinsic]", always_blocks=None):
 
 		self.contributing_types = contributing_types
 		self.template = template
@@ -718,6 +739,7 @@ class CoreDef(Named):
 		self.irq_en_memory = None
 		self.irq_pending_memory = None
 		self.intrinsics = intrinsics
+		self.always_blocks = always_blocks if always_blocks is not None else {}
 
 		self._instructions_by_ext = None
 		self.functions_by_ext = defaultdict(dict)
