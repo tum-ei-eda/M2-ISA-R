@@ -87,7 +87,7 @@ class ExprMutator(ABC):
 
     @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
-        expr_target = self.generate(expr.target, context)
+        expr.target = self.generate(expr.target, context)
         expr.expr = self.generate(expr.expr, context)
         return expr
 
@@ -100,19 +100,21 @@ class ExprMutator(ABC):
         expr.conds = conds
         stmts = []
         for stmt in expr.stmts:
-            smts = self.generate(stmt, context)
+            stmt = self.generate(stmt, context)
             stmts.append(stmt)
         expr.stmts = stmts
         return expr
 
     @default_visit.register
-    def visit_loop(self, expr: behav.Loop, context):
+    def visit_loop(self, expr: behav.LoopBase, context):
+        expr.init = [self.generate(stmt, context) for stmt in expr.init]
         expr.cond = self.generate(expr.cond, context)
         stmts = []
         for stmt in expr.stmts:
             stmt = self.generate(stmt, context)
             stmts.append(stmt)
         expr.stmts = stmts
+        expr.updates = [self.generate(update, context) for update in expr.updates]
         return expr
 
     @default_visit.register
@@ -142,6 +144,10 @@ class ExprMutator(ABC):
         return expr
 
     @default_visit.register
+    def visit_continue(self, expr: behav.Continue, context):
+        return expr
+
+    @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
         return expr
 
@@ -152,7 +158,7 @@ class ExprMutator(ABC):
 
     @default_visit.register
     def visit_type_conv(self, expr: behav.TypeConv, context):
-        expr.expr = expr.expr.generate(context)
+        expr.expr = self.generate(expr.expr, context)
         return expr
 
     @default_visit.register
@@ -161,16 +167,16 @@ class ExprMutator(ABC):
         for arg in expr.args:
             arg = self.generate(arg, context)
             args.append(arg)
-        epxr.args = args
+        expr.args = args
         return expr
 
     @default_visit.register
-    def visit_procedure_call(self, expr: behav.Callable, context):
+    def visit_procedure_call(self, expr: behav.ProcedureCall, context):
         args = []
         for arg in expr.args:
             arg = self.generate(arg, context)
             args.append(arg)
-        epxr.args = args
+        expr.args = args
         return expr
 
     @default_visit.register

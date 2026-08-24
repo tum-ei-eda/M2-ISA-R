@@ -69,6 +69,10 @@ class IdTransformVisitor(ExprVisitor):
 		self._store_id(expr, context)
 
 	@generate.register
+	def _(self, expr: behav.Continue, context: "IdMatcherContext"):
+		self._store_id(expr, context)
+
+	@generate.register
 	def _(self, expr: behav.Assignment, context: "IdMatcherContext"):
 		self._store_id(expr, context)
 		self.generate(expr.target, context)
@@ -83,11 +87,15 @@ class IdTransformVisitor(ExprVisitor):
 			self.generate(stmt, context)
 
 	@generate.register
-	def _(self, expr: behav.Loop, context: "IdMatcherContext"):
+	def _(self, expr: behav.LoopBase, context: "IdMatcherContext"):
 		self._store_id(expr, context)
+		for stmt in expr.init:
+			self.generate(stmt, context)
 		self.generate(expr.cond, context)
 		for stmt in expr.stmts:
 			self.generate(stmt, context)
+		for update in expr.updates:
+			self.generate(update, context)
 
 	@generate.register
 	def _(self, expr: behav.Ternary, context: "IdMatcherContext"):

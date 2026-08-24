@@ -14,7 +14,8 @@ import logging
 import pathlib
 
 
-from ...metamodel import load_model
+from ...metamodel import attribute_info, load_model
+from ...metamodel.utils.scalar_staticness import VarAccessVisitor
 from .utils import CoreDSL2Writer
 from .visitor import CDSLWriterVisitor
 from ...metrics import add_metrics_args, init_metrics, handle_metrics
@@ -24,7 +25,21 @@ from ...iter_utils import process_sets, process_cores, process_sets_instructions
 logger = logging.getLogger("coredsl2_writer")
 
 
+def assign_block_access(model_obj):
+    """Materialize inferred staticness on every behavioral block."""
+    visitor = VarAccessVisitor()
+    for container in list(model_obj.sets.values()) + list(model_obj.cores.values()):
+        for fn_def in container.functions.values():
+            visitor.generate(fn_def.operation, attribute_info.AccessContext())
+        for always_block in container.always_blocks.values():
+            visitor.generate(always_block.operation, attribute_info.AccessContext())
+        for instr_def in container.instructions.values():
+            visitor.generate(instr_def.operation, attribute_info.AccessContext())
+
+
 def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=None, writer_cls=None, writer_kwargs=None):
+    model_obj = copy.deepcopy(model_obj)
+    assign_block_access(model_obj)
     assert out_path is not None
     out_path = pathlib.Path(out_path)
     assert out_path.is_dir(), "Expecting output directory when using --splitted"
@@ -56,7 +71,7 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
         process_sets_instructions(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
         assert num_sets == 0
-        writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
+        writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
 
         def _helper(core_def, instr_def):
             core_def_ = copy.deepcopy(core_def)
@@ -77,6 +92,8 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
 
 
 def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, writer_kwargs=None):
+    model_obj = copy.deepcopy(model_obj)
+    assign_block_access(model_obj)
     num_cores = len(model_obj.cores)
     num_sets = len(model_obj.sets)
     visitor = CDSLWriterVisitor()
@@ -93,7 +110,7 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
         process_sets(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
         assert num_sets == 0
-        writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
+        writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
 
         def _helper(core_def):
             writer.write_core(core_def)

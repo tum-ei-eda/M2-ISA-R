@@ -44,10 +44,19 @@ class CDSLWriterVisitor(ExprVisitor):
             writer.enter_block()
         for stmt in expr.statements:
             self.generate(stmt, writer)
-            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+            if not isinstance(stmt, (behav.Conditional, behav.LoopBase, behav.Operation, behav.Break, behav.Continue)):
                 writer.write_line(";")
         if len(expr.statements) > 1:
             writer.leave_block()
+
+    @generate.register
+    def _(self, expr: behav.Block, writer):
+        writer.enter_attributed_block(expr.attributes)
+        for stmt in expr.statements:
+            self.generate(stmt, writer)
+            if not isinstance(stmt, (behav.Conditional, behav.LoopBase, behav.Operation, behav.Break, behav.Continue)):
+                writer.write_line(";")
+        writer.leave_block()
 
     @generate.register
     def _(self, expr: behav.BinaryOperation, writer):
@@ -90,6 +99,10 @@ class CDSLWriterVisitor(ExprVisitor):
         writer.write_line("break;")
 
     @generate.register
+    def _(self, expr: behav.Continue, writer):
+        writer.write_line("continue;")
+
+    @generate.register
     def _(self, expr: behav.Assignment, writer):
         self.generate(expr.target, writer)
         writer.write(" = ")
@@ -109,22 +122,49 @@ class CDSLWriterVisitor(ExprVisitor):
                 writer.write(")")
             else:
                 writer.write("else")
-            writer.enter_block()
-            self.generate(stmt, writer)
-            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
-                writer.write_line(";")
             nl = len(expr.stmts) > i
-            writer.leave_block(nl=nl)
+            if isinstance(stmt, behav.Block):
+                self.generate(stmt, writer)
+            else:
+                writer.enter_block()
+                self.generate(stmt, writer)
+                if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+                    writer.write_line(";")
+                writer.leave_block(nl=nl)
 
     @generate.register
-    def _(self, expr: behav.Loop, writer):
-        writer.write("while (")
-        self.generate(expr.cond, writer)
-        writer.write(")")
-        writer.enter_block()
-        for stmt in expr.stmts:
-            self.generate(stmt, writer)
-        writer.leave_block()
+    def _(self, expr: behav.LoopBase, writer):
+        if expr.init or expr.updates:
+            writer.write("for (")
+            for i, init in enumerate(expr.init):
+                if i:
+                    writer.write(", ")
+                self.generate(init, writer)
+            writer.write("; ")
+            self.generate(expr.cond, writer)
+            writer.write("; ")
+            for i, update in enumerate(expr.updates):
+                if i:
+                    writer.write(", ")
+                self.generate(update, writer)
+            writer.write(")")
+        elif expr.post_test:
+            writer.write("do")
+        else:
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write(")")
+        if len(expr.stmts) == 1 and isinstance(expr.stmts[0], behav.Block):
+            self.generate(expr.stmts[0], writer)
+        else:
+            writer.enter_block()
+            for stmt in expr.stmts:
+                self.generate(stmt, writer)
+            writer.leave_block()
+        if expr.post_test and not (expr.init or expr.updates):
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write_line(");")
 
 
     @generate.register

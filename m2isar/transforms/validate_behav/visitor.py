@@ -105,10 +105,14 @@ class ValidateBehavVisitor(ExprVisitor):
             self.generate(stmt, context)
 
     @generate.register
-    def _(self, expr: behav.Loop, context):
+    def _(self, expr: behav.LoopBase, context):
+        for stmt in expr.init:
+            self.generate(stmt, context)
         self.generate(expr.cond, context)
         for stmt in expr.stmts:
             self.generate(stmt, context)
+        for update in expr.updates:
+            self.generate(update, context)
 
     @generate.register
     def _(self, expr: behav.Ternary, context):
@@ -133,6 +137,10 @@ class ValidateBehavVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.Break, context):
+        pass
+
+    @generate.register
+    def _(self, expr: behav.Continue, context):
         pass
 
     @generate.register
