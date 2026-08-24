@@ -26,7 +26,7 @@ from .load_order import LoadOrder
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_ERRORS
 
 
 def parse_define(value):
@@ -63,7 +63,7 @@ def main():
 		metavar="NAME[=VALUE]",
 		help="Define a CoreDSL constant (default VALUE: 1), e.g. -DXLEN=32",
 	)
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS, DEFAULT_ERRORS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
 	args = parser.parse_args()
