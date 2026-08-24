@@ -23,10 +23,12 @@ def process_sets(model_obj, handler, description: str = None, metrics=None):
             metrics["n_sets"] += 1
         try:
             handler(set_def)
-            metrics["success_sets"].append(set_name)
+            if metrics:
+                metrics["success_sets"].append(set_name)
         except Exception as ex:
             logger.exception(ex)
-            metrics["failed_sets"].append(set_name)
+            if metrics:
+                metrics["failed_sets"].append(set_name)
     return metrics
 
 
@@ -38,10 +40,12 @@ def process_cores(model_obj, handler, description: str = None, metrics=None):
             metrics["n_cores"] += 1
         try:
             handler(core_def)
-            metrics["success_cores"].append(core_name)
+            if metrics:
+                metrics["success_cores"].append(core_name)
         except Exception as ex:
             logger.exception(ex)
-            metrics["failed_cores"].append(core_name)
+            if metrics:
+                metrics["failed_cores"].append(core_name)
     return metrics
 
 
@@ -57,10 +61,12 @@ def process_sets_instructions(model_obj, handler, description: str = None, metri
             logger.debug("%s instr %s/%s", prefix, set_def.name, instr_def.name)
             try:
                 handler(set_def, instr_def)
-                metrics["success_instructions"].append(instr_def.name)
+                if metrics:
+                    metrics["success_instructions"].append(instr_def.name)
             except Exception as ex:
                 logger.exception(ex)
-                metrics["failed_instructions"].append(instr_def.name)
+                if metrics:
+                    metrics["failed_instructions"].append(instr_def.name)
     return metrics
 
 
@@ -77,8 +83,10 @@ def process_cores_instructions(model_obj, handler, description: str = None, metr
             logger.debug("%s instr %s/%s", prefix, core_def.name, instr_def.name)
             try:
                 handler(core_def, instr_def)
-                metrics["success_instructions"].append(instr_def.name)
+                if metrics:
+                    metrics["success_instructions"].append(instr_def.name)
             except Exception as ex:
                 logger.exception(ex)
-                metrics["failed_instructions"].append(instr_def.name)
+                if metrics:
+                    metrics["failed_instructions"].append(instr_def.name)
     return metrics

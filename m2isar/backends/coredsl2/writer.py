@@ -90,7 +90,7 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
 
         def _helper(set_def):
             writer.write_set(set_def)
-        process_sets(model_obj, _helper, description="Writing CoreDSL2")
+        process_sets(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
         assert num_sets == 0
         writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
