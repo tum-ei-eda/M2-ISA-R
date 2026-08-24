@@ -61,7 +61,7 @@ def run(args):
 
     model_obj = load_model(top_level)
     warnings_info = args.warnings
-    alidate_behav(model_obj, warnings_info)
+    validate_behav(model_obj, warnings_info)
 
 
 def main(argv):
