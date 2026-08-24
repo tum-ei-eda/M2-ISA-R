@@ -16,6 +16,8 @@ KNOWN_WARNINGS = {
 	'infer-type',
 }
 
+DEFAULT_ERRORS = {"implicit-trunc"}
+
 
 @dataclass
 class WarningsInfo:
@@ -23,9 +25,11 @@ class WarningsInfo:
 	known: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
 	# defaults: Set[str] = field(default_factory=set)
 	defaults: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
+	default_as_error: Set[str] = field(default_factory=lambda: {'implicit-trunc'})
 	enabled: Set[str] = field(default_factory=set)
 	disabled: Set[str] = field(default_factory=set)
 	as_error: Set[str] = field(default_factory=set)
+	not_as_error: Set[str] = field(default_factory=set)
 	all_as_error: bool = False
 
 	@property
@@ -34,7 +38,9 @@ class WarningsInfo:
 
 	@property
 	def errors(self):
-		return self.as_error if not self.all_as_error else self.warnings
+		if self.all_as_error:
+			return self.warnings - self.not_as_error
+		return (self.default_as_error | self.as_error) - self.not_as_error
 
 
 class WarningFlagAction(argparse.Action):
@@ -46,6 +52,11 @@ class WarningFlagAction(argparse.Action):
 		for val in values:
 			if val == 'no-error':
 				warnings_info.all_as_error = False
+			elif val.startswith('no-error='):
+				warn = val[len('no-error='):]
+				assert warn in warnings_info.known, f"Unknown warning: {warn}"
+				warnings_info.not_as_error.add(warn)
+				warnings_info.as_error.discard(warn)
 			elif val.startswith('no-'):
 				warn = val[3:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
@@ -54,6 +65,7 @@ class WarningFlagAction(argparse.Action):
 				warn = val[6:]
 				assert warn in warnings_info.known, f"Unknown warning: {warn}"
 				warnings_info.as_error.add(warn)
+				warnings_info.not_as_error.discard(warn)
 			elif val == 'error':
 				warnings_info.all_as_error = True
 			elif val == 'all':
@@ -70,7 +82,8 @@ class WarningFlagAction(argparse.Action):
 def add_warnings_flags(
 	parser,
 	known_warnings: Set[str],
-	default_warnings: Set[str]
+	default_warnings: Set[str],
+	default_errors: Set[str],
 ):
 	parser.add_argument(
 		'-W',
@@ -85,7 +98,11 @@ def add_warnings_flags(
 	)
 
 	# Defaults
-	warnings_info = WarningsInfo(known=known_warnings, defaults=default_warnings)
+	warnings_info = WarningsInfo(
+		known=known_warnings,
+		defaults=default_warnings,
+		default_as_error=set(default_errors),
+	)
 	parser.set_defaults(warnings=warnings_info)
 
 

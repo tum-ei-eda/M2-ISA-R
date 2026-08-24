@@ -15,7 +15,7 @@ import pathlib
 
 from m2isar.metamodel import load_model, dump_model
 from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
-from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS, DEFAULT_ERRORS
 from .visitor import InferTypesMutator
 
 
@@ -31,7 +31,7 @@ def get_parser():
     parser.add_argument("top_level", help="A .m2isarmodel file.")
     parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
     parser.add_argument("--output", "-o", type=str, default=None)
-    add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)
+    add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS, DEFAULT_ERRORS)
     return parser
 
 
