@@ -37,14 +37,12 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
         writer_kwargs = {}
     if num_sets > 0:
         assert num_cores == 0
-        writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
 
         def _helper(set_def, instr_def):
+            writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
             set_def_ = copy.deepcopy(set_def)
             set_def_.instructions = {
-                key: instr_def
-                for key, instr_def_ in set_def.instructions.items()
-                if instr_def.name == instr_def_.name
+                key: instr_def_ for key, instr_def_ in set_def.instructions.items() if instr_def.name == instr_def_.name
             }
             writer.write_set(set_def_)
             content = writer.text
@@ -53,15 +51,16 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
             out_path_.parent.mkdir(exist_ok=True)
             with open(out_path_, "w", encoding="utf-8") as f:
                 f.write(content)
+
         process_sets_instructions(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
         assert num_sets == 0
-        writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
 
         def _helper(core_def, instr_def):
+            writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
             core_def_ = copy.deepcopy(core_def)
             core_def_.instructions = {
-                key: instr_def
+                key: instr_def_
                 for key, instr_def_ in core_def.instructions.items()
                 if instr_def.name == instr_def_.name
             }
@@ -72,6 +71,7 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
             out_path_.parent.mkdir(exist_ok=True)
             with open(out_path_, "w", encoding="utf-8") as f:
                 f.write(content)
+
         process_cores_instructions(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     return metrics
 
@@ -90,6 +90,7 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
 
         def _helper(set_def):
             writer.write_set(set_def)
+
         process_sets(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
         assert num_sets == 0
@@ -97,6 +98,7 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
 
         def _helper(core_def):
             writer.write_core(core_def)
+
         process_cores(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     content = writer.text
     with open(out_path, "w", encoding="utf-8") as f:
@@ -134,7 +136,9 @@ def main():
     metrics = init_metrics()
     writer_kwargs = dict(reduced=args.reduced, allowed_attrs=allowed_attrs)
     if args.splitted:
-        metrics = write_cdsl_splitted(model_obj, out_path=out_path, ext=args.ext, metrics=metrics, writer_kwargs=writer_kwargs)
+        metrics = write_cdsl_splitted(
+            model_obj, out_path=out_path, ext=args.ext, metrics=metrics, writer_kwargs=writer_kwargs
+        )
     else:
         metrics = write_cdsl_default(model_obj, out_path=out_path, metrics=metrics, writer_kwargs=writer_kwargs)
 
