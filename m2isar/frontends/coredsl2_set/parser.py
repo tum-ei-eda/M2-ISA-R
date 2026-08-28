@@ -291,10 +291,7 @@ def main():
 
 		logger.debug("generating always blocks")
 
-		always_block_statements = []
-
-		arch_builder = temp_save[set_name][1]
-		for block_def in arch_builder._always_blocks.values():
+		for block_def in set_def.always_blocks.values():
 			logger.debug("generating always block %s", block_def.name)
 			logger.debug("generating attributes")
 
@@ -332,7 +329,12 @@ def main():
 				logger.critical("error building behavior for always block %s: %s", block_def.name, e)
 				sys.exit(1)
 
-			always_block_statements.append(op)
+			if isinstance(op, list):
+				op = behav.Operation(op)
+			elif not isinstance(op, behav.Operation):
+				op = behav.Operation([op])
+			block_def.operation = op
+			block_def.vars = behav_builder._vars
 
 		logger.debug("generating instruction behavior")
 		instructions_by_enc = {}
@@ -421,7 +423,6 @@ def main():
 			# )
 
 			# op.statements.insert(0, pc_inc)
-			op.statements = always_block_statements + op.statements
 			instr_def.operation = op
 			instr_id = (instr_def.code, instr_def.mask)
 			# check for duplicate instructions

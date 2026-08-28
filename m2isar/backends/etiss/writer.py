@@ -16,6 +16,7 @@ import shutil
 import time
 
 from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...transforms.merge_always_blocks import merge_always_blocks
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -123,6 +124,10 @@ def setup():
 
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
+
+	# ETISS expects the legacy representation in which always behavior is
+	# prepended to every instruction.
+	merge_always_blocks(model_obj)
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
