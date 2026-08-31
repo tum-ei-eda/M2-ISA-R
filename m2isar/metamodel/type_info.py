@@ -17,8 +17,11 @@ from typing import Any, Union
 import logging
 
 logger = logging.getLogger("type_info_logger")
+
+
 class TypeKind(Enum):
-    NONE = auto() # NumberLiteral with no type, e.g. 0 or 1
+    NONE = auto()  # NumberLiteral with no type, e.g. 0 or 1
+    AUTO = auto()  # detect automatically
     VOID = auto()
     UINT = auto()
     INT = auto()

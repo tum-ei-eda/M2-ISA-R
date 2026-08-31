@@ -94,13 +94,30 @@ class ConcatOperation(BaseNode):
 		self.right = right
 
 
+def required_bits(n: int, signed: bool = False) -> int:
+	if signed:
+		return n.bit_length() + 1 if n >= 0 else (~n).bit_length() + 1
+	if n < 0:
+		raise ValueError("negative value cannot be represented unsigned")
+	return max(1, n.bit_length())
+
+
 class Literal(BaseNode):
-	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.NONE, None), base: Optional[int]=10, line_info=None):
+	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.AUTO, None), base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: Union[int, str] = value
 		self.ty = ty    # assigned during type checking
+		if self.ty.kind == TypeKind.AUTO:
+			if isinstance(value, int):
+				self.ty.kind = TypeKind.UINT if value > 0 else TypeKind.INT
+				if self.ty.size is None:
+					self.ty.size = required_bits(value, self.ty.kind == TypeKind.INT)
+			elif isinstance(value, str):
+				self.ty.kind = TypeKind.STR
+			else:
+				raise NotImplementedError("Could not automatically infer literal type")
 
 		#Optional type information (not always given)
 		self.base:  Optional[int] = base   # 2, 10, 16
