@@ -55,38 +55,49 @@ class PrimitiveType:
     def __init__(self, kind: TypeKind, size: int):
         self.kind = kind
         self.size = size
+
     def __str__(self):
         return f"{self.kind.name}<{self.size}>"
 
-class BitFieldType():
+
+class BitFieldType:
     def __init__(self, kind: TypeKind):
         self.kind = kind
+
     def __str__(self):
         return f"BITFIELD<{self.kind.name}>"
+
 
 class FloatType:
     def __init__(self, exponent: int, mantissa: int, size: int):
         self.exponent = exponent
         self.mantissa = mantissa
         self.size = size
-    def __str__(self):        return f"FLOAT<e{self.exponent}m{self.mantissa}s{self.size}>"
+
+    def __str__(self):
+        return f"FLOAT<e{self.exponent}m{self.mantissa}s{self.size}>"
+
 
 class ArrayType:
-    def __init__(self, element_type : Union[PrimitiveType, FloatType], length: int):
-        self.element_type : Union[PrimitiveType, FloatType] = element_type
-        self.length = length # allow shaped later or TYPE_ARRAY in element_type?
+    def __init__(self, element_type: Union[PrimitiveType, FloatType], length: int):
+        self.element_type: Union[PrimitiveType, FloatType] = element_type
+        self.length = length  # allow shaped later or TYPE_ARRAY in element_type?
+
     def __str__(self):
         return f"ARRAY<{self.element_type}, {self.length}>"
+
 
 @dataclass
 class PointerType:
     ty: Union[PrimitiveType, FloatType, ArrayType]
+
     def __str__(self):
         return f"POINTER<{self.ty}>"
 
-class FunctionType():
-    size : int
-    kind : TypeKind
+
+class FunctionType:
+    size: int
+    kind: TypeKind
 
     def __init__(self, size: int, kind: TypeKind):
         self.size = size
