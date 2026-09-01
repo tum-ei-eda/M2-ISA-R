@@ -9,8 +9,11 @@
 """Clean M2-ISA-R/Seal5 metamodel to .core_desc file."""
 
 import logging
+from math import ceil
 from typing import Optional, Set, Union
 from collections import defaultdict
+
+import numpy as np
 
 from m2isar.metamodel import arch, behav
 from m2isar.metamodel.type_info import TypeKind, ArrayType, PointerType
@@ -19,7 +22,14 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 class CoreDSL2Writer:
-    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None):
+    def __init__(
+        self,
+        visitor,
+        reduced: bool = True,
+        skip_empty: bool = False,
+        drop_first_op: bool = False,
+        allowed_attrs: Optional[Set[str]] = None,
+    ):
         self.visitor = visitor
         self.reduced = reduced  # Reduced syntax for cdsl2llvm parser
         self.drop_first_op = drop_first_op
@@ -46,6 +56,8 @@ class CoreDSL2Writer:
 
     def write(self, text, nl=False):
         # print("text", text, type(text))
+        if isinstance(text, np.int64):
+            text = int(text)
         if isinstance(text, int):
             text = str(text)
         assert isinstance(text, str)
@@ -102,6 +114,34 @@ class CoreDSL2Writer:
         #     self.write("<")
         #     self.write(size)
         #     self.write(">")
+
+    def write_array(self, arr, max_elems_per_row: int = 12):
+        assert isinstance(arr, np.ndarray)
+        dims = arr.shape
+        assert len(dims) == 1
+        n_elems = len(arr)
+        multi_row = n_elems > max_elems_per_row
+        if multi_row:
+            self.write_line("{")
+            self.enter_block()
+            num_rows = ceil(n_elems / max_elems_per_row)
+            for i in range(num_rows):
+                start = i * max_elems_per_row
+                end = min(start + max_elems_per_row, n_elems)
+                for j in range(start, end):
+                    if j > start:
+                        self.write(", ")
+                    self.write(arr[j])
+                self.write_line(",")
+            self.leave_block()
+            self.write("}")
+        else:
+            self.write("{")
+            for i, elem in enumerate(arr.tolist()):
+                if i > 0:
+                    self.write(", ")
+                self.write(elem)
+            self.write("}")
 
     def write_attribute(self, attr, val=None):
         # print("attr", attr)
@@ -204,7 +244,6 @@ class CoreDSL2Writer:
         self.write(name)
         self.write(f"[{rng.upper}:{rng.lower}]")
 
-
     def write_constraints(self, constraints):
         for constraint in constraints:
             # print("constraint", constraint, type(constraint), dir(constraint))
@@ -262,7 +301,7 @@ class CoreDSL2Writer:
             if i < len(encoding) - 1:
                 self.write(" :: ")
         self.write(";", nl=True)
-        
+
     def write_assembly(self, instruction):
         self.write("assembly: ")
         mnemonic = instruction.mnemonic
@@ -323,7 +362,18 @@ class CoreDSL2Writer:
 
     def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
         # print("set_def", set_def, dir(set_def))
-        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
+        has_arch = (
+            sum(
+                [
+                    len(core_set_def.parameters),
+                    len(core_set_def.register_banks),
+                    len(core_set_def.register_aliases),
+                    len(core_set_def.memories),
+                    len(core_set_def.memory_aliases),
+                ]
+            )
+            > 0
+        )
         if has_arch:
             self.write("architectural_state")
             self.enter_block()
@@ -526,7 +576,18 @@ class CoreDSL2Writer:
 
     def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
         # print("set_def", set_def, dir(set_def))
-        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
+        has_arch = (
+            sum(
+                [
+                    len(core_set_def.parameters),
+                    len(core_set_def.register_banks),
+                    len(core_set_def.register_aliases),
+                    len(core_set_def.memories),
+                    len(core_set_def.memory_aliases),
+                ]
+            )
+            > 0
+        )
         if has_arch:
             self.write("architectural_state")
             self.enter_block()
@@ -544,7 +605,11 @@ class CoreDSL2Writer:
         # print("core_def.instructions_by_ext", core_def.instructions_by_ext)
         gen_sets = False
         if gen_sets:
-            set_names = list(set(core_def.functions_by_ext.keys()) | set(core_def.instructions_by_ext.keys()) | set(core_def.contributing_types))
+            set_names = list(
+                set(core_def.functions_by_ext.keys())
+                | set(core_def.instructions_by_ext.keys())
+                | set(core_def.contributing_types)
+            )
             # print("set_names", set_names)
             for set_name in set_names:
                 set_funcs = core_def.functions_by_ext.get(set_name, {})
@@ -555,7 +620,17 @@ class CoreDSL2Writer:
                 memory_aliases = {}
                 register_banks = {}
                 register_aliases = {}
-                temp_set = arch.InstructionSet(set_name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, set_funcs, set_instrs)
+                temp_set = arch.InstructionSet(
+                    set_name,
+                    extension,
+                    parameters,
+                    memories,
+                    memory_aliases,
+                    register_banks,
+                    register_aliases,
+                    set_funcs,
+                    set_instrs,
+                )
                 self.write_set(temp_set)
         else:
             set_names = []

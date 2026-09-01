@@ -11,7 +11,7 @@
 import logging
 from functools import singledispatchmethod
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info, attribute_info
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 
 
@@ -19,8 +19,6 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 # pylint: disable=unused-argument
-
-
 
 
 class CDSLWriterVisitor(ExprVisitor):
@@ -36,7 +34,9 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @singledispatchmethod
     def generate(self, expr: behav.BaseNode, context):
-        raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
+        raise NotImplementedError(
+            f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}"
+        )
 
     @generate.register
     def _(self, expr: behav.Operation, writer):
@@ -76,10 +76,26 @@ class CDSLWriterVisitor(ExprVisitor):
         writer.write(expr.value)
 
     @generate.register
+    def _(self, expr: behav.Tensor, writer):
+        writer.write_array(expr.value)
+
+    @generate.register
     def _(self, expr: behav.VarDefinition, writer):
-        writer.write_type(expr.var.ty)
-        writer.write(" ")
-        writer.write(expr.var.name)
+        # TODO: add const attribute?
+        static_attr = expr.var.attributes.get("static")
+        is_const = static_attr == attribute_info.AccessAttribute.READ
+        if is_const:
+            writer.write("const ")
+        if isinstance(expr.var.ty, type_info.ArrayType):
+            writer.write_type(expr.var.ty.element_type)
+            writer.write(" ")
+            writer.write(expr.var.name)
+            length = arch.get_const_or_val(expr.var.ty.length)
+            writer.write(f"[{length}]")
+        else:
+            writer.write_type(expr.var.ty)
+            writer.write(" ")
+            writer.write(expr.var.name)
         if expr.var.value:
             writer.write(" = ")
             writer.write(expr.var.value)
@@ -125,7 +141,6 @@ class CDSLWriterVisitor(ExprVisitor):
         for stmt in expr.stmts:
             self.generate(stmt, writer)
         writer.leave_block()
-
 
     @generate.register
     def _(self, expr: behav.Ternary, writer):
