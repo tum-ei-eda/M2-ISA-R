@@ -52,7 +52,7 @@ def handle_metrics(metrics, dest=None, ignore_failing: bool = False):
         for kind, failed_ in failed.items():
             n_failed = len(failed_)
             if n_failed > 0:
-                failing_str = ", ".join(failed)
+                failing_str = ", ".join(failed_)
                 logger.error("%d %s failed: %s", n_failed, kind, failing_str)
                 raise RuntimeError("Abort due to errors")
     if dest:
