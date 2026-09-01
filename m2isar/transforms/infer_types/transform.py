@@ -59,8 +59,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             logger.debug("inferring types for functions %s", func_def.name)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
-                simplifier.generate(instr_def.operation, context)
-                mutator.generate(instr_def.operation, context)
+                simplifier.generate(func_def.operation, context)
+                mutator.generate(func_def.operation, context)
 
     for _, set_def in model_obj.sets.items():
         logger.debug("inferring types for set %s", set_def.name)
@@ -79,6 +79,12 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             if not skip_simplify:
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
+        for _, func_def in set_def.functions.items():
+            logger.debug("inferring types for functions %s", func_def.name)
+            mutator.generate(func_def.operation, context)
+            if not skip_simplify:
+                simplifier.generate(func_def.operation, context)
+                mutator.generate(func_def.operation, context)
     return model_obj
 
 
