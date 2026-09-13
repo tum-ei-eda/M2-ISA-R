@@ -14,7 +14,7 @@ import logging
 import pathlib
 
 from ...metamodel import load_model, dump_model
-from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS, DEFAULT_ERRORS
 from .visitor import ValidateBehavVisitor
 
 
@@ -29,7 +29,7 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("top_level", help="A .m2isarmodel file.")
     parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
-    add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)
+    add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS, DEFAULT_ERRORS)
     return parser
 
 
@@ -67,7 +67,7 @@ def run(args):
 
     model_obj = load_model(top_level)
     warnings_info = args.warnings
-    alidate_behav(model_obj, warnings_info)
+    validate_behav(model_obj, warnings_info)
 
 
 def main(argv):

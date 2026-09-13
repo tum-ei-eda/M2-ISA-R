@@ -25,7 +25,7 @@ from .utils import make_parser
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_ERRORS
 
 def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
@@ -44,7 +44,7 @@ def main():
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS, DEFAULT_ERRORS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
 	args = parser.parse_args()
