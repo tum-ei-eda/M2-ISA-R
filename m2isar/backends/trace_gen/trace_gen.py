@@ -136,8 +136,8 @@ def main():
     codeGen.generate("PrinterSource")
     codeGen.generate("InstructionPrintersSource")
 
-    return tracemodel_
-            
+    # return tracemodel_
+
 # Run this if called stand-alone (i.e. this file is directly called)
 if __name__ == '__main__':
     main()
