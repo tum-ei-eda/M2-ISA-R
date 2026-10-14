@@ -177,6 +177,10 @@ class InstructionTransformVisitor(ExprVisitor):
 		return CodeString("break;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
+	def _(self, expr: behav.Continue, context: TransformerContext):
+		return CodeString("continue;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
+
+	@generate.register
 	def _(self, expr: behav.VarDefinition, context: TransformerContext):
 		"""Generate a Variable definition. Calculates the actual required data width and generates
 		a variable instantiation."""
@@ -507,7 +511,9 @@ class InstructionTransformVisitor(ExprVisitor):
 			else:
 				stmts.append([ret])
 
-		# check if all conditions are static
+		# A control-flow construct must be emitted wholly at generation time or
+		# wholly into the generated instruction. In particular, a dynamic branch
+		# containing break/continue makes those control statements dynamic too.
 		static = all(x.static for x in conds)
 		outputs: "list[CodeString]" = []
 
@@ -545,13 +551,20 @@ class InstructionTransformVisitor(ExprVisitor):
 			outputs.extend(flatten(stmts[-1]))
 			outputs.append(CodeString("} // conditional", static, None, None))
 
+		if not static:
+			for output in outputs:
+				if output.code in {"break;", "continue;"}:
+					output.static = attribute_info.AccessAttribute.NONE
+
 		return outputs
 
 	@generate.register
-	def _(self, expr: behav.Loop, context: TransformerContext):
+	def _(self, expr: behav.LoopBase, context: TransformerContext):
 		"""Generate 'while' and 'do .. while' loops."""
 
+		init = [self.generate(x, context) for x in expr.init]
 		cond: CodeString = self.generate(expr.cond, context)
+		updates = [self.generate(x, context) for x in expr.updates]
 		stmts: "list[CodeString]" = []
 
 		for stmt in expr.stmts:
@@ -561,23 +574,35 @@ class InstructionTransformVisitor(ExprVisitor):
 			else:
 				stmts.append(self.generate(stmt, context))
 
-		if not cond.static:
+		flat_stmts = list(flatten(stmts))
+		semantic_stmts = [x for x in flat_stmts if "// block" not in x.code]
+		static = all(x.static for x in list(flatten(init)) + [cond] + list(flatten(updates)) + semantic_stmts)
+
+		if not static:
 			context.dependent_regs.update(cond.regs_affected)
 
 		outputs: "list[CodeString]" = []
 
-		if expr.post_test:
-			start_c = CodeString("do", cond.static, None, None)
+		if expr.init or expr.updates:
+			init_code = ", ".join(x.code.rstrip(";") for x in flatten(init))
+			update_code = ", ".join(x.code.rstrip(";") for x in flatten(updates))
+			start_c = CodeString(f"for ({init_code}; {cond.code}; {update_code})", static, None, None)
+			end_c = CodeString("", static, None, None)
+		elif expr.post_test:
+			start_c = CodeString("do", static, None, None)
 			end_c = cond
 			end_c.code = f'while ({end_c.code})'
 		else:
 			start_c = cond
 			start_c.code = f'while ({start_c.code})'
-			end_c = CodeString("", cond.static, None, None)
+			end_c = CodeString("", static, None, None)
 
 		outputs.append(start_c)
 		outputs.extend(flatten(stmts))
 		outputs.append(end_c)
+		if not static:
+			for output in outputs:
+				output.static = attribute_info.AccessAttribute.NONE
 
 		return outputs
 

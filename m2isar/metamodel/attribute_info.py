@@ -53,6 +53,12 @@ class AccessAttribute(IntFlag):
 	READ = auto() # read access only
 	WRITE = auto() # write access only
 	RW = READ | WRITE
+	# Scalar-staticness terminology used by behavior block annotations.
+	CONST = READ
+	STATIC = RW
+
+class BlockAttribute(Enum):
+	ACCESS = auto()
 
 @dataclass
 class AccessContext:
