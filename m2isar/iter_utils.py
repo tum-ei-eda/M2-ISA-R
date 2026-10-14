@@ -18,7 +18,7 @@ logger = logging.getLogger("iter_utils")
 def process_sets(model_obj, handler, description: str = None, metrics=None):
     prefix = description if description is not None else "Processing"
     for set_name, set_def in model_obj.sets.items():
-        logger.debug("%s set %s/%s", prefix, set_def.name)
+        logger.debug("%s set %s", prefix, set_def.name)
         if metrics:
             metrics["n_sets"] += 1
         try:
@@ -35,7 +35,7 @@ def process_sets(model_obj, handler, description: str = None, metrics=None):
 def process_cores(model_obj, handler, description: str = None, metrics=None):
     prefix = description if description is not None else "Processing"
     for core_name, core_def in model_obj.cores.items():
-        logger.debug("%s core %s/%s", prefix, core_def.name)
+        logger.debug("%s core %s", prefix, core_def.name)
         if metrics:
             metrics["n_cores"] += 1
         try:
@@ -52,7 +52,7 @@ def process_cores(model_obj, handler, description: str = None, metrics=None):
 def process_sets_instructions(model_obj, handler, description: str = None, metrics=None):
     prefix = description if description is not None else "Processing"
     for set_name, set_def in model_obj.sets.items():
-        logger.debug("%s set %s/%s", prefix, set_def.name)
+        logger.debug("%s set %s", prefix, set_def.name)
         if metrics:
             metrics["n_sets"] += 1
         for instr_def in set_def.instructions.values():
@@ -73,7 +73,7 @@ def process_sets_instructions(model_obj, handler, description: str = None, metri
 def process_cores_instructions(model_obj, handler, description: str = None, metrics=None):
     prefix = description if description is not None else "Processing"
     for core_name, core_def in model_obj.cores.items():
-        logger.debug("%s core %s/%s", prefix, core_def.name)
+        logger.debug("%s core %s", prefix, core_def.name)
         if metrics:
             metrics["n_cores"] += 1
         for instr_def in core_def.instructions.values():
