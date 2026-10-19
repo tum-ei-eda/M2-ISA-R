@@ -396,20 +396,19 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.TypeConv, context):
         expr.expr = self.generate(expr.expr, context)
-
-        ty = deepcopy(expr.expr.ty)
-        if ty is None:
-            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
-            return expr
-        assert isinstance(ty, type_info.PrimitiveType)
-        assert expr.data_type.is_int
-        ty.signed = expr.data_type == type_info.TypeKind.INT
+        operand_type = expr.expr.ty
         if expr.size is not None:
-            ty.size = expr.size
-
-        # type inference
-        expr.ty = ty
-
+            # An explicit cast retains its declared result type even when the
+            # operand is invalid or incomplete. Validation diagnoses legality.
+            expr.ty = type_info.PrimitiveType(expr.data_type, expr.size)
+        elif isinstance(operand_type, type_info.PrimitiveType) and operand_type.kind.is_int:
+            expr.ty = type_info.PrimitiveType(expr.data_type, operand_type.size)
+        else:
+            # Keep non-integer operands traversable for standalone InvalidCast
+            # diagnostics; they do not acquire an invented integer type.
+            expr.ty = deepcopy(operand_type)
+        if operand_type is None and expr.size is None:
+            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
         return expr
 
     @generate.register
