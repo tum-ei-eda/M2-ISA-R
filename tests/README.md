@@ -39,6 +39,15 @@ Without this variable, oracle tests are explicitly skipped; native regression
 tests still run. The JAR is not downloaded by the suite. Oracle tests inspect
 diagnostic output because the release can return exit status zero on errors.
 
+In GitHub Actions, select **Regression tests → Run workflow** and enable
+**run_minres** to run the optional comparison job. To enable it automatically
+on pushes and pull requests too, set the repository Actions variable
+`COREDSL_MINRES_CI` to `true`. The native job always runs independently.
+The comparison job installs Java 17, downloads MINRES 2.0.21, verifies its pinned
+SHA-256, and runs the full suite with `COREDSL_VALIDATOR_JAR` set. Download,
+checksum and comparison failures fail this enabled job; its test log is uploaded
+as an artifact. Allow up to 60 minutes for this slower job.
+
 ## Coverage and useful starting points
 
 | Layer | Examples | What the assertions protect |
