@@ -86,6 +86,19 @@ Both the fixtures and assertions therefore travel with the repository.
    traversal order and partial-analysis deferral.
    `test_source_ternary_collection.py` covers all-child analysis and preserving
    initializer/outer-call conversion errors after child failures.
+   `test_metamodel_ternary_options.py` checks standalone array/integer/void
+   option compatibility, independent condition errors, deferred unknown types,
+   release comparisons for compatible and incompatible option pairs, and
+   suppression of cascading errors in nested conditions, options, assignments
+   and returns, including parenthesized model expressions.
+   `test_cast_signedness_lowering.py` checks cast result kinds and widths through
+   both frontends and saved models, with unchanged operand types and uncast
+   rejection controls. `test_metamodel_casts.py` checks standalone invalid casts,
+   child-error recovery, explicit versus signedness-only result propagation,
+   serialized Python models and frontend preservation of invalid operands.
+   `test_literal_cast_preservation.py` protects explicit cast widths and the
+   release's constant-expression rules after simplification. All three include
+   optional release comparisons.
    `test_source_binary_collection.py` checks both operand errors, operator errors
    and Boolean results retained by logical/comparison operators.
    `test_source_assignment_collection.py` checks independent target/conversion
@@ -160,3 +173,10 @@ only mirror implementation details. Tests documenting an existing gap must say
 so explicitly; passing them does not establish parity. The alignment tracker
 records the remaining gaps; this suite does not yet cover every language feature
 or backend behavior.
+
+
+`test_warning_flags.py` and `test_warning_demotion_cli.py` cover PR #122 severity
+controls. Implicit truncation is fatal by default; tests intended to compare
+MINRES acceptance of fitting constants can explicitly demote it with
+`-Wno-error=implicit-trunc` (or use `WarningsInfo(default_as_error=set())` for
+programmatic warning-only policy). Dedicated policy tests cover the default.

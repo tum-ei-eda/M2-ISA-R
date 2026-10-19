@@ -86,8 +86,11 @@ class MetamodelScalarNativeTest(unittest.TestCase):
                 parsed = subprocess.run([sys.executable, '-m', 'm2isar.frontends.coredsl2.parser', str(path)],
                                         text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 self.assertEqual(parsed.returncode, 0, parsed.stdout)
+                # Compare MINRES conversion semantics independently of PR #122's
+                # stricter default warning severity for fitting constants.
                 result = subprocess.run([sys.executable, '-m', 'm2isar.transforms.validate_behav.validate',
-                                         str(Path(directory) / 'gen_model' / 'scalar.m2isarmodel')],
+                                         str(Path(directory) / 'gen_model' / 'scalar.m2isarmodel'),
+                                         '-Wno-error=implicit-trunc'],
                                         text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 self.assertEqual(result.returncode, int(not allowed), result.stdout)
                 if not allowed:
