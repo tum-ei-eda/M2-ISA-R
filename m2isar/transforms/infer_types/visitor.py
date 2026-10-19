@@ -448,6 +448,10 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.Break, context):
         return expr
 
+    @generate.register
+    def _(self, expr: behav.Continue, context):
+        return expr
+
 
 # Simple expression evaluation for ranged mem indexes
 def helper_expr_size(sub_expr: behav.BaseNode):
