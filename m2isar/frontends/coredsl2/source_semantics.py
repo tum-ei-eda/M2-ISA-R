@@ -476,7 +476,14 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     if target is not None and symbol is None:
                         self.error(target, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
                                    f"Couldn't resolve reference to NamedEntity '{target.ref.text}'.")
-                    if target is None or (symbol is not None and (symbol.storage != 'param' or symbol.const)):
+                    # Indexed architectural state (for example CSR[addr]) is
+                    # a valid state target. It is not an ISA parameter, so
+                    # only apply the parameter restriction to identifier
+                    # targets; ordinary assignment validation below still
+                    # checks that the indexed expression is writable.
+                    indexed_target = isinstance(expression.left, P.Slice_expressionContext)
+                    if (target is None and not indexed_target) or (
+                            symbol is not None and (symbol.storage != 'param' or symbol.const)):
                         self.error(expression, 'InvalidIsaParameterAssignmentTarget',
                                    'ISA level assignment must assign to a non-constant ISA parameter')
 

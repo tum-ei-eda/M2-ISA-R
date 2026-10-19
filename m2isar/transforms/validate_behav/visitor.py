@@ -646,7 +646,7 @@ class ValidateBehavVisitor(ExprVisitor):
             except M2WarningError as warning:
                 if not errors:
                     raise
-                errors.append(warning)
+                errors.append(M2ValidationError(str(warning), 'IdentityCast', expr.line_info))
         if errors:
             errors[0].related_diagnostics.extend(errors[1:])
             raise errors[0]

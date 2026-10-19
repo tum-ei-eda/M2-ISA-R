@@ -53,6 +53,7 @@ POSITIVES = [
     state('register int R; int &A = R; int &B = A;'),
     'Core C { functions { void f() { int x[2] = {1,2}; } } }',
     'InstructionSet A { architectural_state { int W; } } Core C provides A { architectural_state { W = 8; } }',
+    state('register unsigned<8> CSR[4096]; CSR[0] = 11;'),
 ]
 
 
