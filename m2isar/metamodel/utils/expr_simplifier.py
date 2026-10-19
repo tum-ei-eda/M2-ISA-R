@@ -202,6 +202,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
+		if expr.op.value in ('++', '--'):
+			return expr  # Preserve target identity and side effects, including invalid constants.
 		expr.right = self.generate(expr.right, context)
 		if isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
