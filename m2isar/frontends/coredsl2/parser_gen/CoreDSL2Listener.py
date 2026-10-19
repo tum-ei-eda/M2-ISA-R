@@ -440,6 +440,24 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#enum_definition.
+    def enterEnum_definition(self, ctx:CoreDSL2Parser.Enum_definitionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#enum_definition.
+    def exitEnum_definition(self, ctx:CoreDSL2Parser.Enum_definitionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#composite_definition.
+    def enterComposite_definition(self, ctx:CoreDSL2Parser.Composite_definitionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#composite_definition.
+    def exitComposite_definition(self, ctx:CoreDSL2Parser.Composite_definitionContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#enumerator_list.
     def enterEnumerator_list(self, ctx:CoreDSL2Parser.Enumerator_listContext):
         pass
@@ -539,24 +557,6 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#preinc_expression.
-    def enterPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#preinc_expression.
-    def exitPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#conditional_expression.
-    def enterConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#conditional_expression.
-    def exitConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#deref_expression.
     def enterDeref_expression(self, ctx:CoreDSL2Parser.Deref_expressionContext):
         pass
@@ -566,30 +566,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#prefix_expression.
-    def enterPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#prefix_expression.
-    def exitPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
-        pass
-
-
     # Enter a parse tree produced by CoreDSL2Parser#postinc_expression.
     def enterPostinc_expression(self, ctx:CoreDSL2Parser.Postinc_expressionContext):
         pass
 
     # Exit a parse tree produced by CoreDSL2Parser#postinc_expression.
     def exitPostinc_expression(self, ctx:CoreDSL2Parser.Postinc_expressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CoreDSL2Parser#concat_expression.
-    def enterConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
-        pass
-
-    # Exit a parse tree produced by CoreDSL2Parser#concat_expression.
-    def exitConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
         pass
 
 
@@ -611,12 +593,12 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CoreDSL2Parser#primary_expression.
-    def enterPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+    # Enter a parse tree produced by CoreDSL2Parser#intrinsic_expression.
+    def enterIntrinsic_expression(self, ctx:CoreDSL2Parser.Intrinsic_expressionContext):
         pass
 
-    # Exit a parse tree produced by CoreDSL2Parser#primary_expression.
-    def exitPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+    # Exit a parse tree produced by CoreDSL2Parser#intrinsic_expression.
+    def exitIntrinsic_expression(self, ctx:CoreDSL2Parser.Intrinsic_expressionContext):
         pass
 
 
@@ -626,6 +608,60 @@ class CoreDSL2Listener(ParseTreeListener):
 
     # Exit a parse tree produced by CoreDSL2Parser#slice_expression.
     def exitSlice_expression(self, ctx:CoreDSL2Parser.Slice_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#preinc_expression.
+    def enterPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#preinc_expression.
+    def exitPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#conditional_expression.
+    def enterConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#conditional_expression.
+    def exitConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#prefix_expression.
+    def enterPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#prefix_expression.
+    def exitPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#concat_expression.
+    def enterConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#concat_expression.
+    def exitConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#primary_expression.
+    def enterPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#primary_expression.
+    def exitPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+        pass
+
+
+    # Enter a parse tree produced by CoreDSL2Parser#intrinsic_argument.
+    def enterIntrinsic_argument(self, ctx:CoreDSL2Parser.Intrinsic_argumentContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#intrinsic_argument.
+    def exitIntrinsic_argument(self, ctx:CoreDSL2Parser.Intrinsic_argumentContext):
         pass
 
 

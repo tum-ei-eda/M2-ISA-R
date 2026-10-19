@@ -25,7 +25,7 @@ The actual text parser for the CoreDSL 2 language is generated from [](CoreDSL2.
 
     ```
     cd /path/to/M2-ISA-R/m2isar/frontends/coredsl2
-    antlr4 -v 4.11.1 -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
+    antlr4 -v 4.13.1 -o parser_gen -listener -visitor -Dlanguage=Python3 CoreDSL2.g4
     ```
 
 A VSCode task for parser generation is already created for this project. To use it, install `antlr-tools` as shown in 1), then select `Terminal` -> `Run Task...` -> `Generate CoreDSL2 ANTLR parser`.
