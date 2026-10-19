@@ -573,6 +573,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		return type_info.PrimitiveType(kind, width)
 
+	def visitEnum_reference(self, ctx):
+		for parameter in self._parameters.values():
+			if getattr(parameter, '_coredsl_enum_name', None) == ctx.name.text:
+				kind = type_info.TypeKind.INT if parameter.signed else type_info.TypeKind.UINT
+				return type_info.PrimitiveType(kind, parameter.size)
+		raise M2TypeError(f"Cannot lower unresolved enum type {ctx.name.text}")
+
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type."""
 		return type_info.PrimitiveType(type_info.TypeKind.VOID, None)
@@ -604,6 +611,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		prefix = behav.Operator(ctx.prefix.text)
 		expr = self.visit(ctx.right)
 		return behav.UnaryOperation(prefix, expr)
+
+	def visitDeref_expression(self, ctx):
+		raise M2TypeError("Composite member access is not supported by model lowering")
+
+	def visitIntrinsic_expression(self, ctx):
+		from .behavior_model_builder import BehaviorModelBuilder
+		builder = BehaviorModelBuilder(self._parameters, self._memories, self._memory_aliases,
+			self._register_banks, self._register_aliases, {}, self._functions, set())
+		return builder.visitIntrinsic_expression(ctx)
 
 	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
 		"""Generate a referencing expression."""
