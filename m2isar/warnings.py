@@ -1,9 +1,21 @@
 import argparse
 import logging
+from copy import deepcopy
+from .diagnostics import WARNING_ISSUES, M2WarningError
 from dataclasses import dataclass, field
 from typing import Set
 
 KNOWN_WARNINGS = {
+	'duplicate-isa-state-element',
+	'index-out-of-range',
+	'size-of-not-exact',
+	'identity-cast',
+	'unknown-attribute',
+	'unexpected-instruction-size',
+	'array-size-zero',
+	'invalid-array-size',
+	'unreachable-code',
+	'likely-accidental-assignment',
 	'implicit-trunc',
 	'shift-overflow',
 	'shift-signed',
@@ -17,12 +29,16 @@ KNOWN_WARNINGS = {
 }
 
 
+# IdentityCast is guarded by -Dstrict=true in the reference validator.
+DEFAULT_WARNINGS = KNOWN_WARNINGS - {'identity-cast'}
+
+
 @dataclass
 class WarningsInfo:
 	# known: Set[str] = field(default_factory=set)
 	known: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
 	# defaults: Set[str] = field(default_factory=set)
-	defaults: Set[str] = field(default_factory=lambda: set(KNOWN_WARNINGS))
+	defaults: Set[str] = field(default_factory=lambda: set(DEFAULT_WARNINGS))
 	enabled: Set[str] = field(default_factory=set)
 	disabled: Set[str] = field(default_factory=set)
 	as_error: Set[str] = field(default_factory=set)
@@ -39,31 +55,32 @@ class WarningsInfo:
 
 class WarningFlagAction(argparse.Action):
 	def __call__(self, parser, namespace, values, option_string=None):
-		warnings_info = getattr(namespace, 'warnings', None)
+		# argparse reuses defaults; never mutate the parser's default object.
+		warnings_info = deepcopy(getattr(namespace, 'warnings', None))
 		if warnings_info is None:
 			warnings_info = WarningsInfo()
-
 		for val in values:
 			if val == 'no-error':
 				warnings_info.all_as_error = False
-			elif val.startswith('no-'):
-				warn = val[3:]
-				assert warn in warnings_info.known, f"Unknown warning: {warn}"
-				warnings_info.disabled.add(warn)
-			elif val.startswith('error='):
-				warn = val[6:]
-				assert warn in warnings_info.known, f"Unknown warning: {warn}"
-				warnings_info.as_error.add(warn)
 			elif val == 'error':
 				warnings_info.all_as_error = True
 			elif val == 'all':
 				warnings_info.enabled.update(warnings_info.known)
+				warnings_info.disabled.clear()
 			else:
-				warn = val[3:]
-				assert warn in warnings_info.known, f"Unknown warning: {val}"
-				warnings_info.enabled.add(val)
-			# No need for -Wall as all warnings are enabled by default
-
+				disable = val.startswith('no-')
+				promote = val.startswith('error=')
+				warn = val[3:] if disable else val[6:] if promote else val
+				if warn not in warnings_info.known:
+					raise argparse.ArgumentError(self, f"Unknown warning: {warn}")
+				if disable:
+					warnings_info.disabled.add(warn)
+					warnings_info.enabled.discard(warn)
+				else:
+					warnings_info.enabled.add(warn)
+					warnings_info.disabled.discard(warn)
+					if promote:
+						warnings_info.as_error.add(warn)
 		setattr(namespace, 'warnings', warnings_info)
 
 
@@ -77,7 +94,7 @@ def add_warnings_flags(
 		dest='warnings',
 		metavar='warning',
 		action=WarningFlagAction,
-		nargs='+',
+		nargs=1,
 		help=(
 			"Enable/disable warnings like -Wfoo or -Wno-foo; "
 			"Make fatal with -Werror or -Werror=foo"
@@ -93,7 +110,6 @@ class WarningsManager:
 	def __init__(self, warnings_info: WarningsInfo):
 		self.warnings_info = warnings_info
 
-		# TODO: warnings as errors?
 	def emit_warning(self, msg, name=None, logger=None, line_info=None):
 		log_warn_f = logging.warning if logger is None else logger.warning
 		log_err_f = logging.error if logger is None else logger.error
@@ -107,9 +123,11 @@ class WarningsManager:
 		log_f = log_err_f if is_err else log_warn_f
 		if name is not None:
 			msg += f" [-W{name}]"
+		if name in WARNING_ISSUES:
+			msg += f" [com.minres.coredsl.{WARNING_ISSUES[name]}]"
 		if line_info is not None:
 			line_info_str = f"{line_info.file_path}:{line_info.start_line_no}"
 			msg += f" @ {line_info_str}"
 		log_f(msg)
 		if is_err:
-			raise RuntimeError(msg)
+			raise M2WarningError(msg, name, line_info)
