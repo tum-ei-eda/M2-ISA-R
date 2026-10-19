@@ -236,16 +236,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.TypeConv, context):
 		expr.expr = self.generate(expr.expr, context)
-		if isinstance(expr.expr, behav.Literal):
-			size = expr.size
-			if size is None:
-				assert expr.ty is not None
-				assert expr.expr.ty.size is not None
-				expr.ty.size = expr.expr.ty.size
-			expr.expr.signed = expr.data_type == type_info.TypeKind.INT
-			expr.expr.ty.kind = expr.data_type
-			return expr.expr
-
 		return expr
 
 	@generate.register
