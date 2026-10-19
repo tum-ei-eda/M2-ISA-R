@@ -174,7 +174,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				elif isinstance(type_, type_info.ArrayType):
 					shape = []
 					infer_shape_from_type(type_, shape)
-					init = behav.Tensor(np.zeros(shape), type_)
+					init = behav.Tensor(np.zeros(shape, dtype=object), type_)
 				else:
 					raise M2TypeError(f"Literal has a not supported type {type}")
 
