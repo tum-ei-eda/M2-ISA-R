@@ -41,7 +41,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_vector_reg_file: Union[arch.RegisterBank, None]
 	_csr_reg_file: Union[arch.RegisterBank, None]
 
-	def __init__(self, merge: bool = False):
+	def __init__(self, merge: bool = False, attributes_validated: bool = False):
 		super().__init__()
 		self._parameters = {}
 		# self._instructions = {}
@@ -62,6 +62,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._vector_reg_file = None
 		self._csr_reg_file = None
 		self.merge = merge
+		self.attributes_validated = attributes_validated
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -194,8 +195,35 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitSection_arch_state(self, ctx: CoreDSL2Parser.Section_arch_stateContext):
 		"""Generate "archictectural_state" section of CoreDSL file."""
 
-		decls = [self.visit(obj) for obj in ctx.declarations]
-		decls = list(itertools.chain.from_iterable(decls))
+		# Resolve enums before declarations that use their members as widths.
+		from types import SimpleNamespace
+		from .source_semantics import SemanticValidator, Symbol
+		validator = SemanticValidator(SimpleNamespace(definitions=[ctx.parentCtx]), None)
+		validator.build_symbols([ctx.parentCtx])
+		for name, parameter in self._parameters.items():
+			if name not in validator.symbols:
+				validator.symbols[name] = Symbol(storage='param', known_value=parameter.value)
+		enum_constants = []
+		for enum in ctx.enum_types:
+			ty = validator.enum_type(enum)
+			if ty.kind != 'enum':
+				raise M2TypeError(f"Cannot lower unresolved enum {enum.name.text}")
+			for symbol in validator.enum_members[id(enum)]:
+				value = symbol.known_value
+				if value is None:
+					if symbol.enum_predecessor is not None:
+						value = validator.evaluate(symbol.enum_predecessor.value_expression, True)
+						if value is not None:
+							value += symbol.enum_offset
+					else:
+						value = validator.evaluate(symbol.value_expression, True)
+				if value is None:
+					raise M2TypeError(f"Cannot lower unresolved enum member {symbol.declarator.name.text}")
+				parameter = arch.Parameter(symbol.declarator.name.text, value, {}, ty.width, ty.element.signed)
+				parameter._coredsl_enum_name = enum.name.text
+				self._parameters[parameter.name] = parameter
+				enum_constants.append(parameter)
+		decls = enum_constants + list(itertools.chain.from_iterable(self.visit(obj) for obj in ctx.declarations))
 		for obj in ctx.expressions:
 			self.visit(obj)
 
@@ -270,6 +298,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
 		if not f.extern:
+			from .source_validator import return_terminated
+			f._coredsl_return_terminated = return_terminated(ctx.behavior)
 			f.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, "fn_" + f.name)
 
 		# error on duplicate function definition
@@ -304,34 +334,16 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
 		"""Generate an integer literal."""
 
-		# extract raw text
-		text: str = ctx.value.text.lower()
-
-		# extract tick position for verilog-stlye literal
-		tick_pos = text.find("'")
-
-		# decode verilog-style literal
-		value = None
-		if tick_pos != -1:
-			width = int(text[:tick_pos])
-			radix = text[tick_pos+1]
-			value = int(text[tick_pos+2:], RADIX[radix])
-
-		# decode normal dec, hex, bin, oct literal
-		# TODO: remove width inference from text
-		else:
-			value = int(text, 0)
-			if text.startswith("0b"):
-				width = len(text) - 2
-			elif text.startswith("0x"):
-				width = (len(text) - 2) * 4
-			elif text.startswith("0") and len(text) > 1:
-				width = (len(text) - 1) * 3
-			else:
-				width = value.bit_length()
-
-		kind = type_info.TypeKind.UINT if value>0 else type_info.TypeKind.INT
-		return behav.Literal(value, type_info.PrimitiveType(kind, width))
+		from .constant_expressions import integer_literal
+		from ...diagnostics import M2ValidationError
+		from ...metamodel.code_info import LineInfoFactory
+		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		try:
+			value, width, signed = integer_literal(ctx.value.text)
+		except ValueError as exc:
+			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', line_info) from exc
+		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
+		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=line_info)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
@@ -390,6 +402,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 				# Alias require a range to store details in Array, where it exactly points to (Ty is lhs info)
 				alias = arch.Alias(name, reference, range_spec, type_, attributes)
+				alias.coredsl_const = 'const' in qualifiers
 
 				alias.parent.children.append(alias)
 
@@ -447,16 +460,20 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
 					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
 						reg = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
+						reg.coredsl_const = 'const' in qualifiers
 					elif isinstance(size[0], behav.Literal):
 						if size[0].value >= 1:
 							reg = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
+							reg.coredsl_const = 'const' in qualifiers
 						elif size[0].value == 1:
 							reg = arch.Register(name, type_.kind, type_.size, attributes)
+							reg.coredsl_const = 'const' in qualifiers
 						else:
 							M2ValueError("Size is negative for Registerbank")
 					elif isinstance(size[0], int):
 						# Unset Case: =1
 						reg = arch.Register(name, type_.kind, type_.size, attributes)
+						reg.coredsl_const = 'const' in qualifiers
 					else:
 						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
 
@@ -498,6 +515,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
 					m = arch.Memory(name, type_.kind, type_.size, size[0], attributes)
+					m.coredsl_const = 'const' in qualifiers
 
 					# attach init value to memory object
 					if init is not None:
@@ -642,7 +660,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:
-			logger.warning("unknown attribute \"%s\" encountered", name)
+			if not self.attributes_validated:
+				logger.warning("unknown attribute \"%s\" encountered", name)
 			attr = name
 
 		return attr, ctx.params
