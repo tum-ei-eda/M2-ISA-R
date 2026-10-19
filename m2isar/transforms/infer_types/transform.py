@@ -15,7 +15,8 @@ import pathlib
 
 from m2isar.metamodel import load_model, dump_model
 from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
-from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS
+from m2isar.metamodel.utils.control_flow import preserve_break_scope
+from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 from .visitor import InferTypesMutator
 
 
@@ -31,7 +32,7 @@ def get_parser():
     parser.add_argument("top_level", help="A .m2isarmodel file.")
     parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
     parser.add_argument("--output", "-o", type=str, default=None)
-    add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)
+    add_warnings_flags(parser, KNOWN_WARNINGS, DEFAULT_WARNINGS)
     return parser
 
 
@@ -44,12 +45,14 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         mutator = InferTypesMutator()
         for always_block in core_def.always_blocks.values():
             logger.debug("inferring types for always block %s", always_block.name)
+            preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
         for _, instr_def in core_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
+            preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
                 simplifier.generate(instr_def.operation, context)
@@ -57,6 +60,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
 
         for _, func_def in core_def.functions.items():
             logger.debug("inferring types for functions %s", func_def.name)
+            preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
                 simplifier.generate(func_def.operation, context)
@@ -69,18 +73,21 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
         mutator = InferTypesMutator()
         for always_block in set_def.always_blocks.values():
             logger.debug("inferring types for always block %s", always_block.name)
+            preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
         for _, instr_def in set_def.instructions.items():
             logger.debug("inferring types for instr %s", instr_def.name)
+            preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
         for _, func_def in set_def.functions.items():
             logger.debug("inferring types for functions %s", func_def.name)
+            preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
                 simplifier.generate(func_def.operation, context)
