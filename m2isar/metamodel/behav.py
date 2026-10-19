@@ -139,12 +139,13 @@ class Literal(BaseNode):
 
 ### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
 class Tensor(BaseNode):
-	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None, initializer_elements=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: np.ndarray = np.array(value)
 		self.ty = ty    # assigned during type checking
+		self.initializer_elements = initializer_elements
 
 	def __repr__(self):
 		return f"Tensor(values={self.value}, type={self.ty})"
