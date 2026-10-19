@@ -195,6 +195,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
 		return behav.Break(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
 
+	def visitContinue_statement(self, ctx: CoreDSL2Parser.Continue_statementContext):
+		return behav.Continue(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
 
@@ -240,6 +243,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			ret.append(start_expr)
 
 		if loop_exprs:
+			from ...metamodel.utils.control_flow import lower_for_continues
+			stmt = [lower_for_continues(child, loop_exprs) for child in stmt]
 			stmt.extend(loop_exprs)
 
 		ret.append(behav.Loop(end_expr, stmt, False, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)))
