@@ -87,6 +87,10 @@ class VarAccessVisitor(ExprVisitor):
 		return attribute_info.AccessAttribute.READ
 
 	@generate.register
+	def _(self, expr: behav.Continue, context):
+		return attribute_info.AccessAttribute.READ
+
+	@generate.register
 	def _(self, expr: behav.Assignment, context: attribute_info.AccessContext):
 		self.generate(expr.target, context)
 
