@@ -128,6 +128,10 @@ class ExprSimplifierVisitor(ExprVisitor):
 		return expr
 
 	@generate.register
+	def _(self, expr: behav.Continue, context):
+		return expr
+
+	@generate.register
 	def _(self, expr: behav.Assignment, context):
 		expr.target = self.generate(expr.target, context)
 		expr.expr = self.generate(expr.expr, context)
