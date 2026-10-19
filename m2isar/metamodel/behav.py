@@ -214,16 +214,20 @@ class Return(BaseNode):
 		super().__init__(line_info)
 		self.expr = expr
 
+class Continue(BaseNode):
+	"""Continue the innermost loop."""
+
 class Break(BaseNode):
 	"""A break statement."""
 
 class UnaryOperation(BaseNode):
 	"""An unary operation, whith an operator and a right hand operand."""
 
-	def __init__(self, op: Operator, right: BaseNode, line_info=None):
+	def __init__(self, op: Operator, right: BaseNode, line_info=None, *, postfix=False):
 		super().__init__(line_info)
 		self.op = op
 		self.right = right
+		self.postfix = postfix
 
 class NamedReference(BaseNode):
 	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
