@@ -240,11 +240,13 @@ class IndexedReference(BaseNode):
 	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None, *, grouped_base=False):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index
 		self.right = right
+		# Preserve grouped source bases for assignment-target diagnostics.
+		self.grouped_base = grouped_base
 
 class TypeConv(BaseNode):
 	"""A type conversion. Size can be None, in this case only the signedness is affected."""
