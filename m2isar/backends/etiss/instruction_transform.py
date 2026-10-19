@@ -233,6 +233,12 @@ class InstructionTransformVisitor(ExprVisitor):
 		return CodeString("break;", attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
 
 	@generate.register
+	def _(self, expr: behav.Continue, context: TransformerContext):
+		target = getattr(context, "continue_target", None)
+		code = f"goto {target};" if target else "continue;"
+		return CodeString(code, attribute_info.AccessAttribute.RW, None, None, line_infos=expr.line_info)
+
+	@generate.register
 	def _(self, expr: behav.VarDefinition, context: TransformerContext):
 		"""Generate a Variable definition. Calculates the actual required data width and generates
 		a variable instantiation."""
