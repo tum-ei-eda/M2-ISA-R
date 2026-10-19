@@ -254,6 +254,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
 		return behav.Break(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
 
+	def visitContinue_statement(self, ctx: CoreDSL2Parser.Continue_statementContext):
+		return behav.Continue(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
 
