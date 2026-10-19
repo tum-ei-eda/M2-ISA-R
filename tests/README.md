@@ -81,6 +81,9 @@ Both the fixtures and assertions therefore travel with the repository.
    and Boolean results retained by logical/comparison operators.
    `test_source_assignment_collection.py` checks independent target/conversion
    diagnostics, retained assignment types and full/partial compound rules.
+   `test_inherited_body_reference_scope.py` checks defining-ISA reference types
+   in inherited functions while Core parameter values are overridden, including
+   both valid and rejected assignments.
    `test_signature_mismatch_recovery.py` checks independent body diagnostics
    after mismatched inherited declarations and distinguishes lexical reference
    types from elaborated parameter values.

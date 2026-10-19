@@ -48,6 +48,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         self.definitions = {ctx.name.text: ctx for ctx in tree.definitions}
         self.scopes = []
         self.symbols = {}
+        self.reference_symbols = {}
         self.values_in_progress = set()
         self.types_in_progress = set()
         self.function = None
@@ -74,11 +75,16 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         for scope in reversed(self.scopes):
             if name in scope:
                 return scope[name]
-        return self.symbols.get(name)
+        return self.reference_symbols.get(name, self.symbols.get(name))
 
     def evaluate(self, ctx, required=False):
         def resolve(node):
             symbol = self.lookup(node.ref.text)
+            if (symbol is self.reference_symbols.get(node.ref.text)
+                    and symbol is not None and symbol.storage == 'param'):
+                # Constant values come from elaboration; lexical declarations
+                # still determine the type and qualifiers of a reference.
+                symbol = self.symbols.get(node.ref.text, symbol)
             if symbol is None:
                 if required:
                     self.error(node, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
@@ -251,8 +257,27 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         finally:
             self.types_in_progress.remove(identity)
 
+    def reference_scope(self, root):
+        """Resolve references in their defining ISA, independently of values."""
+        result, seen = {}, set()
+        def visit(isa):
+            if isa.name.text in seen:
+                return
+            seen.add(isa.name.text)
+            for name, symbol in self.owner_symbols.get(isa.name.text, {}).items():
+                result.setdefault(name, symbol)
+            dependencies = ([*isa.extension, *isa.combines] if isinstance(isa, P.Instruction_setContext)
+                            else isa.contributing_types)
+            for dependency in dependencies:
+                if dependency.text in self.definitions:
+                    visit(self.definitions[dependency.text])
+        visit(root)
+        return result
+
     def build_symbols(self, contributors):
+        self.owner_symbols = {}
         self.symbols = {}
+        self.reference_symbols = {}
         self.declarations = {}
         self.signatures = {}
         self.enum_definitions = {}
@@ -262,6 +287,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         self.composite_members = {}
         self.composite_types = {}
         for isa in contributors:
+            owner_symbols = self.owner_symbols.setdefault(isa.name.text, {})
             for section in isa.sections:
                 if isinstance(section, P.Section_arch_stateContext):
                     for composite in section.composite_types:
@@ -289,6 +315,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                 symbol.enum_predecessor = predecessor
                                 symbol.enum_offset = index - predecessor_index
                             self.symbols[member.name.text] = symbol
+                            owner_symbols[member.name.text] = symbol
                             self.enum_members[id(enum)].append(symbol)
                     for declaration in section.declarations:
                         storage = [item.getText() for item in declaration.storage]
@@ -302,9 +329,13 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                 value_expression=None if initializer is None else initializer.expr)
                             self.declarations.setdefault(declarator.name.text, []).append((isa, symbol))
                             self.symbols[declarator.name.text] = symbol
+                            owner_symbols[declarator.name.text] = symbol
                 elif isinstance(section, P.Section_functionsContext):
                     for function in section.functions:
-                        self.symbols[function.name.text] = Symbol(function=function, storage='function')
+                        symbol = Symbol(function=function, storage='function')
+                        self.symbols[function.name.text] = symbol
+                        owner_symbols[function.name.text] = symbol
+        self.reference_symbols = self.reference_scope(contributors[-1]) if contributors else {}
         enum_names = {}
         for members in self.enum_members.values():
             for symbol in members:
@@ -361,9 +392,10 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         try:
             self.validate_duplicates(root, contributors)
         except M2ValidationError as error:
-            # Equal-signature duplicates leave a usable elaborated binding.
+            # Duplicate/signature errors leave reference and value bindings available.
             # Keep checking independent initializers and behavior diagnostics.
-            if error.issue_code != 'com.minres.coredsl.DuplicateIsaStateElement':
+            if error.issue_code not in {'com.minres.coredsl.DuplicateIsaStateElement',
+                                        'com.minres.coredsl.MismatchingIsaStateElementSignatures'}:
                 raise
             errors.append(error)
         try:
@@ -395,17 +427,22 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 except M2ValidationError as error:
                     errors.append(error)
         self.elaborating = False
-        for isa in contributors:
-            # The release groups definitions by kind, independent of the
-            # textual order of sections within an ISA.
-            for kind in (P.Section_functionsContext, P.Section_instructionsContext,
-                         P.Section_alwaysContext):
-                for section in isa.sections:
-                    if isinstance(section, kind):
-                        try:
-                            self.visit(section)
-                        except M2ValidationError as error:
-                            errors.append(error)
+        root_scope = self.reference_symbols
+        try:
+            for isa in contributors:
+                self.reference_symbols = self.reference_scope(isa)
+                # The release groups definitions by kind, independent of the
+                # textual order of sections within an ISA.
+                for kind in (P.Section_functionsContext, P.Section_instructionsContext,
+                             P.Section_alwaysContext):
+                    for section in isa.sections:
+                        if isinstance(section, kind):
+                            try:
+                                self.visit(section)
+                            except M2ValidationError as error:
+                                errors.append(error)
+        finally:
+            self.reference_symbols = root_scope
 
     def visitSection_functions(self, ctx):
         self.check_statement_parts((self.visit, function) for function in ctx.functions)
@@ -473,8 +510,10 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                    tuple(s.getText() for s in declaration.storage),
                                    self.specified_type(declaration.type_), symbol.storage == 'alias'))
             if any(signature != signatures[0] for signature in signatures[1:]):
-                self.error(root, 'MismatchingIsaStateElementSignatures',
-                           f'ISA state element {name} has been declared multiple times with mismatching signatures')
+                errors.append(M2ValidationError(
+                    f'ISA state element {name} has been declared multiple times with mismatching signatures',
+                    'MismatchingIsaStateElementSignatures', location(root)))
+                continue
             if records[0][1].storage == 'param':
                 self.warning(root, 'duplicate-isa-state-element',
                              f'ISA parameter {name} has been declared multiple times')
