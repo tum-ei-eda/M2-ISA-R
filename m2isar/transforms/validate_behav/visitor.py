@@ -14,7 +14,7 @@ from copy import copy
 from functools import singledispatchmethod
 
 from m2isar.metamodel import arch, behav, type_info
-from ...diagnostics import M2ValidationError
+from ...diagnostics import M2ValidationError, M2WarningError
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from .constants import constant_value, holds_value, INDETERMINATE, range_size
 
@@ -582,7 +582,48 @@ class ValidateBehavVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.TypeConv, context):
-        self.generate(expr.expr, context)
+        errors = []
+        target_type = None
+        try:
+            self.generate(expr.expr, context)
+        except M2ValidationError as error:
+            errors.append(error)
+        try:
+            source_type = expr.expr.ty
+            source_name = self._known_type_name(source_type)
+            source_integer = isinstance(source_type, type_info.PrimitiveType) and source_type.kind.is_int
+            if expr.size is None:
+                if source_integer:
+                    target_type = type_info.PrimitiveType(expr.data_type, source_type.size)
+                if (not self._has_invalid_type(expr.expr)
+                        and source_name is not None and not source_integer):
+                    raise M2ValidationError('Cannot apply signedness cast to non-integer value',
+                                            'InvalidCast', expr.line_info)
+            else:
+                target_type = type_info.PrimitiveType(expr.data_type, expr.size)
+                self._validate_declared_sizes(target_type, expr.line_info)
+                target_name = self._known_type_name(target_type)
+                if (not self._has_invalid_type(expr.expr)
+                        and source_name is not None and target_name is not None
+                        and not (source_integer and expr.data_type.is_int)):
+                    raise M2ValidationError(f'Cannot cast from {source_name} to {target_name}',
+                                            'InvalidCast', expr.line_info)
+        except M2ValidationError as error:
+            errors.append(error)
+        if (not getattr(context, 'source_validated', False)
+                and not self._has_invalid_type(expr.expr)
+                and source_name is not None
+                and source_name == self._known_type_name(target_type)):
+            try:
+                context.emit_warning('Identity cast does nothing', 'identity-cast',
+                                     logger=logger, line_info=expr.line_info)
+            except M2WarningError as warning:
+                if not errors:
+                    raise
+                errors.append(warning)
+        if errors:
+            errors[0].related_diagnostics.extend(errors[1:])
+            raise errors[0]
 
     @generate.register
     def _(self, expr: behav.Callable, context):

@@ -456,7 +456,7 @@ def main():
 			model_obj = infer_types(model_obj, warnings_info=warnings_info)
 		if args.validate:
 			logger.info("Running validator")
-			validate_behav(model_obj, warnings_info)
+			validate_behav(model_obj, warnings_info, source_validated=True)
 	except M2Error as e:
 		logger.critical("Error during model validation: %s", e)
 		sys.exit(1)

@@ -22,10 +22,11 @@ from .visitor import ValidateBehavVisitor
 
 class ValidatorContext(WarningsManager):
     """Track miscellaneous information throughout the validation process."""
-    def __init__(self, warnings_info: WarningsInfo = None, partial=False, function=None):
+    def __init__(self, warnings_info: WarningsInfo = None, partial=False, function=None, *, source_validated=False):
         super().__init__(warnings_info)
         self.partial = partial
         self.function = function
+        self.source_validated = source_validated
 
 
 def get_parser():
@@ -37,7 +38,7 @@ def get_parser():
     return parser
 
 
-def validate_behav(model_obj, warnings_info):
+def validate_behav(model_obj, warnings_info, *, source_validated=False):
     logger = logging.getLogger("validate_behav")
     errors = []
 
@@ -56,7 +57,7 @@ def validate_behav(model_obj, warnings_info):
 
     for _, core_def in model_obj.cores.items():
         logger.debug("validating behavior for core %s", core_def.name)
-        context = ValidatorContext(warnings_info)
+        context = ValidatorContext(warnings_info, source_validated=source_validated)
         visitor = ValidateBehavVisitor()
         for always_block in core_def.always_blocks.values():
             logger.debug("validating behavior for always block %s", always_block.name)
@@ -66,7 +67,7 @@ def validate_behav(model_obj, warnings_info):
             validate_body(visitor, instr_def.operation, context)
     for _, set_def in model_obj.sets.items():
         logger.debug("validating behavior for set %s", set_def.name)
-        context = ValidatorContext(warnings_info, partial=True)
+        context = ValidatorContext(warnings_info, partial=True, source_validated=source_validated)
         visitor = ValidateBehavVisitor()
         for always_block in set_def.always_blocks.values():
             logger.debug("validating behavior for always block %s", always_block.name)
@@ -83,7 +84,8 @@ def validate_behav(model_obj, warnings_info):
                 logger.debug("validating behavior for function %s", function.name)
                 visitor = ValidateBehavVisitor()
                 validate_body(visitor, function.operation,
-                              ValidatorContext(warnings_info, partial=definitions is model_obj.sets, function=function),
+                              ValidatorContext(warnings_info, partial=definitions is model_obj.sets, function=function,
+                                               source_validated=source_validated),
                               function)
     if errors:
         errors[0].related_diagnostics.extend(errors[1:])
