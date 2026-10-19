@@ -554,6 +554,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return type_info.PrimitiveType(type_info.TypeKind.VOID, None)
 
+	def visitEnum_reference(self, ctx):
+		for parameter in self._parameters.values():
+			if getattr(parameter, '_coredsl_enum_name', None) == ctx.name.text:
+				kind = type_info.TypeKind.INT if parameter.signed else type_info.TypeKind.UINT
+				return type_info.PrimitiveType(kind, parameter.size)
+		raise M2TypeError(f"Cannot lower unresolved enum type {ctx.name.text}")
+
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool type specifier. Aliases to unsigned<1>."""
 
