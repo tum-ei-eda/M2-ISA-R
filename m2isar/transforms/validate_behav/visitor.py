@@ -205,8 +205,20 @@ class ValidateBehavVisitor(ExprVisitor):
         return None
 
     @staticmethod
+    def _incompatible_option_names(expr):
+        then_type, else_type = expr.then_expr.ty, expr.else_expr.ty
+        then_name = ValidateBehavVisitor._known_type_name(then_type)
+        else_name = ValidateBehavVisitor._known_type_name(else_type)
+        integers = all(isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int
+                       for ty in (then_type, else_type))
+        if (then_name is not None and else_name is not None
+                and then_name != else_name and not integers):
+            return then_name, else_name
+        return None
+
+    @staticmethod
     def _has_invalid_type(expr):
-        """Recognize invalid target/range results without mutating execution types."""
+        """Recognize invalid results without mutating execution types."""
         invalid = ValidateBehavVisitor._has_invalid_type
         if isinstance(expr, behav.SliceOperation):
             ty = getattr(expr.expr, 'ty', None)
@@ -226,9 +238,13 @@ class ValidateBehavVisitor(ExprVisitor):
         if isinstance(expr, (behav.BinaryOperation, behav.ConcatOperation)):
             return invalid(expr.left) or invalid(expr.right)
         if isinstance(expr, behav.Ternary):
-            return invalid(expr.then_expr) or invalid(expr.else_expr)
+            return (invalid(expr.then_expr) or invalid(expr.else_expr)
+                    or ValidateBehavVisitor._incompatible_option_names(expr) is not None)
         if isinstance(expr, behav.TypeConv) and expr.size is None:
-            return invalid(expr.expr)
+            ty = expr.expr.ty
+            noninteger = (ValidateBehavVisitor._known_type_name(ty) is not None
+                          and not (isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int))
+            return invalid(expr.expr) or noninteger
         if isinstance(expr, behav.UnaryOperation) and expr.op.value in ('+', '~', '++', '--'):
             return invalid(expr.right)
         return False
@@ -399,7 +415,7 @@ class ValidateBehavVisitor(ExprVisitor):
         except M2ValidationError as error:
             errors.append(error)
         try:
-            self._validate_assignment_types(expr, context)
+            self._validate_assignment_types(expr, context, emit_width_warnings=not errors)
         except M2ValidationError as error:
             errors.append(error)
         operator = getattr(expr, 'compound_operator', None)
@@ -417,7 +433,7 @@ class ValidateBehavVisitor(ExprVisitor):
             errors[0].related_diagnostics.extend(errors[1:])
             raise errors[0]
 
-    def _validate_assignment_types(self, expr, context):
+    def _validate_assignment_types(self, expr, context, *, emit_width_warnings=True):
         value = self._assignment_value(expr)
         if self._has_invalid_type(expr.target) or self._has_invalid_type(value):
             return
@@ -436,6 +452,8 @@ class ValidateBehavVisitor(ExprVisitor):
             return
         assert isinstance(expr.target.ty, type_info.PrimitiveType)
         self._validate_scalar_conversion(expr.target.ty, value, context, expr.line_info)
+        if not emit_width_warnings:
+            return  # Preserve collected semantic errors ahead of fatal warnings.
         if arch.get_const_or_val(expr.target.ty.size) < arch.get_const_or_val(value.ty.size):
             context.emit_warning(f"Implicit truncation {value.ty.size} -> {expr.target.ty.size} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
         if arch.get_const_or_val(expr.target.ty.size) > arch.get_const_or_val(value.ty.size):
@@ -493,6 +511,14 @@ class ValidateBehavVisitor(ExprVisitor):
             self._validate_condition(expr.cond)
         except M2ValidationError as error:
             errors.append(error)
+        incompatible = self._incompatible_option_names(expr)
+        if (not self._has_invalid_type(expr.then_expr)
+                and not self._has_invalid_type(expr.else_expr)
+                and incompatible is not None):
+            then_name, else_name = incompatible
+            errors.append(M2ValidationError(
+                f'Incompatible option types: {then_name} and {else_name}',
+                'IncompatibleOptionTypes', expr.line_info))
         if errors:
             errors[0].related_diagnostics.extend(errors[1:])
             raise errors[0]
