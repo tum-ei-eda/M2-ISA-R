@@ -16,8 +16,8 @@ simplifications are done:
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
-* Type conversions of :class:`m2isar.metamodel.arch.Literal` s apply the desired
-  type directly to the :class:`Literal` and discard the type conversion
+* Type conversions remain explicit to preserve their declared types and
+  constant-expression provenance for validation.
 """
 
 from ...metamodel import arch, behav, type_info
