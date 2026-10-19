@@ -29,6 +29,12 @@ This tool serves as a general-purpose instruction set architecture metamodel. A 
 - Install M2-ISA-R for development: `pip install -e .`
 - Install PyPI release: `pip install m2isar`
 
+## Regression tests
+
+Run `python -m unittest discover -s tests -v` from the repository root.
+See [the test guide](tests/README.md) for feature-specific runs, optional MINRES
+comparisons, and adding CDSL or Python metamodel regression cases.
+
 ## Architecture
 M2-ISA-R consists of 3 components, two of which are exchangeable for different needs:
 
