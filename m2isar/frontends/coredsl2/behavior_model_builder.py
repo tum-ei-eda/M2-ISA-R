@@ -286,6 +286,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.Loop(cond, stmt, True, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
+		"""Keep initializer locals visible throughout the loop, then restore scope."""
+		outer_vars = self._vars
+		self._vars = outer_vars.copy()
+		try:
+			return self._lower_for_statement(ctx)
+		finally:
+			self._vars = outer_vars
+
+	def _lower_for_statement(self, ctx: CoreDSL2Parser.For_statementContext):
 		"""Generate a for loop. Currently hacky, untested and mostly broken."""
 
 		start_decl, start_expr, end_expr, loop_exprs = self.visit(ctx.cond)
@@ -302,6 +311,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			ret.append(start_expr)
 
 		if loop_exprs:
+			from ...metamodel.utils.control_flow import lower_for_continues
+			stmt = [lower_for_continues(child, loop_exprs) for child in stmt]
 			stmt.extend(loop_exprs)
 
 		ret.append(behav.Loop(end_expr, stmt, False, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)))
