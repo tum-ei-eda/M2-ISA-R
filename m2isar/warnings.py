@@ -31,6 +31,7 @@ KNOWN_WARNINGS = {
 
 # IdentityCast is guarded by -Dstrict=true in the reference validator.
 DEFAULT_WARNINGS = KNOWN_WARNINGS - {'identity-cast'}
+DEFAULT_ERRORS = {'implicit-trunc'}
 
 
 @dataclass
@@ -43,6 +44,8 @@ class WarningsInfo:
 	disabled: Set[str] = field(default_factory=set)
 	as_error: Set[str] = field(default_factory=set)
 	all_as_error: bool = False
+	default_as_error: Set[str] = field(default_factory=lambda: set(DEFAULT_ERRORS))
+	not_as_error: Set[str] = field(default_factory=set)
 
 	@property
 	def warnings(self):
@@ -50,7 +53,9 @@ class WarningsInfo:
 
 	@property
 	def errors(self):
-		return self.as_error if not self.all_as_error else self.warnings
+		fatal = self.warnings if self.all_as_error else (
+			getattr(self, 'default_as_error', DEFAULT_ERRORS) | self.as_error)
+		return fatal - getattr(self, 'not_as_error', set())
 
 
 class WarningFlagAction(argparse.Action):
@@ -68,12 +73,16 @@ class WarningFlagAction(argparse.Action):
 				warnings_info.enabled.update(warnings_info.known)
 				warnings_info.disabled.clear()
 			else:
+				demote = val.startswith('no-error=')
 				disable = val.startswith('no-')
 				promote = val.startswith('error=')
-				warn = val[3:] if disable else val[6:] if promote else val
+				warn = val[9:] if demote else val[3:] if disable else val[6:] if promote else val
 				if warn not in warnings_info.known:
 					raise argparse.ArgumentError(self, f"Unknown warning: {warn}")
-				if disable:
+				if demote:
+					warnings_info.not_as_error.add(warn)
+					warnings_info.as_error.discard(warn)
+				elif disable:
 					warnings_info.disabled.add(warn)
 					warnings_info.enabled.discard(warn)
 				else:
@@ -81,13 +90,15 @@ class WarningFlagAction(argparse.Action):
 					warnings_info.disabled.discard(warn)
 					if promote:
 						warnings_info.as_error.add(warn)
+						warnings_info.not_as_error.discard(warn)
 		setattr(namespace, 'warnings', warnings_info)
 
 
 def add_warnings_flags(
 	parser,
 	known_warnings: Set[str],
-	default_warnings: Set[str]
+	default_warnings: Set[str],
+	default_errors: Set[str] = None,
 ):
 	parser.add_argument(
 		'-W',
@@ -97,12 +108,15 @@ def add_warnings_flags(
 		nargs=1,
 		help=(
 			"Enable/disable warnings like -Wfoo or -Wno-foo; "
-			"Make fatal with -Werror or -Werror=foo"
+			"Make fatal with -Werror or -Werror=foo; demote with -Wno-error=foo. "
+			"Implicit truncation is fatal by default."
 		),
 	)
 
 	# Defaults
-	warnings_info = WarningsInfo(known=known_warnings, defaults=default_warnings)
+	warnings_info = WarningsInfo(
+		known=set(known_warnings), defaults=set(default_warnings),
+		default_as_error=set(DEFAULT_ERRORS & known_warnings if default_errors is None else default_errors))
 	parser.set_defaults(warnings=warnings_info)
 
 

@@ -29,6 +29,13 @@ This tool serves as a general-purpose instruction set architecture metamodel. A 
 - Install M2-ISA-R for development: `pip install -e .`
 - Install PyPI release: `pip install m2isar`
 
+## Warning severity
+
+Implicit truncation is an error by default. Use `-Wno-error=implicit-trunc` to
+retain it as a warning, or `-Wno-implicit-trunc` to suppress it. Likewise,
+`-Werror -Wno-error=foo` promotes enabled warnings except `foo`.
+A later `-Werror=foo` promotes that warning again.
+
 ## Regression tests
 
 Run `python -m unittest discover -s tests -v` from the repository root.
