@@ -106,10 +106,19 @@ class CDSLWriterVisitor(ExprVisitor):
         writer.write_line("break;")
 
     @generate.register
+    def _(self, expr: behav.Continue, writer):
+        writer.write_line("continue;")
+
+    @generate.register
     def _(self, expr: behav.Assignment, writer):
         self.generate(expr.target, writer)
-        writer.write(" = ")
-        self.generate(expr.expr, writer)
+        operator = getattr(expr, 'compound_operator', None)
+        if operator and isinstance(expr.expr, behav.BinaryOperation):
+            writer.write(" " + operator + " ")
+            self.generate(expr.expr.right, writer)
+        else:
+            writer.write(" = ")
+            self.generate(expr.expr, writer)
         # writer.write_line(";")
 
     @generate.register
@@ -134,13 +143,22 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.Loop, writer):
-        writer.write("while (")
-        self.generate(expr.cond, writer)
-        writer.write(")")
+        if expr.post_test:
+            writer.write("do")
+        else:
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write(")")
         writer.enter_block()
         for stmt in expr.stmts:
             self.generate(stmt, writer)
+            if not isinstance(stmt, (behav.Conditional, behav.Operation, behav.Loop)):
+                writer.write_line(";")
         writer.leave_block()
+        if expr.post_test:
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write_line(");")
 
     @generate.register
     def _(self, expr: behav.Ternary, writer):
@@ -160,8 +178,12 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.UnaryOperation, writer):
-        writer.write(expr.op.value)
-        self.generate_grouped(expr.right, writer)
+        if getattr(expr, 'postfix', False):
+            self.generate_grouped(expr.right, writer)
+            writer.write(expr.op.value)
+        else:
+            writer.write(expr.op.value)
+            self.generate_grouped(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
@@ -172,7 +194,11 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.IndexedReference, writer):
+        if getattr(expr, 'grouped_base', False):
+            writer.write("(")
         writer.write(expr.reference.name)
+        if getattr(expr, 'grouped_base', False):
+            writer.write(")")
         writer.write("[")
         # if isinstance(expr.reference, arch.Memory):
         #     # writer.track(expr.reference.name)
