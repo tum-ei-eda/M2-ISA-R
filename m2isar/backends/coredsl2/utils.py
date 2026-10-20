@@ -123,7 +123,7 @@ class CoreDSL2Writer:
         multi_row = n_elems > max_elems_per_row
         if multi_row:
             self.write_line("{")
-            self.enter_block()
+            self.enter_block(br=False)
             num_rows = ceil(n_elems / max_elems_per_row)
             for i in range(num_rows):
                 start = i * max_elems_per_row
@@ -133,7 +133,7 @@ class CoreDSL2Writer:
                         self.write(", ")
                     self.write(arr[j])
                 self.write_line(",")
-            self.leave_block()
+            self.leave_block(br=False)
             self.write("}")
         else:
             self.write("{")
