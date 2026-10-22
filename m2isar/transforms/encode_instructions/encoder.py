@@ -1,131 +1,86 @@
-# SPDX-License-Identifier: Apache-2.0
-#
-# This file is part of the M2-ISA-R project: https://github.com/tum-ei-eda/M2-ISA-R
-#
-# Copyright (C) 2022
-# Chair of Electrical Design Automation
-# Technical University of Munich
-
+"""Command line interface and compatibility wrapper for the encoding planner."""
 import argparse
+import json
 import logging
-import pathlib
+import os
+from pathlib import Path
 import pickle
+import tempfile
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
-from .operands import Operand
-from .instr_encodings import _reset_enc_generators, get_mm_encoding
-
-logger = logging.getLogger("set_parser")
+from ...metamodel import M2_METAMODEL_VERSION
+from .planner import (EncodingError, EncodingPolicy, apply_encoding_plan,
+                      apply_model_plan, plan_encodings, plan_model)
 
 
 def encode_instructions(instructions):
-    # print("encode_instructions")
-    ret = []
-    for instr_def in instructions:
-        print("instr_def", instr_def)
-        assert not instr_def.has_encoding
-        in_operands = {}
-        out_operands = {}
-        # print("instr_def.operands", instr_def.operands)
-        for operand_def in instr_def.operands.values():
-            # print("operand_def", operand_def)
-            # print("operand_def.name", operand_def.name)
-            # print("operand_def.size", operand_def.size)
-            # print("operand_def.signed", operand_def.signed)
-            def get_direction(operand_def):
-                ret = None
-                if arch.OperandAttribute.IN in operand_def.attributes:
-                    ret = "in"
-                elif arch.OperandAttribute.OUT in operand_def.attributes:
-                    ret = "out"
-                elif arch.OperandAttribute.INOUT in operand_def.attributes:
-                    ret = "inout"
-                if ret is None:
-                    ret = "in" if operand_def.name[:2] == "rs" else "out"
-                return ret
+    """Encode an instruction collection in place after complete validation.
 
-            direction = get_direction(operand_def)
-
-            def get_immediate(operand_def):
-                ret = False
-                if arch.OperandAttribute.IS_REG in operand_def.attributes:
-                    ret = False
-                elif arch.OperandAttribute.IS_IMM in operand_def.attributes:
-                    ret = True
-                if ret is None:
-                    ret = "imm" in operand.name
-                return ret
-
-            immediate = get_immediate(operand_def)
-
-            width = operand_def.size
-            sign = "s" if operand_def.signed else "u"
-            operand = Operand(width=width, sign=sign, immediate=immediate)
-            if direction.lower() == "in":
-                in_operands[operand_def.name] = operand
-            else:
-                out_operands[operand_def.name] = operand
-        # print("in_operands", in_operands)
-        # print("out_operands", out_operands)
-        # assert len(out_operands) == 1
-        enc = get_mm_encoding(in_operands, out_operands)
-        # print("enc", enc)
-        instr_def.encoding = enc
-        instr_def.process_encoding()
-        # print("instr_def", instr_def)
-        ret.append(instr_def)
-        # input("*")
-    return ret
+    Assignments use the new deterministic policy, not the legacy generator order.
+    Use plan_encodings directly to reserve existing patterns or preview choices.
+    """
+    instructions = list(instructions)
+    return apply_encoding_plan(instructions, plan_encodings(instructions), copy=False)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("top_level", help="A .m2isarmodel file containing the models to generate.")
-    parser.add_argument("-I", dest="includes", action="append", type=str, help="Extra include dirs.")
+def save_model(model, path):
+    """Atomically replace the output only after successful serialization."""
+    path = Path(path)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + ".", delete=False) as stream:
+            temporary = stream.name
+            pickle.dump(model, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("top_level", type=Path)
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--output", "-o", type=Path)
+    output.add_argument("--inplace", "-i", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--explain", action="store_true")
+    parser.add_argument("--report", type=Path, help="Write a JSON report / assignment manifest")
+    parser.add_argument("--assignments", type=Path, help="Pin assignments from a previous successful report")
+    parser.add_argument("--opcode", action="append", type=lambda value: int(value, 0), help="Custom major opcode (repeatable)")
+    parser.add_argument("--reserve", action="append", default=[], metavar="CODE/MASK", help="Reserve a 32-bit pattern; integers accept 0x prefixes")
     parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
-    parser.add_argument("--output", "-o", type=str, default=None)
-    parser.add_argument("--inplace", "-i", action="store_true")
-
-    args = parser.parse_args()
-
+    args = parser.parse_args(argv)
+    if not args.dry_run and not (args.output or args.inplace):
+        parser.error("choose --output, --inplace, or --dry-run")
+    # Reports must never overwrite models or input manifests.
+    protected = [args.top_level, args.output, args.assignments]
+    if args.report and any(args.report.resolve() == p.resolve() for p in protected if p):
+        parser.error("--report must differ from model and manifest paths")
+    if args.output and args.output.resolve() == args.top_level.resolve():
+        parser.error("use --inplace to overwrite the input model")
     logging.basicConfig(level=getattr(logging, args.log.upper()))
-
-    top_level = pathlib.Path(args.top_level)
-
-    with open(top_level, "rb") as f:
-        model_obj: M2Model = pickle.load(f)
-
-    if model_obj.model_version != M2_METAMODEL_VERSION:
-        logger.warning("Loaded model version mismatch")
-
-    for core_name, core_def in model_obj.cores.items():
-        _reset_enc_generators()
-        unencoded_instructions = list(core_def.unencoded_instructions.values())
-        if len(unencoded_instructions) == 0:
-            continue
-        encoded_instructions = encode_instructions(unencoded_instructions)
-        encoded_instructions_dict = {(instr_def.code, instr_def.mask) for instr_def in encoded_instructions}
-        core_def.instructions.update(encoded_instructions_dict)
-
-    for set_name, set_def in model_obj.sets.items():
-        _reset_enc_generators()
-        unencoded_instructions = list(set_def.unencoded_instructions.values())
-        if len(unencoded_instructions) == 0:
-            continue
-        encoded_instructions = encode_instructions(unencoded_instructions)
-        encoded_instructions_dict = {(instr_def.code, instr_def.mask): instr_def for instr_def in encoded_instructions}
-        set_def.instructions.update(encoded_instructions_dict)
-
-    if args.output is None:
-        assert args.inplace
-        out_path = top_level
-    else:
-        assert not args.inplace
-        out_path = pathlib.Path(args.output)
-
-    logger.info("dumping model")
-    with open(out_path, "wb") as f:
-        pickle.dump(model_obj, f)
+    try:
+        with args.top_level.open("rb") as stream:
+            model = pickle.load(stream)
+        if model.model_version != M2_METAMODEL_VERSION:
+            raise EncodingError("loaded model version mismatch")
+        manifest = json.loads(args.assignments.read_text()) if args.assignments else None
+        reservations = tuple(tuple(int(x, 0) for x in value.split("/")) for value in args.reserve)
+        if any(len(pattern) != 2 for pattern in reservations):
+            raise EncodingError("reservations require CODE/MASK")
+        policy = EncodingPolicy(tuple(args.opcode) if args.opcode else EncodingPolicy().opcodes, reservations)
+        plan = plan_model(model, policy, manifest)
+        if args.explain or args.dry_run or plan.errors:
+            print(plan.explain())
+        if args.report:
+            args.report.write_text(json.dumps(plan.to_dict(), indent=2) + "\n")
+        plan.raise_for_errors()
+        if not args.dry_run:
+            save_model(apply_model_plan(model, plan), args.top_level if args.inplace else args.output)
+    except (EncodingError, ValueError, KeyError, TypeError, OSError) as exc:
+        parser.exit(2, f"encoding failed: {exc}\n")
 
 
 if __name__ == "__main__":

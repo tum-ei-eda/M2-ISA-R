@@ -552,16 +552,16 @@ class Instruction(SizedRefOrConst):
 					assert op_decl.value is None
 					# TODO: check op_decl.attributes
 					assert descr is not None
-					assert descr.size == op_decl.size
+					assert descr.ty.size == op_decl.size
 					if op_decl.signed:
-						assert descr.data_type == DataType.S
+						assert descr.ty.kind == type_info.TypeKind.INT
 					else:
-						assert descr.data_type == DataType.U
+						assert descr.ty.kind == type_info.TypeKind.UINT
 			else:
 				assert len(self.fields) == 0, "TODO: allow manual encoding + operands"
 				for op_name, op_decl in operands.items():
 					sz = op_decl.size
-					dtype = DataType.S if op_decl.signed else DataType.U
+					dtype = type_info.TypeKind.INT if op_decl.signed else type_info.TypeKind.UINT
 					descr = BitFieldDescr(op_name, sz, dtype)
 					self.fields[op_name] = descr
 
@@ -572,12 +572,10 @@ class Instruction(SizedRefOrConst):
 		self._size = 0
 
 		for e in reversed(self.encoding):
-			print("e", e)
 			if e is None:
 				self._size = None
 				self.mask = None
 				self.code = None
-				print("break")
 				break
 			if isinstance(e, BitField):
 				self._size += e.range.length
@@ -585,7 +583,7 @@ class Instruction(SizedRefOrConst):
 				if e.name in self.fields:
 					f = self.fields[e.name]
 					if f.ty.kind != e.ty.kind:
-						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
+						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {self.name}')
 					if e.range.upper + 1 > f.ty.size:
 						f.ty.size = e.range.upper + 1
 				else:
