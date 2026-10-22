@@ -65,7 +65,7 @@ def setup():
 
     start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 
-    return (model_obj.sets, logger, output_base_path, spec_name, start_time, args)
+    return (model_obj.cores or model_obj.sets, logger, output_base_path, spec_name, start_time, args)
 
 
 def main():
@@ -93,9 +93,7 @@ def main():
             shutil.rmtree(output_path)
             output_path.mkdir(parents=True)
 
-        # generate and write files
-        # TODO: support functions
-        # write_functions(set_def, start_time, output_path, args.static_scalars, args.coverage)
+        # Generate a standalone shared-library extension.
         write_instructions(set_def, start_time, output_path)
 
 
