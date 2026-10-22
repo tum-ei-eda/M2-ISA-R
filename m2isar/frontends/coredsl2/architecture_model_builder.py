@@ -239,7 +239,16 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
 		name = ctx.name.text
 
-		i = arch.Instruction(name, attributes, operands, encoding, mnemonic, assembly, ctx.behavior, None)
+		i = arch.Instruction(
+			name=name,
+			attributes=attributes,
+			operands=operands,
+			encoding=encoding,
+			mnemonic=mnemonic,
+			assembly=assembly,
+			operation=ctx.behavior,
+			function_info=None,
+		)
 		if i.has_encoding:
 			self._instr_classes.add(i.size)
 			instr_id = (i.code, i.mask)

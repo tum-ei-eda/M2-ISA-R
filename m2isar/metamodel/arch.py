@@ -528,7 +528,7 @@ class Instruction(SizedRefOrConst):
 	code: int
 
 	def __init__(self, name, attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]", operands: "dict[str, Constant]", encoding: "list[Union[BitField, BitVal]]",
-			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"):
+			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
