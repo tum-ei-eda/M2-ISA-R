@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 from m2isar.metamodel import type_info, attribute_info
 
-from .. import M2TypeError, M2ValueError
+from .. import M2NameError, M2TypeError, M2ValueError
 from .behav import BaseNode, IndexedReference, Operation, Literal
 
 if TYPE_CHECKING:

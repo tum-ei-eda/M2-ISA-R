@@ -19,11 +19,12 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 class CoreDSL2Writer:
-    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None):
+    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None, emit_operands: bool = False):
         self.visitor = visitor
         self.reduced = reduced  # Reduced syntax for cdsl2llvm parser
         self.drop_first_op = drop_first_op
         self.allowed_attrs = allowed_attrs if allowed_attrs is not None else None
+        self._emit_operands = emit_operands
         self.defined_by_ext = defaultdict(set)
         self.text = ""
         self.indent_str = "    "
@@ -43,6 +44,10 @@ class CoreDSL2Writer:
     @property
     def needsspace(self):
         return len(self.text) != 0 and self.text[-1] not in ["\n", " "]
+
+    @property
+    def emit_operands(self):
+        return self._emit_operands
 
     def write(self, text, nl=False):
         # print("text", text, type(text))
@@ -304,7 +309,8 @@ class CoreDSL2Writer:
         self.write(instruction.name)
         self.write_attributes(instruction.attributes)
         self.enter_block()
-        self.write_operands(instruction.operands)
+        if self.emit_operands:
+            self.write_operands(instruction.operands)
         # self.write_instruction_constraints(instruction.constraints, instruction.operands)  # seal5 only
         self.write_encoding(instruction.encoding)
         self.write_assembly(instruction)
