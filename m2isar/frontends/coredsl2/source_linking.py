@@ -1,6 +1,5 @@
 """Resolve source references before semantic validation, as Xtext does."""
-from .source_validator import location
-from ...diagnostics import M2ValidationError
+from .source_validator import Diagnostics, ScopeStack, contributors, dependencies, provided, unresolved
 from .parser_gen import CoreDSL2Parser as P, CoreDSL2Visitor
 
 def reference(ctx):
@@ -9,30 +8,14 @@ def reference(ctx):
     return ctx if isinstance(ctx, P.Reference_expressionContext) else None
 
 
-class NameLinker(CoreDSL2Visitor):
+class NameLinker(CoreDSL2Visitor, ScopeStack):
     def __init__(self, tree):
         self.definitions = {ctx.name.text: ctx for ctx in tree.definitions
                             if isinstance(ctx, P.Instruction_setContext)}
         self.scopes = []
         self.missing = []
-        self.diagnostics = []
+        self.diagnostics = Diagnostics()
         self.composites = {}
-
-    def contributors(self, root):
-        result, seen = [], set()
-        def visit(ctx):
-            if ctx.name.text in seen:
-                return
-            seen.add(ctx.name.text)
-            dependencies = ([*ctx.extension, *ctx.combines]
-                            if isinstance(ctx, P.Instruction_setContext)
-                            else ctx.contributing_types)
-            for dependency in dependencies:
-                if dependency.text in self.definitions:
-                    visit(self.definitions[dependency.text])
-            result.append(ctx)
-        visit(root)
-        return result
 
     def known(self, name):
         return any(name in scope for scope in reversed(self.scopes))
@@ -52,26 +35,17 @@ class NameLinker(CoreDSL2Visitor):
 
     def visitDescription_content(self, ctx):
         for root in ctx.definitions:
-            inherited, seen = {}, set()
-            def inherit(isa):
-                if isa.name.text in seen:
-                    return
-                seen.add(isa.name.text)
+            inherited = {}
+            # The root itself is not marked as visited, so a cyclic dependency
+            # still inherits it (the cycle is reported after linking).
+            for isa in provided(self.definitions, [self.definitions[dependency.text]
+                                                   for dependency in dependencies(root)
+                                                   if dependency.text in self.definitions]):
                 for name, entity in self.entity_names(isa).items():
                     inherited.setdefault(name, entity)
-                dependencies = [*isa.extension, *isa.combines]
-                for dependency in dependencies:
-                    if dependency.text in self.definitions:
-                        inherit(self.definitions[dependency.text])
-            dependencies = ([*root.extension, *root.combines]
-                            if isinstance(root, P.Instruction_setContext)
-                            else root.contributing_types)
-            for dependency in dependencies:
-                if dependency.text in self.definitions:
-                    inherit(self.definitions[dependency.text])
             self.composites = {}
             self.types = {}
-            for isa in self.contributors(root):
+            for isa in contributors(self.definitions, root):
                 for section in isa.sections:
                     if isinstance(section, P.Section_arch_stateContext):
                         for definition in section.composite_types:
@@ -90,10 +64,8 @@ class NameLinker(CoreDSL2Visitor):
                             self.visit(child)
                         elif isinstance(child, (P.Enum_definitionContext, P.Composite_definitionContext)):
                             # Type declarations use full ISA entity scope.
-                            earlier = self.scopes
-                            self.scopes = [complete]
-                            self.visit(child)
-                            self.scopes = earlier
+                            with self.only_scopes([complete]):
+                                self.visit(child)
                         elif hasattr(child, 'accept'):
                             self.visit(child)
             self.scopes = [complete]
@@ -109,53 +81,37 @@ class NameLinker(CoreDSL2Visitor):
             self.scopes[-1][declarator.name.text] = declarator
 
     def visitBlock(self, ctx):
-        self.scopes.append({})
-        try:
+        with self.scope():
             for item in ctx.items:
                 self.visit(item)
-        finally:
-            self.scopes.pop()
 
     def visitFor_statement(self, ctx):
-        self.scopes.append({})
-        try:
+        with self.scope():
             return self.visitChildren(ctx)
-        finally:
-            self.scopes.pop()
 
     def visitFunction_definition(self, ctx):
         params = [] if ctx.params is None else ctx.params.params
-        self.scopes.append({param.decl.name.text: param.decl for param in params if param.decl is not None})
-        try:
+        with self.scope({param.decl.name.text: param.decl for param in params if param.decl is not None}):
             return self.visitChildren(ctx)
-        finally:
-            self.scopes.pop()
 
     def visitInstruction(self, ctx):
-        self.scopes.append({field.name.text: field for field in ctx.encoding if isinstance(field, P.Bit_fieldContext)})
-        try:
+        with self.scope({field.name.text: field for field in ctx.encoding if isinstance(field, P.Bit_fieldContext)}):
             return self.visitChildren(ctx)
-        finally:
-            self.scopes.pop()
 
     def visitReference_expression(self, ctx):
         if not self.known(ctx.ref.text):
             self.record(ctx, 'NamedEntity', ctx.ref.text)
 
     def visitProcedure_call(self, ctx):
-        if not self.known(ctx.ref.text):
-            self.record(ctx, 'NamedEntity', ctx.ref.text)
+        self.visitReference_expression(ctx)
         return self.visitChildren(ctx)
 
     visitMethod_call = visitProcedure_call
 
     def visitComposite_definition(self, ctx):
         for declaration in ctx.declarations:
-            self.scopes.append({})
-            try:
+            with self.scope():
                 self.visit(declaration)
-            finally:
-                self.scopes.pop()
 
     def lookup(self, name):
         for scope in reversed(self.scopes):
@@ -208,12 +164,8 @@ class NameLinker(CoreDSL2Visitor):
             first, second = ctx.args
             self.visit(first)
             type_specifier = first.type_ if first.type_ is not None else self.type_specifier(first.expr)
-            earlier = self.scopes
-            self.scopes = [self.members(type_specifier) if reference(second.expr) is not None else {}]
-            try:
+            with self.only_scopes([self.members(type_specifier) if reference(second.expr) is not None else {}]):
                 self.visit(second)
-            finally:
-                self.scopes = earlier
             return
         return self.visitChildren(ctx)
 
@@ -227,12 +179,8 @@ class NameLinker(CoreDSL2Visitor):
 
     def record(self, ctx, kind, name):
         self.missing.append(name)
-        self.diagnostics.append(M2ValidationError(
-            f"Couldn't resolve reference to {kind} '{name}'.",
-            'org.eclipse.xtext.diagnostics.Diagnostic.Linking', location(ctx)))
+        self.diagnostics.append(unresolved(ctx, kind, name))
 
     def validate(self, tree):
         self.visit(tree)
-        if self.diagnostics:
-            self.diagnostics[0].related_diagnostics.extend(self.diagnostics[1:])
-            raise self.diagnostics[0]
+        self.diagnostics.raise_if_any()

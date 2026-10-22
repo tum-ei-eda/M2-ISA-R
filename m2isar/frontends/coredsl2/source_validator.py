@@ -6,6 +6,7 @@ Remaining elaboration and provider gaps are tracked in the parity map.
 """
 
 import logging
+from contextlib import contextmanager
 
 from ...diagnostics import M2ValidationError
 from ...metamodel.code_info import LineInfoFactory
@@ -41,6 +42,117 @@ def location(ctx):
     return LineInfoFactory.make(
         ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line
     )
+
+
+def unresolved(ctx, kind, name):
+    """The release's linking diagnostic for a name that does not resolve."""
+    return M2ValidationError(
+        f"Couldn't resolve reference to {kind} '{name}'.", "org.eclipse.xtext.diagnostics.Diagnostic.Linking", location(ctx)
+    )
+
+
+class Diagnostics(list):
+    """Validation errors reported together: the first is raised, the rest are attached to it."""
+
+    def add(self, ctx, issue, message):
+        self.append(M2ValidationError(message, issue, location(ctx)))
+
+    @contextmanager
+    def collect(self):
+        """Record a validation error raised in the block instead of propagating it."""
+        try:
+            yield
+        except M2ValidationError as error:
+            self.append(error)
+
+    def raise_if_any(self):
+        if self:
+            self[0].related_diagnostics.extend(self[1:])
+            raise self[0]
+
+
+class ScopeStack:
+    """Lexical scopes in ``self.scopes``: name -> entity dicts, innermost last."""
+
+    @contextmanager
+    def scope(self, names=None):
+        self.scopes.append({} if names is None else names)
+        try:
+            yield
+        finally:
+            self.scopes.pop()
+
+    @contextmanager
+    def only_scopes(self, scopes):
+        """Replace the whole scope stack for the block."""
+        earlier, self.scopes = self.scopes, scopes
+        try:
+            yield
+        finally:
+            self.scopes = earlier
+
+
+@contextmanager
+def in_progress(active, key):
+    """Mark ``key`` active for the block; yield whether it already was (a cycle)."""
+    if key in active:
+        yield True
+        return
+    active.add(key)
+    try:
+        yield False
+    finally:
+        active.remove(key)
+
+
+def dependencies(definition):
+    """Names of the instruction sets a core or instruction set builds on."""
+    if isinstance(definition, P.Instruction_setContext):
+        return [*definition.extension, *definition.combines]
+    return definition.contributing_types
+
+
+def contributors(definitions, root):
+    """``root`` and every definition it builds on, each once, dependencies first."""
+    result, seen = [], set()
+
+    def visit(ctx):
+        if ctx.name.text in seen:
+            return
+        seen.add(ctx.name.text)
+        for dependency in dependencies(ctx):
+            if dependency.text in definitions:
+                visit(definitions[dependency.text])
+        result.append(ctx)
+
+    visit(root)
+    return result
+
+
+def provided(definitions, starts):
+    """``starts`` and the definitions they build on, each once, in lookup precedence order."""
+    result, seen = [], set()
+
+    def visit(ctx):
+        if ctx.name.text in seen:
+            return
+        seen.add(ctx.name.text)
+        result.append(ctx)
+        for dependency in dependencies(ctx):
+            if dependency.text in definitions:
+                visit(definitions[dependency.text])
+
+    for start in starts:
+        visit(start)
+    return result
+
+
+def is_const(declaration):
+    return any(q.getText() == "const" for q in declaration.qualifiers)
+
+
+def is_alias(type_specifier):
+    return type_specifier.ptr is not None and type_specifier.ptr.text == "&"
 
 
 def return_terminated(ctx):
@@ -174,7 +286,7 @@ class SourceValidator(CoreDSL2Visitor, WarningsManager):
             self.function = previous
 
     def visitParameter_declaration(self, ctx):
-        if ctx.type_.ptr is not None and ctx.type_.ptr.text == "&":
+        if is_alias(ctx.type_):
             self.error(ctx, "ReferenceParameterDeclaration", "Function parameters may not be passed by reference")
         if ctx.type_.getText() == "void":
             self.error(ctx, "VoidDeclaration", "Declarations may not use type void")
@@ -209,7 +321,7 @@ class SourceValidator(CoreDSL2Visitor, WarningsManager):
                 ctx, "MultipleStorageClassSpecifiers", "A declaration may not specify more than one storage class"
             )
         # Unqualified non-alias ISA declarations are parameters, including const.
-        alias = ctx.type_.ptr is not None and ctx.type_.ptr.text == "&"
+        alias = is_alias(ctx.type_)
         parameter = isa and bool(ctx.declarations) and not storage and not alias
         if parameter:
             if not isinstance(ctx.type_.type_, (P.Integer_typeContext, P.Bool_typeContext)):
@@ -371,32 +483,17 @@ def validate_source(tree, warnings_info, parameter_values=None):
 def _validate_source(tree, warnings_info, parameter_values=None):
     validator = SourceValidator(warnings_info)
     definitions = {ctx.name.text: ctx for ctx in tree.definitions if isinstance(ctx, P.Instruction_setContext)}
-    linking_errors = []
+    linking_errors = Diagnostics()
     for definition in tree.definitions:
-        dependencies = (
-            [*definition.extension, *definition.combines]
-            if isinstance(definition, P.Instruction_setContext)
-            else definition.contributing_types
-        )
-        for dependency in dependencies:
+        for dependency in dependencies(definition):
             if dependency.text not in definitions:
-                linking_errors.append(
-                    M2ValidationError(
-                        f"Couldn't resolve reference to InstructionSet '{dependency.text}'.",
-                        "org.eclipse.xtext.diagnostics.Diagnostic.Linking",
-                        location(definition),
-                    )
-                )
+                linking_errors.append(unresolved(definition, "InstructionSet", dependency.text))
     from .source_linking import NameLinker
 
-    try:
+    with linking_errors.collect():
         NameLinker(tree).validate(tree)
-    except M2ValidationError as error:
-        linking_errors.append(error)
-    if linking_errors:
-        linking_errors[0].related_diagnostics.extend(linking_errors[1:])
-        raise linking_errors[0]
-    cycle_errors = []
+    linking_errors.raise_if_any()
+    cycle_errors = Diagnostics()
     for root in definitions:
         stack, visited = [], set()
 
@@ -422,9 +519,7 @@ def _validate_source(tree, warnings_info, parameter_values=None):
             stack.pop()
 
         check_inheritance(root)
-    if cycle_errors:
-        cycle_errors[0].related_diagnostics.extend(cycle_errors[1:])
-        raise cycle_errors[0]
+    cycle_errors.raise_if_any()
     validator.visit(tree)
     from .source_semantics import validate_semantics
 

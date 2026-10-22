@@ -12,7 +12,9 @@ from ...diagnostics import M2ValidationError
 from .constant_expressions import constant_value, integer_literal
 from .parser_gen import CoreDSL2Parser as P, CoreDSL2Visitor
 from .source_types import UNKNOWN, VOID, BOOL, DslType, integer, array, address, enum, composite, common_integer, convertible, holds_value
-from .source_validator import SourceValidator, location, statement_expression, return_terminated
+from .source_validator import (Diagnostics, ScopeStack, SourceValidator, contributors, dependencies, in_progress,
+                               is_alias, is_const, location, provided, return_terminated, statement_expression,
+                               unresolved)
 
 logger = logging.getLogger('validate_source')
 
@@ -45,7 +47,7 @@ def reference(ctx):
     return ctx if isinstance(ctx, P.Reference_expressionContext) else None
 
 
-class SemanticValidator(CoreDSL2Visitor, WarningsManager):
+class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
     error = staticmethod(SourceValidator.error)
 
     def __init__(self, tree, warnings_info, parameter_values=None):
@@ -94,8 +96,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 symbol = self.symbols.get(node.ref.text, symbol)
             if symbol is None:
                 if required:
-                    self.error(node, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                               f"Couldn't resolve reference to NamedEntity '{node.ref.text}'.")
+                    raise unresolved(node, 'NamedEntity', node.ref.text)
                 return None  # Linking diagnostics still belong to the frontend.
             if symbol.storage not in ('param', 'enum'):
                 if required:
@@ -105,21 +106,15 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             if symbol.known_value is not None:
                 return symbol.known_value
             if symbol.storage == 'enum' and symbol.enum_predecessor is not None:
-                if symbol in self.values_in_progress:
-                    return None
-                self.values_in_progress.add(symbol)
-                try:
+                with in_progress(self.values_in_progress, symbol) as cyclic:
+                    if cyclic:
+                        return None
                     value = self.evaluate(symbol.enum_predecessor.value_expression, required)
                     return None if value is None else value + symbol.enum_offset
-                finally:
-                    self.values_in_progress.remove(symbol)
-            if symbol in self.values_in_progress or symbol.value_expression is None:
+            if symbol.value_expression is None:
                 return None
-            self.values_in_progress.add(symbol)
-            try:
-                return self.evaluate(symbol.value_expression, required)
-            finally:
-                self.values_in_progress.remove(symbol)
+            with in_progress(self.values_in_progress, symbol) as cyclic:
+                return None if cyclic else self.evaluate(symbol.value_expression, required)
         def unsupported(node):
             if isinstance(node, P.Intrinsic_expressionContext):
                 return self.intrinsic_value(node, constant=True)
@@ -162,15 +157,13 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 return self.enum_named_types[value_type.name.text]
             definition = self.enum_definitions.get(value_type.name.text)
             if definition is None:
-                self.error(ctx, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                           f"Couldn't resolve reference to EnumTypeDeclaration '{value_type.name.text}'.")
+                raise unresolved(ctx, 'EnumTypeDeclaration', value_type.name.text)
             return self.enum_type(definition)
         if isinstance(value_type, P.Composite_referenceContext):
             definition = self.composite_definitions.get((value_type.type_.getText(), value_type.name.text))
             if definition is None:
-                kind = value_type.type_.getText().capitalize()
-                self.error(ctx, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                           f"Couldn't resolve reference to {kind}TypeDeclaration '{value_type.name.text}'.")
+                raise unresolved(ctx, value_type.type_.getText().capitalize() + 'TypeDeclaration',
+                                 value_type.name.text)
             return self.composite_type(definition)
         # User types, floats and pointer forms need a dedicated type provider.
         return UNKNOWN
@@ -180,10 +173,11 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             return self.enum_type(symbol.enum_definition)
         if symbol.ty is not None:
             return symbol.ty
-        if symbol in self.types_in_progress or symbol.declaration is None:
+        if symbol.declaration is None:
             return UNKNOWN
-        self.types_in_progress.add(symbol)
-        try:
+        with in_progress(self.types_in_progress, symbol) as cyclic:
+            if cyclic:
+                return UNKNOWN
             ty = self.specified_type(symbol.declaration.type_)
             dimensions = symbol.declarator.size
             for dimension in reversed(dimensions):
@@ -198,17 +192,14 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 ty = (address if any(s.getText() == 'extern' for s in getattr(symbol.declaration, 'storage', [])) else array)(ty, size)
             symbol.ty = ty
             return ty
-        finally:
-            self.types_in_progress.remove(symbol)
 
     def enum_type(self, definition):
         identity = id(definition)
         if identity in self.enum_types:
             return self.enum_types[identity]
-        if identity in self.types_in_progress:
-            return UNKNOWN
-        self.types_in_progress.add(identity)
-        try:
+        with in_progress(self.types_in_progress, identity) as cyclic:
+            if cyclic:
+                return UNKNOWN
             base = integer(1)
             members = {}
             for symbol in self.enum_members[identity]:
@@ -228,32 +219,17 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             result = enum(base, members, identity=identity, name=definition.name.text)
             self.enum_types[identity] = result
             return result
-        finally:
-            self.types_in_progress.remove(identity)
 
     def contributors(self, root):
-        result, seen = [], set()
-        def visit(ctx):
-            if ctx.name.text in seen:
-                return
-            seen.add(ctx.name.text)
-            names = ([*ctx.extension, *ctx.combines] if isinstance(ctx, P.Instruction_setContext)
-                     else ctx.contributing_types)
-            for name in names:
-                if name.text in self.definitions:
-                    visit(self.definitions[name.text])
-            result.append(ctx)
-        visit(root)
-        return result
+        return contributors(self.definitions, root)
 
     def composite_type(self, definition):
         identity = id(definition)
         if identity in self.composite_types:
             return self.composite_types[identity]
-        if identity in self.types_in_progress:
-            return UNKNOWN
-        self.types_in_progress.add(identity)
-        try:
+        with in_progress(self.types_in_progress, identity) as cyclic:
+            if cyclic:
+                return UNKNOWN
             fields = []
             for member in self.composite_members[identity]:
                 ty = self.symbol_type(member)
@@ -263,24 +239,13 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             result = composite(definition.type_.getText(), fields, identity, definition.name.text)
             self.composite_types[identity] = result
             return result
-        finally:
-            self.types_in_progress.remove(identity)
 
     def reference_scope(self, root):
         """Resolve references in their defining ISA, independently of values."""
-        result, seen = {}, set()
-        def visit(isa):
-            if isa.name.text in seen:
-                return
-            seen.add(isa.name.text)
+        result = {}
+        for isa in provided(self.definitions, [root]):
             for name, symbol in self.owner_symbols.get(isa.name.text, {}).items():
                 result.setdefault(name, symbol)
-            dependencies = ([*isa.extension, *isa.combines] if isinstance(isa, P.Instruction_setContext)
-                            else isa.contributing_types)
-            for dependency in dependencies:
-                if dependency.text in self.definitions:
-                    visit(self.definitions[dependency.text])
-        visit(root)
         return result
 
     def build_symbols(self, contributors):
@@ -299,22 +264,22 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             owner_symbols = self.owner_symbols.setdefault(isa.name.text, {})
             for section in isa.sections:
                 if isinstance(section, P.Section_arch_stateContext):
-                    for composite in section.composite_types:
+                    for definition in section.composite_types:
                         self.composite_definitions.setdefault(
-                            (composite.type_.getText(), composite.name.text), composite)
+                            (definition.type_.getText(), definition.name.text), definition)
                         members = []
-                        for declaration in composite.declarations:
+                        for declaration in definition.declarations:
                             for member in declaration.declarations:
                                 members.append(DslSymbol(declaration, member, storage='field',
-                                                      const=any(q.getText() == 'const' for q in declaration.qualifiers)))
-                        self.composite_members[id(composite)] = members
-                    for enum in section.enum_types:
-                        self.enum_definitions.setdefault(enum.name.text, enum)
-                        self.enum_members[id(enum)] = []
+                                                         const=is_const(declaration)))
+                        self.composite_members[id(definition)] = members
+                    for definition in section.enum_types:
+                        self.enum_definitions.setdefault(definition.name.text, definition)
+                        self.enum_members[id(definition)] = []
                         predecessor = None
                         predecessor_index = 0
-                        for index, member in enumerate(enum.enumerator_list().enumerators):
-                            symbol = DslSymbol(declarator=member, storage='enum', const=True, enum_definition=enum,
+                        for index, member in enumerate(definition.enumerator_list().enumerators):
+                            symbol = DslSymbol(declarator=member, storage='enum', const=True, enum_definition=definition,
                                             value_expression=None if member.init is None else member.init.expr)
                             if symbol.value_expression is not None:
                                 predecessor, predecessor_index = symbol, index
@@ -325,16 +290,14 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                 symbol.enum_offset = index - predecessor_index
                             self.symbols[member.name.text] = symbol
                             owner_symbols[member.name.text] = symbol
-                            self.enum_members[id(enum)].append(symbol)
+                            self.enum_members[id(definition)].append(symbol)
                     for declaration in section.declarations:
                         storage = [item.getText() for item in declaration.storage]
-                        alias = declaration.type_.ptr is not None and declaration.type_.ptr.text == '&'
-                        kind = 'alias' if alias else storage[0] if storage else 'param'
+                        kind = 'alias' if is_alias(declaration.type_) else storage[0] if storage else 'param'
                         for declarator in declaration.declarations:
                             initializer = declarator.init
                             symbol = DslSymbol(
-                                declaration, declarator, storage=kind,
-                                const=any(q.getText() == 'const' for q in declaration.qualifiers),
+                                declaration, declarator, storage=kind, const=is_const(declaration),
                                 value_expression=None if initializer is None else initializer.expr)
                             self.declarations.setdefault(declarator.name.text, []).append((isa, symbol))
                             self.symbols[declarator.name.text] = symbol
@@ -369,19 +332,16 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                 symbol.value_expression = expression.right
 
     def visitDescription_content(self, ctx):
-        errors = []
+        errors = Diagnostics()
         for root in ctx.definitions:
             try:
-                self.validate_root(root, errors)
-            except M2ValidationError as error:
-                errors.append(error)
+                with errors.collect():
+                    self.validate_root(root, errors)
             finally:
                 self.scopes = []
                 self.function = None
                 self.elaborating = False
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def validate_root(self, root, errors):
         self.partial = isinstance(root, P.Instruction_setContext)
@@ -422,19 +382,15 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             for symbol in members:
                 ty = self.symbol_type(symbol)
                 if symbol.declarator.init is not None:
-                    try:
+                    with errors.collect():
                         self.validate_initializer(symbol.declarator.init, ty)
-                    except M2ValidationError as error:
-                        errors.append(error)
         for symbol in self.symbols.values():
             if symbol.function is None:
-                try:
+                with errors.collect():
                     if symbol.storage == 'alias':
                         self.validate_alias(symbol)
                     elif symbol.declarator.init is not None:
                         self.validate_initializer(symbol.declarator.init, self.symbol_type(symbol), isa=True)
-                except M2ValidationError as error:
-                    errors.append(error)
         self.elaborating = False
         root_scope = self.reference_symbols
         try:
@@ -446,10 +402,8 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                              P.Section_alwaysContext):
                     for section in isa.sections:
                         if isinstance(section, kind):
-                            try:
+                            with errors.collect():
                                 self.visit(section)
-                            except M2ValidationError as error:
-                                errors.append(error)
         finally:
             self.reference_symbols = root_scope
 
@@ -483,8 +437,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     target = reference(expression.left)
                     symbol = None if target is None else self.symbols.get(target.ref.text)
                     if target is not None and symbol is None:
-                        self.error(target, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                                   f"Couldn't resolve reference to NamedEntity '{target.ref.text}'.")
+                        raise unresolved(target, 'NamedEntity', target.ref.text)
                     # Indexed architectural state (for example CSR[addr]) is
                     # a valid state target. It is not an ISA parameter, so
                     # only apply the parameter restriction to identifier
@@ -501,18 +454,15 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         # exposed by the same ISA or its dependencies. Independent provides can
         # still contribute equal parameter declarations with a warning.
         exposed = {}
-        errors = []
+        errors = Diagnostics()
         for isa in contributors:
-            dependencies = ([*isa.extension, *isa.combines] if isinstance(isa, P.Instruction_setContext)
-                            else isa.contributing_types)
-            names = set().union(*(exposed.get(dep.text, set()) for dep in dependencies))
+            names = set().union(*(exposed.get(dep.text, set()) for dep in dependencies(isa)))
             for name, records in self.declarations.items():
                 for owner, symbol in records:
                     if owner is isa:
                         if name in names:
-                            errors.append(M2ValidationError(
-                                f'An identifier with the name {name} has already been declared',
-                                'DuplicateIsaStateElement', location(symbol.declarator)))
+                            errors.add(symbol.declarator, 'DuplicateIsaStateElement',
+                                       f'An identifier with the name {name} has already been declared')
                         names.add(name)
             exposed[isa.name.text] = names
         for name, records in self.declarations.items():
@@ -526,20 +476,15 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                                    tuple(s.getText() for s in declaration.storage),
                                    self.specified_type(declaration.type_), symbol.storage == 'alias'))
             if any(signature != signatures[0] for signature in signatures[1:]):
-                errors.append(M2ValidationError(
-                    f'ISA state element {name} has been declared multiple times with mismatching signatures',
-                    'MismatchingIsaStateElementSignatures', location(root)))
+                errors.add(root, 'MismatchingIsaStateElementSignatures',
+                           f'ISA state element {name} has been declared multiple times with mismatching signatures')
                 continue
             if records[0][1].storage == 'param':
                 self.warning(root, 'duplicate-isa-state-element',
                              f'ISA parameter {name} has been declared multiple times')
             else:
-                errors.append(M2ValidationError(
-                    f'ISA state element {name} has been declared multiple times',
-                    'DuplicateIsaStateElement', location(root)))
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+                errors.add(root, 'DuplicateIsaStateElement', f'ISA state element {name} has been declared multiple times')
+        errors.raise_if_any()
 
     def validate_parameter_results(self, root):
         if self.partial:
@@ -596,51 +541,37 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
     def validate_initializer(self, initializer, target, isa=False):
         if initializer.expr is not None:
             expression = initializer.expr
-            errors = []
+            errors = Diagnostics()
             source = self.recover_expression_type(expression, errors)
-            try:
+            with errors.collect():
                 self.check_conversion(expression, source, target, 'InvalidAssignmentType')
-            except M2ValidationError as error:
-                errors.append(error)
             if isa:
-                try:
+                with errors.collect():
                     self.evaluate(expression, True)
-                except M2ValidationError as error:
-                    errors.append(error)
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return
         if target == UNKNOWN:
             return
         if target.kind not in ('array', 'address'):
             self.error(initializer, 'InvalidListInitializer', f'Cannot use list initializer to initialize value of type {target}')
         elements = initializer.initializerList().initializer()
-        errors = []
+        errors = Diagnostics()
         if target.count is not None and target.count != len(elements):
-            errors.append(M2ValidationError(
-                'List initializer size does not match LHS size',
-                'InvalidAssignmentType', location(initializer)))
+            errors.add(initializer, 'InvalidAssignmentType', 'List initializer size does not match LHS size')
         for element in elements:
             if element.expr is None:
                 # Unsupported nested lists do not analyze their children.
-                errors.append(M2ValidationError(
-                    'Nested list initializers are unsupported',
-                    'UnsupportedLanguageFeature', location(initializer)))
+                errors.add(initializer, 'UnsupportedLanguageFeature', 'Nested list initializers are unsupported')
                 continue
-            try:
+            with errors.collect():
                 self.validate_initializer(element, target.element, isa=isa)
-            except M2ValidationError as error:
-                errors.append(error)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def validate_alias(self, symbol):
         expression = symbol.value_expression
         if expression is None:
             return  # Structural checks already diagnose missing/list initializers.
-        errors = []
+        errors = Diagnostics()
         target = self.symbol_type(symbol)
         source = self.expression_type(expression)
         if UNKNOWN not in (target, source) and source != target:
@@ -651,16 +582,11 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                         and target.count is not None and target.element.integer and source.integer):
                     allowed_range = target.count * target.element.width == source.width
             if not allowed_range:
-                errors.append(M2ValidationError(
-                    f'Alias must be initialized with exactly the same type it is declared as ({target}), but got {source}',
-                    'InvalidAssignmentType', location(symbol.declarator)))
-        try:
+                errors.add(symbol.declarator, 'InvalidAssignmentType',
+                           f'Alias must be initialized with exactly the same type it is declared as ({target}), but got {source}')
+        with errors.collect():
             self.alias_source(symbol, expression)
-        except M2ValidationError as error:
-            errors.append(error)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def alias_source(self, alias, expression):
         if isinstance(expression, P.Primary_expressionContext):
@@ -669,42 +595,32 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             source = self.lookup(expression.ref.text)
             if source is None:
                 return  # Linking still owns unresolved names.
-            errors = []
+            errors = Diagnostics()
             if source.storage not in ('alias', 'extern', 'register'):
-                errors.append(M2ValidationError(
-                    f'Cannot define an alias to {expression.ref.text} because it has storage class {source.storage}',
-                    'InvalidAliasSource', location(expression)))
+                errors.add(expression, 'InvalidAliasSource',
+                           f'Cannot define an alias to {expression.ref.text} because it has storage class {source.storage}')
             if source.const and not alias.const:
-                errors.append(M2ValidationError(
-                    f'Cannot define a non-const alias to const item {expression.ref.text}',
-                    'InvalidAliasConstness', location(expression)))
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+                errors.add(expression, 'InvalidAliasConstness',
+                           f'Cannot define a non-const alias to const item {expression.ref.text}')
+            errors.raise_if_any()
             return
         if isinstance(expression, P.Slice_expressionContext):
-            errors = []
-            try:
+            errors = Diagnostics()
+            with errors.collect():
                 self.alias_source(alias, expression.expr)
-            except M2ValidationError as error:
-                errors.append(error)
             base = self.expression_type(expression.expr)
             count = base.width if base.integer else base.count
             for index in (expression.left, expression.right):
                 if index is None:
                     continue
-                try:
+                value = None
+                with errors.collect():
                     value = self.evaluate(index, True)
-                except M2ValidationError as error:
-                    errors.append(error)
-                    continue
                 if value is not None and count is not None and (value < 0 or value >= count):
                     relation = f'{value} < 0' if value < 0 else f'{value} >= {count}'
                     # Both range endpoints can independently be outside bounds.
                     self.warning(index, 'index-out-of-range', f'Index out of range ({relation})')
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return
         self.error(expression, 'InvalidAliasSource',
                    'Alias source must be an identifier followed by any number of index or range accesses')
@@ -750,16 +666,12 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
     def function_signature(self, function):
         if function not in self.signatures:
             # A caller's local variables must not change the callee's signature.
-            scopes = self.scopes
-            self.scopes = []
-            try:
+            with self.only_scopes([]):
                 parameters = [] if function.params is None else function.params.params
                 types = [self.specified_type(param.type_) if param.decl is None else
                          self.symbol_type(DslSymbol(declaration=param, declarator=param.decl))
                          for param in parameters]
                 self.signatures[function] = self.specified_type(function.type_), types
-            finally:
-                self.scopes = scopes
         return self.signatures[function]
 
     def visitFunction_definition(self, ctx):
@@ -769,61 +681,44 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         parameters = {} if ctx.params is None else {
             param.decl.name.text: DslSymbol(ty=ty)
             for param, ty in zip(ctx.params.params, types) if param.decl is not None}
-        self.scopes.append(parameters)
         try:
-            for attribute in ctx.attributes:
-                self.visit(attribute)
-            if ctx.behavior is not None:
-                errors = []
-                try:
-                    self.visit(ctx.behavior)
-                except M2ValidationError as error:
-                    errors.append(error)
-                if ctx.type_.getText() != 'void' and not return_terminated(ctx.behavior):
-                    errors.append(M2ValidationError(
-                        'Not all execution paths return a value',
-                        'MissingReturnStatement', location(ctx)))
-                if errors:
-                    errors[0].related_diagnostics.extend(errors[1:])
-                    raise errors[0]
+            with self.scope(parameters):
+                for attribute in ctx.attributes:
+                    self.visit(attribute)
+                if ctx.behavior is not None:
+                    errors = Diagnostics()
+                    with errors.collect():
+                        self.visit(ctx.behavior)
+                    if ctx.type_.getText() != 'void' and not return_terminated(ctx.behavior):
+                        errors.add(ctx, 'MissingReturnStatement', 'Not all execution paths return a value')
+                    errors.raise_if_any()
         finally:
-            self.scopes.pop()
             self.function = previous
 
     def visitBlock(self, ctx):
-        self.scopes.append({})
-        errors = []
-        try:
+        errors = Diagnostics()
+        with self.scope():
             for item in ctx.items:
-                try:
+                with errors.collect():
                     self.visit(item)
-                except M2ValidationError as error:
-                    errors.append(error)
-        finally:
-            self.scopes.pop()
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def visitDeclaration(self, ctx):
-        errors = []
+        errors = Diagnostics()
         if ctx.type_.getText() == 'void':
-            errors.append(M2ValidationError(
-                'Declarations may not use type void', 'VoidDeclaration', location(ctx.type_)))
+            errors.add(ctx.type_, 'VoidDeclaration', 'Declarations may not use type void')
         seen = set()
         for qualifier in ctx.qualifiers:
             name = qualifier.getText()
             if name in seen:
-                errors.append(M2ValidationError(
-                    'Duplicate qualifier ' + name, 'DuplicateQualifier', location(qualifier)))
+                errors.add(qualifier, 'DuplicateQualifier', 'Duplicate qualifier ' + name)
             seen.add(name)
         if len(ctx.storage) > 1:
-            errors.append(M2ValidationError(
-                'A declaration may not specify more than one storage class',
-                'MultipleStorageClassSpecifiers', location(ctx.storage[1])))
-        alias = ctx.type_.ptr is not None and ctx.type_.ptr.text == '&'
+            errors.add(ctx.storage[1], 'MultipleStorageClassSpecifiers',
+                       'A declaration may not specify more than one storage class')
+        alias = is_alias(ctx.type_)
         for declarator in ctx.declarations:
-            symbol = DslSymbol(ctx, declarator, storage='alias' if alias else 'local', const=any(q.getText() == 'const' for q in ctx.qualifiers))
+            symbol = DslSymbol(ctx, declarator, storage='alias' if alias else 'local', const=is_const(ctx))
             try:
                 target = self.symbol_type(symbol)
                 if declarator.init is not None and not alias:
@@ -834,37 +729,25 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     symbol.ty = UNKNOWN
             if (symbol.const and declarator.init is None
                     and not any(item.getText() in ('extern', 'register') for item in ctx.storage)):
-                errors.append(M2ValidationError(
-                    'An identifier declared as const must be initialized',
-                    'UninitializedConstant', location(declarator)))
+                errors.add(declarator, 'UninitializedConstant', 'An identifier declared as const must be initialized')
             if alias:
-                errors.append(M2ValidationError(
-                    'A local variable may not be declared as alias',
-                    'AliasLocalVariable', location(declarator)))
+                errors.add(declarator, 'AliasLocalVariable', 'A local variable may not be declared as alias')
                 if declarator.init is None:
-                    errors.append(M2ValidationError(
-                        'An identifier declared as alias must be initialized',
-                        'UninitializedAlias', location(declarator)))
+                    errors.add(declarator, 'UninitializedAlias', 'An identifier declared as alias must be initialized')
                 elif declarator.init.expr is None:
-                    errors.append(M2ValidationError(
-                        'An identifier declared as alias must not use a list initializer',
-                        'InvalidListInitializer', location(declarator)))
+                    errors.add(declarator, 'InvalidListInitializer',
+                               'An identifier declared as alias must not use a list initializer')
                 else:
                     symbol.value_expression = declarator.init.expr
-                    try:
+                    with errors.collect():
                         self.validate_alias(symbol)
-                    except M2ValidationError as error:
-                        errors.append(error)
             # An invalid initializer does not erase a declaration or its type.
             # Keep binding after initializer analysis to preserve lexical lookup.
             self.scopes[-1][declarator.name.text] = symbol
         if ctx.storage:
-            errors.append(M2ValidationError(
-                'Storage class specifiers are only allowed on ISA level declarations',
-                'StorageClassSpecifierOnLocalVariable', location(ctx)))
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+            errors.add(ctx, 'StorageClassSpecifierOnLocalVariable',
+                       'Storage class specifiers are only allowed on ISA level declarations')
+        errors.raise_if_any()
 
     def visitInstruction(self, ctx):
         fields = {}
@@ -873,13 +756,10 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 highest = max(integer_literal(entry.left.getText())[0], integer_literal(entry.right.getText())[0])
                 old = fields.get(entry.name.text)
                 fields[entry.name.text] = DslSymbol(ty=integer(max(highest + 1, 0 if old is None else old.ty.width)), storage='encoding')
-        self.scopes.append(fields)
-        try:
+        with self.scope(fields):
             for attribute in ctx.attributes:
                 self.visit(attribute)
             self.visit(ctx.behavior)
-        finally:
-            self.scopes.pop()
 
     def visitAttribute(self, ctx):
         for expression in ctx.params:
@@ -925,18 +805,15 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         self.call_type(ctx)
 
     def visitReturn_statement(self, ctx):
-        errors = []
+        errors = Diagnostics()
         target = None if self.function is None else self.function_signature(self.function)[0]
         source = None if ctx.expr is None else self.recover_expression_type(ctx.expr, errors)
         if self.function is None:
-            errors.append(M2ValidationError('Return statement is only valid in a function',
-                                            'ReturnStatementOutsideFunction', location(ctx)))
+            errors.add(ctx, 'ReturnStatementOutsideFunction', 'Return statement is only valid in a function')
         elif target == VOID and ctx.expr is not None:
-            errors.append(M2ValidationError('Void functions may not return a value',
-                                            'ReturnWithValueInVoidFunction', location(ctx)))
+            errors.add(ctx, 'ReturnWithValueInVoidFunction', 'Void functions may not return a value')
         elif target != VOID and ctx.expr is None:
-            errors.append(M2ValidationError('Non-void functions must return a value',
-                                            'ReturnWithoutValueInNonVoidFunction', location(ctx)))
+            errors.add(ctx, 'ReturnWithoutValueInNonVoidFunction', 'Non-void functions must return a value')
         elif source is not None:
             source_size, target_size = self.bit_size(source), self.bit_size(target)
             # Error/incomplete types suppress conversion errors. Unlike ordinary
@@ -944,34 +821,23 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             if (source_size is not None and source_size >= 0
                     and target_size is not None and target_size >= 0
                     and not convertible(source, target)):
-                errors.append(M2ValidationError(f'Cannot convert from {source} to {target}',
-                                                'ReturnTypeNotConvertible', location(ctx)))
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+                errors.add(ctx, 'ReturnTypeNotConvertible', f'Cannot convert from {source} to {target}')
+        errors.raise_if_any()
 
     def scalar_condition(self, expression):
-        errors = []
+        errors = Diagnostics()
         ty = self.recover_expression_type(expression, errors)
         size = self.bit_size(ty)
         if size is not None and size >= 0 and not ty.scalar:
-            errors.append(M2ValidationError(
-                f'The condition must be a scalar type, but was {ty}',
-                'NonScalarCondition', location(expression)))
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+            errors.add(expression, 'NonScalarCondition', f'The condition must be a scalar type, but was {ty}')
+        errors.raise_if_any()
 
     def check_statement_parts(self, parts):
-        errors = []
+        errors = Diagnostics()
         for action, child in parts:
-            try:
+            with errors.collect():
                 action(child)
-            except M2ValidationError as error:
-                errors.append(error)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def visitIf_statement(self, ctx):
         # Else-if chains represent nested release IfStatements: visit each
@@ -990,28 +856,19 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
     visitDo_statement = visitWhile_statement
 
     def visitFor_statement(self, ctx):
-        self.scopes.append({})
-        errors = []
-        try:
+        errors = Diagnostics()
+        with self.scope():
             for child in (ctx.cond, ctx.stmt):
-                try:
+                with errors.collect():
                     self.visit(child)
-                except M2ValidationError as error:
-                    errors.append(error)
-        finally:
-            self.scopes.pop()
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def visitFor_condition(self, ctx):
-        errors = []
+        errors = Diagnostics()
 
         def check(action, *arguments):
-            try:
+            with errors.collect():
                 action(*arguments)
-            except M2ValidationError as error:
-                errors.append(error)
 
         if ctx.start_decl is not None:
             check(self.visit, ctx.start_decl)
@@ -1021,16 +878,13 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             check(self.scalar_condition, ctx.end_expr)
         for expression in ctx.loop_exprs:
             check(self.check_statement_expression, expression, expression)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     def visitSwitch_statement(self, ctx):
-        errors = []
+        errors = Diagnostics()
         ty = self.recover_expression_type(ctx.cond, errors)
         if not ty.integer:
-            errors.append(M2ValidationError('The switch condition must be an integer expression',
-                                            'SwitchConditionTypeInvalid', location(ctx)))
+            errors.add(ctx, 'SwitchConditionTypeInvalid', 'The switch condition must be an integer expression')
         seen = set()
         default_found = False
         size = self.bit_size(ty)
@@ -1040,8 +894,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             nonlocal default_found
             if label.const_expr is None:
                 if default_found:
-                    errors.append(M2ValidationError('Multiple default sections',
-                                                    'SwitchMultipleDefaultSections', location(label)))
+                    errors.add(label, 'SwitchMultipleDefaultSections', 'Multiple default sections')
                 default_found = True
             else:
                 try:
@@ -1051,36 +904,26 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     return
                 if value is not None:
                     if value in seen:
-                        errors.append(M2ValidationError(f'Multiple case sections with condition {value}',
-                                                        'SwitchDuplicateCaseSection', location(label)))
+                        errors.add(label, 'SwitchDuplicateCaseSection', f'Multiple case sections with condition {value}')
                     seen.add(value)
                     if not condition_error and not holds_value(ty, value):
-                        errors.append(M2ValidationError(
-                            f'The value {value} can not be represented by condition type {ty}',
-                            'SwitchCaseConditionOutOfRange', location(label)))
+                        errors.add(label, 'SwitchCaseConditionOutOfRange',
+                                   f'The value {value} can not be represented by condition type {ty}')
 
         # Grouped labels represent empty sections followed by a section body.
         for group in ctx.items:
             for label in group.labels:
                 check_label(label)
             for statement in group.statements:
-                try:
+                with errors.collect():
                     self.visit(statement)
-                except M2ValidationError as error:
-                    errors.append(error)
         for label in ctx.switch_label():
             check_label(label)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
 
     @staticmethod
     def bit_size(ty):
-        if ty.kind in ('struct', 'union'):
-            return ty.width
-        if ty.kind == 'enum':
-            return ty.width
-        if ty.integer:
+        if ty.kind in ('struct', 'union', 'enum') or ty.integer:
             return ty.width
         if ty == VOID:
             return 0
@@ -1150,52 +993,43 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
     def intrinsic_type(self, ctx):
         # The analyzer visits every argument, even with an invalid arity/name.
         ctx._diagnostic_result_type = UNKNOWN
-        errors, argument_types = [], []
+        errors, argument_types = Diagnostics(), []
         for argument in ctx.args:
             if argument.type_ is not None:
-                try:
+                ty = UNKNOWN
+                with errors.collect():
                     ty = self.specified_type(argument.type_)
-                except M2ValidationError as error:
-                    errors.append(error)
-                    ty = UNKNOWN
             else:
                 ty = self.recover_expression_type(argument.expr, errors)
             argument_types.append(ty)
-        try:
+        value = None
+        with errors.collect():
             value = self.intrinsic_value(
                 ctx, argument_type=argument_types[0] if len(argument_types) == 1 else None)
-        except M2ValidationError as error:
-            errors.append(error)
-            value = None
         if value is None:
             # __encoding_size in always blocks has the release's fixed type.
             result = integer(16) if ctx.ref.text == '__encoding_size' and not errors else UNKNOWN
         else:
             result = integer(max(1, value.bit_length()))
         ctx._diagnostic_result_type = result
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
         return result
 
     def cast_type(self, ctx):
         """Retain explicit target types and independent errors after child failures."""
         ctx._diagnostic_result_type = UNKNOWN
-        errors = []
+        errors = Diagnostics()
         source = self.recover_expression_type(ctx.right, errors)
         source_size = self.bit_size(source)
         source_error = source_size is None or source_size < 0
         if ctx.type_ is not None:
-            try:
+            result = UNKNOWN
+            with errors.collect():
                 result = self.specified_type(ctx.type_)
-            except M2ValidationError as error:
-                errors.append(error)
-                result = UNKNOWN
             target_size = self.bit_size(result)
             target_error = target_size is None or target_size < 0
             if not source_error and not target_error and not (source.integer and result.integer):
-                errors.append(M2ValidationError(f'Cannot cast from {source} to {result}',
-                                               'InvalidCast', location(ctx)))
+                errors.add(ctx, 'InvalidCast', f'Cannot cast from {source} to {result}')
         elif source_error:
             # Release signedness casts propagate the operand's error type.
             result = source
@@ -1203,14 +1037,11 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             result = integer(source.width, ctx.sign.getText() == 'signed')
         else:
             result = UNKNOWN
-            errors.append(M2ValidationError('Cannot apply signedness cast to non-integer value',
-                                           'InvalidCast', location(ctx)))
+            errors.add(ctx, 'InvalidCast', 'Cannot apply signedness cast to non-integer value')
         if not source_error and result == source:
             self.warning(ctx, 'identity-cast', 'Identity cast does nothing')
         ctx._diagnostic_result_type = result
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
         return result
 
     def call_type(self, ctx):
@@ -1218,8 +1049,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         name = ctx.ref.text
         symbol = self.lookup(name)
         if symbol is None:
-            self.error(ctx, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                       f"Couldn't resolve reference to NamedEntity '{name}'.")
+            raise unresolved(ctx, 'NamedEntity', name)
         if symbol.function is None:
             self.error(ctx, 'InvalidFunction', 'Expected a function name')
         function = symbol.function
@@ -1230,16 +1060,12 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         if len(parameters) != len(ctx.args):
             # Xtend's mapped argument list is lazy: size does not visit children.
             self.error(ctx, 'InvalidArgumentCount', f'Incorrect argument count. Expected {len(parameters)}, got {len(ctx.args)}')
-        errors = []
+        errors = Diagnostics()
         for argument, target in zip(ctx.args, parameter_types):
             source = self.recover_expression_type(argument, errors)
-            try:
+            with errors.collect():
                 self.check_conversion(argument, source, target, 'InvalidArgumentType')
-            except M2ValidationError as error:
-                errors.append(error)
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
         return return_type
 
     def recover_expression_type(self, expression, errors):
@@ -1271,8 +1097,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         if isinstance(ctx, P.Reference_expressionContext):
             symbol = self.lookup(ctx.ref.text)
             if symbol is None:
-                self.error(ctx, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                           f"Couldn't resolve reference to NamedEntity '{ctx.ref.text}'.")
+                raise unresolved(ctx, 'NamedEntity', ctx.ref.text)
             if symbol.function is not None:
                 self.error(ctx, 'ReferenceToFunction', 'Function used like a variable')
             return self.symbol_type(symbol)
@@ -1287,32 +1112,24 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             if base != UNKNOWN:
                 # Release member scoping fails before its analyzer reaches
                 # InvalidMemberAccessTarget for a known non-composite base.
-                self.error(ctx, 'org.eclipse.xtext.diagnostics.Diagnostic.Linking',
-                           f"Couldn't resolve reference to Declarator '{ctx.ref.text}'.")
+                raise unresolved(ctx, 'Declarator', ctx.ref.text)
             return UNKNOWN  # Composite member provider remains deferred.
         if isinstance(ctx, P.Method_callContext):
             return self.call_type(ctx)
         if isinstance(ctx, P.Assignment_expressionContext):
             ctx._diagnostic_result_type = UNKNOWN
-            errors = []
+            errors = Diagnostics()
             target = self.recover_expression_type(ctx.left, errors)
             source = self.recover_expression_type(ctx.right, errors)
-            try:
+            with errors.collect():
                 self.assignment_target(ctx.left)
-            except M2ValidationError as error:
-                errors.append(error)
-            try:
+            with errors.collect():
                 self.check_conversion(ctx.right, source, target, 'InvalidAssignmentType')
-            except M2ValidationError as error:
-                errors.append(error)
             if ctx.bop.text != '=' and not self.partial and not (source.integer and target.integer):
-                errors.append(M2ValidationError(
-                    f'Cannot combine {source} and {target} with the {ctx.bop.text[0]} operator',
-                    'InvalidOperationType', location(ctx)))
+                errors.add(ctx, 'InvalidOperationType',
+                           f'Cannot combine {source} and {target} with the {ctx.bop.text[0]} operator')
             ctx._diagnostic_result_type = target
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return target
         if isinstance(ctx, P.Cast_expressionContext):
             return self.cast_type(ctx)
@@ -1320,7 +1137,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             return self.conditional_type(ctx)
         if isinstance(ctx, P.Binary_expressionContext):
             ctx._diagnostic_result_type = UNKNOWN
-            errors = []
+            errors = Diagnostics()
             left = self.recover_expression_type(ctx.left, errors)
             right = self.recover_expression_type(ctx.right, errors)
             try:
@@ -1331,9 +1148,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 # even when their known operands have incompatible types.
                 result = BOOL if ctx.bop.text in ('&&', '||', '==', '!=', '<', '<=', '>', '>=') else UNKNOWN
             ctx._diagnostic_result_type = result
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return result
         if isinstance(ctx, P.Concat_expressionContext):
             left, right = self.expression_type(ctx.left), self.expression_type(ctx.right)
@@ -1349,21 +1164,19 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
 
     def unary_type(self, ctx, operand, op, modifying=False):
         ctx._diagnostic_result_type = UNKNOWN
-        errors = []
+        errors = Diagnostics()
         ty = self.recover_expression_type(operand, errors)
         size = self.bit_size(ty)
         known = size is not None and size >= 0
         if modifying:
-            try:
+            with errors.collect():
                 self.assignment_target(operand)
-            except M2ValidationError as error:
-                errors.append(error)
         valid = ty.scalar if op == '!' else ty.integer
         if known and not valid:
             message = ('Logical not is only valid on scalar types' if op == '!' else
                        'Increment and decrement operators are only valid on integer types'
                        if modifying else 'Unary operators are only valid on integer types')
-            errors.append(M2ValidationError(message, 'InvalidOperationType', location(ctx)))
+            errors.add(ctx, 'InvalidOperationType', message)
             result = BOOL if op == '!' else UNKNOWN
         elif op == '!':
             result = UNKNOWN if self.partial and ty == UNKNOWN and not errors else BOOL
@@ -1372,22 +1185,18 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         else:
             result = ty
         ctx._diagnostic_result_type = result
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
         return result
 
     def conditional_type(self, ctx):
         ctx._diagnostic_result_type = UNKNOWN
-        errors = []
+        errors = Diagnostics()
         condition = self.recover_expression_type(ctx.cond, errors)
         left = self.recover_expression_type(ctx.then_expr, errors)
         right = self.recover_expression_type(ctx.else_expr, errors)
         size = self.bit_size(condition)
         if size is not None and size >= 0 and not condition.scalar:
-            errors.append(M2ValidationError(
-                f'The condition must be a scalar type, but was {condition}',
-                'NonScalarCondition', location(ctx.cond)))
+            errors.add(ctx.cond, 'NonScalarCondition', f'The condition must be a scalar type, but was {condition}')
         left_size, right_size = self.bit_size(left), self.bit_size(right)
         if left_size is None or right_size is None or left_size < 0 or right_size < 0:
             result = UNKNOWN
@@ -1396,35 +1205,25 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         elif left.integer and right.integer:
             result = common_integer(left, right)
         else:
-            errors.append(M2ValidationError(
-                f'Incompatible option types: {left} and {right}',
-                'IncompatibleOptionTypes', location(ctx)))
+            errors.add(ctx, 'IncompatibleOptionTypes', f'Incompatible option types: {left} and {right}')
             result = UNKNOWN
         ctx._diagnostic_result_type = result
-        if errors:
-            errors[0].related_diagnostics.extend(errors[1:])
-            raise errors[0]
+        errors.raise_if_any()
         return result
 
     def assignment_target(self, ctx):
         if isinstance(ctx, P.Deref_expressionContext):
-            errors = []
-            try:
+            errors = Diagnostics()
+            with errors.collect():
                 self.assignment_target(ctx.expr)
-            except M2ValidationError as error:
-                errors.append(error)
             base = self.expression_type(ctx.expr)
             if base.kind in ('struct', 'union'):
                 for member in self.composite_members[base.identity]:
                     if member.declarator.name.text == ctx.ref.text:
                         if member.const:
-                            errors.append(M2ValidationError(
-                                f"Cannot assign constant field '{ctx.ref.text}'",
-                                'InvalidAssignmentTarget', location(ctx)))
+                            errors.add(ctx, 'InvalidAssignmentTarget', f"Cannot assign constant field '{ctx.ref.text}'")
                         break  # First declared member controls lookup.
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return
         if isinstance(ctx, P.Primary_expressionContext):
             return self.assignment_target(ctx.primary())
@@ -1476,16 +1275,14 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
 
     def index_type(self, ctx):
         ctx._diagnostic_result_type = UNKNOWN
-        errors = []
+        errors = Diagnostics()
 
         def report(issue, message):
-            errors.append(M2ValidationError(message, issue, location(ctx)))
+            errors.add(ctx, issue, message)
 
         def finish(result):
             ctx._diagnostic_result_type = result
-            if errors:
-                errors[0].related_diagnostics.extend(errors[1:])
-                raise errors[0]
+            errors.raise_if_any()
             return result
 
         def child_type(child):
@@ -1547,7 +1344,6 @@ def invalid_elaboration_summaries(tree, parameter_values=None):
     Unknown and indeterminate results are deliberately distinct from exceptions
     proving an invalid elaboration. Warnings are disabled during this collection.
     """
-    from ...diagnostics import M2ValidationError
     invalid_constants = {'com.minres.coredsl.' + issue for issue in (
         'DivisionByZero', 'InvalidConstantExpressionNode',
         'InvalidConstantExpressionIdentifier', 'UnsupportedLanguageFeature')}
