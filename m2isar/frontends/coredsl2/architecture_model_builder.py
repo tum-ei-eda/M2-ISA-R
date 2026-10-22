@@ -197,12 +197,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# Resolve enums before declarations that use their members as widths.
 		from types import SimpleNamespace
-		from .source_semantics import SemanticValidator, Symbol
+		from .source_semantics import SemanticValidator, DslSymbol
 		validator = SemanticValidator(SimpleNamespace(definitions=[ctx.parentCtx]), None)
 		validator.build_symbols([ctx.parentCtx])
 		for name, parameter in self._parameters.items():
 			if name not in validator.symbols:
-				validator.symbols[name] = Symbol(storage='param', known_value=parameter.value)
+				validator.symbols[name] = DslSymbol(storage='param', known_value=parameter.value, model=parameter)
 		enum_constants = []
 		for enum in ctx.enum_types:
 			ty = validator.enum_type(enum)

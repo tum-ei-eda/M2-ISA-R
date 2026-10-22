@@ -18,7 +18,13 @@ logger = logging.getLogger('validate_source')
 
 
 @dataclass(eq=False)
-class Symbol:
+class DslSymbol:
+    """Source validator view of a declared name, typed with a DslType.
+
+    Not to be confused with ``arch.Symbol``: a DslSymbol exists before and
+    alongside the model. When it is built from an existing model object
+    (``arch.Symbol`` or ``arch.Parameter``), ``model`` refers to that object.
+    """
     declaration: object = None
     declarator: object = None
     ty: DslType = None
@@ -30,6 +36,7 @@ class Symbol:
     enum_predecessor: object = None
     enum_offset: int = 0
     enum_definition: object = None
+    model: object = None
 
 
 def reference(ctx):
@@ -298,7 +305,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                         members = []
                         for declaration in composite.declarations:
                             for member in declaration.declarations:
-                                members.append(Symbol(declaration, member, storage='field',
+                                members.append(DslSymbol(declaration, member, storage='field',
                                                       const=any(q.getText() == 'const' for q in declaration.qualifiers)))
                         self.composite_members[id(composite)] = members
                     for enum in section.enum_types:
@@ -307,7 +314,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                         predecessor = None
                         predecessor_index = 0
                         for index, member in enumerate(enum.enumerator_list().enumerators):
-                            symbol = Symbol(declarator=member, storage='enum', const=True, enum_definition=enum,
+                            symbol = DslSymbol(declarator=member, storage='enum', const=True, enum_definition=enum,
                                             value_expression=None if member.init is None else member.init.expr)
                             if symbol.value_expression is not None:
                                 predecessor, predecessor_index = symbol, index
@@ -325,7 +332,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                         kind = 'alias' if alias else storage[0] if storage else 'param'
                         for declarator in declaration.declarations:
                             initializer = declarator.init
-                            symbol = Symbol(
+                            symbol = DslSymbol(
                                 declaration, declarator, storage=kind,
                                 const=any(q.getText() == 'const' for q in declaration.qualifiers),
                                 value_expression=None if initializer is None else initializer.expr)
@@ -334,7 +341,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                             owner_symbols[declarator.name.text] = symbol
                 elif isinstance(section, P.Section_functionsContext):
                     for function in section.functions:
-                        symbol = Symbol(function=function, storage='function')
+                        symbol = DslSymbol(function=function, storage='function')
                         self.symbols[function.name.text] = symbol
                         owner_symbols[function.name.text] = symbol
         self.reference_symbols = self.reference_scope(contributors[-1]) if contributors else {}
@@ -748,7 +755,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             try:
                 parameters = [] if function.params is None else function.params.params
                 types = [self.specified_type(param.type_) if param.decl is None else
-                         self.symbol_type(Symbol(declaration=param, declarator=param.decl))
+                         self.symbol_type(DslSymbol(declaration=param, declarator=param.decl))
                          for param in parameters]
                 self.signatures[function] = self.specified_type(function.type_), types
             finally:
@@ -760,7 +767,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         previous = self.function
         self.function = ctx
         parameters = {} if ctx.params is None else {
-            param.decl.name.text: Symbol(ty=ty)
+            param.decl.name.text: DslSymbol(ty=ty)
             for param, ty in zip(ctx.params.params, types) if param.decl is not None}
         self.scopes.append(parameters)
         try:
@@ -816,7 +823,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                 'MultipleStorageClassSpecifiers', location(ctx.storage[1])))
         alias = ctx.type_.ptr is not None and ctx.type_.ptr.text == '&'
         for declarator in ctx.declarations:
-            symbol = Symbol(ctx, declarator, storage='alias' if alias else 'local', const=any(q.getText() == 'const' for q in ctx.qualifiers))
+            symbol = DslSymbol(ctx, declarator, storage='alias' if alias else 'local', const=any(q.getText() == 'const' for q in ctx.qualifiers))
             try:
                 target = self.symbol_type(symbol)
                 if declarator.init is not None and not alias:
@@ -865,7 +872,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             if isinstance(entry, P.Bit_fieldContext):
                 highest = max(integer_literal(entry.left.getText())[0], integer_literal(entry.right.getText())[0])
                 old = fields.get(entry.name.text)
-                fields[entry.name.text] = Symbol(ty=integer(max(highest + 1, 0 if old is None else old.ty.width)), storage='encoding')
+                fields[entry.name.text] = DslSymbol(ty=integer(max(highest + 1, 0 if old is None else old.ty.width)), storage='encoding')
         self.scopes.append(fields)
         try:
             for attribute in ctx.attributes:

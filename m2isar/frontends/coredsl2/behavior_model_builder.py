@@ -93,12 +93,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitIntrinsic_expression(self, ctx):
 		"""Fold supported size intrinsics using the source validator's type rules."""
 		from types import SimpleNamespace
-		from .source_semantics import SemanticValidator, Symbol
+		from .source_semantics import SemanticValidator, DslSymbol
 		from .source_types import address, enum, from_meta, integer
 
 		validator = SemanticValidator(SimpleNamespace(definitions=[]), None)
 		for name, parameter in self._parameters.items():
-			validator.symbols[name] = Symbol(ty=integer(parameter.size, parameter.signed), storage='param', known_value=parameter.value)
+			validator.symbols[name] = DslSymbol(ty=integer(parameter.size, parameter.signed), storage='param',
+				known_value=parameter.value, model=parameter)
 			enum_name = getattr(parameter, '_coredsl_enum_name', None)
 			if enum_name is not None:
 				validator.enum_named_types[enum_name] = enum(integer(parameter.size, parameter.signed))
@@ -107,7 +108,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				ty = from_meta(item.ty, arch.get_const_or_val)
 				if collection is self._memories and ty.kind == 'array':
 					ty = address(ty.element, ty.count)
-				validator.symbols[name] = Symbol(ty=ty)
+				validator.symbols[name] = DslSymbol(ty=ty, model=item)
 		value = validator.intrinsic_value(ctx)
 		if value is None:
 			if ctx.ref.text == '__encoding_size':
