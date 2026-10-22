@@ -4,17 +4,49 @@ Unknown types are deferred, not treated as evidence of successful validation.
 Composite types and intrinsic size evaluation still need their own providers.
 """
 from dataclasses import dataclass
+from typing import Union
+
+from ...metamodel import type_info
+
+MetaType = Union[type_info.PrimitiveType, type_info.ArrayType, type_info.PointerType, type_info.CompositeType]
 
 
 @dataclass(frozen=True, eq=False)
 class DslType:
+    """Source validator view of a CoreDSL type, built around a metamodel type.
+
+    Every known type is backed by ``meta`` and reads its width, signedness and
+    count from it; an address is a pointer to its array and a struct/union is a
+    metamodel composite type. Enums are a frontend-only concept: their ``meta``
+    is the base integer type and their members live in ``members``.
+    Sizes inside ``meta`` are always resolved ints. Only unknown types have no
+    metamodel equivalent.
+    """
     kind: str
-    width: int = None
-    signed: bool = False
-    element: 'DslType' = None
-    count: int = None
+    meta: MetaType = None
+    element: 'DslType' = None  # array/address element or enum base type
     identity: int = None
     name: str = None
+    members: dict = None  # enum member name -> value, in declaration order
+
+    @property
+    def width(self):
+        if self.kind in ('integer', 'enum', 'struct', 'union'):
+            # An enum over an unresolved base has no metamodel type.
+            return None if self.meta is None else self.meta.size
+        return None
+
+    @property
+    def signed(self):
+        return self.kind == 'integer' and self.meta.kind == type_info.TypeKind.INT
+
+    @property
+    def count(self):
+        if self.kind == 'array':
+            return self.meta.length
+        if self.kind == 'address':
+            return self.meta.ty.length
+        return None
 
     def equality_key(self):
         # MINRES EnumType inherits CoreDslType's generated equality, which
@@ -54,12 +86,54 @@ class DslType:
 
 
 UNKNOWN = DslType('unknown')
-VOID = DslType('void')
-BOOL = DslType('integer', 1)
+VOID = DslType('void', type_info.PrimitiveType(type_info.TypeKind.VOID, 0))
 
 
 def integer(width, signed=False):
-    return UNKNOWN if width is None else DslType('integer', width, signed)
+    if width is None:
+        return UNKNOWN
+    return DslType('integer', type_info.PrimitiveType(type_info.TypeKind.INT if signed else type_info.TypeKind.UINT, width))
+
+
+BOOL = integer(1)
+
+
+def array(element, count):
+    # An unknown element has no metamodel type and leaves element_type empty;
+    # the DslType element stays authoritative.
+    return DslType('array', type_info.ArrayType(element.meta, count), element=element)
+
+
+def address(element, count):
+    return DslType('address', type_info.PointerType(type_info.ArrayType(element.meta, count)), element=element)
+
+
+def enum(base, members=None, identity=None, name=None):
+    """Build an enum over integer ``base`` from a member name -> value mapping."""
+    return DslType('enum', base.meta, element=base, identity=identity, name=name, members=dict(members or {}))
+
+
+def composite(kind, fields, identity, name):
+    """Build a struct/union from (name, DslType, bit size) members in declaration order."""
+    meta_class = type_info.StructType if kind == 'struct' else type_info.UnionType
+    meta = meta_class(name, [(field_name, ty.meta, size) for field_name, ty, size in fields])
+    return DslType(kind, meta, identity=identity, name=name)
+
+
+def from_meta(ty, resolve=lambda value: value):
+    """Wrap a metamodel type, using ``resolve`` to turn parameter or expression sizes into ints."""
+    if isinstance(ty, type_info.PrimitiveType):
+        if ty.kind == type_info.TypeKind.VOID:
+            return VOID
+        if not ty.kind.is_int:
+            return UNKNOWN
+        width = resolve(ty.size)
+        if width is None:
+            return UNKNOWN
+        return DslType('integer', ty if isinstance(ty.size, int) else type_info.PrimitiveType(ty.kind, width))
+    if isinstance(ty, type_info.ArrayType):
+        return array(from_meta(ty.element_type, resolve), resolve(ty.length))
+    return UNKNOWN
 
 
 def common_integer(left, right):

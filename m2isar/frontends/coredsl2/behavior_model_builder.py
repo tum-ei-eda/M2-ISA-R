@@ -94,29 +94,19 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		"""Fold supported size intrinsics using the source validator's type rules."""
 		from types import SimpleNamespace
 		from .source_semantics import SemanticValidator, Symbol
-		from .source_types import UNKNOWN, VOID, DslType, integer
-
-		def source_type(ty):
-			if isinstance(ty, type_info.PrimitiveType):
-				if ty.kind == type_info.TypeKind.VOID:
-					return VOID
-				return integer(arch.get_const_or_val(ty.size), ty.kind == type_info.TypeKind.INT) if ty.kind.is_int else UNKNOWN
-			if isinstance(ty, type_info.ArrayType):
-				return DslType('array', element=source_type(ty.element_type), count=arch.get_const_or_val(ty.length))
-			return UNKNOWN
+		from .source_types import address, enum, from_meta, integer
 
 		validator = SemanticValidator(SimpleNamespace(definitions=[]), None)
 		for name, parameter in self._parameters.items():
 			validator.symbols[name] = Symbol(ty=integer(parameter.size, parameter.signed), storage='param', known_value=parameter.value)
 			enum_name = getattr(parameter, '_coredsl_enum_name', None)
 			if enum_name is not None:
-				base = integer(parameter.size, parameter.signed)
-				validator.enum_named_types[enum_name] = DslType('enum', width=base.width, element=base)
+				validator.enum_named_types[enum_name] = enum(integer(parameter.size, parameter.signed))
 		for collection in (self._memories, self._memory_aliases, self._register_banks, self._register_aliases, self._fields, self._vars):
 			for name, item in collection.items():
-				ty = source_type(item.ty)
+				ty = from_meta(item.ty, arch.get_const_or_val)
 				if collection is self._memories and ty.kind == 'array':
-					ty = DslType('address', element=ty.element, count=ty.count)
+					ty = address(ty.element, ty.count)
 				validator.symbols[name] = Symbol(ty=ty)
 		value = validator.intrinsic_value(ctx)
 		if value is None:

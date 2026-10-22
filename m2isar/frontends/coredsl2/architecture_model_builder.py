@@ -208,18 +208,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			ty = validator.enum_type(enum)
 			if ty.kind != 'enum':
 				raise M2TypeError(f"Cannot lower unresolved enum {enum.name.text}")
-			for symbol in validator.enum_members[id(enum)]:
-				value = symbol.known_value
-				if value is None:
-					if symbol.enum_predecessor is not None:
-						value = validator.evaluate(symbol.enum_predecessor.value_expression, True)
-						if value is not None:
-							value += symbol.enum_offset
-					else:
-						value = validator.evaluate(symbol.value_expression, True)
-				if value is None:
-					raise M2TypeError(f"Cannot lower unresolved enum member {symbol.declarator.name.text}")
-				parameter = arch.Parameter(symbol.declarator.name.text, value, {}, ty.width, ty.element.signed)
+			for name, value in ty.members.items():
+				parameter = arch.Parameter(name, value, {}, ty.width, ty.element.signed)
 				parameter._coredsl_enum_name = enum.name.text
 				self._parameters[parameter.name] = parameter
 				enum_constants.append(parameter)

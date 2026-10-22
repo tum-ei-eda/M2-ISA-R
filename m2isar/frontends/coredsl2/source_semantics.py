@@ -11,7 +11,7 @@ from ...warnings import WarningsManager
 from ...diagnostics import M2ValidationError
 from .constant_expressions import constant_value, integer_literal
 from .parser_gen import CoreDSL2Parser as P, CoreDSL2Visitor
-from .source_types import UNKNOWN, VOID, BOOL, DslType, integer, common_integer, convertible, holds_value
+from .source_types import UNKNOWN, VOID, BOOL, DslType, integer, array, address, enum, composite, common_integer, convertible, holds_value
 from .source_validator import SourceValidator, location, statement_expression, return_terminated
 
 logger = logging.getLogger('validate_source')
@@ -188,8 +188,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     self.warning(dimension, 'array-size-zero', 'Array size is zero')
                 if literal is None and size is not None and size > 2147483647 and symbol.storage != 'extern':
                     self.warning(dimension, 'invalid-array-size', 'Array size is greater than Integer.MAX_VALUE')
-                ty = DslType('address' if any(s.getText() == 'extern' for s in getattr(symbol.declaration, 'storage', [])) else 'array',
-                             element=ty, count=size)
+                ty = (address if any(s.getText() == 'extern' for s in getattr(symbol.declaration, 'storage', [])) else array)(ty, size)
             symbol.ty = ty
             return ty
         finally:
@@ -204,6 +203,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
         self.types_in_progress.add(identity)
         try:
             base = integer(1)
+            members = {}
             for symbol in self.enum_members[identity]:
                 if symbol.known_value is not None:
                     value = symbol.known_value
@@ -215,9 +215,10 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
                     value = self.evaluate(symbol.value_expression, True)
                 if value is None:
                     return UNKNOWN
+                members[symbol.declarator.name.text] = value
                 smallest = integer(max(1, (~value).bit_length() + 1 if value < 0 else value.bit_length()), value < 0)
                 base = common_integer(base, smallest)
-            result = DslType('enum', width=base.width, element=base, identity=identity, name=definition.name.text)
+            result = enum(base, members, identity=identity, name=definition.name.text)
             self.enum_types[identity] = result
             return result
         finally:
@@ -246,12 +247,13 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager):
             return UNKNOWN
         self.types_in_progress.add(identity)
         try:
-            sizes = [self.bit_size(self.symbol_type(member)) for member in self.composite_members[identity]]
-            if any(size is None for size in sizes):
+            fields = []
+            for member in self.composite_members[identity]:
+                ty = self.symbol_type(member)
+                fields.append((member.declarator.name.text, ty, self.bit_size(ty)))
+            if any(size is None for _, _, size in fields):
                 return UNKNOWN
-            kind = definition.type_.getText()
-            width = sum(sizes) if kind == 'struct' else max(sizes, default=0)
-            result = DslType(kind, width=width, identity=identity, name=definition.name.text)
+            result = composite(definition.type_.getText(), fields, identity, definition.name.text)
             self.composite_types[identity] = result
             return result
         finally:
