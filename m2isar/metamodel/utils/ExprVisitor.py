@@ -116,6 +116,10 @@ class ExprVisitor(ABC):
         pass
 
     @default_visit.register
+    def visit_continue(self, expr: behav.Continue, context):
+        pass
+
+    @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
         pass
 

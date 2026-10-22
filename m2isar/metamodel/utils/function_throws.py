@@ -81,6 +81,10 @@ class FunctionThrowsVisitor(ExprVisitor):
 		return attribute_info.FunctionThrows.NO
 
 	@generate.register
+	def _(self, expr: behav.Continue, context):
+		return attribute_info.FunctionThrows.NO
+
+	@generate.register
 	def _(self, expr: behav.Assignment, context):
 		target = self.generate(expr.target, context)
 		expr_result = self.generate(expr.expr, context)

@@ -87,6 +87,10 @@ class VarAccessVisitor(ExprVisitor):
 		return attribute_info.AccessAttribute.READ
 
 	@generate.register
+	def _(self, expr: behav.Continue, context):
+		return attribute_info.AccessAttribute.READ
+
+	@generate.register
 	def _(self, expr: behav.Assignment, context: attribute_info.AccessContext):
 		self.generate(expr.target, context)
 
@@ -136,7 +140,17 @@ class VarAccessVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context: attribute_info.AccessContext):
 		right = self.generate(expr.right, context)
-
+		if expr.op.value in ('++', '--'):
+			target = expr.right
+			while isinstance(target, (behav.Group, behav.SliceOperation)):
+				target = target.expr
+			reference = getattr(target, 'reference', None)
+			if isinstance(reference, arch.Variable):
+				static = attribute_info.AccessAttribute.RW if (
+					context.access_is_static != attribute_info.AccessAttribute.NONE
+					and right != attribute_info.AccessAttribute.NONE) else attribute_info.AccessAttribute.NONE
+				reference.attributes['static'] &= static
+				return reference.attributes['static']
 		return right
 
 	@generate.register

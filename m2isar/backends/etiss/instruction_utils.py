@@ -67,6 +67,7 @@ class CodeString:
 		self.size = size
 		self.signed = signed
 		self.mem_ids = []
+		self.memory_target = None
 		self.regs_affected = regs_affected if isinstance(regs_affected, set) else set()
 		self.is_literal = False
 		self.function_calls = []
@@ -97,7 +98,7 @@ class CodeString:
 	@property
 	def read_mem_ids(self):
 		for m in self.mem_ids:
-			if not m.write:
+			if not m.write or getattr(m, "read_before_write", False):
 				yield m
 
 	def __str__(self):
@@ -114,6 +115,13 @@ class MemID:
 	index: CodeString
 	access_size: int
 	write: bool = None
+	read_before_write: bool = False
+
+@dataclass
+class ExpressionEvaluation:
+	"""Ordered statements that compute a value at its expression evaluation point."""
+	sequence: "list[CodeString]"
+	write: bool = False
 
 @dataclass
 class FnID:
