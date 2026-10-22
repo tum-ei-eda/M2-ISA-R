@@ -74,6 +74,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#auto_field.
+    def visitAuto_field(self, ctx:CoreDSL2Parser.Auto_fieldContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#function_definition.
     def visitFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
         return self.visitChildren(ctx)
@@ -436,6 +441,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#struct_or_union.
     def visitStruct_or_union(self, ctx:CoreDSL2Parser.Struct_or_unionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#operand_declaration.
+    def visitOperand_declaration(self, ctx:CoreDSL2Parser.Operand_declarationContext):
         return self.visitChildren(ctx)
 
 
