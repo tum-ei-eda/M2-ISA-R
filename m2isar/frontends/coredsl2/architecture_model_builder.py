@@ -228,7 +228,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
-		operands = [self.visit(obj) for obj in ctx.operands]
+		operands = {}
+		for obj in ctx.operands:
+			operand = self.visit(obj)
+			if operand.name in operands:
+				raise M2DuplicateError(f"operand {operand.name} already defined for instruction {ctx.name.text}")
+			operands[operand.name] = operand
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
@@ -254,6 +259,24 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instructions.append(i)
 
 		return i
+
+	def visitOperand_declaration(self, ctx: CoreDSL2Parser.Operand_declarationContext):
+		"""Generate an explicitly declared instruction operand."""
+		type_ = self.visit(ctx.type_)
+		decl = ctx.decl
+		if not isinstance(type_, type_info.PrimitiveType) or not type_.kind.is_int:
+			raise M2TypeError(f"operand {decl.name.text} must have an integer type")
+		if decl.size or decl.init is not None:
+			raise M2TypeError(f"operand {decl.name.text} cannot be an array or have an initializer")
+
+		attributes = dict([self.visit(obj) for obj in decl.attributes])
+		return arch.Parameter(
+			decl.name.text,
+			None,
+			attributes,
+			type_.size,
+			type_.kind == type_info.TypeKind.INT,
+		)
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
 		"""Generate non-behavioral parts of a function."""
@@ -653,7 +676,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
 			attribute_info.FunctionAttribute._member_map_.get(name.upper()) \
 			or attribute_info.RegisterAttribute._member_map_.get(name.upper()) \
-			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper())
+			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper()) \
+			or attribute_info.OperandAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

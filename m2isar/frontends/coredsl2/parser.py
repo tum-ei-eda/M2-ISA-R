@@ -24,6 +24,7 @@ from .load_order import LoadOrder
 from .utils import make_parser
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
+from ...transforms.infer_operands import infer_operands
 from ...transforms.validate_behav.validate import validate_behav
 from ...warnings import add_warnings_flags, KNOWN_WARNINGS
 
@@ -324,6 +325,7 @@ def main():
 
 			#op.statements.insert(0, pc_inc)
 			instr_def.operation = op
+			infer_operands(instr_def)
 			if instr_def.has_encoding:
 				instr_id = (instr_def.code, instr_def.mask)
 				# check for duplicate instructions

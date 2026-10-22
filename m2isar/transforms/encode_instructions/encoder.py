@@ -11,7 +11,7 @@ import logging
 import pathlib
 import pickle
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, attribute_info
 from .operands import Operand
 from .instr_encodings import _reset_enc_generators, get_mm_encoding
 
@@ -33,37 +33,33 @@ def encode_instructions(instructions):
             # print("operand_def.size", operand_def.size)
             # print("operand_def.signed", operand_def.signed)
             def get_direction(operand_def):
-                ret = None
-                if arch.OperandAttribute.IN in operand_def.attributes:
-                    ret = "in"
-                elif arch.OperandAttribute.OUT in operand_def.attributes:
-                    ret = "out"
-                elif arch.OperandAttribute.INOUT in operand_def.attributes:
-                    ret = "inout"
-                if ret is None:
-                    ret = "in" if operand_def.name[:2] == "rs" else "out"
-                return ret
+                attrs = operand_def.attributes
+                if attribute_info.OperandAttribute.INOUT in attrs:
+                    return "inout"
+                if attribute_info.OperandAttribute.IN in attrs:
+                    return "in"
+                if attribute_info.OperandAttribute.OUT in attrs:
+                    return "out"
+                return "in" if operand_def.name[:2] == "rs" else "out"
 
             direction = get_direction(operand_def)
 
             def get_immediate(operand_def):
-                ret = False
-                if arch.OperandAttribute.IS_REG in operand_def.attributes:
-                    ret = False
-                elif arch.OperandAttribute.IS_IMM in operand_def.attributes:
-                    ret = True
-                if ret is None:
-                    ret = "imm" in operand.name
-                return ret
+                attrs = operand_def.attributes
+                if attribute_info.OperandAttribute.IS_REG in attrs:
+                    return False
+                if attribute_info.OperandAttribute.IS_IMM in attrs:
+                    return True
+                return "imm" in operand_def.name.lower()
 
             immediate = get_immediate(operand_def)
 
             width = operand_def.size
             sign = "s" if operand_def.signed else "u"
             operand = Operand(width=width, sign=sign, immediate=immediate)
-            if direction.lower() == "in":
+            if direction in ("in", "inout"):
                 in_operands[operand_def.name] = operand
-            else:
+            if direction in ("out", "inout"):
                 out_operands[operand_def.name] = operand
         # print("in_operands", in_operands)
         # print("out_operands", out_operands)

@@ -476,6 +476,7 @@ class BitField(Symbol):
 
 	def __init__(self, name, _range: RangeSpec, kind: type_info.TypeKind):
 		self.range = _range
+		self.kind = kind
 		if not kind:
 			self.ty = type_info.BitFieldType(type_info.TypeKind.UINT)
 
@@ -531,6 +532,10 @@ class Instruction(SizedRefOrConst):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
+		if operands is None:
+			operands = {}
+		elif not isinstance(operands, dict):
+			operands = {operand.name: operand for operand in operands}
 		self.operands = operands
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
@@ -544,26 +549,20 @@ class Instruction(SizedRefOrConst):
 		super().__init__(name, 0)
 		self.process_encoding()
 
-		if operands:
-			if self.has_encoding:
-				assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
-				for op_name, op_decl in operands.items():
-					descr = self.fields.get(op_name, None)
-					assert op_decl.value is None
-					# TODO: check op_decl.attributes
-					assert descr is not None
-					assert descr.size == op_decl.size
-					if op_decl.signed:
-						assert descr.data_type == DataType.S
-					else:
-						assert descr.data_type == DataType.U
-			else:
-				assert len(self.fields) == 0, "TODO: allow manual encoding + operands"
-				for op_name, op_decl in operands.items():
-					sz = op_decl.size
-					dtype = DataType.S if op_decl.signed else DataType.U
-					descr = BitFieldDescr(op_name, sz, dtype)
-					self.fields[op_name] = descr
+		for op_name, op_decl in self.operands.items():
+			if op_decl.value is not None:
+				raise M2ValueError(f"instruction operand {op_name} cannot have a value")
+			descr = self.fields.get(op_name)
+			if descr is None:
+				if self.has_encoding:
+					raise M2NameError(f"operand {op_name} is not present in the encoding of instruction {name}")
+				descr = BitFieldDescr(op_name, op_decl.size, type_info.TypeKind.UINT)
+				self.fields[op_name] = descr
+			elif descr.ty.size != op_decl.size:
+				raise M2TypeError(
+					f"operand {op_name} has width {op_decl.size}, but its encoding has width {descr.ty.size}"
+				)
+			descr.ty.kind = type_info.TypeKind.INT if op_decl.signed else type_info.TypeKind.UINT
 
 	def process_encoding(self):
 
@@ -585,7 +584,7 @@ class Instruction(SizedRefOrConst):
 				if e.name in self.fields:
 					f = self.fields[e.name]
 					if f.ty.kind != e.ty.kind:
-						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
+						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {self.name}')
 					if e.range.upper + 1 > f.ty.size:
 						f.ty.size = e.range.upper + 1
 				else:

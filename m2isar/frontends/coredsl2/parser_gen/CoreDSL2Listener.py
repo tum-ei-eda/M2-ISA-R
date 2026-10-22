@@ -791,5 +791,14 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#operand_declaration.
+    def enterOperand_declaration(self, ctx:CoreDSL2Parser.Operand_declarationContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#operand_declaration.
+    def exitOperand_declaration(self, ctx:CoreDSL2Parser.Operand_declarationContext):
+        pass
+
+
 
 del CoreDSL2Parser

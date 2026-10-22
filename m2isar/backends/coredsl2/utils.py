@@ -229,25 +229,24 @@ class CoreDSL2Writer:
     #     self.write_constraints(constraints)
     #     self.leave_block()
 
-    # def write_operand(self, operand):
-    #     self.write_type(operand.ty)
-    #     self.write(" ")
-    #     self.write(operand.name)
-    #     self.write_attributes(operand.attributes)
-    #     self.write_line(";")
+    def write_operand(self, operand):
+        self.write("signed" if operand.signed else "unsigned")
+        if operand.size is not None:
+            self.write(f"<{operand.size}>")
+        self.write(" ")
+        self.write(operand.name)
+        self.write_attributes(operand.attributes)
+        self.write_line(";")
 
-    # def write_operands(self, operands):
-    #     self.write("operands: ")
-    #     if len(operands) == 0:
-    #         self.write_line("{}")
-    #         return
-    #     self.enter_block()
-    #     # print("operands", operands)
-    #     for _, op in enumerate(operands.values()):
-    #         self.write_operand(op)
-    #     # for i, op in enumerate(operands.values()):
-    #     #     self.write_constraints(op.constraints)
-    #     self.leave_block()
+    def write_operands(self, operands):
+        self.write("operands: ")
+        if not operands:
+            self.write_line("{}")
+            return
+        self.enter_block()
+        for operand in operands.values():
+            self.write_operand(operand)
+        self.leave_block()
 
     def write_encoding(self, encoding):
         self.write("encoding: ")
@@ -305,7 +304,7 @@ class CoreDSL2Writer:
         self.write(instruction.name)
         self.write_attributes(instruction.attributes)
         self.enter_block()
-        # self.write_operands(instruction.operands)  # seal5 only
+        self.write_operands(instruction.operands)
         # self.write_instruction_constraints(instruction.constraints, instruction.operands)  # seal5 only
         self.write_encoding(instruction.encoding)
         self.write_assembly(instruction)
