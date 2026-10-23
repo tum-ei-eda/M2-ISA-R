@@ -228,7 +228,21 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
-		operands = [self.visit(obj) for obj in ctx.operands]
+		# Operand declarations are local to this instruction; do not add them
+		# to the architectural parameter table.
+		operands = {}
+		for declaration in ctx.operands:
+			ty = self.visit(declaration.type_)
+			if declaration.storage or not isinstance(ty, type_info.PrimitiveType):
+				raise M2TypeError("operands must be integer parameters")
+			for decl in declaration.declarations:
+				if decl.size or decl.init is not None:
+					raise M2TypeError("operand arrays and initializers are unsupported")
+				name = decl.name.text
+				if name in operands:
+					raise M2DuplicateError(f"operand {name} already defined")
+				attrs = dict(self.visit(attr) for attr in [*declaration.attributes, *decl.attributes])
+				operands[name] = arch.Parameter(name, None, attrs, ty.size, ty.kind == type_info.TypeKind.INT)
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
@@ -653,7 +667,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
 			attribute_info.FunctionAttribute._member_map_.get(name.upper()) \
 			or attribute_info.RegisterAttribute._member_map_.get(name.upper()) \
-			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper())
+			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper()) \
+			or attribute_info.OperandAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

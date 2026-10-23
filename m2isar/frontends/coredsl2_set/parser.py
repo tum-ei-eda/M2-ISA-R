@@ -45,7 +45,7 @@ def parse_define(value):
 	return name, parsed_value
 
 
-def main():
+def _argument_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
@@ -66,7 +66,10 @@ def main():
 	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
-	args = parser.parse_args()
+	return parser
+
+
+def _parse_model(args):
 	defines = dict(args.defines)
 	allow_undefined_const = args.allow_undefined_const
 
@@ -97,12 +100,6 @@ def main():
 	except M2Error as e:
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
-
-	if args.output is None:
-		model_path = abs_top_level.parent.joinpath('gen_model')
-	else:
-		model_path = pathlib.Path(args.output)
-	model_path.mkdir(exist_ok=True)
 
 	temp_save = {}
 
@@ -475,8 +472,30 @@ def main():
 		logger.info("Running validator")
 		validate_behav(model_obj, warnings_info)
 
-	logger.info("dumping model")
-	with open(model_path / (abs_top_level.stem + ".m2isarmodel"), "wb") as f:
+	return model_obj
+
+
+def parse_cdsl2_set(top_level, extra_includes=None):
+	"""Parse instruction sets with the typed frontend, without writing a pickle.
+
+	Undefined architectural constants are retained for the caller to resolve,
+	as in the future-paper frontend used by ISAAC Toolkit.
+	"""
+	argv = [str(top_level), "--allow-undefined-const"]
+	for include in extra_includes or ():
+		argv.extend(["-I", str(include)])
+	args = _argument_parser().parse_args(argv)
+	return _parse_model(args).sets
+
+
+def main(argv=None):
+	args = _argument_parser().parse_args(argv)
+	model_obj = _parse_model(args)
+	top_level = pathlib.Path(args.top_level).resolve()
+	model_path = pathlib.Path(args.output) if args.output is not None else top_level.parent / "gen_model"
+	model_path.mkdir(exist_ok=True)
+	logging.getLogger("parser").info("dumping model")
+	with open(model_path / (top_level.stem + ".m2isarmodel"), "wb") as f:
 		pickle.dump(model_obj, f)
 
 
