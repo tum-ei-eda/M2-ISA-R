@@ -311,6 +311,8 @@ def apply_model_plan(model, plan):
                 container.instructions[(instruction.code, instruction.mask)] = instruction
             else:
                 container.instructions.append(instruction)
+        if hasattr(container, "instr_classes"):
+            container.instr_classes.update(instruction.size for instruction in container.unencoded_instructions.values())
         container.unencoded_instructions.clear()
         if hasattr(container, "_instructions_by_ext"):
             container._instructions_by_ext = None

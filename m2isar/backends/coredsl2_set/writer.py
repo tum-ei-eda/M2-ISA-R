@@ -38,7 +38,7 @@ class CoreDSL2Writer(TypedCoreDSL2Writer):
         self.write(instruction.name)
         self.write_attributes(instruction.attributes)
         self.enter_block()
-        if not instruction.has_encoding and instruction.operands:
+        if instruction.operands and (not instruction.has_encoding or not self.legacy):
             self.write("operands:")
             self.enter_block()
             for operand in instruction.operands.values():
@@ -53,14 +53,54 @@ class CoreDSL2Writer(TypedCoreDSL2Writer):
         self.write_behavior(instruction)
         self.leave_block()
 
+    def write_parameter(self, parameter):
+        self.write_type(type_info.PrimitiveType(
+            type_info.TypeKind.INT if parameter.signed else type_info.TypeKind.UINT, parameter.size))
+        self.write(" " + parameter.name)
+        self.write_attributes(parameter.attributes)
+        if parameter.value is not None:
+            self.write(" = " + str(parameter.value))
+        self.write_line(";")
+
+    def write_always_blocks(self, blocks):
+        if not blocks:
+            return
+        self.write("always")
+        self.enter_block()
+        for block in blocks.values():
+            self.write(block.name)
+            self.write_attributes(block.attributes)
+            self.enter_block()
+            self.visitor.generate(block.operation, self)
+            self.leave_block()
+        self.leave_block()
+
     def write_set(self, set_def):
-        # The upstream writer emits the encoded collection. Include unencoded
-        # instructions as well so an export cannot silently drop custom ISAXes.
-        set_def = copy.copy(set_def)
-        set_def.instructions = dict(set_def.instructions)
-        set_def.instructions.update(set_def.unencoded_instructions)
-        super().write_set(set_def)
+        self.write("InstructionSet " + set_def.name)
+        if set_def.extension:
+            self.write(" extends " + ", ".join(set_def.extension))
+        self.enter_block()
+        self.write_architectural_state(set_def)
+        self.write_functions(set_def.functions)
+        self.write_always_blocks(set_def.always_blocks)
+        instructions = dict(set_def.instructions)
+        instructions.update(set_def.unencoded_instructions)
+        self.write_instructions(instructions)
+        self.leave_block()
         self.write("\n")
+
+    def write_core(self, core_def):
+        # Emit the resolved core just as the upstream writer does, preserving
+        # separately stored always behavior until the ETISS writer merges it.
+        self.write("Core " + core_def.name)
+        self.enter_block()
+        self.write_architectural_state(core_def)
+        self.write_functions(core_def.functions)
+        self.write_always_blocks(core_def.always_blocks)
+        instructions = dict(core_def.instructions)
+        instructions.update(core_def.unencoded_instructions)
+        self.write_instructions(instructions)
+        self.leave_block()
 
 
 def write_includes(writer, used_extensions, includes_prefix: str = "rv_base/", tum_includes_prefix: str = ""):

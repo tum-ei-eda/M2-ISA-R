@@ -7,7 +7,7 @@ import unittest
 
 from m2isar.backends.coredsl2_set.writer import gen_cdsl_code
 from m2isar.frontends.coredsl2_set.parser import main, parse_cdsl2_set
-from m2isar.metamodel import M2Model, M2_METAMODEL_VERSION
+from m2isar.metamodel import M2Model, M2_METAMODEL_VERSION, type_info
 from m2isar.metamodel.attribute_info import OperandAttribute as A
 from m2isar.transforms.encode_instructions import apply_model_plan, plan_model
 
@@ -71,6 +71,10 @@ class FuturePaperPortTests(unittest.TestCase):
         final = self.model()
         self.assertEqual({i.name for i in final.sets["Custom"].instructions.values()}, {"ADD", "LI"})
         self.assertTrue(model.sets["Custom"].unencoded_instructions)
+        li = next(i for i in final.sets["Custom"].instructions.values() if i.name == "LI")
+        self.assertTrue(li.operands["imm"].signed)
+        self.assertEqual(li.fields["imm"].ty.kind, type_info.TypeKind.INT)
+        self.assertEqual(li.operands["imm"].attributes, {A.IN: [], A.IS_IMM: []})
 
     def test_legacy_assembly_and_cli_output(self):
         text = gen_cdsl_code(self.model(), with_includes=False, legacy=True)
@@ -85,6 +89,34 @@ class FuturePaperPortTests(unittest.TestCase):
         text = gen_cdsl_code(model, includes_prefix="base/", tum_includes_prefix="tum/")
         self.assertIn('import "base/RV32I.core_desc"', text)
         self.assertIn('import "tum/tum_mod.core_desc"', text)
+
+    def test_unresolved_parameters_and_always_blocks_survive_export(self):
+        self.source.write_text(SOURCE.replace("    instructions {", """    architectural_state { unsigned<32> XLEN; }
+    always { before {} }
+    instructions {""", 1))
+        model = self.model()
+        self.assertIsNone(model.sets["Custom"].parameters["XLEN"].value)
+        text = gen_cdsl_code(model, with_includes=False)
+        self.source.write_text(text)
+        reparsed = self.model()
+        self.assertIsNone(reparsed.sets["Custom"].parameters["XLEN"].value)
+        self.assertEqual(set(reparsed.sets["Custom"].always_blocks), {"before"})
+
+    def test_core_parser_and_encoder_register_instruction_width(self):
+        from m2isar.frontends.coredsl2.parser import main as parse_core
+        source = SOURCE.replace("InstructionSet Custom", "Core Custom")
+        source = source.replace("[[in]] [[is_reg]]", '[[in]] [[is_reg]] [[reg_class="GPR"]]')
+        self.source.write_text(source)
+        parse_core([str(self.source)])
+        model_path = self.root / "gen_model" / "Custom.m2isarmodel"
+        model = pickle.loads(model_path.read_bytes())
+        core = model.cores["Custom"]
+        self.assertFalse(core.instr_classes)
+        self.assertEqual(core.unencoded_instructions["ADD"].operands["rs1"].attributes[A.REG_CLASS][0].value, "GPR")
+        encoded = apply_model_plan(model, plan_model(model))
+        self.assertEqual(encoded.cores["Custom"].instr_classes, {32})
+        self.assertFalse(encoded.cores["Custom"].unencoded_instructions)
+        self.assertFalse(core.instr_classes)
 
     def test_set_viewer_builds_unencoded_group_without_display(self):
         from m2isar.backends.viewer import viewer

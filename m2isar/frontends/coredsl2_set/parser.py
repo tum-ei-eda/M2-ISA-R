@@ -148,7 +148,7 @@ def _parse_model(args):
 				)
 				const.value = defines[const.name]
 			if const.value is None:
-				unassigned_const = True
+				unassigned_const = not getattr(args, "keep_undefined", False)
 				if allow_undefined_const:
 					logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
 					
@@ -485,6 +485,7 @@ def parse_cdsl2_set(top_level, extra_includes=None):
 	for include in extra_includes or ():
 		argv.extend(["-I", str(include)])
 	args = _argument_parser().parse_args(argv)
+	args.keep_undefined = True
 	return _parse_model(args).sets
 
 
