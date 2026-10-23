@@ -54,6 +54,9 @@ class AccessAttribute(IntFlag):
 	WRITE = auto() # write access only
 	RW = READ | WRITE
 
+class BlockAttribute(Enum):
+	ACCESS = auto()
+
 @dataclass
 class AccessContext:
 	"""A datakeeping class to track access of Varibles.

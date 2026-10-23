@@ -292,9 +292,11 @@ class InferTypesMutator(ExprMutator):
         return expr
 
     @generate.register
-    def _(self, expr: behav.Loop, context):
+    def _(self, expr: behav.LoopBase, context):
+        expr.init = [self.generate(x, context) for x in expr.init]
         expr.cond = self.generate(expr.cond, context)
         expr.stmts = [self.generate(x, context) for x in expr.stmts]
+        expr.updates = [self.generate(x, context) for x in expr.updates]
 
         return expr
 
@@ -469,6 +471,10 @@ class InferTypesMutator(ExprMutator):
 
     @generate.register
     def _(self, expr: behav.Break, context):
+        return expr
+
+    @generate.register
+    def _(self, expr: behav.Continue, context):
         return expr
 
 
