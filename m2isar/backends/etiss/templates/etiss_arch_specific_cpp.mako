@@ -157,10 +157,13 @@ ${fill_jit_extensions}
     using namespace etiss::instr;
 
     % for bitsize, callback in error_callbacks.items():
-    vis->get(${bitsize})->getInvalid().addCallback(
+    // This implementation may be reused with a subset of instruction widths.
+    if (auto * instruction_set = vis->get(${bitsize})) {
+        instruction_set->getInvalid().addCallback(
 ${callback},
-    0
-    );
+        0
+        );
+    }
 
     %endfor
 
