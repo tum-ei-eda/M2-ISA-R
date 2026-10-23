@@ -9,6 +9,7 @@
 """Recursive tree traversal methods to generate behavior code."""
 
 import logging
+from copy import copy
 from math import log2
 from itertools import chain
 from string import Template
@@ -523,6 +524,7 @@ class InstructionTransformVisitor(ExprVisitor):
 			left.code = context.make_static(left.code, left.signed)
 
 		if op.value in ('&&', '||') and any(child.mem_ids or child.function_calls for child in (left, right)):
+			right = copy(right)
 			right.code = f'!!({right.code})'
 			right.size, right.signed = 1, False
 			constant = CodeString('0' if op.value == '&&' else '1', attribute_info.AccessAttribute.READ, 1, False)
