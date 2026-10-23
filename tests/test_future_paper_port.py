@@ -1,6 +1,8 @@
 """Integration coverage for the future-paper set parser and typed writer port."""
 from pathlib import Path
 import tempfile
+import pickle
+from unittest.mock import MagicMock, patch
 import unittest
 
 from m2isar.backends.coredsl2_set.writer import gen_cdsl_code
@@ -20,7 +22,7 @@ SOURCE = '''InstructionSet Custom {
             }
             encoding: auto;
             assembly: {"add", "{rd}, {rs1}, {rs2}"};
-            behavior: {}
+            behavior: { rd = rs1 + rs2; }
         }
         LI {
             operands: {
@@ -83,6 +85,20 @@ class FuturePaperPortTests(unittest.TestCase):
         text = gen_cdsl_code(model, includes_prefix="base/", tum_includes_prefix="tum/")
         self.assertIn('import "base/RV32I.core_desc"', text)
         self.assertIn('import "tum/tum_mod.core_desc"', text)
+
+    def test_set_viewer_builds_unencoded_group_without_display(self):
+        from m2isar.backends.viewer import viewer
+        model_path = self.root / "Custom.m2isarmodel"
+        model_path.write_bytes(pickle.dumps(self.model()))
+        tree = MagicMock()
+        tree.insert.side_effect = lambda *args, **kwargs: str(tree.insert.call_count)
+        with patch.object(viewer.tk, "Tk"), patch.object(viewer.ttk, "Treeview", return_value=tree), patch.object(viewer.ttk, "Scrollbar"):
+            viewer.main([str(model_path)], sets_only=True)
+        labels = [call.kwargs.get("text") for call in tree.insert.call_args_list]
+        self.assertIn("Custom", labels)
+        self.assertIn("Unencoded", labels)
+        self.assertIn("Custom : ADD", labels)
+        self.assertIn("Custom : LI", labels)
 
 
 if __name__ == "__main__":
