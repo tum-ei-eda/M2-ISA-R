@@ -13,6 +13,7 @@ Welcome to M2-ISA-R's documentation!
    Home <self>
    Usage <usage>
    CoreDSL 2 coverage analysis <coverage>
+   Spike backend <spike>
    autoapi/index
 
 Indices and tables
