@@ -4,7 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, attribute_info, behav, type_info
 
 XLEN = 32  # Could be changed later to support rv64
 
@@ -60,8 +60,8 @@ class Operand:
         Return Value gets wrapped in a TypeConv if its smaller than XLEN or signed,
         This can be turned off by passing "cast=False"
         """
-        registers = arch.Memory("X", arch.RangeSpec(32), 32, {arch.MemoryAttribute.IS_MAIN_MEM: []})
-        sign = arch.DataType.S if self.sign == "s" else arch.DataType.U
+        registers = arch.Memory("X", arch.RangeSpec(32), 32, {attribute_info.MemoryAttribute.IS_MAIN_MEM: []})
+        sign = type_info.TypeKind.INT if self.sign == "s" else type_info.TypeKind.UINT
 
         if self.immediate:
             ref = behav.NamedReference(
@@ -86,7 +86,7 @@ class Operand:
         # The destination register is not typecast in CoreDSL as it gets deduced from the operands
         if self.width < XLEN and cast:
             return behav.TypeConv(sign, self.width, ref)
-        if sign is arch.DataType.S and cast:
+        if sign is type_info.TypeKind.INT and cast:
             return behav.TypeConv(sign, None, ref)
 
         return ref
