@@ -140,8 +140,8 @@ class CoreDSL2Writer:
                 if isinstance(val, attribute_info.AccessAttribute):
                     names = {
                         attribute_info.AccessAttribute.NONE: "NONE",
-                        attribute_info.AccessAttribute.CONST: "CONST",
-                        attribute_info.AccessAttribute.STATIC: "STATIC",
+                        attribute_info.AccessAttribute.READ: "CONST",
+                        attribute_info.AccessAttribute.RW: "STATIC",
                     }
                     return names[val]
                 if isinstance(val, int):  # TODO: replace with int literal

@@ -20,6 +20,13 @@ from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type, create_np_array_from_literal_array
 from .expr_interpreter import ExprInterpreterVisitor
 
+# CoreDSL [[access=...]] block attribute keywords and their metamodel access.
+BLOCK_ACCESS = {
+	"NONE": attribute_info.AccessAttribute.NONE,
+	"CONST": attribute_info.AccessAttribute.READ,
+	"STATIC": attribute_info.AccessAttribute.RW,
+}
+
 exprInterpretVisitor = ExprInterpreterVisitor()
 
 if TYPE_CHECKING:
@@ -113,9 +120,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				if len(attr_ctx.params) != 1:
 					raise M2SyntaxError("block access attribute requires exactly one value")
 				value_name = attr_ctx.params[0].getText().upper()
-				if value_name not in {"NONE", "CONST", "STATIC"}:
+				if value_name not in BLOCK_ACCESS:
 					raise M2SyntaxError("block access attribute must be NONE, CONST, or STATIC")
-				attributes[attr] = attribute_info.AccessAttribute[value_name]
+				attributes[attr] = BLOCK_ACCESS[value_name]
 			else:
 				attributes[attr] = [self.visit(param) for param in attr_ctx.params]
 
