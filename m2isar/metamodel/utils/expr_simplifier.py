@@ -206,6 +206,11 @@ class ExprSimplifierVisitor(ExprVisitor):
 			return expr  # Preserve target identity and side effects, including invalid constants.
 		expr.right = self.generate(expr.right, context)
 		if isinstance(expr.right, behav.Literal):
+			if expr.op.value == '!':
+				return behav.Literal(
+					int(not bool(expr.right.value)),
+					type_info.PrimitiveType(type_info.TypeKind.UINT, 1),
+				)
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
 			if res < 0:
