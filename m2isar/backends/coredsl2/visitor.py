@@ -178,12 +178,13 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.UnaryOperation, writer):
+        emit_operand = self.generate if expr.op.value in ('++', '--') else self.generate_grouped
         if getattr(expr, 'postfix', False):
-            self.generate_grouped(expr.right, writer)
+            emit_operand(expr.right, writer)
             writer.write(expr.op.value)
         else:
             writer.write(expr.op.value)
-            self.generate_grouped(expr.right, writer)
+            emit_operand(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
