@@ -9,21 +9,24 @@
 """Clean M2-ISA-R/Seal5 metamodel to .core_desc file."""
 
 import logging
+import json
 from typing import Optional, Set, Union
 from collections import defaultdict
 
-from m2isar.metamodel import arch, behav
+from m2isar.metamodel import arch, behav, type_info
 from m2isar.metamodel.type_info import TypeKind, ArrayType, PointerType
 
 logger = logging.getLogger("coredsl2_writer")
 
 
 class CoreDSL2Writer:
-    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None):
+    def __init__(self, visitor, reduced: bool = True, skip_empty: bool = False, drop_first_op: bool = False, allowed_attrs: Optional[Set[str]] = None, legacy: bool = False, emit_operands: bool = False):
+        self.legacy = legacy
         self.visitor = visitor
         self.reduced = reduced  # Reduced syntax for cdsl2llvm parser
         self.drop_first_op = drop_first_op
         self.allowed_attrs = allowed_attrs if allowed_attrs is not None else None
+        self._emit_operands = emit_operands
         self.defined_by_ext = defaultdict(set)
         self.text = ""
         self.indent_str = "    "
@@ -43,6 +46,10 @@ class CoreDSL2Writer:
     @property
     def needsspace(self):
         return len(self.text) != 0 and self.text[-1] not in ["\n", " "]
+
+    @property
+    def emit_operands(self):
+        return self._emit_operands
 
     def write(self, text, nl=False):
         # print("text", text, type(text))
@@ -181,7 +188,7 @@ class CoreDSL2Writer:
         # self.leave_block()
 
     def write_functions(self, functions):
-        if self.reduced:
+        if self.reduced or not functions:
             return
         self.write("functions")
         # TODO: attributes
@@ -229,54 +236,54 @@ class CoreDSL2Writer:
     #     self.write_constraints(constraints)
     #     self.leave_block()
 
-    # def write_operand(self, operand):
-    #     self.write_type(operand.ty)
-    #     self.write(" ")
-    #     self.write(operand.name)
-    #     self.write_attributes(operand.attributes)
-    #     self.write_line(";")
+    def write_operand(self, operand):
+        self.write("signed" if operand.signed else "unsigned")
+        if operand.size is not None:
+            self.write(f"<{operand.size}>")
+        self.write(" ")
+        self.write(operand.name)
+        self.write_attributes(operand.attributes)
+        self.write_line(";")
 
-    # def write_operands(self, operands):
-    #     self.write("operands: ")
-    #     if len(operands) == 0:
-    #         self.write_line("{}")
-    #         return
-    #     self.enter_block()
-    #     # print("operands", operands)
-    #     for _, op in enumerate(operands.values()):
-    #         self.write_operand(op)
-    #     # for i, op in enumerate(operands.values()):
-    #     #     self.write_constraints(op.constraints)
-    #     self.leave_block()
+    def write_operands(self, operands):
+        self.write("operands: ")
+        if not operands:
+            self.write_line("{}")
+            return
+        self.enter_block()
+        for operand in operands.values():
+            self.write_operand(operand)
+        self.leave_block()
 
     def write_encoding(self, encoding):
-        self.write("encoding: ")
-        # print("encoding", encoding, dir(encoding))
-        for i, elem in enumerate(encoding):
-            if isinstance(elem, arch.BitVal):
-                self.write_encoding_val(elem)
-            elif isinstance(elem, arch.BitField):
-                self.write_encoding_field(elem)
-            else:
-                assert False
-            if i < len(encoding) - 1:
-                self.write(" :: ")
-        self.write(";", nl=True)
+        if any(field is None for field in encoding):
+            self.write_line("encoding: auto;")
+        else:
+            self.write("encoding: ")
+            for index, field in enumerate(encoding):
+                if index:
+                    self.write(" :: ")
+                if isinstance(field, arch.BitVal):
+                    self.write_encoding_val(field)
+                elif isinstance(field, arch.BitField):
+                    self.write_encoding_field(field)
+                else:
+                    raise TypeError(f"Unsupported encoding field: {field!r}")
+            self.write_line(";")
+
         
     def write_assembly(self, instruction):
-        self.write("assembly: ")
-        mnemonic = instruction.mnemonic
-        assembly = instruction.assembly
-        if assembly is None:
-            assembly = ""
-        if mnemonic:
-            self.write("{")
-            self.write(f'"{mnemonic}"')
-            self.write(", ")
-        self.write(f'"{assembly}"')
-        if mnemonic:
-            self.write("}")
-        self.write(";", nl=True)
+        if self.legacy:
+            self.write_line("assembly: " + json.dumps(instruction.assembly or "") + ";")
+        else:
+            self.write("assembly: ")
+            if instruction.mnemonic:
+                self.write("{" + json.dumps(instruction.mnemonic) + ", ")
+            self.write(json.dumps(instruction.assembly or ""))
+            if instruction.mnemonic:
+                self.write("}")
+            self.write_line(";")
+
 
     def write_behavior2(self, op, drop_first: bool = False):
         # TODO: drop explicit PC increments?
@@ -296,24 +303,32 @@ class CoreDSL2Writer:
             self.leave_block()
         # self.write(";", nl=True)
 
-    def write_behavior(self, instruction, drop_first: bool = False):
-        self.write("behavior: ")
+    def write_behavior(self, instruction, drop_first=False):
+        self.write("behavior:")
+        if not self.reduced:
+            self.enter_block()
         self.write_behavior2(instruction.operation, drop_first=drop_first)
+        if not self.reduced:
+            self.leave_block()
+
 
     def write_instruction(self, instruction):
-        # print("write_instruction", instruction)
         self.write(instruction.name)
         self.write_attributes(instruction.attributes)
         self.enter_block()
-        # self.write_operands(instruction.operands)  # seal5 only
-        # self.write_instruction_constraints(instruction.constraints, instruction.operands)  # seal5 only
+        if self.emit_operands or (instruction.operands and (not instruction.has_encoding or not self.legacy)):
+            self.write_operands(instruction.operands)
         self.write_encoding(instruction.encoding)
         self.write_assembly(instruction)
         self.write_behavior(instruction, drop_first=self.drop_first_op)
         self.leave_block()
 
+
     def write_instructions(self, instructions):
-        # print("write_instructions", instructions)
+        # Legacy CoreDSL requires at least one instruction inside the block.
+        # Aggregate sets can consist entirely of inherited instructions.
+        if not instructions:
+            return
         self.write("instructions")
         # TODO: attributes?
         self.enter_block()
@@ -321,48 +336,31 @@ class CoreDSL2Writer:
             self.write_instruction(instruction)
         self.leave_block()
 
-    def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
-        # print("set_def", set_def, dir(set_def))
-        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
-        if has_arch:
-            self.write("architectural_state")
-            self.enter_block()
-            self.write_parameters(core_set_def.parameters)
-            self.write_register_banks(core_set_def.register_banks)
-            self.write_register_aliases(core_set_def.register_aliases)
-            self.write_memories(core_set_def.memories)
-            self.write_memory_aliases(core_set_def.memory_aliases)
-            self.leave_block()
 
     def write_set(self, set_def):
-        # print("write_set", set_def)
-        self.write("InstructionSet ")
-        self.write(set_def.name)
-        # TODO: attributes
-        # TODO: extends
+        self.write("InstructionSet " + set_def.name)
         if set_def.extension:
-            self.write(" extends ")
-            self.write(", ".join(set_def.extension))
+            self.write(" extends " + ", ".join(set_def.extension))
         self.enter_block()
         self.write_architectural_state(set_def)
-        # TODO: reuse for core (write_arch_state)
         self.write_functions(set_def.functions)
-        self.write_instructions(set_def.instructions)
+        self.write_always_blocks(set_def.always_blocks)
+        instructions = dict(set_def.instructions)
+        instructions.update(set_def.unencoded_instructions)
+        self.write_instructions(instructions)
         self.leave_block()
+        self.write("\n")
+
 
     def write_parameter(self, parameter):
-        # print("parameter", parameter)
-        # print("dir(parameter)", dir(parameter))
-        if parameter.signed:
-            self.write("signed")
-        else:
-            self.write("unsigned")
-        if parameter.size is not None:
-            self.write(f"<{parameter.size}>")
-        self.write(f" {parameter.name}")
-        self.write(" = ")
-        self.write(parameter.value)
-        self.write(";", nl=True)
+        self.write_type(type_info.PrimitiveType(
+            type_info.TypeKind.INT if parameter.signed else type_info.TypeKind.UINT, parameter.size))
+        self.write(" " + parameter.name)
+        self.write_attributes(parameter.attributes)
+        if parameter.value is not None:
+            self.write(" = " + str(parameter.value))
+        self.write_line(";")
+
 
     def write_parameters(self, parameters):
         for parameter in parameters.values():
@@ -538,41 +536,28 @@ class CoreDSL2Writer:
             self.leave_block()
 
     def write_core(self, core_def):
-        # print("write_core", core_def)
-        # print("dir(core_def)", dir(core_def))
-        # print("core_def.functions_by_ext", core_def.functions_by_ext)
-        # print("core_def.instructions_by_ext", core_def.instructions_by_ext)
-        gen_sets = False
-        if gen_sets:
-            set_names = list(set(core_def.functions_by_ext.keys()) | set(core_def.instructions_by_ext.keys()) | set(core_def.contributing_types))
-            # print("set_names", set_names)
-            for set_name in set_names:
-                set_funcs = core_def.functions_by_ext.get(set_name, {})
-                set_instrs = core_def.instructions_by_ext.get(set_name, {})
-                extension = []
-                parameters = {}
-                memories = {}
-                memory_aliases = {}
-                register_banks = {}
-                register_aliases = {}
-                temp_set = arch.InstructionSet(set_name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, set_funcs, set_instrs)
-                self.write_set(temp_set)
-        else:
-            set_names = []
-        # input("***")
-        # print("core_def.memories", core_def.memories)
-        # print("core_def.memory_aliases", core_def.memory_aliases)
-        # print("core_def.parameters", core_def.parameters)
-        # print("core_def.register_aliases", core_def.register_aliases)
-        # print("core_def.register_banks", core_def.register_banks)
-        if len(set_names) > 0:
-            provides_str = ", ".join(core_def.contributing_types)
-            self.write(f"Core {core_def.name} provides {provides_str}")
-        else:
-            self.write(f"Core {core_def.name}")
+        # Emit the resolved core just as the upstream writer does, preserving
+        # separately stored always behavior until the ETISS writer merges it.
+        self.write("Core " + core_def.name)
         self.enter_block()
         self.write_architectural_state(core_def)
-        if not gen_sets:
-            self.write_functions(core_def.functions)
-            self.write_instructions(core_def.instructions)
+        self.write_functions(core_def.functions)
+        self.write_always_blocks(core_def.always_blocks)
+        instructions = dict(core_def.instructions)
+        instructions.update(core_def.unencoded_instructions)
+        self.write_instructions(instructions)
+        self.leave_block()
+
+
+    def write_always_blocks(self, blocks):
+        if not blocks or self.reduced:
+            return
+        self.write("always")
+        self.enter_block()
+        for block in blocks.values():
+            self.write(block.name)
+            self.write_attributes(block.attributes)
+            self.enter_block()
+            self.visitor.generate(block.operation, self)
+            self.leave_block()
         self.leave_block()

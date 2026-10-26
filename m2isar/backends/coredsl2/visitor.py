@@ -11,7 +11,7 @@
 import logging
 from functools import singledispatchmethod
 
-from ...metamodel import arch, behav
+from ...metamodel import arch, behav, type_info
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 
 
@@ -168,7 +168,9 @@ class CDSLWriterVisitor(ExprVisitor):
     @generate.register
     def _(self, expr: behav.TypeConv, writer):
         writer.write("(")
-        writer.write_type(expr.ty)
+        # Preserve the declared cast, including signedness-only casts. Nested
+        # conversions need not retain an inferred type after simplification.
+        writer.write_type(type_info.PrimitiveType(expr.data_type, expr.size))
         writer.write(")")
         self.generate_grouped(expr.expr, writer)
 
