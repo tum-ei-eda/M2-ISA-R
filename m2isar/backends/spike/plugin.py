@@ -85,6 +85,8 @@ class Translator:
 
 def generate_plugin(set_def):
     """Return C++ source; warn and omit each unsupported instruction."""
+    if getattr(set_def, "always_blocks", {}):
+        raise Unsupported("always blocks are unsupported by the Spike backend")
     name = identifier(set_def.name)
     main_banks = [mem for mem in list(set_def.memories.values()) + list(set_def.register_banks.values())
                   if isinstance(mem, arch.RegisterBank) and mem.is_main_reg]
