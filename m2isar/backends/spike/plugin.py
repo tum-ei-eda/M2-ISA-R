@@ -57,6 +57,8 @@ class Translator:
             raise Unsupported(f"memory {mem.name}: aliases, main memory and indexed PC unsupported")
         if not isinstance(mem.ty, ArrayType):
             raise Unsupported(f"register {mem.name}: scalar custom state unsupported")
+        if getattr(mem.ty.element_type, "kind", None) != TypeKind.UINT:
+            raise Unsupported(f"memory {mem.name}: requires unsigned integer elements")
         if mem.ty.element_type.size not in (32, 64) or mem.ty.length is None or mem.ty.length <= 0:
             raise Unsupported(f"memory {mem.name}: requires 32- or 64-bit elements and zero-based finite range")
         if isinstance(mem, arch.RegisterBank) and mem.is_main_reg:
