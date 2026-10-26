@@ -571,12 +571,10 @@ class Instruction(SizedRefOrConst):
 		self._size = 0
 
 		for e in reversed(self.encoding):
-			print("e", e)
 			if e is None:
 				self._size = None
 				self.mask = None
 				self.code = None
-				print("break")
 				break
 			if isinstance(e, BitField):
 				self._size += e.range.length
