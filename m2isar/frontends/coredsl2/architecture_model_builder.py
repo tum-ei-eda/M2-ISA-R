@@ -255,6 +255,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			operation=ctx.behavior,
 			function_info=None,
 		)
+		# Preserve source metadata for ETISS instrumentation and coverage reports.
+		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=(i.size or 0)//4) if i.has_encoding else "auto"
+		i.function_info = FunctionInfoFactory.make(
+			ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop,
+			ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
+
 		if i.has_encoding:
 			self._instr_classes.add(i.size)
 			instr_id = (i.code, i.mask)
