@@ -1,8 +1,10 @@
-# Alternate ISAAC Toolkit generator
+# ISAAC Toolkit integration
 
-`generate_etiss_core_planner.py` is a separately named copy of the sibling
-Toolkit generator. The original file is unchanged. The staged copy here is
-identical to the file installed beside the original generator.
+The planner is now the default in the sibling ISAAC Toolkit checkout.
+`generate_etiss_core_planner.py` is a compatibility entry point delegating to
+`isaac_toolkit.generate.iss.generate_etiss_core`. Install the typed M2-ISA-R
+checkout and ISAAC Toolkit before using it. There is one generator implementation
+and one shared CoreDSL writer.
 
 The auto-encoding path calls `encode_instruction_sets()` once for all sets.
 Qualified names distinguish identically named instructions in different sets.
@@ -18,10 +20,10 @@ index with its own encoded artifacts. Duplicate instruction names within one set
 are rejected instead of silently overwritten. Split instruction dictionaries use
 `(code, mask)` keys.
 
-With a compatible Toolkit/CoreDSL code-generation installation, run:
+With the typed M2-ISA-R checkout and ISAAC Toolkit installed, run:
 
 ```sh
-python -m isaac_toolkit.generate.iss.generate_etiss_core_planner \
+python3 -m isaac_toolkit.generate.iss.generate_etiss_core \
   --workdir /path/to/workdir \
   --index '/path/to/set-a/index.yml;/path/to/set-b/index.yml' \
   --set-name 'SetA;SetB' --auto-encoding --add-mnemonic-prefix
