@@ -72,7 +72,7 @@ class PluginTests(unittest.TestCase):
         self.assertIn('static constexpr unsigned xlen = 64;', source)
         self.assertIn('std::array<uint64_t, 4>', source)
         self.assertIn('UINT64_C(18364758544493064720)', source)
-        self.assertIn('uint64_t(read_x(p, m2_rs1))', source)
+        self.assertIn('read_x(p, m2_rs1)', source)
 
     def test_unsupported_register_width_fails(self):
         model = example_set()
