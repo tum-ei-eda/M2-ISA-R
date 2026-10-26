@@ -5,7 +5,7 @@ import pickle
 from unittest.mock import MagicMock, patch
 import unittest
 
-from m2isar.backends.coredsl2_set.writer import gen_cdsl_code
+from m2isar.backends.coredsl2.writer import gen_cdsl_code, write_cdsl_default, write_cdsl_splitted
 from m2isar.frontends.coredsl2_set.parser import main, parse_cdsl2_set
 from m2isar.metamodel import M2Model, M2_METAMODEL_VERSION, type_info
 from m2isar.metamodel.attribute_info import OperandAttribute as A
@@ -47,6 +47,21 @@ class FuturePaperPortTests(unittest.TestCase):
     def model(self):
         return M2Model(M2_METAMODEL_VERSION, {}, parse_cdsl2_set(self.source), {})
 
+    def test_shared_writer_and_compatibility_api(self):
+        from m2isar.backends.coredsl2_set.writer import gen_cdsl_code as compatibility
+        self.assertIs(compatibility, gen_cdsl_code)
+        model = self.model()
+        output = self.root / "shared.core_desc"
+        write_cdsl_default(model, output, writer_kwargs={"reduced": False})
+        self.assertEqual(set(parse_cdsl2_set(output)["Custom"].unencoded_instructions), {"ADD", "LI"})
+        split = self.root / "split"
+        split.mkdir()
+        write_cdsl_splitted(model, split, writer_kwargs={"reduced": False})
+        for name in ("ADD", "LI"):
+            parsed = parse_cdsl2_set(split / "Custom" / f"{name}.core_desc")
+            self.assertEqual(set(parsed["Custom"].unencoded_instructions), {name})
+        self.assertEqual(set(model.sets["Custom"].unencoded_instructions), {"ADD", "LI"})
+
     def test_callable_parser_keeps_operands_local_and_typed(self):
         sets = parse_cdsl2_set(self.source, None)
         self.assertFalse((self.root / "gen_model").exists())
@@ -83,12 +98,35 @@ class FuturePaperPortTests(unittest.TestCase):
         main([str(self.source)])
         self.assertTrue((self.root / "gen_model" / "Custom.m2isarmodel").is_file())
 
+    def test_nested_casts_roundtrip_after_type_inference(self):
+        self.source.write_text(SOURCE.replace(
+            "rd = rs1 + rs2;",
+            "unsigned<32> value = (unsigned<32>)(rs1 ^ "
+            "(unsigned<32>)(unsigned<32>)(rs2 >> (unsigned<32>)(8))); "
+            "rd = (unsigned)value;",
+        ))
+        text = gen_cdsl_code(self.model(), with_includes=False)
+        self.assertIn("(unsigned)", text)
+        self.source.write_text(text)
+        self.assertIn("ADD", self.model().sets["Custom"].unencoded_instructions)
+
     def test_include_prefixes_are_honored(self):
         model = self.model()
         model.sets["Custom"].extension = ["RV32I", "tum_csr"]
         text = gen_cdsl_code(model, includes_prefix="base/", tum_includes_prefix="tum/")
-        self.assertIn('import "base/RV32I.core_desc"', text)
+        self.assertIn('import "base/RVI.core_desc"', text)
         self.assertIn('import "tum/tum_mod.core_desc"', text)
+
+    def test_inherited_only_set_omits_empty_blocks(self):
+        self.source.write_text(SOURCE + "\nInstructionSet Aggregate extends Custom {}\n")
+        model = self.model()
+        for legacy in (False, True):
+            text = gen_cdsl_code(model, with_includes=False, legacy=legacy)
+            aggregate = text.split("InstructionSet Aggregate", 1)[1]
+            self.assertNotIn("instructions", aggregate)
+            self.assertNotIn("functions", aggregate)
+            self.source.write_text(text)
+            self.assertIn("Aggregate", self.model().sets)
 
     def test_unresolved_parameters_and_always_blocks_survive_export(self):
         self.source.write_text(SOURCE.replace("    instructions {", """    architectural_state { unsigned<32> XLEN; }
