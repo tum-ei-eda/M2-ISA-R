@@ -228,21 +228,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
-		# Operand declarations are local to this instruction; do not add them
-		# to the architectural parameter table.
 		operands = {}
-		for declaration in ctx.operands:
-			ty = self.visit(declaration.type_)
-			if declaration.storage or not isinstance(ty, type_info.PrimitiveType):
-				raise M2TypeError("operands must be integer parameters")
-			for decl in declaration.declarations:
-				if decl.size or decl.init is not None:
-					raise M2TypeError("operand arrays and initializers are unsupported")
-				name = decl.name.text
-				if name in operands:
-					raise M2DuplicateError(f"operand {name} already defined")
-				attrs = dict(self.visit(attr) for attr in [*declaration.attributes, *decl.attributes])
-				operands[name] = arch.Parameter(name, None, attrs, ty.size, ty.kind == type_info.TypeKind.INT)
+		for obj in ctx.operands:
+			operand = self.visit(obj)
+			if operand.name in operands:
+				raise M2DuplicateError(f"operand {operand.name} already defined for instruction {ctx.name.text}")
+			operands[operand.name] = operand
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
@@ -254,7 +245,16 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			if isinstance(field, arch.BitField) and field.name in operands:
 				field.ty.kind = type_info.TypeKind.INT if operands[field.name].signed else type_info.TypeKind.UINT
 
-		i = arch.Instruction(name, attributes, operands, encoding, mnemonic, assembly, ctx.behavior, None)
+		i = arch.Instruction(
+			name=name,
+			attributes=attributes,
+			operands=operands,
+			encoding=encoding,
+			mnemonic=mnemonic,
+			assembly=assembly,
+			operation=ctx.behavior,
+			function_info=None,
+		)
 		if i.has_encoding:
 			self._instr_classes.add(i.size)
 			instr_id = (i.code, i.mask)
@@ -274,6 +274,24 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instructions.append(i)
 
 		return i
+
+	def visitOperand_declaration(self, ctx: CoreDSL2Parser.Operand_declarationContext):
+		"""Generate an explicitly declared instruction operand."""
+		type_ = self.visit(ctx.type_)
+		decl = ctx.decl
+		if not isinstance(type_, type_info.PrimitiveType) or not type_.kind.is_int:
+			raise M2TypeError(f"operand {decl.name.text} must have an integer type")
+		if decl.size or decl.init is not None:
+			raise M2TypeError(f"operand {decl.name.text} cannot be an array or have an initializer")
+
+		attributes = dict([self.visit(obj) for obj in decl.attributes])
+		return arch.Parameter(
+			decl.name.text,
+			None,
+			attributes,
+			type_.size,
+			type_.kind == type_info.TypeKind.INT,
+		)
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
 		"""Generate non-behavioral parts of a function."""

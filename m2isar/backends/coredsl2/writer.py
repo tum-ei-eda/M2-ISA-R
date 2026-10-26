@@ -155,6 +155,7 @@ def main(argv=None):
     parser.add_argument("top_level", help="A .m2isarmodel or .seal5model file.")
     parser.add_argument("--output", "-o", type=str, default=None)
     parser.add_argument("--reduced", action="store_true", help="Generate pattern-gen compatible syntax")
+    parser.add_argument("--operands", action="store_true", help="Include instruction operands in generated CoreDSL2.")
     parser.add_argument("--splitted", action="store_true", help="Split per set and instruction")
     parser.add_argument("--ext", type=str, default="core_desc", help="Default file extension (if using --splitted)")
     parser.add_argument("--legacy", action="store_true", help="Emit legacy assembly syntax")
@@ -176,7 +177,7 @@ def main(argv=None):
 
     allowed_attrs = None  # all
     metrics = init_metrics()
-    writer_kwargs = dict(reduced=args.reduced, allowed_attrs=allowed_attrs, legacy=args.legacy)
+    writer_kwargs = dict(reduced=args.reduced, allowed_attrs=allowed_attrs, legacy=args.legacy, emit_operands=args.operands)
     if args.splitted:
         metrics = write_cdsl_splitted(
             model_obj, out_path=out_path, ext=args.ext, metrics=metrics, writer_kwargs=writer_kwargs

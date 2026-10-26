@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 from m2isar.metamodel import type_info, attribute_info
 
-from .. import M2TypeError, M2ValueError
+from .. import M2NameError, M2TypeError, M2ValueError
 from .behav import BaseNode, IndexedReference, Operation, Literal
 
 if TYPE_CHECKING:
@@ -476,6 +476,7 @@ class BitField(Symbol):
 
 	def __init__(self, name, _range: RangeSpec, kind: type_info.TypeKind):
 		self.range = _range
+		self.kind = kind
 		if not kind:
 			self.ty = type_info.BitFieldType(type_info.TypeKind.UINT)
 
@@ -527,10 +528,14 @@ class Instruction(SizedRefOrConst):
 	code: int
 
 	def __init__(self, name, attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]", operands: "dict[str, Constant]", encoding: "list[Union[BitField, BitVal]]",
-			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"):
+			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
+		if operands is None:
+			operands = {}
+		elif not isinstance(operands, dict):
+			operands = {operand.name: operand for operand in operands}
 		self.operands = operands
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
@@ -544,26 +549,20 @@ class Instruction(SizedRefOrConst):
 		super().__init__(name, 0)
 		self.process_encoding()
 
-		if operands:
-			if self.has_encoding:
-				assert len(self.fields) == len(operands), f"{len(self.fields)} != {len(operands)} ?"
-				for op_name, op_decl in operands.items():
-					descr = self.fields.get(op_name, None)
-					assert op_decl.value is None
-					# TODO: check op_decl.attributes
-					assert descr is not None
-					assert descr.ty.size == op_decl.size
-					if op_decl.signed:
-						assert descr.ty.kind == type_info.TypeKind.INT
-					else:
-						assert descr.ty.kind == type_info.TypeKind.UINT
-			else:
-				assert len(self.fields) == 0, "TODO: allow manual encoding + operands"
-				for op_name, op_decl in operands.items():
-					sz = op_decl.size
-					dtype = type_info.TypeKind.INT if op_decl.signed else type_info.TypeKind.UINT
-					descr = BitFieldDescr(op_name, sz, dtype)
-					self.fields[op_name] = descr
+		for op_name, op_decl in self.operands.items():
+			if op_decl.value is not None:
+				raise M2ValueError(f"instruction operand {op_name} cannot have a value")
+			descr = self.fields.get(op_name)
+			if descr is None:
+				if self.has_encoding:
+					raise M2NameError(f"operand {op_name} is not present in the encoding of instruction {name}")
+				descr = BitFieldDescr(op_name, op_decl.size, type_info.TypeKind.UINT)
+				self.fields[op_name] = descr
+			elif descr.ty.size != op_decl.size:
+				raise M2TypeError(
+					f"operand {op_name} has width {op_decl.size}, but its encoding has width {descr.ty.size}"
+				)
+			descr.ty.kind = type_info.TypeKind.INT if op_decl.signed else type_info.TypeKind.UINT
 
 	def process_encoding(self):
 

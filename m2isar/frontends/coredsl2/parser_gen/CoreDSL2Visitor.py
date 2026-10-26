@@ -444,5 +444,10 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#operand_declaration.
+    def visitOperand_declaration(self, ctx:CoreDSL2Parser.Operand_declarationContext):
+        return self.visitChildren(ctx)
+
+
 
 del CoreDSL2Parser

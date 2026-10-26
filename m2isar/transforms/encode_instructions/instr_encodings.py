@@ -10,7 +10,7 @@ This could be changed in the future by adding a function which adds unused opcod
 
 from typing import Dict, List, Union, Optional, Tuple
 
-from ...metamodel import arch
+from ...metamodel import arch, type_info
 from .operands import Operand, get_immediates_with_name, get_register_names
 
 
@@ -171,7 +171,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                 elif immediate.width <= 17:
                     update_imm_width(immediate, 17)
                     funct3, opcode = i_opcodes.get()  # TODO: is this fine?
-                    imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+                    imm_sign = type_info.TypeKind.INT if immediate.sign == "s" else type_info.TypeKind.UINT
                     return [
                         arch.BitField(imm_name, arch.RangeSpec(16, 5), imm_sign),
                         reg_bitfield(in_register_names[0]),
@@ -196,8 +196,8 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     funct3, opcode = i_opcodes.get()  # TODO: is this fine?
                     update_imm_width(smaller_immediate, 5)
                     # ?-Format: imm[11:5] | imm5 | rs1 | funct3 | imm[4:0] | opcode
-                    larger_imm_sign = arch.DataType.S if larger_immediate.sign == "s" else arch.DataType.U
-                    smaller_imm_sign = arch.DataType.S if smaller_immediate.sign == "s" else arch.DataType.U
+                    larger_imm_sign = type_info.TypeKind.INT if larger_immediate.sign == "s" else type_info.TypeKind.UINT
+                    smaller_imm_sign = type_info.TypeKind.INT if smaller_immediate.sign == "s" else type_info.TypeKind.UINT
                     return [
                         arch.BitField(larger_imm_name, arch.RangeSpec(11, 5), larger_imm_sign),
                         arch.BitField(smaller_imm_name, arch.RangeSpec(4, 0), smaller_imm_sign),
@@ -226,7 +226,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                 if immediate.width <= 5:
                     funct2, funct3, opcode = f2_opcodes.get()
                     update_imm_width(immediate, 5)
-                    imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+                    imm_sign = type_info.TypeKind.INT if immediate.sign == "s" else type_info.TypeKind.UINT
                     # Format: funct2 | imm5 | rs2 | rs1 | funct3 | rD | opcode
                     return [
                         arch.BitVal(2, funct2),
@@ -258,8 +258,8 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     update_imm_width(smaller_immediate, 5)
                     update_imm_width(larger_immediate, 5)
                     funct2, funct3, major = f2_opcodes.get()
-                    larger_imm_sign = arch.DataType.S if larger_immediate.sign == "s" else arch.DataType.U
-                    smaller_imm_sign = arch.DataType.S if smaller_immediate.sign == "s" else arch.DataType.U
+                    larger_imm_sign = type_info.TypeKind.INT if larger_immediate.sign == "s" else type_info.TypeKind.UINT
+                    smaller_imm_sign = type_info.TypeKind.INT if smaller_immediate.sign == "s" else type_info.TypeKind.UINT
                     # F2-Format: funct2 | imm5 | imm5_2 | rs1 | funct3 | rd | opcode
                     return [
                         arch.BitVal(2, funct2),
@@ -281,7 +281,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                 if immediate.width <= 5:
                     funct7, funct3, opcode = r_opcodes.get()
                     update_imm_width(immediate, 5)
-                    imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+                    imm_sign = type_info.TypeKind.INT if immediate.sign == "s" else type_info.TypeKind.UINT
                     # R-Format: funct7 | imm5 | rs1 | funct3 | rd | opcode
                     return [
                         arch.BitVal(7, funct7),
@@ -295,7 +295,7 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     # otherwise we just use the I-Format
                     funct3, major = i_opcodes.get()
                     update_imm_width(immediate, 12)
-                    imm_sign = arch.DataType.S if immediate.sign == "s" else arch.DataType.U
+                    imm_sign = type_info.TypeKind.INT if immediate.sign == "s" else type_info.TypeKind.UINT
                     # I-Format: imm12 | rs1 | funct3 | rd | opcode
                     return [
                         arch.BitField(imm_name, arch.RangeSpec(11, 0), imm_sign),
@@ -329,8 +329,8 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     funct3, major = i_opcodes.get()
                     # LI16-Format: n | imm16 | funct3 | rd | opcode
                     return [
-                        arch.BitField(smaller_imm_name, arch.RangeSpec(0, 0), arch.DataType.U),
-                        arch.BitField(larger_imm_name, arch.RangeSpec(15, 0), arch.DataType.U),
+                        arch.BitField(smaller_imm_name, arch.RangeSpec(0, 0), type_info.TypeKind.UINT),
+                        arch.BitField(larger_imm_name, arch.RangeSpec(15, 0), type_info.TypeKind.UINT),
                         arch.BitVal(3, funct3),
                         reg_bitfield(out_register_names[0]),
                         arch.BitVal(7, major),
@@ -339,8 +339,8 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     if larger_immediate.width <= 5:
                         update_imm_width(smaller_immediate, 5)
                         update_imm_width(larger_immediate, 5)
-                        smaller_imm_sign = arch.DataType.S if smaller_immediate.sign == "s" else arch.DataType.U
-                        larger_imm_sign = arch.DataType.S if larger_immediate.sign == "s" else arch.DataType.U
+                        smaller_imm_sign = type_info.TypeKind.INT if smaller_immediate.sign == "s" else type_info.TypeKind.UINT
+                        larger_imm_sign = type_info.TypeKind.INT if larger_immediate.sign == "s" else type_info.TypeKind.UINT
                         funct7, funct3, opcode = r_opcodes.get()
                         # R-Format: funct7 | imm5 | imm5_2 | funct3 | rd | opcode
                         return [
@@ -361,9 +361,9 @@ def get_mm_encoding(in_operands: Dict[str, Operand], out_operands) -> List[Union
                     update_imm_width(larger_immediate, 5)
                     update_imm_width(largest_immediate, 5)
                     funct2, funct3, major = f2_opcodes.get()
-                    largest_imm_sign = arch.DataType.S if largest_immediate.sign == "s" else arch.DataType.U
-                    larger_imm_sign = arch.DataType.S if larger_immediate.sign == "s" else arch.DataType.U
-                    smaller_imm_sign = arch.DataType.S if smaller_immediate.sign == "s" else arch.DataType.U
+                    largest_imm_sign = type_info.TypeKind.INT if largest_immediate.sign == "s" else type_info.TypeKind.UINT
+                    larger_imm_sign = type_info.TypeKind.INT if larger_immediate.sign == "s" else type_info.TypeKind.UINT
+                    smaller_imm_sign = type_info.TypeKind.INT if smaller_immediate.sign == "s" else type_info.TypeKind.UINT
                     # F2-Format: funct2 | imm5 | imm5_2 | imm_3 | funct3 | rd | opcode
                     return [
                         arch.BitVal(2, funct2),
@@ -442,7 +442,7 @@ def reg_bitfield(name: str) -> arch.BitField:
     """
     Helper funtion to reduce boilerplate code
     Returns a BitField Object with the specified name"""
-    return arch.BitField(name, arch.RangeSpec(4, 0), arch.DataType.U)
+    return arch.BitField(name, arch.RangeSpec(4, 0), type_info.TypeKind.UINT)
 
 
 def update_imm_width(immediate: Operand, width: int) -> None:
