@@ -46,7 +46,7 @@ def parse_define(value):
 	return name, parsed_value
 
 
-def main():
+def _argument_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
@@ -67,7 +67,10 @@ def main():
 	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
-	args = parser.parse_args()
+	return parser
+
+
+def _parse_model(args):
 	defines = dict(args.defines)
 	allow_undefined_const = args.allow_undefined_const
 
@@ -99,11 +102,11 @@ def main():
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
 
-	if args.output is None:
-		model_path = abs_top_level.parent.joinpath('gen_model')
-	else:
-		model_path = pathlib.Path(args.output)
-	model_path.mkdir(exist_ok=True)
+	if not getattr(args, "include_imported", True):
+		# Imports supply declarations for inheritance. Unrelated abstract sets
+		# in the same library need not have independently evaluable behavior.
+		sets = {name: context for name, context in sets.items()
+			if pathlib.Path(context.children[-1].start.source[1].fileName).resolve() == abs_top_level}
 
 	temp_save = {}
 
@@ -152,7 +155,7 @@ def main():
 				)
 				const.value = defines[const.name]
 			if const.value is None:
-				unassigned_const = True
+				unassigned_const = not getattr(args, "keep_undefined", False)
 				if allow_undefined_const:
 					logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
 					
@@ -477,8 +480,36 @@ def main():
 		logger.info("Running validator")
 		validate_behav(model_obj, warnings_info)
 
-	logger.info("dumping model")
-	with open(model_path / (abs_top_level.stem + ".m2isarmodel"), "wb") as f:
+	return model_obj
+
+
+def parse_cdsl2_set(top_level, extra_includes=None, *, defines=None, include_imported=False):
+	"""Parse instruction sets with the typed frontend, without writing a pickle.
+
+	Return sets declared in the input file; imports still provide inherited
+	declarations. Set include_imported=True to return imported sets too.
+	Optional defines resolve target parameters such as XLEN before behavior
+	construction. Other undefined constants are retained for the caller.
+	"""
+	argv = [str(top_level), "--allow-undefined-const"]
+	for include in extra_includes or ():
+		argv.extend(["-I", str(include)])
+	for name, value in (defines or {}).items():
+		argv.extend(["-D", f"{name}={value}"])
+	args = _argument_parser().parse_args(argv)
+	args.keep_undefined = True
+	args.include_imported = include_imported
+	return _parse_model(args).sets
+
+
+def main(argv=None):
+	args = _argument_parser().parse_args(argv)
+	model_obj = _parse_model(args)
+	top_level = pathlib.Path(args.top_level).resolve()
+	model_path = pathlib.Path(args.output) if args.output is not None else top_level.parent / "gen_model"
+	model_path.mkdir(exist_ok=True)
+	logging.getLogger("parser").info("dumping model")
+	with open(model_path / (top_level.stem + ".m2isarmodel"), "wb") as f:
 		pickle.dump(model_obj, f)
 
 

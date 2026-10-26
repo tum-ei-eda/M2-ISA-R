@@ -39,7 +39,7 @@ def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: 
 	return op.value != 0
 
 
-def main():
+def main(argv=None):
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
@@ -49,7 +49,7 @@ def main():
 	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
-	args = parser.parse_args()
+	args = parser.parse_args(argv)
 
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("parser")
@@ -301,6 +301,10 @@ def main():
 			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 				core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 
+			for operand in instr_def.operands.values():
+				for attribute, arguments in operand.attributes.items():
+					operand.attributes[attribute] = [behav_builder.visit(argument) for argument in arguments]
+
 			try:
 				op = behav_builder.visit(instr_def.operation)
 			except M2Error as e:
@@ -314,16 +318,6 @@ def main():
 			else:
 				op = behav.Operation([op])
 
-			pc_inc = behav.Assignment(
-				behav.NamedReference(core_def.pc_memory),
-				behav.BinaryOperation(
-					behav.NamedReference(core_def.pc_memory),
-					behav.Operator("+"),
-					behav.Literal(int(instr_def.size/8), type_info.PrimitiveType(type_info.TypeKind.UINT, None))
-				)
-			)
-
-			#op.statements.insert(0, pc_inc)
 			instr_def.operation = op
 			infer_operands(instr_def)
 			if instr_def.has_encoding:

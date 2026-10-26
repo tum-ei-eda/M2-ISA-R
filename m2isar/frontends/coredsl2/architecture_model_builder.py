@@ -239,6 +239,12 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
 		name = ctx.name.text
 
+		# Encoding syntax has no signedness marker; explicit operand types
+		# supply the type of each corresponding field.
+		for field in encoding:
+			if isinstance(field, arch.BitField) and field.name in operands:
+				field.ty.kind = type_info.TypeKind.INT if operands[field.name].signed else type_info.TypeKind.UINT
+
 		i = arch.Instruction(
 			name=name,
 			attributes=attributes,

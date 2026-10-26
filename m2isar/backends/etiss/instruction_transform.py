@@ -448,6 +448,9 @@ class InstructionTransformVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context: TransformerContext):
 		"""Generate a binary expression"""
+		return self._generate_binary(expr, context)
+
+	def _generate_binary(self, expr, context, multiply_size=None):
 
 		# generate LHS and RHS of the expression
 		left = self.generate(expr.left, context)
@@ -460,11 +463,29 @@ class InstructionTransformVisitor(ExprVisitor):
 		if not right.static and left.static and not left.is_literal:
 			left.code = context.make_static(left.code, left.signed)
 
+		size = max(arch.get_const_or_val(left.size), arch.get_const_or_val(right.size))
+		signed = left.signed or right.signed
+		code = f'{left.code} {op.value} {right.code}'
+		if op.value == '*':
+			# CoreDSL products have the sum of the operand widths. C must widen
+			# both operands before multiplication, including mixed signedness.
+			size = arch.get_const_or_val(expr.ty.size) if expr.ty is not None else (
+				arch.get_const_or_val(left.size) + arch.get_const_or_val(right.size))
+			if multiply_size is not None and multiply_size < size:
+				# A narrowing cast only observes the low product bits. Unsigned
+				# arithmetic computes them without signed overflow or a wider JIT type.
+				size = multiply_size
+				signed = False
+			# Avoid C's promotion of uint8/uint16 to signed int for low-bit products.
+			storage_size = actual_size(size, min_=32 if multiply_size is not None and not signed else 8)
+			type_name = f'etiss_{"int" if signed else "uint"}{storage_size}'
+			code = f'(({type_name})({left.code}) * ({type_name})({right.code}))'
+
 		c = CodeString(
-			f'{left.code} {op.value} {right.code}',
+			code,
 			left.static and right.static,
-			arch.get_const_or_val(left.size) if arch.get_const_or_val(left.size) > arch.get_const_or_val(right.size) else arch.get_const_or_val(right.size),
-			left.signed or right.signed,
+			size,
+			signed,
 			set.union(left.regs_affected, right.regs_affected),
 			[expr.line_info] + left.line_infos + right.line_infos,
 		)
@@ -618,7 +639,17 @@ class InstructionTransformVisitor(ExprVisitor):
 		"""Generate a type cast expression"""
 
 		# generate the expression to be type-casted
-		expr_str = self.generate(expr.expr, context)
+		operand = expr.expr
+		group_lines = []
+		while isinstance(operand, behav.Group):
+			group_lines.append(operand.line_info)
+			operand = operand.expr
+		if (expr.size is not None and isinstance(operand, behav.BinaryOperation)
+				and operand.op.value == '*'):
+			expr_str = self._generate_binary(operand, context, arch.get_const_or_val(expr.size))
+			expr_str.line_infos.extend(group_lines)
+		else:
+			expr_str = self.generate(expr.expr, context)
 
 		# if only width should be changed assume data type remains unchanged
 		if expr.data_type is None:

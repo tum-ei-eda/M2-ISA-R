@@ -47,6 +47,9 @@ m2isar_viewer = "m2isar.backends.viewer.viewer:main"
 m2isar2lcov = "m2isar.backends.coverage.coverage_lcov:main"
 trace_gen = "m2isar.backends.trace_gen.trace_gen:main"
 
+[tool.setuptools.packages.find]
+include = ["m2isar*"]
+
 [tool.setuptools.package-data]
 "*" = ["*.mako"]
 

@@ -336,52 +336,52 @@ class CoreDSL2Parser ( Parser ):
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'import'", "'InstructionSet'", "'extends'", 
-                     "','", "'{'", "'}'", "'combines'", "';'", "'Core'", 
-                     "'provides'", "'architectural_state'", "'functions'", 
-                     "'instructions'", "'always'", "':'", "'encoding'", 
-                     "'::'", "'assembly'", "'behavior'", "'auto'", "'AUTO'", 
-                     "'extern'", "'('", "')'", "'if'", "'else'", "'for'", 
-                     "'while'", "'do'", "'switch'", "'return'", "'break'", 
-                     "'continue'", "'spawn'", "'case'", "'default'", "'*'", 
-                     "'&'", "'<'", "'>'", "'bool'", "'void'", "'enum'", 
-                     "'unsigned'", "'signed'", "'char'", "'short'", "'int'", 
-                     "'long'", "'float'", "'double'", "'[['", "'='", "']]'", 
-                     "'.'", "'->'", "'++'", "'--'", "'+'", "'-'", "'~'", 
-                     "'!'", "'/'", "'%'", "'<<'", "'>>'", "'<='", "'>='", 
-                     "'=='", "'!='", "'^'", "'|'", "'&&'", "'||'", "'?'", 
-                     "'+='", "'-='", "'*='", "'/='", "'&='", "'|='", "'^='", 
-                     "'>>='", "'>>>='", "'<<='", "'%='", "'alias'", "'const'", 
-                     "'volatile'", "'static'", "'register'", "'struct'", 
-                     "'union'", "'['", "']'", "<INVALID>", "<INVALID>", 
+    literalNames = [ "<INVALID>", "'import'", "'InstructionSet'", "'extends'",
+                     "','", "'{'", "'}'", "'combines'", "';'", "'Core'",
+                     "'provides'", "'architectural_state'", "'functions'",
+                     "'instructions'", "'always'", "':'", "'encoding'",
+                     "'::'", "'assembly'", "'behavior'", "'auto'", "'AUTO'",
+                     "'extern'", "'('", "')'", "'if'", "'else'", "'for'",
+                     "'while'", "'do'", "'switch'", "'return'", "'break'",
+                     "'continue'", "'spawn'", "'case'", "'default'", "'*'",
+                     "'&'", "'<'", "'>'", "'bool'", "'void'", "'enum'",
+                     "'unsigned'", "'signed'", "'char'", "'short'", "'int'",
+                     "'long'", "'float'", "'double'", "'[['", "'='", "']]'",
+                     "'.'", "'->'", "'++'", "'--'", "'+'", "'-'", "'~'",
+                     "'!'", "'/'", "'%'", "'<<'", "'>>'", "'<='", "'>='",
+                     "'=='", "'!='", "'^'", "'|'", "'&&'", "'||'", "'?'",
+                     "'+='", "'-='", "'*='", "'/='", "'&='", "'|='", "'^='",
+                     "'>>='", "'>>>='", "'<<='", "'%='", "'alias'", "'const'",
+                     "'volatile'", "'static'", "'register'", "'struct'",
+                     "'union'", "'['", "']'", "<INVALID>", "<INVALID>",
                      "<INVALID>", "'operands'" ]
 
-    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "LEFT_BR", "RIGHT_BR", "BOOLEAN", 
-                      "FLOAT", "INTEGER", "OPERANDS", "IDENTIFIER", "CHARCONST", 
-                      "ENCSTRINGCONST", "STRING", "ML_COMMENT", "SL_COMMENT", 
+    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>",
+                      "<INVALID>", "<INVALID>", "LEFT_BR", "RIGHT_BR", "BOOLEAN",
+                      "FLOAT", "INTEGER", "OPERANDS", "IDENTIFIER", "CHARCONST",
+                      "ENCSTRINGCONST", "STRING", "ML_COMMENT", "SL_COMMENT",
                       "WS" ]
 
     RULE_description_content = 0
@@ -435,21 +435,21 @@ class CoreDSL2Parser ( Parser ):
     RULE_struct_or_union = 48
     RULE_operand_declaration = 49
 
-    ruleNames =  [ "description_content", "import_file", "isa", "section", 
-                   "always_block", "instruction", "rule_encoding", "encoding_entry", 
-                   "function_definition", "parameter_list", "parameter_declaration", 
-                   "statement", "switch_block_statement_group", "switch_label", 
-                   "block", "block_item", "for_condition", "declaration", 
-                   "type_specifier", "value_type_specifier", "integer_signedness", 
-                   "integer_shorthand", "float_shorthand", "attribute", 
-                   "bit_size_specifier", "enumerator_list", "enumerator", 
-                   "struct_declaration", "struct_declaration_specifier", 
-                   "declarator", "initializer", "initializerList", "designated_initializer", 
-                   "designator", "expression", "primary", "string_literal", 
-                   "constant", "integer_constant", "floating_constant", 
-                   "bool_constant", "character_constant", "string_constant", 
-                   "double_left_bracket", "double_right_bracket", "data_types", 
-                   "type_qualifier", "storage_class_specifier", "struct_or_union", 
+    ruleNames =  [ "description_content", "import_file", "isa", "section",
+                   "always_block", "instruction", "rule_encoding", "encoding_entry",
+                   "function_definition", "parameter_list", "parameter_declaration",
+                   "statement", "switch_block_statement_group", "switch_label",
+                   "block", "block_item", "for_condition", "declaration",
+                   "type_specifier", "value_type_specifier", "integer_signedness",
+                   "integer_shorthand", "float_shorthand", "attribute",
+                   "bit_size_specifier", "enumerator_list", "enumerator",
+                   "struct_declaration", "struct_declaration_specifier",
+                   "declarator", "initializer", "initializerList", "designated_initializer",
+                   "designator", "expression", "primary", "string_literal",
+                   "constant", "integer_constant", "floating_constant",
+                   "bool_constant", "character_constant", "string_constant",
+                   "double_left_bracket", "double_right_bracket", "data_types",
+                   "type_qualifier", "storage_class_specifier", "struct_or_union",
                    "operand_declaration" ]
 
     EOF = Token.EOF
@@ -632,14 +632,14 @@ class CoreDSL2Parser ( Parser ):
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
 
-            self.state = 107 
+            self.state = 107
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 106
                 localctx._isa = self.isa()
                 localctx.definitions.append(localctx._isa)
-                self.state = 109 
+                self.state = 109
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==2 or _la==9):
@@ -715,7 +715,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_isa
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -955,7 +955,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_section
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -1126,7 +1126,7 @@ class CoreDSL2Parser ( Parser ):
                 localctx.type_ = self.match(CoreDSL2Parser.T__10)
                 self.state = 171
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 176 
+                self.state = 176
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
@@ -1148,7 +1148,7 @@ class CoreDSL2Parser ( Parser ):
                     else:
                         raise NoViableAltException(self)
 
-                    self.state = 178 
+                    self.state = 178
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
                     if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 9196348652396740608) != 0) or ((((_la - 88)) & ~0x3f) == 0 and ((1 << (_la - 88)) & 63295) != 0)):
@@ -1228,14 +1228,14 @@ class CoreDSL2Parser ( Parser ):
 
                 self.state = 213
                 self.match(CoreDSL2Parser.T__4)
-                self.state = 215 
+                self.state = 215
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 while True:
                     self.state = 214
                     localctx._always_block = self.always_block()
                     localctx.always_blocks.append(localctx._always_block)
-                    self.state = 217 
+                    self.state = 217
                     self._errHandler.sync(self)
                     _la = self._input.LA(1)
                     if not (_la==100):
@@ -1605,7 +1605,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_encoding_entry
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -2048,7 +2048,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_statement
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -2496,7 +2496,7 @@ class CoreDSL2Parser ( Parser ):
                         self.match(CoreDSL2Parser.T__23)
                         self.state = 372
                         localctx._statement = self.statement()
-                        localctx.stmt.append(localctx._statement) 
+                        localctx.stmt.append(localctx._statement)
                     self.state = 378
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,38,self._ctx)
@@ -2583,7 +2583,7 @@ class CoreDSL2Parser ( Parser ):
                     if _alt==1:
                         self.state = 408
                         localctx._switch_block_statement_group = self.switch_block_statement_group()
-                        localctx.items.append(localctx._switch_block_statement_group) 
+                        localctx.items.append(localctx._switch_block_statement_group)
                     self.state = 413
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,40,self._ctx)
@@ -2717,27 +2717,27 @@ class CoreDSL2Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 439 
+            self.state = 439
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 438
                 localctx._switch_label = self.switch_label()
                 localctx.labels.append(localctx._switch_label)
-                self.state = 441 
+                self.state = 441
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==35 or _la==36):
                     break
 
-            self.state = 444 
+            self.state = 444
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 443
                 localctx._statement = self.statement()
                 localctx.statements.append(localctx._statement)
-                self.state = 446 
+                self.state = 446
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & 9187343686420135968) != 0) or ((((_la - 96)) & ~0x3f) == 0 and ((1 << (_la - 96)) & 247) != 0)):
@@ -3280,7 +3280,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_value_type_specifier
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -4048,7 +4048,7 @@ class CoreDSL2Parser ( Parser ):
                     self.match(CoreDSL2Parser.T__3)
                     self.state = 599
                     localctx._enumerator = self.enumerator()
-                    localctx.enumerators.append(localctx._enumerator) 
+                    localctx.enumerators.append(localctx._enumerator)
                 self.state = 604
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,68,self._ctx)
@@ -4557,7 +4557,7 @@ class CoreDSL2Parser ( Parser ):
                         self.initializer()
                         pass
 
-             
+
                 self.state = 669
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,79,self._ctx)
@@ -4619,14 +4619,14 @@ class CoreDSL2Parser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 671 
+            self.state = 671
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 670
                 localctx._designator = self.designator()
                 localctx.designators.append(localctx._designator)
-                self.state = 673 
+                self.state = 673
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==55 or _la==94):
@@ -4734,7 +4734,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_expression
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -5525,7 +5525,7 @@ class CoreDSL2Parser ( Parser ):
                             self.consume()
                         pass
 
-             
+
                 self.state = 776
                 self._errHandler.sync(self)
                 _alt = self._interp.adaptivePredict(self._input,88,self._ctx)
@@ -5550,7 +5550,7 @@ class CoreDSL2Parser ( Parser ):
         def getRuleIndex(self):
             return CoreDSL2Parser.RULE_primary
 
-     
+
         def copyFrom(self, ctx:ParserRuleContext):
             super().copyFrom(ctx)
 
@@ -5689,7 +5689,7 @@ class CoreDSL2Parser ( Parser ):
             elif la_ == 3:
                 localctx = CoreDSL2Parser.Literal_expressionContext(self, localctx)
                 self.enterOuterAlt(localctx, 3)
-                self.state = 780 
+                self.state = 780
                 self._errHandler.sync(self)
                 _alt = 1
                 while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
@@ -5700,7 +5700,7 @@ class CoreDSL2Parser ( Parser ):
 
                     else:
                         raise NoViableAltException(self)
-                    self.state = 782 
+                    self.state = 782
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,89,self._ctx)
 
@@ -6495,63 +6495,63 @@ class CoreDSL2Parser ( Parser ):
     def expression_sempred(self, localctx:ExpressionContext, predIndex:int):
             if predIndex == 0:
                 return self.precpred(self._ctx, 13)
-         
+
 
             if predIndex == 1:
                 return self.precpred(self._ctx, 12)
-         
+
 
             if predIndex == 2:
                 return self.precpred(self._ctx, 11)
-         
+
 
             if predIndex == 3:
                 return self.precpred(self._ctx, 10)
-         
+
 
             if predIndex == 4:
                 return self.precpred(self._ctx, 9)
-         
+
 
             if predIndex == 5:
                 return self.precpred(self._ctx, 8)
-         
+
 
             if predIndex == 6:
                 return self.precpred(self._ctx, 7)
-         
+
 
             if predIndex == 7:
                 return self.precpred(self._ctx, 6)
-         
+
 
             if predIndex == 8:
                 return self.precpred(self._ctx, 5)
-         
+
 
             if predIndex == 9:
                 return self.precpred(self._ctx, 4)
-         
+
 
             if predIndex == 10:
                 return self.precpred(self._ctx, 3)
-         
+
 
             if predIndex == 11:
                 return self.precpred(self._ctx, 2)
-         
+
 
             if predIndex == 12:
                 return self.precpred(self._ctx, 1)
-         
+
 
             if predIndex == 13:
                 return self.precpred(self._ctx, 20)
-         
+
 
             if predIndex == 14:
                 return self.precpred(self._ctx, 18)
-         
+
 
 
 
