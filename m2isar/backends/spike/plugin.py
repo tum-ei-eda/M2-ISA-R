@@ -23,8 +23,31 @@ class Translator:
         self.instruction = instruction
         self.xlen = xlen
 
+    def has_signed_operand(self, node):
+        """Conservatively detect signed values before C++ integer promotions."""
+        if getattr(getattr(node, "ty", None), "kind", None) == TypeKind.INT:
+            return True
+        if isinstance(node, behav.NamedReference):
+            ref = node.reference
+            return (getattr(ref, "signed", False) or
+                    getattr(getattr(ref, "ty", None), "kind", None) == TypeKind.INT)
+        if isinstance(node, behav.Group):
+            return self.has_signed_operand(node.expr)
+        if isinstance(node, behav.BinaryOperation):
+            return self.has_signed_operand(node.left) or self.has_signed_operand(node.right)
+        if isinstance(node, behav.UnaryOperation):
+            return self.has_signed_operand(node.right)
+        return False
+
     def expr(self, node):
         if isinstance(node, behav.Literal) and isinstance(node.value, int):
+            if node.ty.kind == TypeKind.INT:
+                value = int(node.value)
+                if not -(1 << 63) <= value < (1 << 63):
+                    raise Unsupported("signed literal outside int64 range")
+                if value == -(1 << 63):
+                    return "(-INT64_C(9223372036854775807) - INT64_C(1))"
+                return f"{'-' if value < 0 else ''}INT64_C({abs(value)})"
             return f"UINT64_C({int(node.value) & ((1 << 64) - 1)})"
         if isinstance(node, behav.Group):
             return f"({self.expr(node.expr)})"
@@ -47,6 +70,8 @@ class Translator:
         if isinstance(node, behav.BinaryOperation):
             if node.op.value not in {"+", "-", "*", "&", "|", "^", "==", "!=", "<", ">", "<=", ">="}:
                 raise Unsupported(f"operator {node.op.value}")
+            if node.op.value in {"==", "!=", "<", ">", "<=", ">="} and self.has_signed_operand(node):
+                raise Unsupported("comparisons involving signed operands are unsupported")
             return f"({self.expr(node.left)} {node.op.value} {self.expr(node.right)})"
         if isinstance(node, behav.UnaryOperation) and node.op.value in {"~", "!", "-", "+"}:
             return f"({node.op.value}({self.expr(node.right)}))"
@@ -94,12 +119,19 @@ def generate_plugin(set_def):
     if len(widths) > 1 or (widths and not widths <= {32, 64}):
         raise Unsupported("main integer register banks must have a consistent 32- or 64-bit width")
     xlen = next(iter(widths), 32)
+    for mem in main_banks:
+        Translator(None, xlen).memory(mem, "0")
     declarations, resets = [], []
+    member_names = {name}
     for mem in list(set_def.memories.values()) + list(set_def.register_banks.values()):
         if (isinstance(mem, arch.Register) and mem.is_pc) or (isinstance(mem, arch.Memory) and mem.is_main_mem) or (isinstance(mem, arch.RegisterBank) and mem.is_main_reg):
             continue
         # Validate state before emitting any source.
         Translator(None, xlen).memory(mem, "0")
+        member = identifier(mem.name)
+        if member in member_names:
+            raise Unsupported(f"generated state name collision: {mem.name}")
+        member_names.add(member)
         declarations.append(f"std::array<uint{mem.ty.element_type.size}_t, {mem.ty.length}> {identifier(mem.name)}{{}};")
         resets.append(f"{identifier(mem.name)}.fill(0);")
         for key in mem._initval:
@@ -112,6 +144,8 @@ def generate_plugin(set_def):
     for (code, mask), insn in set_def.instructions.items():
         try:
             callback = identifier(insn.name)
+            if callback in member_names:
+                raise Unsupported("instruction name collides with extension class or custom state")
             if callback in callback_names:
                 raise Unsupported("duplicate instruction name")
             if insn.size != 32 or mask & 0x7f != 0x7f or code & 0x7f not in {0x0b, 0x2b, 0x5b, 0x7b}:

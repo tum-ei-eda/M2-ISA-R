@@ -1,5 +1,6 @@
 """Representative models for Spike plugin generation and execution."""
 import logging
+import pickle
 from pathlib import Path
 import shutil
 import subprocess
@@ -7,7 +8,8 @@ import sys
 import tempfile
 import unittest
 from m2isar.metamodel import arch as a, behav as b
-from m2isar.metamodel.type_info import TypeKind
+from m2isar.metamodel import M2Model, M2_METAMODEL_VERSION
+from m2isar.metamodel.type_info import PrimitiveType, TypeKind
 from m2isar.metamodel.attribute_info import RegisterAttribute
 from m2isar.backends.spike.plugin import Unsupported, generate_plugin
 
@@ -51,9 +53,86 @@ class PluginTests(unittest.TestCase):
                                         capture_output=True, text=True, timeout=30)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertNotIn('skipping instruction', result.stderr)
-            source = (root / 'gen_output' / 'spike' / 'Example' / 'extension.cc').read_text()
+            source = (root / 'gen_output' / 'spike' / 'spike' / 'Example' / 'extension.cc').read_text()
             self.assertEqual(source.count('static reg_t m2_'), 8)
-            self.assertTrue((root / 'gen_output' / 'spike' / 'Example' / 'Makefile').exists())
+            self.assertTrue((root / 'gen_output' / 'spike' / 'spike' / 'Example' / 'Makefile').exists())
+
+    def test_writer_preserves_unsupported_behavior_and_etiss_output(self):
+        model = example_set()
+        next(iter(model.instructions.values())).operation = b.Operation([b.CodeLiteral('unsafe();')])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'gen_model').mkdir()
+            model_path = root / 'gen_model' / 'example.m2isarmodel'
+            with model_path.open('wb') as stream:
+                pickle.dump(M2Model(M2_METAMODEL_VERSION, {}, {'Example': model}, {}), stream)
+            etiss = root / 'gen_output' / 'example' / 'Example' / 'build'
+            etiss.mkdir(parents=True)
+            sentinel = etiss / 'existing-artifact'
+            sentinel.write_text('keep')
+            for _ in range(2):
+                result = subprocess.run([sys.executable, '-m', 'm2isar.backends.spike.writer', str(model_path)],
+                                        capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('skipping instruction add: statement CodeLiteral', result.stderr)
+                source = (root / 'gen_output' / 'spike' / 'example' / 'Example' / 'extension.cc').read_text()
+                self.assertNotIn('static reg_t m2_add(', source)
+                self.assertIn('static reg_t m2_sub(', source)
+                self.assertEqual(sentinel.read_text(), 'keep')
+
+    def test_signed_comparisons_warn_and_skip(self):
+        for operator in ['<', '>', '<=', '>=', '==', '!=']:
+            with self.subTest(operator=operator):
+                model = example_set()
+                insn = next(iter(model.instructions.values()))
+                insn.fields['rs1'].ty.kind = TypeKind.INT
+                comparison = b.BinaryOperation(b.NamedReference(insn.fields['rs1']), b.Operator(operator),
+                                               b.Literal(0, PrimitiveType(TypeKind.INT, 32)))
+                insn.operation.statements[0].expr = comparison
+                with self.assertLogs('m2isar.backends.spike.plugin', logging.WARNING) as logs:
+                    source = generate_plugin(model)
+                self.assertIn('comparisons involving signed operands', logs.output[0])
+                self.assertNotIn('static reg_t m2_add(', source)
+
+    def test_signed_literal_is_preserved(self):
+        model = example_set()
+        insn = next(iter(model.instructions.values()))
+        insn.operation.statements[0].expr = b.Literal(-1, PrimitiveType(TypeKind.INT, 32))
+        self.assertIn('-INT64_C(1)', generate_plugin(model))
+
+    def test_non_unsigned_banks_fail(self):
+        for bank in ['X', 'ACC']:
+            for kind in [TypeKind.INT, TypeKind.FLOAT]:
+                with self.subTest(bank=bank, kind=kind):
+                    model = example_set()
+                    model.register_banks[bank].ty.element_type.kind = kind
+                    with self.assertRaisesRegex(Unsupported, 'requires unsigned integer elements'):
+                        generate_plugin(model)
+
+    def test_always_blocks_fail(self):
+        model = example_set()
+        model.always_blocks['update'] = b.Operation([])
+        with self.assertRaisesRegex(Unsupported, 'always blocks'):
+            generate_plugin(model)
+
+    def test_class_and_state_callback_collisions_warn(self):
+        for name in ['add', 'ACC']:
+            with self.subTest(name=name):
+                model = example_set()
+                if name == 'add':
+                    model.name = name
+                else:
+                    next(iter(model.instructions.values())).name = name
+                with self.assertLogs('m2isar.backends.spike.plugin', logging.WARNING) as logs:
+                    source = generate_plugin(model)
+                self.assertIn('collides with extension class or custom state', logs.output[0])
+                self.assertNotIn('static reg_t m2_' + name + '(', source)
+
+    def test_class_state_collision_fails(self):
+        model = example_set()
+        model.name = 'ACC'
+        with self.assertRaisesRegex(Unsupported, 'generated state name collision'):
+            generate_plugin(model)
 
     def test_representative_instructions(self):
         source = generate_plugin(example_set())

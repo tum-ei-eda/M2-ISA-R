@@ -31,7 +31,7 @@ class SpikeIntegration(unittest.TestCase):
             subprocess.run([sys.executable, '-m', 'm2isar.backends.spike.writer',
                             str(output / 'gen_model' / 'spike.m2isarmodel')],
                            check=True, capture_output=True, timeout=30)
-            shutil.copy(output / 'gen_output' / 'spike' / 'Example' / 'extension.cc', output)
+            shutil.copy(output / 'gen_output' / 'spike' / 'spike' / 'Example' / 'extension.cc', output)
             includes = [source, source / 'riscv', source / 'fesvr', source / 'softfloat', build]
             subprocess.run(['c++', '-std=c++17', '-fPIC', '-shared',
                             *[f'-I{p}' for p in includes], str(output / 'extension.cc'),

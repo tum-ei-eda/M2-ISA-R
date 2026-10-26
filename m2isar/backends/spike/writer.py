@@ -16,7 +16,6 @@ import shutil
 import time
 
 from ...metamodel import M2_METAMODEL_VERSION, M2Model
-from ...metamodel.utils.expr_preprocessor import process_attributes, process_functions, process_instructions
 from .instruction_writer import write_instructions
 
 
@@ -74,19 +73,13 @@ def main():
     # setup spike writer
     sets, logger, output_base_path, spec_name, start_time, args = setup()
 
-    # preprocess all sets
-    for set_name, set_def in sets.items():
-        logger.info("preprocessing set %s", set_name)
-        process_functions(set_def)
-        process_instructions(set_def)
-        process_attributes(set_def)
-
+    # Translate original behavior: generic preprocessing can drop unsupported nodes.
     # generate each core in the model
     for set_name, set_def in sets.items():
         logger.info("processing set %s", set_name)
 
         # create output files path
-        output_path = output_base_path / spec_name / set_name
+        output_path = output_base_path / "spike" / spec_name / set_name
         try:
             output_path.mkdir(parents=True)
         except FileExistsError:

@@ -13,7 +13,7 @@ Generate and build
 Parse a CoreDSL specification using ``coredsl2_parser``, then run::
 
    spike_writer path/to/gen_model/Example.m2isarmodel
-   cd path/to/gen_output/Example/Example
+   cd path/to/gen_output/spike/Example/Example
    make SPIKE_INCLUDE=/path/to/spike/install/include/riscv
    spike --isa=RV32IM --extlib=./libextension.so --extension=m2_Example program.elf
 
@@ -22,7 +22,8 @@ case. Integration tests were verified against Spike revision
 ``2c300cd90eb74bb79f3fcdd58596a6f8d842d01c``.
 The library must be compiled against the same Spike revision and build
 configuration as the executable. Spike's C++ plugin ABI is not stable.
-``extension.cc`` and a minimal Makefile are generated per core.
+``extension.cc`` and a minimal Makefile are generated per core under
+``gen_output/spike/<spec>/<core>``, separately from ETISS output.
 When building against an uninstalled source tree, supply the source and build
 include directories through ``CPPFLAGS`` instead.
 
@@ -39,20 +40,21 @@ Supported subset and constraints
   declarations correctly, so the CoreDSL examples use unsigned fields. Instruction encodings must be disjoint. Overlapping later
   instructions are warned about and omitted.
 * A main integer bank tagged ``is_main_reg`` must have 32 entries of either 32 or 64 bits.
-  Reads and writes use Spike's integer state; x0 remains hardwired to zero.
+  Only unsigned integer elements are supported. Reads and writes use Spike's integer state; x0 remains hardwired to zero.
 * Custom register banks have finite, zero-based ranges and 32- or 64-bit elements, independently of XLEN.
-  Initial values are restored at reset; unspecified elements start at zero.
+  Only unsigned integer elements are supported. Initial values are restored at reset; unspecified elements start at zero.
   Custom state is accessed by generated instructions, not exposed as CSRs or
   debugger registers. Memory aliases are unsupported.
 * Assignments, blocks, integer literals, field/constant/register references,
   grouping, unary +, -, ~, !, and binary +, -, *, &, |, ^ and comparisons
-  are supported. Integer register writes truncate to XLEN; custom-state writes
+  are supported. Comparisons involving signed operands are rejected until
+  their type conversions can be preserved. Integer register writes truncate to XLEN; custom-state writes
   truncate to the declared element width. Intermediate arithmetic uses
   generated C++ integer types; arbitrary CoreDSL width and overflow semantics
   are not implemented.
 * Main memory accesses, PC writes, floating point, vectors, function calls,
   casts, slices, concatenation, loops, conditionals, instruction attributes,
-  and raw code literals are unsupported. Custom state bounds are checked by
+  always blocks, and raw code literals are unsupported. Custom state bounds are checked by
   generated accessors; invalid indices trap as illegal instructions.
 * Disassembly currently falls back to Spike's unknown-instruction display.
 
