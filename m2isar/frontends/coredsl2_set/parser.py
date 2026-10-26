@@ -101,6 +101,12 @@ def _parse_model(args):
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
 
+	if not getattr(args, "include_imported", True):
+		# Imports supply declarations for inheritance. Unrelated abstract sets
+		# in the same library need not have independently evaluable behavior.
+		sets = {name: context for name, context in sets.items()
+			if pathlib.Path(context.children[-1].start.source[1].fileName).resolve() == abs_top_level}
+
 	temp_save = {}
 
 	for set_name, set_def in sets.items():
@@ -475,17 +481,22 @@ def _parse_model(args):
 	return model_obj
 
 
-def parse_cdsl2_set(top_level, extra_includes=None):
+def parse_cdsl2_set(top_level, extra_includes=None, *, defines=None, include_imported=False):
 	"""Parse instruction sets with the typed frontend, without writing a pickle.
 
-	Undefined architectural constants are retained for the caller to resolve,
-	as in the future-paper frontend used by ISAAC Toolkit.
+	Return sets declared in the input file; imports still provide inherited
+	declarations. Set include_imported=True to return imported sets too.
+	Optional defines resolve target parameters such as XLEN before behavior
+	construction. Other undefined constants are retained for the caller.
 	"""
 	argv = [str(top_level), "--allow-undefined-const"]
 	for include in extra_includes or ():
 		argv.extend(["-I", str(include)])
+	for name, value in (defines or {}).items():
+		argv.extend(["-D", f"{name}={value}"])
 	args = _argument_parser().parse_args(argv)
 	args.keep_undefined = True
+	args.include_imported = include_imported
 	return _parse_model(args).sets
 
 
