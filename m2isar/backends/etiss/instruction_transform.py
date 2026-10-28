@@ -1122,7 +1122,10 @@ class InstructionTransformVisitor(ExprVisitor):
 			left.code = context.make_static(left.code, left.signed)
 
 		new_size = left.size + right.size
-		c = CodeString(f"((({left.code}) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
+		# Shift in the result's unsigned storage type: a narrow cast can otherwise
+		# promote to int before the shift (e.g. the 2-bit MISA MXL field << 62).
+		result_type = f'etiss_uint{actual_size(new_size)}'
+		c = CodeString(f"(((({result_type})({left.code})) << {right.size}) | ({right.code}))", left.static and right.static, new_size, left.signed or right.signed,
 			set.union(left.regs_affected, right.regs_affected), [expr.line_info] + left.line_infos + right.line_infos)
 		c.mem_ids = left.mem_ids + right.mem_ids
 		return c
