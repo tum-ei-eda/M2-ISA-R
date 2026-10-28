@@ -11,7 +11,7 @@
 import logging
 from functools import singledispatchmethod
 
-from ...metamodel import arch, behav, type_info
+from ...metamodel import arch, behav, type_info, attribute_info
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 
 
@@ -19,8 +19,6 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 # pylint: disable=unused-argument
-
-
 
 
 class CDSLWriterVisitor(ExprVisitor):
@@ -36,7 +34,9 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @singledispatchmethod
     def generate(self, expr: behav.BaseNode, context):
-        raise NotImplementedError(f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}")
+        raise NotImplementedError(
+            f"No visit method implemented for type {type(expr).__name__} in {type(self).__name__}"
+        )
 
     @generate.register
     def _(self, expr: behav.Operation, writer):
@@ -44,10 +44,19 @@ class CDSLWriterVisitor(ExprVisitor):
             writer.enter_block()
         for stmt in expr.statements:
             self.generate(stmt, writer)
-            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+            if not isinstance(stmt, (behav.Conditional, behav.LoopBase, behav.Operation, behav.Break, behav.Continue)):
                 writer.write_line(";")
         if len(expr.statements) > 1:
             writer.leave_block()
+
+    @generate.register
+    def _(self, expr: behav.Block, writer):
+        writer.enter_attributed_block(expr.attributes)
+        for stmt in expr.statements:
+            self.generate(stmt, writer)
+            if not isinstance(stmt, (behav.Conditional, behav.LoopBase, behav.Operation, behav.Break, behav.Continue)):
+                writer.write_line(";")
+        writer.leave_block()
 
     @generate.register
     def _(self, expr: behav.BinaryOperation, writer):
@@ -76,10 +85,26 @@ class CDSLWriterVisitor(ExprVisitor):
         writer.write(expr.value)
 
     @generate.register
+    def _(self, expr: behav.Tensor, writer):
+        writer.write_array(expr.value)
+
+    @generate.register
     def _(self, expr: behav.VarDefinition, writer):
-        writer.write_type(expr.var.ty)
-        writer.write(" ")
-        writer.write(expr.var.name)
+        # TODO: add const attribute?
+        static_attr = expr.var.attributes.get("static")
+        is_const = static_attr == attribute_info.AccessAttribute.READ
+        if is_const:
+            writer.write("const ")
+        if isinstance(expr.var.ty, type_info.ArrayType):
+            writer.write_type(expr.var.ty.element_type)
+            writer.write(" ")
+            writer.write(expr.var.name)
+            length = arch.get_const_or_val(expr.var.ty.length)
+            writer.write(f"[{length}]")
+        else:
+            writer.write_type(expr.var.ty)
+            writer.write(" ")
+            writer.write(expr.var.name)
         if expr.var.value:
             writer.write(" = ")
             writer.write(expr.var.value)
@@ -90,10 +115,19 @@ class CDSLWriterVisitor(ExprVisitor):
         writer.write_line("break;")
 
     @generate.register
+    def _(self, expr: behav.Continue, writer):
+        writer.write_line("continue;")
+
+    @generate.register
     def _(self, expr: behav.Assignment, writer):
         self.generate(expr.target, writer)
-        writer.write(" = ")
-        self.generate(expr.expr, writer)
+        operator = getattr(expr, 'compound_operator', None)
+        if operator and isinstance(expr.expr, behav.BinaryOperation):
+            writer.write(" " + operator + " ")
+            self.generate(expr.expr.right, writer)
+        else:
+            writer.write(" = ")
+            self.generate(expr.expr, writer)
         # writer.write_line(";")
 
     @generate.register
@@ -109,22 +143,59 @@ class CDSLWriterVisitor(ExprVisitor):
                 writer.write(")")
             else:
                 writer.write("else")
-            writer.enter_block()
-            self.generate(stmt, writer)
-            if not isinstance(stmt, (behav.Conditional, behav.Operation)):
-                writer.write_line(";")
             nl = len(expr.stmts) > i
-            writer.leave_block(nl=nl)
+            if isinstance(stmt, behav.Block):
+                self.generate(stmt, writer)
+            else:
+                writer.enter_block()
+                self.generate(stmt, writer)
+                if not isinstance(stmt, (behav.Conditional, behav.Operation)):
+                    writer.write_line(";")
+                writer.leave_block(nl=nl)
 
     @generate.register
-    def _(self, expr: behav.Loop, writer):
-        writer.write("while (")
-        self.generate(expr.cond, writer)
-        writer.write(")")
-        writer.enter_block()
-        for stmt in expr.stmts:
-            self.generate(stmt, writer)
-        writer.leave_block()
+    def _(self, expr: behav.LoopBase, writer):
+        scoped_init = len(expr.init) > 1
+        if scoped_init:
+            writer.enter_block()
+            for init in expr.init:
+                self.generate(init, writer)
+                writer.write_line(";")
+        if isinstance(expr, behav.ForLoop) or expr.init or expr.updates:
+            writer.write("for (")
+            for i, init in enumerate([] if scoped_init else expr.init):
+                if i:
+                    writer.write(", ")
+                self.generate(init, writer)
+            writer.write("; ")
+            self.generate(expr.cond, writer)
+            writer.write("; ")
+            for i, update in enumerate(expr.updates):
+                if i:
+                    writer.write(", ")
+                self.generate(update, writer)
+            writer.write(")")
+        elif expr.post_test:
+            writer.write("do")
+        else:
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write(")")
+        if len(expr.stmts) == 1 and isinstance(expr.stmts[0], behav.Block):
+            self.generate(expr.stmts[0], writer)
+        else:
+            writer.enter_block()
+            for stmt in expr.stmts:
+                self.generate(stmt, writer)
+                if not isinstance(stmt, (behav.Conditional, behav.Operation, behav.LoopBase, behav.Break, behav.Continue)):
+                    writer.write_line(";")
+            writer.leave_block()
+        if expr.post_test and not (expr.init or expr.updates):
+            writer.write("while (")
+            self.generate(expr.cond, writer)
+            writer.write_line(");")
+        if scoped_init:
+            writer.leave_block()
 
 
     @generate.register
@@ -145,8 +216,13 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.UnaryOperation, writer):
-        writer.write(expr.op.value)
-        self.generate_grouped(expr.right, writer)
+        emit_operand = self.generate if expr.op.value in ('++', '--') else self.generate_grouped
+        if getattr(expr, 'postfix', False):
+            emit_operand(expr.right, writer)
+            writer.write(expr.op.value)
+        else:
+            writer.write(expr.op.value)
+            emit_operand(expr.right, writer)
 
     @generate.register
     def _(self, expr: behav.NamedReference, writer):
@@ -157,7 +233,11 @@ class CDSLWriterVisitor(ExprVisitor):
 
     @generate.register
     def _(self, expr: behav.IndexedReference, writer):
+        if getattr(expr, 'grouped_base', False):
+            writer.write("(")
         writer.write(expr.reference.name)
+        if getattr(expr, 'grouped_base', False):
+            writer.write(")")
         writer.write("[")
         # if isinstance(expr.reference, arch.Memory):
         #     # writer.track(expr.reference.name)

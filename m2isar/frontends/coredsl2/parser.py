@@ -22,11 +22,12 @@ from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
+from .source_validator import validate_source
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
 from ...transforms.infer_operands import infer_operands
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 
 
 def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
@@ -46,7 +47,7 @@ def main(argv=None):
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, DEFAULT_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
 	args = parser.parse_args(argv)
@@ -71,6 +72,13 @@ def main(argv=None):
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
 
+	if args.validate:
+		try:
+			validate_source(tree, args.warnings)
+		except M2Error as e:
+			logger.critical("Error during source validation: %s", e)
+			sys.exit(1)
+
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	try:
@@ -91,7 +99,7 @@ def main(argv=None):
 	for core_name, core_def in cores.items():
 		logger.info('building architecture model for core %s', core_name)
 		try:
-			arch_builder = ArchitectureModelBuilder()
+			arch_builder = ArchitectureModelBuilder(attributes_validated=args.validate)
 			c = arch_builder.visit(core_def)
 			if not isinstance(c, list):
 				c = [c]
@@ -218,7 +226,7 @@ def main(argv=None):
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.vars = behav_builder._vars
+				fn_def.vars = behav_builder._all_vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -259,7 +267,7 @@ def main(argv=None):
 			elif not isinstance(op, behav.Operation):
 				op = behav.Operation([op])
 			block_def.operation = op
-			block_def.vars = behav_builder._vars
+			block_def.vars = behav_builder._all_vars
 
 		logger.debug("generating instruction behavior")
 
@@ -311,7 +319,7 @@ def main(argv=None):
 				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_name, e)
 				sys.exit(1)
 
-			instr_def.vars = behav_builder._vars
+			instr_def.vars = behav_builder._all_vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)
@@ -343,12 +351,16 @@ def main(argv=None):
 	)
 
 	warnings_info = args.warnings
-	if args.infer_types or args.validate:
-		logger.info("Running type inference")
-		model_obj = infer_types(model_obj, warnings_info=warnings_info)
-	if args.validate:
-		logger.info("Running validator")
-		validate_behav(model_obj, warnings_info)
+	try:
+		if args.infer_types or args.validate:
+			logger.info("Running type inference")
+			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+		if args.validate:
+			logger.info("Running validator")
+			validate_behav(model_obj, warnings_info, source_validated=True)
+	except M2Error as e:
+		logger.critical("Error during inference or validation: %s", e)
+		sys.exit(1)
 
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:

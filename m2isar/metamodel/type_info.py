@@ -88,6 +88,61 @@ class ArrayType:
 
 
 @dataclass
+class CompositeField:
+    name: str
+    ty: Any  # metamodel type of the field
+    size: int  # bit size
+    offset: int  # bit offset from the start of the composite, always 0 in a union
+
+
+class CompositeType:
+    """Common base of struct and union types. Fields are kept in declaration order."""
+    keyword = None
+
+    def __init__(self, name: str, fields: "list[CompositeField]"):
+        self.name = name
+        self.fields = fields
+
+    @property
+    def size(self):
+        raise NotImplementedError
+
+    def field(self, name: str) -> Union[CompositeField, None]:
+        return next((field for field in self.fields if field.name == name), None)
+
+    def __str__(self):
+        return f"{self.keyword}<{self.name}>"
+
+
+class StructType(CompositeType):
+    keyword = "STRUCT"
+
+    def __init__(self, name: str, fields: "list[tuple[str, Any, int]]"):
+        """Lay out (name, type, bit size) members one after another."""
+        laid_out, offset = [], 0
+        for field_name, ty, size in fields:
+            laid_out.append(CompositeField(field_name, ty, size, offset))
+            offset += size
+        super().__init__(name, laid_out)
+
+    @property
+    def size(self):
+        return sum(field.size for field in self.fields)
+
+
+class UnionType(CompositeType):
+    keyword = "UNION"
+
+    def __init__(self, name: str, fields: "list[tuple[str, Any, int]]"):
+        """Overlay (name, type, bit size) members at offset 0."""
+        super().__init__(name, [CompositeField(field_name, ty, size, 0) for field_name, ty, size in fields])
+
+    @property
+    def size(self):
+        return max((field.size for field in self.fields), default=0)
+
+
+@dataclass
 class PointerType:
     ty: Union[PrimitiveType, FloatType, ArrayType]
 

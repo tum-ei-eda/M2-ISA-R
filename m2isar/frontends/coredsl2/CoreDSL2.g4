@@ -24,7 +24,7 @@ isa
   ;
 
 section
-	: type_='architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
+	: type_='architectural_state' '{' (enum_types+=enum_definition | composite_types+=composite_definition | declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
 	| type_='functions' '{' functions+=function_definition* '}' # section_functions
 	| type_='instructions' attributes+=attribute* '{' instructions+=instruction* '}' # section_instructions
 	| type_='always' attributes+=attribute* '{' always_blocks+=always_block+ '}' # section_always
@@ -90,7 +90,7 @@ switch_label
 	;
 
 block
-	: '{' items+=block_item* '}'
+	: '{' attributes+=attribute* items+=block_item* '}'
 	;
 
 block_item
@@ -151,13 +151,20 @@ bit_size_specifier
 	: '<' size+=primary (',' size+=primary ',' size+=primary ',' size+=primary)? '>'
 	;
 
+enum_definition
+	: 'enum' name=IDENTIFIER '{' enumerator_list ','? '}'
+	;
+
+composite_definition
+	: type_=struct_or_union name=IDENTIFIER '{' declarations+=declaration* '}'
+	;
+
 enumerator_list
 	: enumerators+=enumerator (',' enumerators+=enumerator)*
 	;
 
 enumerator
-	: name=IDENTIFIER
-	| name=IDENTIFIER '=' expression
+	: name=IDENTIFIER ('=' init=initializer)?
 	;
 
 struct_declaration
@@ -196,8 +203,9 @@ designator
 
 expression
 	: primary # primary_expression
-	| bop=('.' | '->') ref=IDENTIFIER # deref_expression
+	| expr=expression bop=('.' | '->') ref=IDENTIFIER # deref_expression
 	| expr=expression bop='[' left=expression (':' right=expression)? ']' # slice_expression
+	| ref=('sizeof' | 'bitsizeof' | 'offsetof' | 'bitoffsetof' | '__encoding_size') ('(' (args+=intrinsic_argument (',' args+=intrinsic_argument)*)? ')')? # intrinsic_expression
 	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
 	| left=expression op=('++' | '--') # postinc_expression
 	| op=('++'|'--') right=expression # preinc_expression
@@ -217,6 +225,11 @@ expression
 	| left=expression bop='::' right=expression # concat_expression
 	| <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
 	| <assoc=right> left=expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') right=expression # assignment_expression
+	;
+
+intrinsic_argument
+	: type_=type_specifier
+	| expr=expression
 	;
 
 primary

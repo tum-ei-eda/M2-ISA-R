@@ -21,7 +21,7 @@ maintainers = [
     {name = "Philipp van Kempen", email = "philipp.van-kempen@tum.de"},
 ]
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "Apache-2.0"
 readme = "README.md"
 dependencies = [

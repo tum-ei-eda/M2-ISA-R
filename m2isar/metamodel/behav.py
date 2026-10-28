@@ -64,7 +64,12 @@ class Operation(BaseNode):
 		self.statements = statements
 
 class Block(Operation):
-	"""A seperated code block"""
+	"""A separated code block with optional behavioral attributes."""
+
+	def __init__(self, statements: "list[BaseNode]", line_info=None, attributes=None, explicit_attributes=None) -> None:
+		super().__init__(statements, line_info)
+		self.attributes = attributes if attributes is not None else {}
+		self.explicit_attributes = explicit_attributes if explicit_attributes is not None else set(self.attributes)
 
 class BinaryOperation(BaseNode):
 	"""A binary operation with a left-hand and a right-hand operand as well
@@ -139,12 +144,13 @@ class Literal(BaseNode):
 
 ### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
 class Tensor(BaseNode):
-	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None, initializer_elements=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: np.ndarray = np.array(value)
 		self.ty = ty    # assigned during type checking
+		self.initializer_elements = initializer_elements
 
 	def __repr__(self):
 		return f"Tensor(values={self.value}, type={self.ty})"
@@ -177,16 +183,53 @@ class Conditional(BaseNode):
 		self.conds = conds
 		self.stmts = stmts
 
-class Loop(BaseNode):
-	"""A loop statement, representing while and do .. while loops. `post_test`
-	differentiates between normal while (post_test = False) and do .. while
-	(post_test=True) loops."""
+class LoopBase(BaseNode):
+	"""Common structural base for source and canonical loops.
 
-	def __init__(self, cond: BaseNode, stmts: "list[BaseNode]", post_test: bool, line_info=None):
+	``init`` is executed once before the loop, ``updates`` at the loop latch,
+	and ``post_test`` selects whether the condition is checked before or after
+	the body. Source frontends should prefer one of the explicit loop classes.
+	"""
+
+	def __init__(self, cond: BaseNode, stmts: "list[BaseNode]", post_test: bool, line_info=None,
+			init: "list[BaseNode]" = None, updates: "list[BaseNode]" = None):
 		super().__init__(line_info)
 		self.cond = cond
 		self.stmts = stmts if stmts is not None else []
 		self.post_test = post_test
+		self.init = init if init is not None else []
+		self.updates = updates if updates is not None else []
+
+	@property
+	def body(self):
+		"""Return the loop body block."""
+		return self.stmts[0] if len(self.stmts) == 1 and isinstance(self.stmts[0], Block) else Block(self.stmts)
+
+
+class Loop(LoopBase):
+	"""Canonical lowered loop representation."""
+
+
+class ForLoop(LoopBase):
+	"""Source-level ``for (init; cond; updates) body`` loop."""
+
+	def __init__(self, init: "list[BaseNode]", cond: BaseNode,
+			updates: "list[BaseNode]", body: Block, line_info=None):
+		super().__init__(cond, [body], False, line_info, init=init, updates=updates)
+
+
+class WhileLoop(LoopBase):
+	"""Source-level pre-tested while loop."""
+
+	def __init__(self, cond: BaseNode, body: Block, line_info=None):
+		super().__init__(cond, [body], False, line_info)
+
+
+class DoWhileLoop(LoopBase):
+	"""Source-level post-tested do-while loop."""
+
+	def __init__(self, body: Block, cond: BaseNode, line_info=None):
+		super().__init__(cond, [body], True, line_info)
 
 class Ternary(BaseNode):
 	"""A ternary expression."""
@@ -213,16 +256,20 @@ class Return(BaseNode):
 		super().__init__(line_info)
 		self.expr = expr
 
+class Continue(BaseNode):
+	"""Continue the innermost loop."""
+
 class Break(BaseNode):
 	"""A break statement."""
 
 class UnaryOperation(BaseNode):
 	"""An unary operation, whith an operator and a right hand operand."""
 
-	def __init__(self, op: Operator, right: BaseNode, line_info=None):
+	def __init__(self, op: Operator, right: BaseNode, line_info=None, *, postfix=False):
 		super().__init__(line_info)
 		self.op = op
 		self.right = right
+		self.postfix = postfix
 
 class NamedReference(BaseNode):
 	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
@@ -235,11 +282,13 @@ class IndexedReference(BaseNode):
 	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None, *, grouped_base=False):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index
 		self.right = right
+		# Preserve grouped source bases for assignment-target diagnostics.
+		self.grouped_base = grouped_base
 
 class TypeConv(BaseNode):
 	"""A type conversion. Size can be None, in this case only the signedness is affected."""
