@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Union
 from m2isar.frontends.coredsl2.expr_interpreter import ExprInterpreterVisitor
 from m2isar.metamodel import type_info, attribute_info
 
-from .. import M2TypeError, M2ValueError
+from .. import M2NameError, M2TypeError, M2ValueError
 from .behav import BaseNode, IndexedReference, Operation, Literal
 
 if TYPE_CHECKING:
@@ -244,7 +244,6 @@ class Variable(Symbol):
 			# only allow 1D arrays for now
             assert ty.element_type.kind.is_scalar
 
-        # optional: only for parameters/literals
         self.value = value
         self.children = children
         assert (len(self.children) == 0 or isinstance(ty, type_info.ArrayType))
@@ -477,6 +476,7 @@ class BitField(Symbol):
 
 	def __init__(self, name, _range: RangeSpec, kind: type_info.TypeKind):
 		self.range = _range
+		self.kind = kind
 		if not kind:
 			self.ty = type_info.BitFieldType(type_info.TypeKind.UINT)
 
@@ -513,6 +513,7 @@ class Instruction(SizedRefOrConst):
 	"""A class representing an instruction."""
 
 	attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]"
+	operands: "dict[str, Constant]"
 	encoding: "list[Union[BitField, BitVal]]"
 	mnemonic: str
 	assembly: str
@@ -526,11 +527,16 @@ class Instruction(SizedRefOrConst):
 	mask: int
 	code: int
 
-	def __init__(self, name, attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]", encoding: "list[Union[BitField, BitVal]]",
-			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"):
+	def __init__(self, name, attributes: "dict[attribute_info.InstrAttribute, list[BaseNode]]", operands: "dict[str, Constant]", encoding: "list[Union[BitField, BitVal]]",
+			mnemonic: str, assembly: str, operation: Operation, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
+		if operands is None:
+			operands = {}
+		elif not isinstance(operands, dict):
+			operands = {operand.name: operand for operand in operands}
+		self.operands = operands
 		self.encoding = encoding
 		self.fields: "dict[str, BitFieldDescr]" = {}
 		self.vars = {}
@@ -540,19 +546,43 @@ class Instruction(SizedRefOrConst):
 		self.throws = False
 		self.function_info = function_info
 
+		super().__init__(name, 0)
+		self.process_encoding()
+
+		for op_name, op_decl in self.operands.items():
+			if op_decl.value is not None:
+				raise M2ValueError(f"instruction operand {op_name} cannot have a value")
+			descr = self.fields.get(op_name)
+			if descr is None:
+				if self.has_encoding:
+					raise M2NameError(f"operand {op_name} is not present in the encoding of instruction {name}")
+				descr = BitFieldDescr(op_name, op_decl.size, type_info.TypeKind.UINT)
+				self.fields[op_name] = descr
+			elif descr.ty.size != op_decl.size:
+				raise M2TypeError(
+					f"operand {op_name} has width {op_decl.size}, but its encoding has width {descr.ty.size}"
+				)
+			descr.ty.kind = type_info.TypeKind.INT if op_decl.signed else type_info.TypeKind.UINT
+
+	def process_encoding(self):
+
 		self.mask = 0
 		self.code = 0
-
-		super().__init__(name, 0)
+		self._size = 0
 
 		for e in reversed(self.encoding):
+			if e is None:
+				self._size = None
+				self.mask = None
+				self.code = None
+				break
 			if isinstance(e, BitField):
 				self._size += e.range.length
 
 				if e.name in self.fields:
 					f = self.fields[e.name]
 					if f.ty.kind != e.ty.kind:
-						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {name}')
+						raise M2TypeError(f'non-matching datatypes for BitField {e.name} in instruction {self.name}')
 					if e.range.upper + 1 > f.ty.size:
 						f.ty.size = e.range.upper + 1
 				else:
@@ -564,9 +594,17 @@ class Instruction(SizedRefOrConst):
 
 				self._size += e.length
 
+	@property
+	def has_encoding(self):
+		return self.mask is not None
+
 	def __str__(self) -> str:
-		code_and_mask = f'code={self.code:#0{self.size+2}x}, mask={self.mask:#0{self.size+2}x}'
+		if self.has_encoding:
+			code_and_mask = f'code={self.code:#0{self.size+2}x}, mask={self.mask:#0{self.size+2}x}'
+		else:
+			code_and_mask = "code=?, mask=?"
 		return f'{super().__str__()}, ext_name={self.ext_name}, {code_and_mask}'
+
 
 class Function(Named):
 	"""A class representing a function."""
@@ -687,7 +725,7 @@ class InstructionSet(Named):
 	"""
 
 	def __init__(self, name, extension: "list[str]", parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
-			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]", always_blocks=None):
+			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]", functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction]", unencoded_instructions: "dict[str, Instruction]", always_blocks=None):
 
 		self.extension = extension
 		self.combines = []
@@ -698,6 +736,7 @@ class InstructionSet(Named):
 		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
+		self.unencoded_instructions = unencoded_instructions
 		self.always_blocks = always_blocks if always_blocks is not None else {}
 
 		super().__init__(name)
@@ -714,7 +753,7 @@ class CoreDef(Named):
 
 	def __init__(self, name, contributing_types: "list[str]", template: str, parameters: "dict[str, Parameter]", memories: "dict[str, Memory]",
 			memory_aliases: "dict[str, Alias]", register_banks: "dict[str, Union[RegisterBank, Register]]", register_aliases: "dict[str, Alias]",
-			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", instr_classes: "set[int]",
+			functions: "dict[str, Function]", instructions: "dict[tuple[int, int], Instruction] | list[Instruction]", unencoded_instructions: "dict[str, Instructions", instr_classes: "set[int]",
 			intrinsics: "dict[str, Intrinsic]", always_blocks=None):
 
 		self.contributing_types = contributing_types
@@ -726,6 +765,7 @@ class CoreDef(Named):
 		self.register_aliases = register_aliases
 		self.functions = functions
 		self.instructions = instructions
+		self.unencoded_instructions = unencoded_instructions
 		self.instr_classes = instr_classes
 		self.main_reg_file = None
 		self.float_reg_file = None

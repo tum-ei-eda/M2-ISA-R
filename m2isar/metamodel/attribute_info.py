@@ -66,3 +66,12 @@ class Qualifier(IntFlag):
     NONE = 0
     CONST = auto()
     STATIC = auto()
+
+class OperandAttribute(Enum):
+	IN = auto()
+	OUT = auto()
+	INOUT = auto()
+	IS_REG = auto()
+	IS_IMM = auto()
+	REG_CLASS = auto()
+	REG_TYPE = auto()

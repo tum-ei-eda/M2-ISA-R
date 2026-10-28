@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0
+InstructionSet Custom {
+  architectural_state {
+    register unsigned<32> X[32] [[is_main_reg]];
+    register unsigned<32> PC [[is_pc]];
+    register unsigned<32> ACC[4];
+    ACC[1] = 9;
+  }
+  instructions {
+    add {
+      encoding: 7'd0 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = X[rs1] + X[rs2]; }
+    }
+    sub {
+      encoding: 7'd1 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = X[rs1] - X[rs2]; }
+    }
+    xor {
+      encoding: 7'd2 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = X[rs1] ^ X[rs2]; }
+    }
+    and {
+      encoding: 7'd3 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = X[rs1] & X[rs2]; }
+    }
+    or {
+      encoding: 7'd4 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = X[rs1] | X[rs2]; }
+    }
+    set {
+      encoding: 7'd5 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { ACC[0] = X[rs1]; }
+    }
+    get {
+      encoding: 7'd6 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { X[rd] = ACC[0]; }
+    }
+    accumulate {
+      encoding: 7'd7 :: rs2[4:0] :: rs1[4:0] :: 3'd0 :: rd[4:0] :: 7'h0b;
+      behavior: { ACC[0] = ACC[0] + X[rs1]; }
+    }
+  }
+}
+Core Example provides Custom {}

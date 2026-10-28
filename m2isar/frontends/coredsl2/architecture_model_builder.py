@@ -81,6 +81,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		val = self.visit(ctx.value)
 		return arch.BitVal(val.ty.size, val.value)
 
+	def visitAuto_field(self, ctx: CoreDSL2Parser.Auto_fieldContext):
+		"""Generate undefined part of encoding."""
+		# import traceback
+		# traceback.print_stack()
+		# input("1")
+
+		return None
+
+
 	def visitInstruction_set(self, ctx: CoreDSL2Parser.Instruction_setContext):
 		"""Generate a top-level instruction set object."""
 
@@ -158,7 +167,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if ctx.combines:
 			i = arch.InstructionSetGroup(name, combines)
 		else:
-			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions, always_blocks)
+			i = arch.InstructionSet(name, extension, parameters, memories, memory_aliases, register_banks, register_aliases, functions, instructions, {}, always_blocks)
 
 		if name in self._instruction_sets:
 			raise M2DuplicateError(f"instruction set \"{name}\" already defined")
@@ -188,7 +197,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		c = arch.CoreDef(name, list(self._read_types.keys()), None,
 			self._parameters, self._memories, self._memory_aliases,
 			self._register_banks, self._register_aliases, self._functions,
-			self._instructions, self._instr_classes, intrinsics, self._always_blocks)
+			self._instructions, {}, self._instr_classes, intrinsics, self._always_blocks)
 
 		return c
 
@@ -233,20 +242,52 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInstruction(self, ctx: CoreDSL2Parser.InstructionContext):
 		"""Generate non-behavioral parts of an instruction."""
+		# print("visitInstruction")
 
 		# read encoding, attributes and disassembly
 		encoding = [self.visit(obj) for obj in ctx.encoding]
+		operands = {}
+		for obj in ctx.operands:
+			operand = self.visit(obj)
+			if operand.name in operands:
+				raise M2DuplicateError(f"operand {operand.name} already defined for instruction {ctx.name.text}")
+			operands[operand.name] = operand
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
+		name = ctx.name.text
 
-		i = arch.Instruction(ctx.name.text, attributes, encoding, mnemonic, assembly, ctx.behavior, None)
-		self._instr_classes.add(i.size)
+		# Encoding syntax has no signedness marker; explicit operand types
+		# supply the type of each corresponding field.
+		for field in encoding:
+			if isinstance(field, arch.BitField) and field.name in operands:
+				field.ty.kind = type_info.TypeKind.INT if operands[field.name].signed else type_info.TypeKind.UINT
+
+		i = arch.Instruction(
+			name=name,
+			attributes=attributes,
+			operands=operands,
+			encoding=encoding,
+			mnemonic=mnemonic,
+			assembly=assembly,
+			operation=ctx.behavior,
+			function_info=None,
+		)
+		# Preserve source metadata for ETISS instrumentation and coverage reports.
+		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=(i.size or 0)//4) if i.has_encoding else "auto"
+		i.function_info = FunctionInfoFactory.make(
+			ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop,
+			ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
+
+		if i.has_encoding:
+			self._instr_classes.add(i.size)
+			instr_id = (i.code, i.mask)
 
 		# instr_id = (i.code, i.mask)
 
-		opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=i.code, mask=i.mask, width=i.size//4)
-		i.function_info = FunctionInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, f"instr_{i.name}_{opcode_str}")
+			# check for duplicate instructions
+			if instr_id in self._instructions:
+				self._overwritten_instrs.append((self._instructions[instr_id], i))
 
 		# check for duplicate instructions
 		# if instr_id in self._instructions:
@@ -257,6 +298,24 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._instructions.append(i)
 
 		return i
+
+	def visitOperand_declaration(self, ctx: CoreDSL2Parser.Operand_declarationContext):
+		"""Generate an explicitly declared instruction operand."""
+		type_ = self.visit(ctx.type_)
+		decl = ctx.decl
+		if not isinstance(type_, type_info.PrimitiveType) or not type_.kind.is_int:
+			raise M2TypeError(f"operand {decl.name.text} must have an integer type")
+		if decl.size or decl.init is not None:
+			raise M2TypeError(f"operand {decl.name.text} cannot be an array or have an initializer")
+
+		attributes = dict([self.visit(obj) for obj in decl.attributes])
+		return arch.Parameter(
+			decl.name.text,
+			None,
+			attributes,
+			type_.size,
+			type_.kind == type_info.TypeKind.INT,
+		)
 
 	def visitFunction_definition(self, ctx: CoreDSL2Parser.Function_definitionContext):
 		"""Generate non-behavioral parts of a function."""
@@ -662,7 +721,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			attribute_info.MemoryAttribute._member_map_.get(name.upper()) or \
 			attribute_info.FunctionAttribute._member_map_.get(name.upper()) \
 			or attribute_info.RegisterAttribute._member_map_.get(name.upper()) \
-			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper())
+			or attribute_info.AlwaysBlockAttribute._member_map_.get(name.upper()) \
+			or attribute_info.OperandAttribute._member_map_.get(name.upper())
 
 		# warn if attribute is unknown to M2-ISA-R
 		if attr is None:

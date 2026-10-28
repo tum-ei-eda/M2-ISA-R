@@ -25,6 +25,13 @@ logger = logging.getLogger("coredsl2_writer")
 
 
 def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=None, writer_cls=None, writer_kwargs=None):
+    model_obj = copy.deepcopy(model_obj)
+    # The instruction iterators operate on one collection; include pending
+    # instructions so --splitted cannot silently omit auto encodings.
+    for container in [*model_obj.sets.values(), *model_obj.cores.values()]:
+        container.instructions = dict(container.instructions)
+        container.instructions.update(container.unencoded_instructions)
+        container.unencoded_instructions = {}
     assert out_path is not None
     out_path = pathlib.Path(out_path)
     assert out_path.is_dir(), "Expecting output directory when using --splitted"
@@ -36,7 +43,6 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
     if writer_kwargs is None:
         writer_kwargs = {}
     if num_sets > 0:
-        assert num_cores == 0
 
         def _helper(set_def, instr_def):
             writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
@@ -54,10 +60,9 @@ def write_cdsl_splitted(model_obj, out_path, ext: str = "core_desc", metrics=Non
 
         process_sets_instructions(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
-        assert num_sets == 0
 
         def _helper(core_def, instr_def):
-            writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
+            writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
             core_def_ = copy.deepcopy(core_def)
             core_def_.instructions = {
                 key: instr_def_
@@ -84,17 +89,14 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
         writer_cls = CoreDSL2Writer
     if writer_kwargs is None:
         writer_kwargs = {}
+    writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
     if num_sets > 0:
-        assert num_cores == 0
-        writer = writer_cls(visitor, drop_first_op=False, **writer_kwargs)
 
         def _helper(set_def):
             writer.write_set(set_def)
 
         process_sets(model_obj, _helper, description="Writing CoreDSL2", metrics=metrics)
     if num_cores > 0:
-        assert num_sets == 0
-        writer = writer_cls(visitor, drop_first_op=True, **writer_kwargs)
 
         def _helper(core_def):
             writer.write_core(core_def)
@@ -106,7 +108,46 @@ def write_cdsl_default(model_obj, out_path, metrics=None, writer_cls=None, write
     return metrics
 
 
-def main():
+def write_includes(writer, used_extensions, includes_prefix: str = "rv_base/", tum_includes_prefix: str = ""):
+    if {"RV32I", "RV64I"}.intersection(used_extensions):
+        writer.write(f'import "{includes_prefix}RVI.core_desc"', nl=True)
+    if "RV32M" in used_extensions or "RV64M" in used_extensions:
+        writer.write(f'import "{includes_prefix}RVM.core_desc"', nl=True)
+    if "RV32IC" in used_extensions or "RV64IC" in used_extensions:
+        writer.write(f'import "{includes_prefix}RVC.core_desc"', nl=True)
+    if "RV32F" in used_extensions or "RV64F" in used_extensions:
+        writer.write(f'import "{includes_prefix}RVF.core_desc"', nl=True)
+    if "RV32D" in used_extensions or "RV64D" in used_extensions:
+        writer.write(f'import "{includes_prefix}RVD.core_desc"', nl=True)
+
+    # add tum extensions at the end
+    if "tum_csr" in used_extensions:
+        writer.write(f'import "{tum_includes_prefix}tum_mod.core_desc"', nl=True)
+        writer.write(f'import "{tum_includes_prefix}tum_rva.core_desc"', nl=True)
+        writer.write(f'import "{tum_includes_prefix}tum_rvm.core_desc"', nl=True)
+    writer.write("\n")
+
+
+def gen_cdsl_code(model_obj, with_includes=True, includes_prefix="rv_base/", tum_includes_prefix="", legacy=False):
+    """Generate CoreDSL without modifying the caller's model or behavior."""
+    model_obj = copy.deepcopy(model_obj)
+    writer = CoreDSL2Writer(CDSLWriterVisitor(), reduced=False, legacy=legacy)
+    if with_includes:
+        extensions = set()
+        for core in model_obj.cores.values():
+            extensions.update(core.contributing_types)
+        for instruction_set in model_obj.sets.values():
+            extensions.update(instruction_set.extension)
+        write_includes(writer, extensions, includes_prefix, tum_includes_prefix)
+    for instruction_set in model_obj.sets.values():
+        writer.write_set(instruction_set)
+    for core in model_obj.cores.values():
+        writer.write_core(core)
+    return writer.text
+
+
+
+def main(argv=None):
     """Main app entrypoint."""
 
     # read command line args
@@ -114,11 +155,13 @@ def main():
     parser.add_argument("top_level", help="A .m2isarmodel or .seal5model file.")
     parser.add_argument("--output", "-o", type=str, default=None)
     parser.add_argument("--reduced", action="store_true", help="Generate pattern-gen compatible syntax")
+    parser.add_argument("--operands", action="store_true", help="Include instruction operands in generated CoreDSL2.")
     parser.add_argument("--splitted", action="store_true", help="Split per set and instruction")
     parser.add_argument("--ext", type=str, default="core_desc", help="Default file extension (if using --splitted)")
+    parser.add_argument("--legacy", action="store_true", help="Emit legacy assembly syntax")
     add_logging_args(parser)
     add_metrics_args(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     handle_logging_args(args)
 
@@ -134,7 +177,7 @@ def main():
 
     allowed_attrs = None  # all
     metrics = init_metrics()
-    writer_kwargs = dict(reduced=args.reduced, allowed_attrs=allowed_attrs)
+    writer_kwargs = dict(reduced=args.reduced, allowed_attrs=allowed_attrs, legacy=args.legacy, emit_operands=args.operands)
     if args.splitted:
         metrics = write_cdsl_splitted(
             model_obj, out_path=out_path, ext=args.ext, metrics=metrics, writer_kwargs=writer_kwargs

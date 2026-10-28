@@ -35,6 +35,7 @@ always_block
 
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'
+	(OPERANDS ':' '{' operands+=operand_declaration* '}')?
 	'encoding' ':' encoding+=encoding_entry ('::' encoding+=encoding_entry)*';'
 	('assembly' ':' (assembly=STRING | '{' mnemonic=STRING ',' assembly=STRING '}') ';')?
 	'behavior' ':' behavior=statement
@@ -48,6 +49,7 @@ rule_encoding
 encoding_entry
 	: value=integer_constant # bit_value
 	| name=IDENTIFIER '[' left=integer_constant ':' right=integer_constant ']' # bit_field
+	| ('auto' | 'AUTO') # auto_field
 	;
 
 function_definition
@@ -308,6 +310,10 @@ struct_or_union
 	| 'union'
 	;
 
+operand_declaration
+	: type_=type_specifier decl=declarator ';'
+	;
+
 LEFT_BR: '[';
 RIGHT_BR: ']';
 
@@ -321,6 +327,7 @@ fragment DECIMALINT: ('0'|'1'..'9' ('_'? '0'..'9')*);
 fragment HEXADECIMALINT: ('0x'|'0X') ('0'..'9'|'a'..'f'|'A'..'F') ('_'? ('0'..'9'|'a'..'f'|'A'..'F'))*;
 fragment VLOGINT: ('0'..'9')+ '\'' ('s')? ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
 
+OPERANDS: 'operands';
 IDENTIFIER: '^'? ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
 
 CHARCONST: ('u'|'U'|'L')? '\'' ('\\' .|~('\\'|'\''))* '\'';
