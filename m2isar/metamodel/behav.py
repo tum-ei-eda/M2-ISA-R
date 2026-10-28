@@ -99,13 +99,30 @@ class ConcatOperation(BaseNode):
 		self.right = right
 
 
+def required_bits(n: int, signed: bool = False) -> int:
+	if signed:
+		return n.bit_length() + 1 if n >= 0 else (~n).bit_length() + 1
+	if n < 0:
+		raise ValueError("negative value cannot be represented unsigned")
+	return max(1, n.bit_length())
+
+
 class Literal(BaseNode):
-	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.NONE, None), base: Optional[int]=10, line_info=None):
+	def __init__(self, value:int, ty =  PrimitiveType(TypeKind.AUTO, None), base: Optional[int]=10, line_info=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: Union[int, str] = value
 		self.ty = ty    # assigned during type checking
+		if self.ty.kind == TypeKind.AUTO:
+			if isinstance(value, int):
+				self.ty.kind = TypeKind.UINT if value > 0 else TypeKind.INT
+				if self.ty.size is None:
+					self.ty.size = required_bits(value, self.ty.kind == TypeKind.INT)
+			elif isinstance(value, str):
+				self.ty.kind = TypeKind.STR
+			else:
+				raise NotImplementedError("Could not automatically infer literal type")
 
 		#Optional type information (not always given)
 		self.base:  Optional[int] = base   # 2, 10, 16
@@ -127,12 +144,13 @@ class Literal(BaseNode):
 
 ### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
 class Tensor(BaseNode):
-	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None, initializer_elements=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: np.ndarray = np.array(value)
 		self.ty = ty    # assigned during type checking
+		self.initializer_elements = initializer_elements
 
 	def __repr__(self):
 		return f"Tensor(values={self.value}, type={self.ty})"
@@ -238,19 +256,20 @@ class Return(BaseNode):
 		super().__init__(line_info)
 		self.expr = expr
 
+class Continue(BaseNode):
+	"""Continue the innermost loop."""
+
 class Break(BaseNode):
 	"""A break statement."""
-
-class Continue(BaseNode):
-	"""A continue statement."""
 
 class UnaryOperation(BaseNode):
 	"""An unary operation, whith an operator and a right hand operand."""
 
-	def __init__(self, op: Operator, right: BaseNode, line_info=None):
+	def __init__(self, op: Operator, right: BaseNode, line_info=None, *, postfix=False):
 		super().__init__(line_info)
 		self.op = op
 		self.right = right
+		self.postfix = postfix
 
 class NamedReference(BaseNode):
 	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
@@ -263,11 +282,13 @@ class IndexedReference(BaseNode):
 	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None, *, grouped_base=False):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index
 		self.right = right
+		# Preserve grouped source bases for assignment-target diagnostics.
+		self.grouped_base = grouped_base
 
 class TypeConv(BaseNode):
 	"""A type conversion. Size can be None, in this case only the signedness is affected."""

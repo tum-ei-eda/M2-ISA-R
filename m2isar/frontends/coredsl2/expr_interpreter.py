@@ -9,6 +9,8 @@
 """Very crude expression evaluation functions for use during model generation."""
 
 from ... import M2ValueError
+from ...diagnostics import M2ValidationError
+from .constant_expressions import BINARY
 from ...metamodel import arch, behav
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from functools import singledispatchmethod
@@ -44,10 +46,25 @@ class ExprInterpreterVisitor(ExprVisitor):
 	def _(self, expr: behav.BinaryOperation, context):
 		left = self.generate(expr.left, context)
 		right = self.generate(expr.right, context)
-		return int(eval(f"{left}{expr.op.value}{right}"))
+		op = expr.op.value
+		if op in BINARY:
+			return int(BINARY[op](left, right))
+		if op == '/':
+			if right == 0:
+				raise M2ValidationError("Division by zero", 'DivisionByZero', expr.line_info)
+			value = abs(left) // abs(right)
+			return -value if (left < 0) != (right < 0) else value
+		if op in ('<<', '>>'):
+			shift = right if op == '<<' else -right
+			return left << shift if shift >= 0 else left >> -shift
+		raise M2ValidationError(f"Infix expression {op} is currently unsupported in constant expressions",
+			'UnsupportedLanguageFeature', expr.line_info)
 
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
 		right = self.generate(expr.right, context)
-		return int(eval(f"{expr.op.value}{right}"))
+		if expr.op.value == '-':
+			return -right
+		raise M2ValidationError(f"prefix operator {expr.op.value} is not allowed in constant expression",
+			'InvalidConstantExpressionNode', expr.line_info)

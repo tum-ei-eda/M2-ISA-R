@@ -24,7 +24,7 @@ isa
   ;
 
 section
-	: type_='architectural_state' '{' (declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
+	: type_='architectural_state' '{' (enum_types+=enum_definition | composite_types+=composite_definition | declarations+=declaration | expressions+=expression ';')+ '}' # section_arch_state
 	| type_='functions' '{' functions+=function_definition* '}' # section_functions
 	| type_='instructions' attributes+=attribute* '{' instructions+=instruction* '}' # section_instructions
 	| type_='always' attributes+=attribute* '{' always_blocks+=always_block+ '}' # section_always
@@ -35,6 +35,7 @@ always_block
 
 instruction
 	: name=IDENTIFIER attributes+=attribute* '{'
+	(OPERANDS ':' '{' operands+=operand_declaration* '}')?
 	'encoding' ':' encoding+=encoding_entry ('::' encoding+=encoding_entry)*';'
 	('assembly' ':' (assembly=STRING | '{' mnemonic=STRING ',' assembly=STRING '}') ';')?
 	'behavior' ':' behavior=statement
@@ -48,6 +49,7 @@ rule_encoding
 encoding_entry
 	: value=integer_constant # bit_value
 	| name=IDENTIFIER '[' left=integer_constant ':' right=integer_constant ']' # bit_field
+	| ('auto' | 'AUTO') # auto_field
 	;
 
 function_definition
@@ -149,13 +151,20 @@ bit_size_specifier
 	: '<' size+=primary (',' size+=primary ',' size+=primary ',' size+=primary)? '>'
 	;
 
+enum_definition
+	: 'enum' name=IDENTIFIER '{' enumerator_list ','? '}'
+	;
+
+composite_definition
+	: type_=struct_or_union name=IDENTIFIER '{' declarations+=declaration* '}'
+	;
+
 enumerator_list
 	: enumerators+=enumerator (',' enumerators+=enumerator)*
 	;
 
 enumerator
-	: name=IDENTIFIER
-	| name=IDENTIFIER '=' expression
+	: name=IDENTIFIER ('=' init=initializer)?
 	;
 
 struct_declaration
@@ -194,8 +203,9 @@ designator
 
 expression
 	: primary # primary_expression
-	| bop=('.' | '->') ref=IDENTIFIER # deref_expression
+	| expr=expression bop=('.' | '->') ref=IDENTIFIER # deref_expression
 	| expr=expression bop='[' left=expression (':' right=expression)? ']' # slice_expression
+	| ref=('sizeof' | 'bitsizeof' | 'offsetof' | 'bitoffsetof' | '__encoding_size') ('(' (args+=intrinsic_argument (',' args+=intrinsic_argument)*)? ')')? # intrinsic_expression
 	| ref=IDENTIFIER '(' (args+=expression (',' args+=expression)*)? ')' # method_call
 	| left=expression op=('++' | '--') # postinc_expression
 	| op=('++'|'--') right=expression # preinc_expression
@@ -215,6 +225,11 @@ expression
 	| left=expression bop='::' right=expression # concat_expression
 	| <assoc=right> cond=expression bop='?' then_expr=expression ':' else_expr=expression # conditional_expression
 	| <assoc=right> left=expression bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=') right=expression # assignment_expression
+	;
+
+intrinsic_argument
+	: type_=type_specifier
+	| expr=expression
 	;
 
 primary
@@ -295,6 +310,10 @@ struct_or_union
 	| 'union'
 	;
 
+operand_declaration
+	: type_=type_specifier decl=declarator ';'
+	;
+
 LEFT_BR: '[';
 RIGHT_BR: ']';
 
@@ -308,6 +327,7 @@ fragment DECIMALINT: ('0'|'1'..'9' ('_'? '0'..'9')*);
 fragment HEXADECIMALINT: ('0x'|'0X') ('0'..'9'|'a'..'f'|'A'..'F') ('_'? ('0'..'9'|'a'..'f'|'A'..'F'))*;
 fragment VLOGINT: ('0'..'9')+ '\'' ('s')? ('b' ('0'..'1')+|'o' ('0'..'7')+|'d' ('0'..'9')+|'h' ('0'..'9'|'a'..'f'|'A'..'F')+);
 
+OPERANDS: 'operands';
 IDENTIFIER: '^'? ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
 
 CHARCONST: ('u'|'U'|'L')? '\'' ('\\' .|~('\\'|'\''))* '\'';

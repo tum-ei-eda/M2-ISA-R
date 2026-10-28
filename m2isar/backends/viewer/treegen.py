@@ -119,6 +119,7 @@ class TreeGenVisitor(ExprVisitor):
 	def break_(self, expr: behav.Break, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Break")
 
+
 	@generate.register
 	def continue_(self, expr: behav.Continue, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Continue")

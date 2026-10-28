@@ -36,7 +36,7 @@ def sort_instruction(entry: "tuple[tuple[int, int], arch.Instruction]"):
 	return bin(mask).count("1"), code
 	#return code, bin(mask).count("1")
 
-def main():
+def main(argv=None, *, sets_only=False):
 	"""Main app entrypoint."""
 
 	# read command line args
@@ -44,7 +44,7 @@ def main():
 	parser.add_argument('top_level', help="A .m2isarmodel file containing the models to generate.")
 	parser.add_argument('-s', '--separate', action='store_true', help="Generate separate .cpp files for each instruction set.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
-	args = parser.parse_args()
+	args = parser.parse_args(argv)
 
 	# initialize logging
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
@@ -76,7 +76,7 @@ def main():
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
 
-	cores = model_obj.cores
+	cores = model_obj.sets if sets_only else model_obj.cores
 
 	# preprocess model
 	for core_name, core in cores.items():
@@ -136,10 +136,10 @@ def main():
 			tree.insert(reg_alias_id, tk.END, text=f"{reg_name} ({reg_def.parent.name})", values=(f"TYPE: {reg_def.ty}",))
 
 		# add auxillary attributes
-		tree.insert(core_id, tk.END, text="Main Memory Object", values=(core_def.main_memory,))
-		tree.insert(core_id, tk.END, text="Main Register File Object", values=(core_def.main_reg_file,))
+		tree.insert(core_id, tk.END, text="Main Memory Object", values=(getattr(core_def, "main_memory", None),))
+		tree.insert(core_id, tk.END, text="Main Register File Object", values=(getattr(core_def, "main_reg_file", None),))
 		# TODO: float_reg_file?
-		tree.insert(core_id, tk.END, text="PC Memory Object", values=(core_def.pc_memory,))
+		tree.insert(core_id, tk.END, text="PC Memory Object", values=(getattr(core_def, "pc_memory", None),))
 
 		# add functions to tree
 		fns_id = tree.insert(core_id, tk.END, text="Functions")
@@ -176,19 +176,23 @@ def main():
 		for k, v in core_def.instructions.items():
 			instrs_by_size[v.size][k] = v
 
+		if core_def.unencoded_instructions:
+			instrs_by_size[None] = core_def.unencoded_instructions
+
 		# sort instructions by encoding
 		for k, v in instrs_by_size.items():
-			instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
+			if k is not None:
+				instrs_by_size[k] = dict(sorted(v.items(), key=sort_instruction, reverse=True))
 
 		instrs_top_id = tree.insert(core_id, tk.END, text="Instructions")
 
 		# generate instruction size groups
-		for size, instrs in sorted(instrs_by_size.items()):
-			instrs_id = tree.insert(instrs_top_id, tk.END, text=f"Width {size}")
+		for size, instrs in sorted(instrs_by_size.items(), key=lambda item: item[0] or 0):
+			instrs_id = tree.insert(instrs_top_id, tk.END, text="Unencoded" if size is None else f"Width {size}")
 
 			# generate instructions
-			for (code, mask), instr_def in instrs.items():
-				opcode_str = "{code:0{width}x}:{mask:0{width}x}".format(code=code, mask=mask, width=int(instr_def.size/4))
+			for key, instr_def in instrs.items():
+				opcode_str = "auto" if size is None else "{code:0{width}x}:{mask:0{width}x}".format(code=key[0], mask=key[1], width=int(instr_def.size/4))
 
 				instr_id = tree.insert(instrs_id, tk.END, text=f"{instr_def.ext_name} : {instr_def.name}", values=(opcode_str,), tags=("mono",))
 
@@ -201,6 +205,8 @@ def main():
 						enc_str.append(f"{enc.name}[{enc.range.upper}:{enc.range.lower}]")
 
 				tree.insert(instr_id, tk.END, text="Encoding", values=(" ".join(enc_str),))
+				tree.insert(instr_id, tk.END, text="Mnemonic", values=(instr_def.mnemonic,))
+				tree.insert(instr_id, tk.END, text="Operands", values=(", ".join(instr_def.operands),))
 				tree.insert(instr_id, tk.END, text="Assembly", values=(instr_def.assembly,))
 				tree.insert(instr_id, tk.END, text="Throws", values=(instr_def.throws))
 				attrs_id = tree.insert(instr_id, tk.END, text="Attributes")

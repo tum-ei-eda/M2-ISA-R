@@ -45,6 +45,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		self._register_aliases = register_aliases
 		self._fields = fields
 		self._vars = {}
+		self._all_vars = {}
+		self._used_local_names = set().union(parameters, memories, memory_aliases,
+			register_banks, register_aliases, fields, functions)
 		self._functions = functions
 		self.warned_fns = warned_fns if warned_fns is not None else set()
 
@@ -83,6 +86,37 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.ProcedureCall(ref, args, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
+	def visitDeref_expression(self, ctx):
+		# Never silently discard the base through the generated default visitor.
+		raise M2TypeError("Composite member access is not supported by model lowering")
+
+	def visitIntrinsic_expression(self, ctx):
+		"""Fold supported size intrinsics using the source validator's type rules."""
+		from types import SimpleNamespace
+		from .source_semantics import SemanticValidator, DslSymbol
+		from .source_types import address, enum, from_meta, integer
+
+		validator = SemanticValidator(SimpleNamespace(definitions=[]), None)
+		for name, parameter in self._parameters.items():
+			validator.symbols[name] = DslSymbol(ty=integer(parameter.size, parameter.signed), storage='param',
+				known_value=parameter.value, model=parameter)
+			enum_name = getattr(parameter, '_coredsl_enum_name', None)
+			if enum_name is not None:
+				validator.enum_named_types[enum_name] = enum(integer(parameter.size, parameter.signed))
+		for collection in (self._memories, self._memory_aliases, self._register_banks, self._register_aliases, self._fields, self._vars):
+			for name, item in collection.items():
+				ty = from_meta(item.ty, arch.get_const_or_val)
+				if collection is self._memories and ty.kind == 'array':
+					ty = address(ty.element, ty.count)
+				validator.symbols[name] = DslSymbol(ty=ty, model=item)
+		value = validator.intrinsic_value(ctx)
+		if value is None:
+			if ctx.ref.text == '__encoding_size':
+				return behav.NamedReference(intrinsics.get('__encoding_size'), LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+			raise M2TypeError(f"Cannot lower unresolved intrinsic {ctx.ref.text}")
+		return behav.Literal(value, type_info.PrimitiveType(type_info.TypeKind.UINT, max(1, value.bit_length())),
+			line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+
 	def visitMethod_call(self, ctx: "CoreDSL2Parser.Method_callContext"):
 		"""Generate a function (method call with return value) call."""
 
@@ -119,7 +153,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			else:
 				attributes[attr] = [self.visit(param) for param in attr_ctx.params]
 
-		items = [self.visit(obj) for obj in ctx.items]
+		outer_vars = self._vars
+		self._vars = outer_vars.copy()
+		try:
+			items = [self.visit(obj) for obj in ctx.items]
+		finally:
+			self._vars = outer_vars
 		items = list(flatten(items))
 		return behav.Block(
 			items,
@@ -138,7 +177,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		qualifiers = [obj.getText() for obj in ctx.qualifiers if isinstance(obj, CoreDSL2Parser.Type_qualifierContext)]
 		attributes = [self.visit(obj) for obj in ctx.attributes]
 
-		type_ = self.visit(ctx.type_)
+		base_type = self.visit(ctx.type_)
 
 		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
 
@@ -147,6 +186,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		# iterate over all contained declarations
 		for decl in decls:
 			name = decl.name.text
+			type_ = copy.deepcopy(base_type)
 
 			if "volatile" in qualifiers:
 				raise M2SyntaxError(f"Volatile qualifier is not supported, in declaration of {name}")
@@ -166,8 +206,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if attributes_dict.get("const", False):
 				attributes_dict["static"] = attribute_info.AccessAttribute.READ
 
-			s = arch.Variable(name, type_, attributes=attributes_dict)
-			self._vars[name] = s
+			# Backends emit model names directly; each declaration needs a unique
+			# name even when CoreDSL allows it to shadow another declaration.
+			model_name = name
+			suffix = 2
+			while model_name in self._used_local_names:
+				model_name = f'{name}_{suffix}'
+				suffix += 1
+			self._used_local_names.add(model_name)
+			s = arch.Variable(model_name, type_, attributes=attributes_dict)
 			sd = behav.VarDefinition(s)
 
 			# if initializer is present, generate an assignment to apply
@@ -176,6 +223,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 				if isinstance(init, list):
+					initializer_elements = list(init)
 					for ele_nr in range(len(init)):
 						ele = init[ele_nr]
 						if isinstance(ele, behav.UnaryOperation):
@@ -184,20 +232,22 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 							init[ele_nr] = ele
 						if not isinstance(ele, behav.Literal):
 							raise M2TypeError(f"Initializer list can only contain literals, but got {type(ele)}")
-					init = behav.Tensor(create_np_array_from_literal_array(init, type_), type_)
+					init = behav.Tensor(create_np_array_from_literal_array(init, type_), type_,
+					                    initializer_elements=initializer_elements)
 			else:
 				if isinstance(type_, type_info.PrimitiveType):
-					# force 0 to be signed
-					type_.kind = type_info.TypeKind.INT
-					init = behav.Literal(0, type_)
+					init = behav.Literal(0, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
 				elif isinstance(type_, type_info.ArrayType):
 					shape = []
 					infer_shape_from_type(type_, shape)
-					init = behav.Tensor(np.zeros(shape), type_)
+					init = behav.Tensor(np.zeros(shape, dtype=object), type_)
 				else:
 					raise M2TypeError(f"Literal has a not supported type {type}")
 
 
+			# The initializer sees the previous binding, including an outer local.
+			self._vars[name] = s
+			self._all_vars[model_name] = s
 			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
 			ret_decls.append(a)
 
@@ -248,7 +298,16 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.DoWhileLoop(stmt, cond, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
-		"""Generate a for loop. Currently hacky, untested and mostly broken."""
+		"""Keep initializer locals visible throughout the loop, then restore scope."""
+		outer_vars = self._vars
+		self._vars = outer_vars.copy()
+		try:
+			return self._lower_for_statement(ctx)
+		finally:
+			self._vars = outer_vars
+
+	def _lower_for_statement(self, ctx: CoreDSL2Parser.For_statementContext):
+		"""Retain the initializer and updates on the source-level for loop."""
 
 		start_decl, start_expr, end_expr, loop_exprs = self.visit(ctx.cond)
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
@@ -274,7 +333,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		start_decl = self.visit(ctx.start_decl) if ctx.start_decl else None
 		start_expr = self.visit(ctx.start_expr) if ctx.start_expr else None
-		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else None
+		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else behav.Literal(
+			1, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
 		loop_exprs = [self.visit(obj) for obj in ctx.loop_exprs] if ctx.loop_exprs else None
 
 		return start_decl, start_expr, end_expr, loop_exprs
@@ -322,19 +382,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.BinaryOperation(left, op, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
-		return self._lower_inc_dec(ctx.right, ctx.op, ctx)
+		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.right),
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Postinc_expressionContext):
-		return self._lower_inc_dec(ctx.left, ctx.op, ctx)
-
-	def _lower_inc_dec(self, operand_ctx, op_token, ctx):
-		"""Lower ++/-- to an assignment, as required by behavior backends."""
-		target = self.visit(operand_ctx)
-		op = behav.Operator("+" if op_token.text == "++" else "-")
-		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
-		one_type = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
-		value = behav.BinaryOperation(target, op, behav.Literal(1, one_type, line_info=line_info), line_info)
-		return behav.Assignment(target, value, line_info)
+		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.left),
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line), postfix=True)
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
 		"""Generate an unary expression."""
@@ -365,19 +418,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right else left
 
-		# TODO distinguish between Multi-Dimensional Slices and BitSlice with ArrayType/PrimitiveType???
-		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference.ty, type_info.ArrayType):
-			assert(isinstance(expr.reference.ty, type_info.ArrayType))
-			#Dont duplicate index to differentiate between index and ranged access
-			if right == left:
-					return behav.IndexedReference(expr.reference, left, None, \
-								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
-			else:
-					return behav.IndexedReference(expr.reference, left, right, \
-								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
-		else:
-			return behav.SliceOperation(expr, left, right, \
-							   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		base = expr
+		while isinstance(base, behav.Group):
+			base = base.expr
+		location = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start,
+									   ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		if isinstance(base, behav.NamedReference) and isinstance(base.reference.ty, type_info.ArrayType):
+			return behav.IndexedReference(base.reference, left, right if ctx.right else None,
+									  location, grouped_base=base is not expr)
+		return behav.SliceOperation(expr, left, right, location)
 
 	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
 		"""Generate a concatenation expression."""
@@ -403,7 +452,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			left_2.line_info = None
 			right = behav.BinaryOperation(left_2, op2, right)
 
-		return behav.Assignment(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		assignment = behav.Assignment(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		if op != "=":
+			assignment.compound_operator = op
+		return assignment
 
 	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
 		"""Generate a simple reference."""
@@ -427,22 +479,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
 		"""Generate an integer literal."""
 
-		text: str = ctx.value.text.lower()
-
-		tick_pos = text.find("'")
-
-		if tick_pos != -1:
-			width = int(text[:tick_pos])
-			radix = text[tick_pos+1]
-			value = int(text[tick_pos+2:], RADIX[radix])
-
-		else:
-			value = int(text, 0)
-			width = value.bit_length()
-
-		kind = type_info.TypeKind.INT if value <= 0 else type_info.TypeKind.UINT
-
-		return behav.Literal(value,  type_info.PrimitiveType(kind, width), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		from .constant_expressions import integer_literal
+		from ...diagnostics import M2ValidationError
+		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		try:
+			value, width, signed = integer_literal(ctx.value.text)
+		except ValueError as exc:
+			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', line_info) from exc
+		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
+		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=line_info)
 
 	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
 		"""Generate a character literal. Converts directly to uint8."""
@@ -520,6 +565,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		"""Generate a void type specifier."""
 
 		return type_info.PrimitiveType(type_info.TypeKind.VOID, None)
+
+	def visitEnum_reference(self, ctx):
+		for parameter in self._parameters.values():
+			if getattr(parameter, '_coredsl_enum_name', None) == ctx.name.text:
+				kind = type_info.TypeKind.INT if parameter.signed else type_info.TypeKind.UINT
+				return type_info.PrimitiveType(kind, parameter.size)
+		raise M2TypeError(f"Cannot lower unresolved enum type {ctx.name.text}")
 
 	def visitBool_type(self, ctx: CoreDSL2Parser.Bool_typeContext):
 		"""Generate a bool type specifier. Aliases to unsigned<1>."""

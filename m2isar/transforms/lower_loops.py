@@ -46,6 +46,6 @@ def lower_loops(model_obj):
             fn_def.operation = mutator.generate(fn_def.operation)
         for always_block in component.always_blocks.values():
             always_block.operation = mutator.generate(always_block.operation)
-        for instr_def in component.instructions.values():
+        for instr_def in [*component.instructions.values(), *component.unencoded_instructions.values()]:
             instr_def.operation = mutator.generate(instr_def.operation)
     return model_obj

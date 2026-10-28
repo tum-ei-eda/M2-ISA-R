@@ -74,6 +74,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#auto_field.
+    def visitAuto_field(self, ctx:CoreDSL2Parser.Auto_fieldContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#function_definition.
     def visitFunction_definition(self, ctx:CoreDSL2Parser.Function_definitionContext):
         return self.visitChildren(ctx)
@@ -249,6 +254,16 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#enum_definition.
+    def visitEnum_definition(self, ctx:CoreDSL2Parser.Enum_definitionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#composite_definition.
+    def visitComposite_definition(self, ctx:CoreDSL2Parser.Composite_definitionContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#enumerator_list.
     def visitEnumerator_list(self, ctx:CoreDSL2Parser.Enumerator_listContext):
         return self.visitChildren(ctx)
@@ -304,33 +319,13 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#preinc_expression.
-    def visitPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CoreDSL2Parser#conditional_expression.
-    def visitConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CoreDSL2Parser#deref_expression.
     def visitDeref_expression(self, ctx:CoreDSL2Parser.Deref_expressionContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#prefix_expression.
-    def visitPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CoreDSL2Parser#postinc_expression.
     def visitPostinc_expression(self, ctx:CoreDSL2Parser.Postinc_expressionContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CoreDSL2Parser#concat_expression.
-    def visitConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
         return self.visitChildren(ctx)
 
 
@@ -344,13 +339,43 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CoreDSL2Parser#primary_expression.
-    def visitPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+    # Visit a parse tree produced by CoreDSL2Parser#intrinsic_expression.
+    def visitIntrinsic_expression(self, ctx:CoreDSL2Parser.Intrinsic_expressionContext):
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by CoreDSL2Parser#slice_expression.
     def visitSlice_expression(self, ctx:CoreDSL2Parser.Slice_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#preinc_expression.
+    def visitPreinc_expression(self, ctx:CoreDSL2Parser.Preinc_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#conditional_expression.
+    def visitConditional_expression(self, ctx:CoreDSL2Parser.Conditional_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#prefix_expression.
+    def visitPrefix_expression(self, ctx:CoreDSL2Parser.Prefix_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#concat_expression.
+    def visitConcat_expression(self, ctx:CoreDSL2Parser.Concat_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#primary_expression.
+    def visitPrimary_expression(self, ctx:CoreDSL2Parser.Primary_expressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#intrinsic_argument.
+    def visitIntrinsic_argument(self, ctx:CoreDSL2Parser.Intrinsic_argumentContext):
         return self.visitChildren(ctx)
 
 
@@ -436,6 +461,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CoreDSL2Parser#struct_or_union.
     def visitStruct_or_union(self, ctx:CoreDSL2Parser.Struct_or_unionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CoreDSL2Parser#operand_declaration.
+    def visitOperand_declaration(self, ctx:CoreDSL2Parser.Operand_declarationContext):
         return self.visitChildren(ctx)
 
 

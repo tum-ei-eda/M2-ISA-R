@@ -18,6 +18,7 @@ from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, 
 from ...metamodel.code_info import CodeInfoBase
 from ..coredsl2.parser import try_eval_bool
 from ..coredsl2.importer import recursive_import
+from ..coredsl2.source_validator import validate_source
 from ..coredsl2.utils import make_parser
 from ..coredsl2.behavior_model_builder import BehaviorModelBuilder
 from ..coredsl2.architecture_model_builder import ArchitectureModelBuilder
@@ -25,8 +26,9 @@ from .load_order import LoadOrder
 
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
+from ...transforms.infer_operands import infer_operands
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 
 
 def parse_define(value):
@@ -45,7 +47,7 @@ def parse_define(value):
 	return name, parsed_value
 
 
-def main():
+def _argument_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
@@ -63,10 +65,13 @@ def main():
 		metavar="NAME[=VALUE]",
 		help="Define a CoreDSL constant (default VALUE: 1), e.g. -DXLEN=32",
 	)
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, DEFAULT_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
-	args = parser.parse_args()
+	return parser
+
+
+def _parse_model(args):
 	defines = dict(args.defines)
 	allow_undefined_const = args.allow_undefined_const
 
@@ -90,6 +95,13 @@ def main():
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
 
+	if args.validate:
+		try:
+			validate_source(tree, args.warnings, parameter_values=defines)
+		except M2Error as e:
+			logger.critical("Error during source validation: %s", e)
+			sys.exit(1)
+
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	try:
@@ -98,18 +110,18 @@ def main():
 		logger.critical("Error during load order building: %s", e)
 		sys.exit(1)
 
-	if args.output is None:
-		model_path = abs_top_level.parent.joinpath('gen_model')
-	else:
-		model_path = pathlib.Path(args.output)
-	model_path.mkdir(exist_ok=True)
+	if not getattr(args, "include_imported", True):
+		# Imports supply declarations for inheritance. Unrelated abstract sets
+		# in the same library need not have independently evaluable behavior.
+		sets = {name: context for name, context in sets.items()
+			if pathlib.Path(context.children[-1].start.source[1].fileName).resolve() == abs_top_level}
 
 	temp_save = {}
 
 	for set_name, set_def in sets.items():
 		logger.info(f"building architecture model for set %s", set_name)
 		try:
-			arch_builder = ArchitectureModelBuilder(merge=True)
+			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate)
 			s = arch_builder.visit(set_def)
 			if not isinstance(s, list):
 				s = [s]
@@ -151,7 +163,7 @@ def main():
 				)
 				const.value = defines[const.name]
 			if const.value is None:
-				unassigned_const = True
+				unassigned_const = not getattr(args, "keep_undefined", False)
 				if allow_undefined_const:
 					logger.warning("ignoring constant %s in set %s which has no value assigned...", const.name, set_name)
 					
@@ -282,7 +294,7 @@ def main():
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.vars = behav_builder._vars
+				fn_def.vars = behav_builder._all_vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -334,16 +346,18 @@ def main():
 			elif not isinstance(op, behav.Operation):
 				op = behav.Operation([op])
 			block_def.operation = op
-			block_def.vars = behav_builder._vars
+			block_def.vars = behav_builder._all_vars
 
 		logger.debug("generating instruction behavior")
 		instructions_by_enc = {}
+		unencoded_instructions_by_name = {}
 		assert isinstance(set_def.instructions, list)
 		overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]" = []
 		# for instr_def in set_def.instructions.values():
 		for instr_def in set_def.instructions:
 
-			logger.debug("generating instruction %s", instr_def.name)
+			instr_name = instr_def.name
+			logger.debug("generating instruction %s", instr_name)
 			logger.debug("generating attributes")
 
 			for attr_name, attr_ops in instr_def.attributes.items():
@@ -364,7 +378,7 @@ def main():
 						ops.append(op)
 					except M2Error as e:
 						logger.critical(
-							'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_def.name, e
+							'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_name, e
 						)
 						sys.exit(1)
 
@@ -381,11 +395,31 @@ def main():
 					if not enable:
 						continue
 
-			print("set_def.parameters", set_def.parameters)
-			print("set_def.memories", set_def.memories)
-			print("set_def.memory_aliases", set_def.memory_aliases)
-			print("set_def.register_banks", set_def.register_banks)
-			print("set_def.register_aliases", set_def.register_aliases)
+			logger.debug("generating operand attributes")
+			for operand_def in instr_def.operands.values():
+				for attr_name, attr_ops in operand_def.attributes.items():
+					ops = []
+					for attr_op in attr_ops:
+						try:
+							behav_builder = BehaviorModelBuilder(
+								set_def.parameters,
+								set_def.memories,
+								set_def.memory_aliases,
+								set_def.register_banks,
+								set_def.register_aliases,
+								instr_def.fields,
+								set_def.functions,
+								warned_fns,
+							)
+							op = behav_builder.visit(attr_op)
+							ops.append(op)
+						except M2Error as e:
+							logger.critical(
+								'error processing attribute "%s" of instruction "%s": %s', attr_name, instr_name, e
+							)
+							sys.exit(1)
+
+					operand_def.attributes[attr_name] = ops
 			behav_builder = BehaviorModelBuilder(
 				set_def.parameters,
 				set_def.memories,
@@ -401,12 +435,12 @@ def main():
 				op = behav_builder.visit(instr_def.operation)
 			except M2Error as e:
 				logger.critical(
-					"error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e
+					"error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_name, e
 				)
 				raise e
 				sys.exit(1)
 
-			instr_def.vars = behav_builder._vars
+			instr_def.vars = behav_builder._all_vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)
@@ -424,12 +458,17 @@ def main():
 
 			# op.statements.insert(0, pc_inc)
 			instr_def.operation = op
-			instr_id = (instr_def.code, instr_def.mask)
-			# check for duplicate instructions
-			if instr_id in instructions_by_enc:
-				overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
-			instructions_by_enc[instr_id] = instr_def
+			infer_operands(instr_def)
+			if instr_def.has_encoding:
+				instr_id = (instr_def.code, instr_def.mask)
+				# check for duplicate instructions
+				if instr_id in instructions_by_enc:
+					overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
+				instructions_by_enc[instr_id] = instr_def
+			else:
+				unencoded_instructions_by_name[instr_name] = instr_def
 		set_def.instructions = instructions_by_enc
+		set_def.unencoded_instructions = unencoded_instructions_by_name
 		assert isinstance(set_def.instructions, dict)
 		for orig, overwritten in overwritten_instrs:
 			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
@@ -442,15 +481,47 @@ def main():
 			logger.critical("no sets were generated, resulting model will be empty")
 			sys.exit(-1)
 	warnings_info = args.warnings
-	if args.infer_types or args.validate:
-		logger.info("Running type inference")
-		model_obj = infer_types(model_obj, warnings_info=warnings_info)
-	if args.validate:
-		logger.info("Running validator")
-		validate_behav(model_obj, warnings_info)
+	try:
+		if args.infer_types or args.validate:
+			logger.info("Running type inference")
+			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+		if args.validate:
+			logger.info("Running validator")
+			validate_behav(model_obj, warnings_info, source_validated=True)
+	except M2Error as e:
+		logger.critical("Error during model validation: %s", e)
+		sys.exit(1)
 
-	logger.info("dumping model")
-	with open(model_path / (abs_top_level.stem + ".m2isarmodel"), "wb") as f:
+	return model_obj
+
+
+def parse_cdsl2_set(top_level, extra_includes=None, *, defines=None, include_imported=False):
+	"""Parse instruction sets with the typed frontend, without writing a pickle.
+
+	Return sets declared in the input file; imports still provide inherited
+	declarations. Set include_imported=True to return imported sets too.
+	Optional defines resolve target parameters such as XLEN before behavior
+	construction. Other undefined constants are retained for the caller.
+	"""
+	argv = [str(top_level), "--allow-undefined-const"]
+	for include in extra_includes or ():
+		argv.extend(["-I", str(include)])
+	for name, value in (defines or {}).items():
+		argv.extend(["-D", f"{name}={value}"])
+	args = _argument_parser().parse_args(argv)
+	args.keep_undefined = True
+	args.include_imported = include_imported
+	return _parse_model(args).sets
+
+
+def main(argv=None):
+	args = _argument_parser().parse_args(argv)
+	model_obj = _parse_model(args)
+	top_level = pathlib.Path(args.top_level).resolve()
+	model_path = pathlib.Path(args.output) if args.output is not None else top_level.parent / "gen_model"
+	model_path.mkdir(exist_ok=True)
+	logging.getLogger("parser").info("dumping model")
+	with open(model_path / (top_level.stem + ".m2isarmodel"), "wb") as f:
 		pickle.dump(model_obj, f)
 
 

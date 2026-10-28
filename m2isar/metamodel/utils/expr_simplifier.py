@@ -16,8 +16,8 @@ simplifications are done:
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
-* Type conversions of :class:`m2isar.metamodel.arch.Literal` s apply the desired
-  type directly to the :class:`Literal` and discard the type conversion
+* Type conversions remain explicit to preserve their declared types and
+  constant-expression provenance for validation.
 """
 
 from ...metamodel import arch, behav, type_info
@@ -72,6 +72,18 @@ class ExprSimplifierVisitor(ExprVisitor):
 				if expr.right.ty.size < arch.get_const_or_val(expr.left.ty.size):
 					expr.right.ty.size = arch.get_const_or_val(expr.left.ty.size)
 
+		if expr.op.value in ('&&', '||'):
+			boolean_type = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
+			if isinstance(expr.left, behav.Literal):
+				left = bool(expr.left.value)
+				if (expr.op.value == '&&' and not left) or (expr.op.value == '||' and left):
+					return behav.Literal(int(left), boolean_type)
+				if isinstance(expr.right, behav.Literal):
+					return behav.Literal(int(bool(expr.right.value)), boolean_type)
+			# Keep Boolean normalization and evaluation of a nonconstant left
+			# operand, including when the right constant determines the result.
+			return expr
+
 		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
 			# pylint: disable=eval-used
 			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
@@ -81,27 +93,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 				kind = type_info.TypeKind.UINT
 			return behav.Literal(res, type_info.PrimitiveType(kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length())))
 
-		if expr.op.value == "&&":
-			if isinstance(expr.left, behav.Literal):
-				if expr.left.value:
-					return expr.right
-				return expr.left
-
-			if isinstance(expr.right, behav.Literal):
-				if expr.right.value:
-					return expr.left
-				return expr.right
-
-		if expr.op.value == "||":
-			if isinstance(expr.left, behav.Literal):
-				if expr.left.value:
-					return expr.left
-				return expr.right
-
-			if isinstance(expr.right, behav.Literal):
-				if expr.right.value:
-					return expr.right
-				return expr.left
 
 		return expr
 
@@ -213,8 +204,15 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.UnaryOperation, context):
+		if expr.op.value in ('++', '--'):
+			return expr  # Preserve target identity and side effects, including invalid constants.
 		expr.right = self.generate(expr.right, context)
 		if isinstance(expr.right, behav.Literal):
+			if expr.op.value == '!':
+				return behav.Literal(
+					int(not bool(expr.right.value)),
+					type_info.PrimitiveType(type_info.TypeKind.UINT, 1),
+				)
 			# pylint: disable=eval-used
 			res: int = eval(f"{expr.op.value}{expr.right.value}")
 			if res < 0:
@@ -245,16 +243,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.TypeConv, context):
 		expr.expr = self.generate(expr.expr, context)
-		if isinstance(expr.expr, behav.Literal):
-			size = expr.size
-			if size is None:
-				assert expr.ty is not None
-				assert expr.expr.ty.size is not None
-				expr.ty.size = expr.expr.ty.size
-			expr.expr.signed = expr.data_type == type_info.TypeKind.INT
-			expr.expr.ty.kind = expr.data_type
-			return expr.expr
-
 		return expr
 
 	@generate.register

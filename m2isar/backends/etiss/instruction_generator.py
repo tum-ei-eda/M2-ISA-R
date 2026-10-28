@@ -111,6 +111,12 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 
 	logger.debug("generating instruction parameters for %s", instr_def.name)
 
+	def field_kind(name):
+		operand = instr_def.operands.get(name)
+		if operand is not None:
+			return type_info.TypeKind.INT if operand.signed else type_info.TypeKind.UINT
+		return instr_def.fields[name].ty.kind
+
 	# iterate from LSB to MSB
 	for enc in reversed(instr_def.encoding):
 		if isinstance(enc, arch.BitField):
@@ -121,7 +127,7 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 				# first encounter of this parameter, instantiate a new integer for it
 				seen_fields[enc.name] = 255
 				width = actual_size(instr_def.fields[enc.name].ty.size)
-				fields_code += f'{instruction_utils.data_type_map[enc.ty.kind]}{width} {enc.name} = 0;\n'
+				fields_code += f'{instruction_utils.data_type_map[field_kind(enc.name)]}{width} {enc.name} = 0;\n'
 
 			lower = enc.range.lower
 			length = enc.range.length
@@ -146,9 +152,9 @@ def generate_fields(core_default_width, instr_def: arch.Instruction):
 		asm_printer_code.append(f'{field_name}=" + std::to_string({field_name}) + "')
 
 		# generate sign extension if necessary
-		if field_descr.ty.kind == type_info.TypeKind.INT and field_descr.size < core_default_width:
+		if field_kind(field_name) == type_info.TypeKind.INT and field_descr.ty.size < core_default_width:
 			fields_code += '\n'
-			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.size};}} {field_name}_ext;\n'
+			fields_code += f'struct {{etiss_int{core_default_width} x:{field_descr.ty.size};}} {field_name}_ext;\n'
 			fields_code += f'{field_name} = {field_name}_ext.x = {field_name};'
 
 	asm_printer_code = f'ss << "{instr_def.name.lower()}" << " # " << ba << (" [' + ' | '.join(reversed(asm_printer_code)) + ']");'

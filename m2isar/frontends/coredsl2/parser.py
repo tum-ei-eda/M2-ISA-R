@@ -22,10 +22,13 @@ from .behavior_model_builder import BehaviorModelBuilder
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
+from .source_validator import validate_source
 from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
+from ...transforms.infer_operands import infer_operands
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
+
 
 def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
@@ -37,17 +40,17 @@ def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: 
 	return op.value != 0
 
 
-def main():
+def main(argv=None):
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
 	parser.add_argument("--log", default="info", choices=["critical", "error", "warning", "info", "debug"])
 	parser.add_argument("-I", dest="includes", action="append", default=[], help="Extra include directories")
 	parser.add_argument('--infer-types', action=BooleanOptionalAction, default=True, help="Run type inference after parsing.")
 	parser.add_argument('--validate', action=BooleanOptionalAction, default=False, help="Run validator after parsing.")
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, DEFAULT_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
-	args = parser.parse_args()
+	args = parser.parse_args(argv)
 
 	logging.basicConfig(level=getattr(logging, args.log.upper()))
 	logger = logging.getLogger("parser")
@@ -69,6 +72,13 @@ def main():
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
 
+	if args.validate:
+		try:
+			validate_source(tree, args.warnings)
+		except M2Error as e:
+			logger.critical("Error during source validation: %s", e)
+			sys.exit(1)
+
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	try:
@@ -89,7 +99,7 @@ def main():
 	for core_name, core_def in cores.items():
 		logger.info('building architecture model for core %s', core_name)
 		try:
-			arch_builder = ArchitectureModelBuilder()
+			arch_builder = ArchitectureModelBuilder(attributes_validated=args.validate)
 			c = arch_builder.visit(core_def)
 			if not isinstance(c, list):
 				c = [c]
@@ -216,7 +226,7 @@ def main():
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.vars = behav_builder._vars
+				fn_def.vars = behav_builder._all_vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -257,16 +267,18 @@ def main():
 			elif not isinstance(op, behav.Operation):
 				op = behav.Operation([op])
 			block_def.operation = op
-			block_def.vars = behav_builder._vars
+			block_def.vars = behav_builder._all_vars
 
 		logger.debug("generating instruction behavior")
 
 		assert isinstance(core_def.instructions, list)
 		instructions_by_enc = {}
+		unencoded_instructions_by_name = {}
 		overwritten_instrs: "list[tuple[arch.Instruction, arch.Instruction]]" = []
 		# for instr_def in core_def.instructions.values():
 		for instr_def in core_def.instructions:
-			logger.debug("generating instruction %s", instr_def.name)
+			instr_name = instr_def.name
+			logger.debug("generating instruction %s", instr_name)
 			logger.debug("generating attributes")
 
 			for attr_name, attr_ops in instr_def.attributes.items():
@@ -278,7 +290,7 @@ def main():
 						op = behav_builder.visit(attr_op)
 						ops.append(op)
 					except M2Error as e:
-						logger.critical("error processing attribute \"%s\" of instruction \"%s\": %s", attr_name, instr_def.name, e)
+						logger.critical("error processing attribute \"%s\" of instruction \"%s\": %s", attr_name, instr_name, e)
 						sys.exit(1)
 
 				instr_def.attributes[attr_name] = ops
@@ -297,36 +309,36 @@ def main():
 			behav_builder = BehaviorModelBuilder(core_def.parameters, core_def.memories, core_def.memory_aliases,
 				core_def.register_banks, core_def.register_aliases, instr_def.fields, core_def.functions, warned_fns)
 
+			for operand in instr_def.operands.values():
+				for attribute, arguments in operand.attributes.items():
+					operand.attributes[attribute] = [behav_builder.visit(argument) for argument in arguments]
+
 			try:
 				op = behav_builder.visit(instr_def.operation)
 			except M2Error as e:
-				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_def.name, e)
+				logger.critical("error building behavior for instruction %s::%s: %s", instr_def.ext_name, instr_name, e)
 				sys.exit(1)
 
-			instr_def.vars = behav_builder._vars
+			instr_def.vars = behav_builder._all_vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)
 			else:
 				op = behav.Operation([op])
 
-			pc_inc = behav.Assignment(
-				behav.NamedReference(core_def.pc_memory),
-				behav.BinaryOperation(
-					behav.NamedReference(core_def.pc_memory),
-					behav.Operator("+"),
-					behav.Literal(int(instr_def.size/8), type_info.PrimitiveType(type_info.TypeKind.UINT, None))
-				)
-			)
-
-			#op.statements.insert(0, pc_inc)
 			instr_def.operation = op
-			instr_id = (instr_def.code, instr_def.mask)
-			# check for duplicate instructions
-			if instr_id in instructions_by_enc:
-				overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
-			instructions_by_enc[instr_id] = instr_def
+			infer_operands(instr_def)
+			if instr_def.has_encoding:
+				instr_id = (instr_def.code, instr_def.mask)
+				# check for duplicate instructions
+				if instr_id in instructions_by_enc:
+					overwritten_instrs.append((instructions_by_enc[instr_id], instr_def))
+				instructions_by_enc[instr_id] = instr_def
+			else:
+				assert instr_name not in unencoded_instructions_by_name
+				unencoded_instructions_by_name[instr_name] = instr_def
 		core_def.instructions = instructions_by_enc
+		core_def.unencoded_instructions = unencoded_instructions_by_name
 		assert isinstance(core_def.instructions, dict)
 		for orig, overwritten in overwritten_instrs:
 			logger.warning("instr %s from extension %s was overwritten by %s from %s", orig.name, orig.ext_name, overwritten.name, overwritten.ext_name)
@@ -339,12 +351,16 @@ def main():
 	)
 
 	warnings_info = args.warnings
-	if args.infer_types or args.validate:
-		logger.info("Running type inference")
-		model_obj = infer_types(model_obj, warnings_info=warnings_info)
-	if args.validate:
-		logger.info("Running validator")
-		validate_behav(model_obj, warnings_info)
+	try:
+		if args.infer_types or args.validate:
+			logger.info("Running type inference")
+			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+		if args.validate:
+			logger.info("Running validator")
+			validate_behav(model_obj, warnings_info, source_validated=True)
+	except M2Error as e:
+		logger.critical("Error during inference or validation: %s", e)
+		sys.exit(1)
 
 	logger.info("dumping model")
 	with open(model_path / (abs_top_level.stem + '.m2isarmodel'), 'wb') as f:

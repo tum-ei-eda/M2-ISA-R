@@ -29,6 +29,19 @@ This tool serves as a general-purpose instruction set architecture metamodel. A 
 - Install M2-ISA-R for development: `pip install -e .`
 - Install PyPI release: `pip install m2isar`
 
+## Warning severity
+
+Implicit truncation is an error by default. Use `-Wno-error=implicit-trunc` to
+retain it as a warning, or `-Wno-implicit-trunc` to suppress it. Likewise,
+`-Werror -Wno-error=foo` promotes enabled warnings except `foo`.
+A later `-Werror=foo` promotes that warning again.
+
+## Regression tests
+
+Run `python -m unittest discover -s tests -v` from the repository root.
+See [the test guide](tests/README.md) for feature-specific runs, optional MINRES
+comparisons, and adding CDSL or Python metamodel regression cases.
+
 ## Architecture
 M2-ISA-R consists of 3 components, two of which are exchangeable for different needs:
 
@@ -37,9 +50,10 @@ Frontend -> Metamodel -> Backend
 The frontend transforms a model specification into M2-ISA-R's internal architecture model. This model can then be transformed again to an output format, e.g. models for an ISS. This repo provides a CoreDSL frontend and an ETISS backend.
 
 ## Usage
-M2-ISA-R v2 currently ships three usable tools: Two parsers (for transforming CoreDSL 1.5 / 2 to a M2-ISA-R metamodel) and a writer (for generating ETISS architecture plugins). These are described seperately in their respective directories, TL;DR version:
+M2-ISA-R provides a CoreDSL frontend and backends for ETISS and experimental Spike plugins. Basic commands:
 
 - To parse a CoreDSL 2 description: `coredsl2_parser path/to/input/<top_level>.core_desc`
+- To generate a Spike extension: `spike_writer path/to/input/gen_model/<top_level>.m2isarmodel` (see [supported subset and build instructions](doc/source/spike.rst)).
 - To generate ETISS Architecture: `etiss_writer -s path/to/input/gen_model/<top_level>.m2isarmodel`
 
 For parsers, see [m2isar/frontends/coredsl](m2isar/frontends/coredsl) or [m2isar/frontends/coredsl2](m2isar/frontends/coredsl2). For the ETISS architecture writer, see [m2isar/backends/etiss](m2isar/backends/etiss).
