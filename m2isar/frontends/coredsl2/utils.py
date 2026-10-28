@@ -13,7 +13,7 @@ import numpy as np
 from m2isar.metamodel import arch, type_info, behav
 from typing import Union
 
-from ... import M2SyntaxError
+from ...diagnostics import M2ParseError
 from .parser_gen import CoreDSL2Lexer, CoreDSL2Parser
 
 RADIX = {
@@ -46,7 +46,7 @@ class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 		super().__init__()
 
 	def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-		raise M2SyntaxError(f"Syntax error in file {self.filename}, line {line}, column {column}: {msg}")
+		raise M2ParseError(msg, self.filename, line, column)
 
 
 def make_parser(filename):
@@ -55,6 +55,8 @@ def make_parser(filename):
 	stream = antlr4.CommonTokenStream(lexer)
 	parser = CoreDSL2Parser(stream)
 	error_handler = MyErrorListener(filename)
+	lexer.removeErrorListeners()
+	lexer.addErrorListener(error_handler)
 	parser.removeErrorListeners()
 	parser.addErrorListener(error_handler)
 	return parser

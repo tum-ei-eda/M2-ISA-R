@@ -10,8 +10,11 @@
 
 import logging
 import json
+from math import ceil
 from typing import Optional, Set, Union
 from collections import defaultdict
+
+import numpy as np
 
 from m2isar.metamodel import arch, behav, type_info
 from m2isar.metamodel.type_info import TypeKind, ArrayType, PointerType
@@ -53,6 +56,8 @@ class CoreDSL2Writer:
 
     def write(self, text, nl=False):
         # print("text", text, type(text))
+        if isinstance(text, np.int64):
+            text = int(text)
         if isinstance(text, int):
             text = str(text)
         assert isinstance(text, str)
@@ -109,6 +114,34 @@ class CoreDSL2Writer:
         #     self.write("<")
         #     self.write(size)
         #     self.write(">")
+
+    def write_array(self, arr, max_elems_per_row: int = 12):
+        assert isinstance(arr, np.ndarray)
+        dims = arr.shape
+        assert len(dims) == 1
+        n_elems = len(arr)
+        multi_row = n_elems > max_elems_per_row
+        if multi_row:
+            self.write_line("{")
+            self.enter_block(br=False)
+            num_rows = ceil(n_elems / max_elems_per_row)
+            for i in range(num_rows):
+                start = i * max_elems_per_row
+                end = min(start + max_elems_per_row, n_elems)
+                for j in range(start, end):
+                    if j > start:
+                        self.write(", ")
+                    self.write(arr[j])
+                self.write_line(",")
+            self.leave_block(br=False)
+            self.write("}")
+        else:
+            self.write("{")
+            for i, elem in enumerate(arr.tolist()):
+                if i > 0:
+                    self.write(", ")
+                self.write(elem)
+            self.write("}")
 
     def write_attribute(self, attr, val=None):
         # print("attr", attr)
@@ -211,7 +244,6 @@ class CoreDSL2Writer:
         self.write(name)
         self.write(f"[{rng.upper}:{rng.lower}]")
 
-
     def write_constraints(self, constraints):
         for constraint in constraints:
             # print("constraint", constraint, type(constraint), dir(constraint))
@@ -271,7 +303,7 @@ class CoreDSL2Writer:
                     raise TypeError(f"Unsupported encoding field: {field!r}")
             self.write_line(";")
 
-        
+
     def write_assembly(self, instruction):
         if self.legacy:
             self.write_line("assembly: " + json.dumps(instruction.assembly or "") + ";")
@@ -524,7 +556,18 @@ class CoreDSL2Writer:
 
     def write_architectural_state(self, core_set_def: Union[arch.CoreDef, arch.InstructionSet]):
         # print("set_def", set_def, dir(set_def))
-        has_arch = sum([len(core_set_def.parameters), len(core_set_def.register_banks), len(core_set_def.register_aliases), len(core_set_def.memories), len(core_set_def.memory_aliases)]) > 0
+        has_arch = (
+            sum(
+                [
+                    len(core_set_def.parameters),
+                    len(core_set_def.register_banks),
+                    len(core_set_def.register_aliases),
+                    len(core_set_def.memories),
+                    len(core_set_def.memory_aliases),
+                ]
+            )
+            > 0
+        )
         if has_arch:
             self.write("architectural_state")
             self.enter_block()

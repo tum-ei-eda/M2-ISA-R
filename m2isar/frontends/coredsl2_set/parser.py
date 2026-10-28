@@ -18,6 +18,7 @@ from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, 
 from ...metamodel.code_info import CodeInfoBase
 from ..coredsl2.parser import try_eval_bool
 from ..coredsl2.importer import recursive_import
+from ..coredsl2.source_validator import validate_source
 from ..coredsl2.utils import make_parser
 from ..coredsl2.behavior_model_builder import BehaviorModelBuilder
 from ..coredsl2.architecture_model_builder import ArchitectureModelBuilder
@@ -27,7 +28,7 @@ from ...backends.etiss.writer import BooleanOptionalAction  # TODO: refactor
 from ...transforms.infer_types.transform import infer_types
 from ...transforms.infer_operands import infer_operands
 from ...transforms.validate_behav.validate import validate_behav
-from ...warnings import add_warnings_flags, KNOWN_WARNINGS
+from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 
 
 def parse_define(value):
@@ -64,7 +65,7 @@ def _argument_parser():
 		metavar="NAME[=VALUE]",
 		help="Define a CoreDSL constant (default VALUE: 1), e.g. -DXLEN=32",
 	)
-	add_warnings_flags(parser, KNOWN_WARNINGS, KNOWN_WARNINGS)  # only if --validate
+	add_warnings_flags(parser, KNOWN_WARNINGS, DEFAULT_WARNINGS)  # only if --validate
 	parser.add_argument("--output", "-o", type=str, default=None)
 
 	return parser
@@ -94,6 +95,13 @@ def _parse_model(args):
 		logger.critical("Error during parsing: %s", e)
 		sys.exit(1)
 
+	if args.validate:
+		try:
+			validate_source(tree, args.warnings, parameter_values=defines)
+		except M2Error as e:
+			logger.critical("Error during source validation: %s", e)
+			sys.exit(1)
+
 	logger.info("reading instruction load order")
 	lo = LoadOrder()
 	try:
@@ -113,7 +121,7 @@ def _parse_model(args):
 	for set_name, set_def in sets.items():
 		logger.info(f"building architecture model for set %s", set_name)
 		try:
-			arch_builder = ArchitectureModelBuilder(merge=True)
+			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate)
 			s = arch_builder.visit(set_def)
 			if not isinstance(s, list):
 				s = [s]
@@ -286,7 +294,7 @@ def _parse_model(args):
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
 					sys.exit()
 
-				fn_def.vars = behav_builder._vars
+				fn_def.vars = behav_builder._all_vars
 
 				if isinstance(op, list):
 					fn_def.operation = behav.Operation(op)
@@ -338,7 +346,7 @@ def _parse_model(args):
 			elif not isinstance(op, behav.Operation):
 				op = behav.Operation([op])
 			block_def.operation = op
-			block_def.vars = behav_builder._vars
+			block_def.vars = behav_builder._all_vars
 
 		logger.debug("generating instruction behavior")
 		instructions_by_enc = {}
@@ -432,7 +440,7 @@ def _parse_model(args):
 				raise e
 				sys.exit(1)
 
-			instr_def.vars = behav_builder._vars
+			instr_def.vars = behav_builder._all_vars
 
 			if isinstance(op, list):
 				op = behav.Operation(op)
@@ -473,12 +481,16 @@ def _parse_model(args):
 			logger.critical("no sets were generated, resulting model will be empty")
 			sys.exit(-1)
 	warnings_info = args.warnings
-	if args.infer_types or args.validate:
-		logger.info("Running type inference")
-		model_obj = infer_types(model_obj, warnings_info=warnings_info)
-	if args.validate:
-		logger.info("Running validator")
-		validate_behav(model_obj, warnings_info)
+	try:
+		if args.infer_types or args.validate:
+			logger.info("Running type inference")
+			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+		if args.validate:
+			logger.info("Running validator")
+			validate_behav(model_obj, warnings_info, source_validated=True)
+	except M2Error as e:
+		logger.critical("Error during model validation: %s", e)
+		sys.exit(1)
 
 	return model_obj
 

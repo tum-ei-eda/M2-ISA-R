@@ -174,7 +174,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 				elif isinstance(type_, type_info.ArrayType):
 					shape = []
 					infer_shape_from_type(type_, shape)
-					init = behav.Tensor(np.zeros(shape), type_)
+					init = behav.Tensor(np.zeros(shape, dtype=object), type_)
 				else:
 					raise M2TypeError(f"Literal has a not supported type {type}")
 
@@ -194,6 +194,9 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
 		return behav.Break(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+
+	def visitContinue_statement(self, ctx: CoreDSL2Parser.Continue_statementContext):
+		return behav.Continue(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
 
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
@@ -240,6 +243,8 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			ret.append(start_expr)
 
 		if loop_exprs:
+			from ...metamodel.utils.control_flow import lower_for_continues
+			stmt = [lower_for_continues(child, loop_exprs) for child in stmt]
 			stmt.extend(loop_exprs)
 
 		ret.append(behav.Loop(end_expr, stmt, False, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)))
@@ -297,16 +302,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.BinaryOperation(left, op, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
-		"""Generate a pre-increment expression. Not yet supported, throws
-		:exc:`NotImplementedError`."""
+		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.right),
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
-		raise NotImplementedError("pre-increment expressions are not supported yet")
-
-	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
-		"""Generate a post-increment expression. Not yet supported, throws
-		:exc:`NotImplementedError`."""
-
-		raise NotImplementedError("post-increment expressions are not supported yet")
+	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Postinc_expressionContext):
+		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.left),
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line), postfix=True)
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
 		"""Generate an unary expression."""
@@ -337,19 +338,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right else left
 
-		# TODO distinguish between Multi-Dimensional Slices and BitSlice with ArrayType/PrimitiveType???
-		if isinstance(expr, behav.NamedReference) and isinstance(expr.reference.ty, type_info.ArrayType):
-			assert(isinstance(expr.reference.ty, type_info.ArrayType))
-			#Dont duplicate index to differentiate between index and ranged access
-			if right == left:
-					return behav.IndexedReference(expr.reference, left, None, \
-								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
-			else:
-					return behav.IndexedReference(expr.reference, left, right, \
-								   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
-		else:
-			return behav.SliceOperation(expr, left, right, \
-							   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		base = expr
+		while isinstance(base, behav.Group):
+			base = base.expr
+		location = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start,
+									   ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		if isinstance(base, behav.NamedReference) and isinstance(base.reference.ty, type_info.ArrayType):
+			return behav.IndexedReference(base.reference, left, right if ctx.right else None,
+									  location, grouped_base=base is not expr)
+		return behav.SliceOperation(expr, left, right, location)
 
 	def visitConcat_expression(self, ctx: CoreDSL2Parser.Concat_expressionContext):
 		"""Generate a concatenation expression."""
@@ -375,7 +372,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			left_2.line_info = None
 			right = behav.BinaryOperation(left_2, op2, right)
 
-		return behav.Assignment(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		assignment = behav.Assignment(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		if op != "=":
+			assignment.compound_operator = op
+		return assignment
 
 	def visitReference_expression(self, ctx: CoreDSL2Parser.Reference_expressionContext):
 		"""Generate a simple reference."""

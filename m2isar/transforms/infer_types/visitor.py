@@ -27,6 +27,7 @@ from copy import deepcopy
 
 from m2isar.metamodel import arch, behav, type_info
 from ...metamodel.utils.ExprMutator import ExprMutator
+from ..validate_behav.constants import range_size
 
 logger = logging.getLogger("infer_types")
 
@@ -34,28 +35,7 @@ logger = logging.getLogger("infer_types")
 
 
 def infer_slice_sice_helper(expr):
-    def name(node):
-        return node.reference.name if isinstance(node, behav.NamedReference) else None
-
-    def int_value(node):
-        return node.value if isinstance(node, behav.Literal) and node.ty.kind.is_int else None
-
-    def width_from(ref, other):
-        if not isinstance(other, behav.BinaryOperation):
-            return None
-        if other.op.value not in {"+", "-"}:
-            return None
-
-        for lhs, rhs in ((other.left, other.right), (other.right, other.left)):
-            if name(lhs) == name(ref) and int_value(rhs) is not None:
-                return rhs.value + 1
-
-        return None
-
-    if name(expr.left) and name(expr.left) == name(expr.right):
-        return 1
-
-    return width_from(expr.left, expr.right) or width_from(expr.right, expr.left)
+    return range_size(expr.left, expr.right)
 
 
 class InferTypesMutator(ExprMutator):
@@ -178,30 +158,17 @@ class InferTypesMutator(ExprMutator):
             return expr
         assert isinstance(expr.expr.ty, (type_info.PrimitiveType))
         ty = expr.expr.ty
-        # For non-static slices, we cann not infer the type!
-        if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
-            lval = expr.left.value
-            rval = expr.right.value
-            width = lval - rval + 1 if lval > rval else rval - lval + 1
-        elif isinstance(expr.left, behav.Literal):
-            logger.warning("Can not infer type of non-static slice operation.")
+        width = range_size(expr.left, expr.right)
+        if width is None:
+            context.emit_warning(
+                "Can not infer type of non-static slice operation.",
+                "infer-non-static-slice", logger=logger, line_info=expr.left.line_info)
             return expr
-        elif isinstance(expr.right, behav.Literal):
-            logger.warning("Can not infer type of non-static slice operation.")
-            return expr
-        else:
-            width = infer_slice_sice_helper(expr)
-            if width is None:
-                context.emit_warning(
-                    "Can not infer type of non-static slice operation.",
-                    "infer-non-static-slice",
-                    logger=logger,
-                    line_info=expr.left.line_info,
-                )
-                return expr
         ty_ = copy(ty)
         if isinstance(ty_, type_info.PrimitiveType):
             ty_.size = width
+            if ty_.kind.is_int:
+                ty_.kind = type_info.TypeKind.UINT
         elif isinstance(ty_, type_info.ArrayType):
             if width == 1:  # Array -> PrimitiveType
                 ty_ = ty_.element_type
@@ -243,6 +210,8 @@ class InferTypesMutator(ExprMutator):
     # behav.IntLiteral
     @generate.register
     def _(self, expr: behav.Tensor, context):
+        if getattr(expr, 'initializer_elements', None) is not None:
+            expr.initializer_elements = [self.generate(element, context) for element in expr.initializer_elements]
         # type inference
         assert expr.ty.length is not None
         assert expr.ty.element_type.kind.is_int
@@ -327,12 +296,17 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.UnaryOperation, context):
         expr.right = self.generate(expr.right, context)
+        if expr.op.value in ('++', '--'):
+            expr.ty = expr.right.ty
+            return expr
         if expr.right.ty:
             w1 = expr.right.ty.size
             if expr.op.value == "-":
                 ty = type_info.PrimitiveType(type_info.TypeKind.INT, w1 + 1)
             elif expr.op.value == "~":
-                ty = type_info.PrimitiveType(type_info.TypeKind.INT, w1)
+                ty = type_info.PrimitiveType(expr.right.ty.kind, w1)
+            elif expr.op.value == "+":
+                ty = type_info.PrimitiveType(expr.right.ty.kind, w1)
             elif expr.op.value == "!":
                 ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
             else:
@@ -394,26 +368,27 @@ class InferTypesMutator(ExprMutator):
         if expr.right is not None:
             expr.right = self.generate(expr.right, context)
 
-        # type inference
-        assert expr.reference.ty.element_type.kind.is_int
-        single_mem_acc_size = expr.reference.ty.element_type.size
-
-        ## Simple eval check for ranged access.
-        # Little-endian interpretation:
-        # - lhs > rhs  → width = lhs - rhs + 1
-        # - lhs == rhs → width = 8 bits
-
+        element = expr.reference.ty.element_type
         if expr.right is None:
-            size = single_mem_acc_size
+            expr.ty = copy(element)
         else:
-            lhs_offset = helper_expr_size(expr.index)
-            rhs_offset = helper_expr_size(expr.right)
-            assert lhs_offset >= rhs_offset
-            size = (lhs_offset - rhs_offset + 1) * single_mem_acc_size
+            count = range_size(expr.index, expr.right)
+            if count is None:
+                context.emit_warning("Can not infer type of non-static array range.",
+                                     "infer-non-static-slice", logger=logger, line_info=expr.line_info)
+                return expr
+            if not isinstance(element, type_info.PrimitiveType) or not element.kind.is_int:
+                context.emit_warning("Can not infer type of array range elements.",
+                                     "infer-type", logger=logger, line_info=expr.line_info)
+                return expr
+            width = arch.get_const_or_val(element.size)
+            if not isinstance(width, int):
+                context.emit_warning("Can not infer size of array range elements.",
+                                     "infer-type", logger=logger, line_info=expr.line_info)
+                return expr
+            # MINRES ranges pack elements into an unsigned integer in either direction.
+            expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, count * width)
 
-        ty_ = type_info.PrimitiveType(expr.reference.ty.element_type.kind, size)
-
-        expr.ty = ty_
         assert expr.ty is not None
 
         return expr
@@ -421,26 +396,27 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.TypeConv, context):
         expr.expr = self.generate(expr.expr, context)
-
-        ty = deepcopy(expr.expr.ty)
-        if ty is None:
-            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
-            return expr
-        assert isinstance(ty, type_info.PrimitiveType)
-        assert expr.data_type.is_int
-        ty.signed = expr.data_type == type_info.TypeKind.INT
+        operand_type = expr.expr.ty
         if expr.size is not None:
-            ty.size = expr.size
-
-        # type inference
-        expr.ty = ty
-
+            # An explicit cast retains its declared result type even when the
+            # operand is invalid or incomplete. Validation diagnoses legality.
+            expr.ty = type_info.PrimitiveType(expr.data_type, expr.size)
+        elif isinstance(operand_type, type_info.PrimitiveType) and operand_type.kind.is_int:
+            expr.ty = type_info.PrimitiveType(expr.data_type, operand_type.size)
+        else:
+            # Keep non-integer operands traversable for standalone InvalidCast
+            # diagnostics; they do not acquire an invented integer type.
+            expr.ty = deepcopy(operand_type)
+        if operand_type is None and expr.size is None:
+            context.emit_warning("Type conv needs inferred type.", "infer-type", logger=logger, line_info=expr.expr.line_info)
         return expr
 
     @generate.register
     def _(self, expr: behav.Callable, context):
         if isinstance(expr.ref_or_name, arch.Function):
-            if not (expr.ref_or_name.ty.kind == type_info.TypeKind.VOID):
+            if expr.ref_or_name.ty.kind == type_info.TypeKind.VOID:
+                expr.ty = type_info.PrimitiveType(type_info.TypeKind.VOID, 0)
+            else:
                 assert expr.ref_or_name.ty.kind.is_int
                 width = arch.get_const_or_val(expr.ref_or_name.ty.size)
                 expr.ty = type_info.PrimitiveType(expr.ref_or_name.ty.kind, arch.get_const_or_val(width))
@@ -469,6 +445,10 @@ class InferTypesMutator(ExprMutator):
 
     @generate.register
     def _(self, expr: behav.Break, context):
+        return expr
+
+    @generate.register
+    def _(self, expr: behav.Continue, context):
         return expr
 
 

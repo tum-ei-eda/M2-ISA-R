@@ -139,12 +139,13 @@ class Literal(BaseNode):
 
 ### Diverted from Literals as every value needs to be a constant or not-initialized for now!!!
 class Tensor(BaseNode):
-	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None):
+	def __init__(self, value: list[int], ty = ArrayType(PrimitiveType(TypeKind.NONE, None), None), line_info=None, initializer_elements=None):
 		super().__init__(line_info)
 
 		#assert ty.kind.is_literal
 		self._value: np.ndarray = np.array(value)
 		self.ty = ty    # assigned during type checking
+		self.initializer_elements = initializer_elements
 
 	def __repr__(self):
 		return f"Tensor(values={self.value}, type={self.ty})"
@@ -213,16 +214,20 @@ class Return(BaseNode):
 		super().__init__(line_info)
 		self.expr = expr
 
+class Continue(BaseNode):
+	"""Continue the innermost loop."""
+
 class Break(BaseNode):
 	"""A break statement."""
 
 class UnaryOperation(BaseNode):
 	"""An unary operation, whith an operator and a right hand operand."""
 
-	def __init__(self, op: Operator, right: BaseNode, line_info=None):
+	def __init__(self, op: Operator, right: BaseNode, line_info=None, *, postfix=False):
 		super().__init__(line_info)
 		self.op = op
 		self.right = right
+		self.postfix = postfix
 
 class NamedReference(BaseNode):
 	"""A named reference to a :class:`arch.Memory`, BitFieldDescr, Variable, Parameter or FnParam."""
@@ -235,11 +240,13 @@ class IndexedReference(BaseNode):
 	"""An indexed reference to a :class:`..arch.Memory/RegisterBank`. Can optionally specify a range of indices
 	using the `right` parameter."""
 
-	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None):
+	def __init__(self, reference: "Union[Memory, RegisterBank]", index: BaseNode, right: BaseNode=None, line_info=None, *, grouped_base=False):
 		super().__init__(line_info)
 		self.reference = reference
 		self.index = index
 		self.right = right
+		# Preserve grouped source bases for assignment-target diagnostics.
+		self.grouped_base = grouped_base
 
 class TypeConv(BaseNode):
 	"""A type conversion. Size can be None, in this case only the signedness is affected."""

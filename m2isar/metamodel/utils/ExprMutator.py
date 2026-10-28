@@ -142,6 +142,10 @@ class ExprMutator(ABC):
         return expr
 
     @default_visit.register
+    def visit_continue(self, expr: behav.Continue, context):
+        return expr
+
+    @default_visit.register
     def visit_named_reference(self, expr: behav.NamedReference, context):
         return expr
 
