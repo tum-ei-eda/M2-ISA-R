@@ -17,6 +17,7 @@ import time
 
 from ...metamodel import M2_METAMODEL_VERSION, M2Model
 from ...transforms.merge_always_blocks import merge_always_blocks
+from ...transforms.lower_loops import lower_loops
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -128,6 +129,9 @@ def setup():
 	# ETISS expects the legacy representation in which always behavior is
 	# prepended to every instruction.
 	merge_always_blocks(model_obj)
+	# ETISS consumes the canonical loop representation rather than preserving
+	# the source-level loop kind.
+	lower_loops(model_obj)
 
 	start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 

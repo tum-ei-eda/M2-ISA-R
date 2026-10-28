@@ -23,6 +23,8 @@ SCOPE_CASES = [('continue;', True), ('if(0) continue;', True),
 MIXED = [('if(0){continue;break;continue;}', ['continue','break','continue']),
          ('if(1){}else{break;continue;break;}', ['break','continue','break'])]
 EXECUTION = [
+    ('int n=0;for(int i=0,j=0;i<3;i++,j++){if(i==1)continue;n++;}return n;', 2),
+    ('int n=0;for(;;){if(n==3)break;n++;}return n;', 3),
     ('int n=0;for(int i=0;i<3;i+=1){if(i==1)continue;n+=1;}return n;', 2),
     ('int n=3;do{n=(int)(n+1);continue;}while(n<3);return n;', 4),
     ('int n=0;for(int i=0;i<3;i=(int)(i+1),n=(int)(n+1))continue;return n;', 3),
@@ -118,7 +120,10 @@ class ContinueNativeTest(unittest.TestCase):
         self.assertIs(ExprSimplifierVisitor().generate(node, None), node)
         self.assertTrue(FunctionStaticnessVisitor().generate(node, None))
         self.assertEqual(FunctionThrowsVisitor().generate(node, None), attribute_info.FunctionThrows.NO)
-        self.assertEqual(VarAccessVisitor().generate(node, None), attribute_info.AccessAttribute.READ)
+        self.assertEqual(VarAccessVisitor().generate(node, attribute_info.AccessContext()),
+                         attribute_info.AccessAttribute.RW)
+        self.assertEqual(VarAccessVisitor().generate(node, attribute_info.AccessContext(
+            access_is_static=attribute_info.AccessAttribute.NONE)), attribute_info.AccessAttribute.NONE)
         self.assertEqual(InstructionTransformVisitor().generate(node, None).code, 'continue;')
         lines = []
         CDSLWriterVisitor().generate(node, SimpleNamespace(write_line=lines.append))
@@ -130,6 +135,7 @@ class CWriter:
     def write(self, text): self.parts.append(str(text))
     def write_line(self, text=''): self.write(str(text) + '\n')
     def enter_block(self): self.write('{\n')
+    def enter_attributed_block(self, attributes): self.enter_block()
     def leave_block(self, nl=True): self.write('}\n' if nl else '}')
     def write_type(self, type_): self.write('int')
 

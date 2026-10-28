@@ -20,6 +20,13 @@ from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type, create_np_array_from_literal_array
 from .expr_interpreter import ExprInterpreterVisitor
 
+# CoreDSL [[access=...]] block attribute keywords and their metamodel access.
+BLOCK_ACCESS = {
+	"NONE": attribute_info.AccessAttribute.NONE,
+	"CONST": attribute_info.AccessAttribute.READ,
+	"STATIC": attribute_info.AccessAttribute.RW,
+}
+
 exprInterpretVisitor = ExprInterpreterVisitor()
 
 if TYPE_CHECKING:
@@ -137,7 +144,21 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		return behav.FunctionCall(ref, args, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitBlock(self, ctx: CoreDSL2Parser.BlockContext):
-		"""Generate a block of statements, return a list."""
+		"""Generate an attributed block of statements."""
+
+		attributes = {}
+		for attr_ctx in ctx.attributes:
+			name = attr_ctx.name.text
+			attr = attribute_info.BlockAttribute._member_map_.get(name.upper()) or name
+			if attr == attribute_info.BlockAttribute.ACCESS:
+				if len(attr_ctx.params) != 1:
+					raise M2SyntaxError("block access attribute requires exactly one value")
+				value_name = attr_ctx.params[0].getText().upper()
+				if value_name not in BLOCK_ACCESS:
+					raise M2SyntaxError("block access attribute must be NONE, CONST, or STATIC")
+				attributes[attr] = BLOCK_ACCESS[value_name]
+			else:
+				attributes[attr] = [self.visit(param) for param in attr_ctx.params]
 
 		outer_vars = self._vars
 		self._vars = outer_vars.copy()
@@ -146,7 +167,12 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		finally:
 			self._vars = outer_vars
 		items = list(flatten(items))
-		return behav.Block(items, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Block(
+			items,
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line),
+			attributes,
+			explicit_attributes=set(attributes),
+		)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration statement. Can be multiple declarations of
@@ -260,10 +286,11 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 		cond = self.visit(ctx.cond)
 
-		if not isinstance(stmt, list):
-			stmt = [stmt]
+		if not isinstance(stmt, behav.Block):
+			statements = list(flatten(stmt)) if isinstance(stmt, list) else [stmt]
+			stmt = behav.Block(statements, getattr(stmt, "line_info", None))
 
-		return behav.Loop(cond, stmt, False, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.WhileLoop(cond, stmt, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitDo_statement(self, ctx: CoreDSL2Parser.Do_statementContext):
 		"""Generate a do .. while loop."""
@@ -271,10 +298,11 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 		cond = self.visit(ctx.cond)
 
-		if not isinstance(stmt, list):
-			stmt = [stmt]
+		if not isinstance(stmt, behav.Block):
+			statements = list(flatten(stmt)) if isinstance(stmt, list) else [stmt]
+			stmt = behav.Block(statements, getattr(stmt, "line_info", None))
 
-		return behav.Loop(cond, stmt, True, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.DoWhileLoop(stmt, cond, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
 		"""Keep initializer locals visible throughout the loop, then restore scope."""
@@ -286,36 +314,34 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			self._vars = outer_vars
 
 	def _lower_for_statement(self, ctx: CoreDSL2Parser.For_statementContext):
-		"""Generate a for loop. Currently hacky, untested and mostly broken."""
+		"""Retain the initializer and updates on the source-level for loop."""
 
 		start_decl, start_expr, end_expr, loop_exprs = self.visit(ctx.cond)
 		stmt = self.visit(ctx.stmt) if ctx.stmt else None
 
-		if not isinstance(stmt, list):
-			stmt = [stmt]
+		if not isinstance(stmt, behav.Block):
+			statements = list(flatten(stmt)) if isinstance(stmt, list) else [stmt]
+			stmt = behav.Block(statements, getattr(stmt, "line_info", None))
 
-		ret = []
+		init = []
 
 		if start_decl is not None:
-			ret.append(start_decl)
+			init.extend(list(flatten(start_decl)))
 		if start_expr is not None:
-			ret.append(start_expr)
+			init.append(start_expr)
 
-		if loop_exprs:
-			from ...metamodel.utils.control_flow import lower_for_continues
-			stmt = [lower_for_continues(child, loop_exprs) for child in stmt]
-			stmt.extend(loop_exprs)
-
-		ret.append(behav.Loop(end_expr, stmt, False, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)))
-
-		return ret
+		return behav.ForLoop(
+			init, end_expr, loop_exprs or [], stmt,
+			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line),
+		)
 
 	def visitFor_condition(self, ctx: CoreDSL2Parser.For_conditionContext):
 		"""Generate the condition of a for loop."""
 
 		start_decl = self.visit(ctx.start_decl) if ctx.start_decl else None
 		start_expr = self.visit(ctx.start_expr) if ctx.start_expr else None
-		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else None
+		end_expr = self.visit(ctx.end_expr) if ctx.end_expr else behav.Literal(
+			1, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
 		loop_exprs = [self.visit(obj) for obj in ctx.loop_exprs] if ctx.loop_exprs else None
 
 		return start_decl, start_expr, end_expr, loop_exprs
@@ -329,16 +355,18 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		conds = [self.visit(x) for x in ctx.cond]
 		stmts = [self.visit(x) for x in ctx.stmt]
-
-		stmts = [x if not isinstance(x, list) else None for x in stmts]
+		stmts = [
+			x if isinstance(x, behav.Block) else behav.Block(
+				list(flatten(x)) if isinstance(x, list) else [x],
+				getattr(x, "line_info", None),
+			)
+			for x in stmts
+		]
 
 		for cond in conds:
 			old_line_info: LineInfo = cond.line_info
 			new_line_info = BranchInfo(**dataclasses.asdict(old_line_info), branch_id=entry_info.branch_id)
 			cond.line_info = new_line_info
-
-		if None in stmts:
-			raise Exception("meep")
 
 		return behav.Conditional(conds, stmts, entry_info)
 

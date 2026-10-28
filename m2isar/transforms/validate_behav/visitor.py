@@ -478,8 +478,13 @@ class ValidateBehavVisitor(ExprVisitor):
             raise errors[0]
 
     @generate.register
-    def _(self, expr: behav.Loop, context):
+    def _(self, expr: behav.LoopBase, context):
         errors = []
+        for stmt in expr.init:
+            try:
+                self.generate(stmt, context)
+            except M2ValidationError as error:
+                errors.append(error)
         try:
             self.generate(expr.cond, context)
             self._validate_condition(expr.cond)
@@ -488,7 +493,7 @@ class ValidateBehavVisitor(ExprVisitor):
         previous_depth = getattr(self, '_loop_depth', 0)
         self._loop_depth = previous_depth + 1
         try:
-            for stmt in expr.stmts:
+            for stmt in [*expr.stmts, *expr.updates]:
                 try:
                     self.generate(stmt, context)
                 except M2ValidationError as error:

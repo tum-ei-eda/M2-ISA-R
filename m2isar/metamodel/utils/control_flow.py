@@ -9,7 +9,7 @@ def stray_break_locations(statement, loop_depth=0):
         children = statement.statements
     elif isinstance(statement, behav.Conditional):
         children = statement.stmts
-    elif isinstance(statement, behav.Loop):
+    elif isinstance(statement, behav.LoopBase):
         children = statement.stmts
         loop_depth += 1
     else:
@@ -25,7 +25,7 @@ def stray_control_flow_locations(statement, loop_depth=0):
         children = statement.statements
     elif isinstance(statement, behav.Conditional):
         children = statement.stmts
-    elif isinstance(statement, behav.Loop):
+    elif isinstance(statement, behav.LoopBase):
         children = statement.stmts
         loop_depth += 1
     else:
@@ -56,7 +56,7 @@ def stray_continue_locations(statement, loop_depth=0):
         children = statement.statements
     elif isinstance(statement, behav.Conditional):
         children = statement.stmts
-    elif isinstance(statement, behav.Loop):
+    elif isinstance(statement, behav.LoopBase):
         children = statement.stmts
         loop_depth += 1
     else:
@@ -68,7 +68,7 @@ def lower_for_continues(statement, updates):
     """Execute for-loop updates before continues belonging to this loop."""
     if isinstance(statement, behav.Continue):
         return behav.Block([*updates, statement], statement.line_info)
-    if isinstance(statement, behav.Loop):
+    if isinstance(statement, behav.LoopBase):
         return statement  # Nested loops own their continues.
     if isinstance(statement, behav.Operation):
         statement.statements = [lower_for_continues(child, updates) for child in statement.statements]

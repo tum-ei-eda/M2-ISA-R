@@ -17,8 +17,9 @@ class InvalidInstructionCallbacksTest(unittest.TestCase):
             self.skipTest("A C++ compiler is required for the generated-code regression")
         template = Path(__file__).resolve().parents[1] / "m2isar/backends/etiss/templates/etiss_arch_specific_cpp.mako"
         generated = Template(filename=str(template)).render(
-            start_time="test", core_name="Guard", error_fn=None,
-            main_reg=SimpleNamespace(size=32, range=SimpleNamespace(length=32)),
+            start_time="test", core_name="Guard", error_fn=None, fill_jit_extensions="",
+            fill_length_updater="", fill_endianess_compensation="", virtualstruct_regs=None,
+            main_reg=SimpleNamespace(ty=SimpleNamespace(element_type=SimpleNamespace(size=32))),
             irq_en_reg=None, irq_pending_reg=None, global_irq_en_reg=None,
             global_irq_en_mask=None,
             error_callbacks={16: "[]() {}", 32: "[]() {}", 64: "[]() {}"},

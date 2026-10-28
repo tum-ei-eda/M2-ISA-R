@@ -51,10 +51,11 @@ class LocalScopeLoweringTest(unittest.TestCase):
     def test_for_initializer_restores_outer_binding(self):
         statements = self.lower('int x=1; for (int x=x; x<3; x+=1) { x=2; } return x;')
         outer = statements[0].target.var
-        loop_local = statements[1].target.var
-        self.assertIs(statements[1].expr.reference, outer)
-        self.assertIs(statements[2].cond.left.reference, loop_local)
-        self.assertIs(statements[3].expr.reference, outer)
+        loop = statements[1]
+        loop_local = loop.init[0].target.var
+        self.assertIs(loop.init[0].expr.reference, outer)
+        self.assertIs(loop.cond.left.reference, loop_local)
+        self.assertIs(statements[2].expr.reference, outer)
 
     def test_declarators_keep_independent_types(self):
         statements = self.lower('unsigned<8> x, y=1; return y;')

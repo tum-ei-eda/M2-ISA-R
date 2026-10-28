@@ -87,10 +87,14 @@ class ExprVisitor(ABC):
             self.generate(stmt, context)
 
     @default_visit.register
-    def visit_loop(self, expr: behav.Loop, context):
+    def visit_loop(self, expr: behav.LoopBase, context):
+        for stmt in expr.init:
+            self.generate(stmt, context)
         self.generate(expr.cond, context)
         for stmt in expr.stmts:
             self.generate(stmt, context)
+        for update in expr.updates:
+            self.generate(update, context)
 
     @default_visit.register
     def visit_ternary_operation(self, expr: behav.Ternary, context):

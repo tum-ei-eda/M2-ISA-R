@@ -324,7 +324,8 @@ int main(){int selected=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
                 compile_run(self, program, directory)
 
     def test_memory_loop_tests_write_back_final_false_condition(self):
-        for post_test in (False, True):
+        for loop_kind in ('while', 'do', 'for'):
+            post_test = loop_kind == 'do'
             for postfix in (False, True):
                 for nested_loop in (False, True):
                     with self.subTest(post_test=post_test, postfix=postfix, nested_loop=nested_loop), tempfile.TemporaryDirectory() as directory:
@@ -340,8 +341,11 @@ int main(){int selected=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
                         body.append(behav.Continue())
                         trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
                                              0, type_info.TypeKind.VOID, [], None, extern=True)
+                        loop = (behav.ForLoop([behav.CodeLiteral('int iterator=0;')], condition,
+                                             [behav.CodeLiteral('++iterator; ++latches;')], behav.Block(body))
+                                if loop_kind == 'for' else behav.Loop(condition, body, post_test))
                         generated = InstructionTransformVisitor().generate(
-                            behav.Operation([behav.Loop(condition, body, post_test)]),
+                            behav.Operation([loop]),
                             context({'M': memory}, {'trap': trap}))
                         evaluations = 3 if postfix else 2
                         iterations = evaluations if post_test else evaluations - 1
@@ -354,11 +358,12 @@ int read(void*,CPU*,int address,etiss_uint8* out,int count){++reads;if(address!=
 int write(void*,CPU*,int address,etiss_uint8* in,int count){++writes;if(address!=7||count!=1)return 1;value=*in;return 0;}
 struct System{void* handle=nullptr;decltype(&read) dread=read;decltype(&write) dwrite=write;};
 void trap(int){throw 1;}
-int main(){int count=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
+int main(){int count=0,latches=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
 ''' + generated.initial_required + '\n'
                         program += ('return value==' + str(stored) + '&&count==' + str(iterations) +
                                     '&&addresses==' + str(evaluations) + '&&reads==' + str(evaluations) +
-                                    '&&writes==' + str(evaluations) + '?0:1;}')
+                                    '&&writes==' + str(evaluations) + '&&latches==' +
+                                    str(iterations if loop_kind == 'for' else 0) + '?0:1;}')
                         compile_run(self, program, directory)
 
     def test_coredsl_prefix_and_postfix_values(self):

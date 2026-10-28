@@ -94,9 +94,12 @@ class FunctionStaticnessVisitor(ExprVisitor):
 		return all(conds)
 
 	@generate.register
-	def _(self, expr: behav.Loop, context):
+	def _(self, expr: behav.LoopBase, context):
+		init = [self.generate(x, context) for x in expr.init]
 		cond = self.generate(expr.cond, context)
 		stmts = [self.generate(x, context) for x in expr.stmts]
+		stmts.extend(self.generate(x, context) for x in expr.updates)
+		stmts.extend(init)
 		stmts.append(cond)
 
 		return all(stmts)

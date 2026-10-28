@@ -670,7 +670,9 @@ class InstructionTransformVisitor(ExprVisitor):
 			else:
 				stmts.append([ret])
 
-		# check if all conditions are static
+		# A control-flow construct must be emitted wholly at generation time or
+		# wholly into the generated instruction. In particular, a dynamic branch
+		# containing break/continue makes those control statements dynamic too.
 		static = all(x.static for x in conds)
 		outputs: "list[CodeString]" = []
 
@@ -734,64 +736,72 @@ class InstructionTransformVisitor(ExprVisitor):
 			outputs.extend(flatten(stmts[-1]))
 			outputs.append(CodeString("} // conditional", static, None, None))
 
+		if not static:
+			for output in outputs:
+				if output.code in {"break;", "continue;"}:
+					output.static = attribute_info.AccessAttribute.NONE
+
 		return outputs
 
 	@generate.register
-	def _(self, expr: behav.Loop, context: TransformerContext):
-		"""Generate 'while' and 'do .. while' loops."""
-
+	def _(self, expr: behav.LoopBase, context: TransformerContext):
+		"""Keep loop initialization, tests, body and latch in one execution domain."""
+		init = [self._generate_statement(x, context) for x in expr.init]
 		cond: CodeString = self.generate(expr.cond, context)
+		updates = [self._generate_statement(x, context) for x in expr.updates]
 		memory_condition = cond.is_mem_access
+		explicit_latch = bool(expr.init or expr.updates or memory_condition)
 		continue_target = None
-		if memory_condition and expr.post_test:
-			continue_target = f'loop_condition_{context.temp_var_count}'
+		if expr.updates or (memory_condition and expr.post_test):
+			continue_target = f'loop_latch_{context.temp_var_count}'
 			context.temp_var_count += 1
 		previous_target = getattr(context, 'continue_target', None)
 		context.continue_target = continue_target
-		stmts: "list[CodeString]" = []
+		stmts = []
 		try:
-			for stmt in expr.stmts:
-				if isinstance(stmt, list):
-					for stmt2 in stmt:
-						stmts.append(self._generate_statement(stmt2, context))
-				else:
-					stmts.append(self._generate_statement(stmt, context))
+			for stmt in flatten(expr.stmts):
+				stmts.append(self._generate_statement(stmt, context))
 		finally:
 			context.continue_target = previous_target
 
-		if not cond.static:
+		flat_stmts = list(flatten(stmts))
+		semantic_stmts = [x for x in flat_stmts if "// block" not in x.code]
+		static = all(x.static for x in [*flatten(init), cond, *flatten(updates), *semantic_stmts])
+		if not static:
 			context.dependent_regs.update(cond.regs_affected)
 
-		if memory_condition:
-			# Keep reads, expression side effects and writeback inside each test,
-			# including the final false test. Post-test continue reaches this test.
+		if explicit_latch:
+			# Tests and updates may carry memory reads and writeback prerequisites.
+			# Emit each inside the loop, including the final false condition test.
 			name = f'loop_value_{context.temp_var_count}'
 			context.temp_var_count += 1
 			cond.code = f'const auto {name} = {cond.code};'
-			test = [cond, CodeString(f'if (!{name}) break;', cond.static, None, None)]
-			body = [CodeString('{ // loop body', cond.static, None, None),
-				*flatten(stmts), CodeString('} // loop body', cond.static, None, None)]
-			outputs = [CodeString('while (true) { // loop', cond.static, None, None)]
+			test = [cond, CodeString(f'if (!{name}) break;', static, None, None)]
+			body = [CodeString('{ // loop body', static, None, None),
+				*flat_stmts, CodeString('} // loop body', static, None, None)]
+			outputs = [CodeString('{ // loop scope', static, None, None), *flatten(init),
+				CodeString('while (true) { // loop', static, None, None)]
+			if not expr.post_test:
+				outputs.extend(test)
+			outputs.extend(body)
+			if continue_target:
+				outputs.append(CodeString(f'{continue_target}:;', static, None, None))
+			outputs.extend(flatten(updates))
 			if expr.post_test:
-				outputs.extend(body)
-				outputs.append(CodeString(f'{continue_target}:;', cond.static, None, None))
 				outputs.extend(test)
-			else:
-				outputs.extend(test)
-				outputs.extend(body)
-			outputs.append(CodeString('} // loop', cond.static, None, None))
-			return outputs
-
-		if expr.post_test:
-			start_c = CodeString("do { // loop", cond.static, None, None)
-			end_c = cond
-			end_c.code = f'}} while ({end_c.code});'
+			outputs.extend([CodeString('} // loop', static, None, None),
+				CodeString('} // loop scope', static, None, None)])
+		elif expr.post_test:
+			cond.code = f'}} while ({cond.code});'
+			outputs = [CodeString('do { // loop', static, None, None), *flat_stmts, cond]
 		else:
-			start_c = cond
-			start_c.code = f'while ({start_c.code}) {{ // loop'
-			end_c = CodeString("} // loop", cond.static, None, None)
+			cond.code = f'while ({cond.code}) {{ // loop'
+			outputs = [cond, *flat_stmts, CodeString('} // loop', static, None, None)]
 
-		return [start_c, *flatten(stmts), end_c]
+		if not static:
+			for output in outputs:
+				output.static = attribute_info.AccessAttribute.NONE
+		return outputs
 
 	@generate.register
 	def _(self, expr: behav.Ternary, context: TransformerContext):

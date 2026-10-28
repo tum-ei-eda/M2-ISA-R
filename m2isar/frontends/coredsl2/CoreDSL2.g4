@@ -90,7 +90,7 @@ switch_label
 	;
 
 block
-	: '{' items+=block_item* '}'
+	: '{' attributes+=attribute* items+=block_item* '}'
 	;
 
 block_item

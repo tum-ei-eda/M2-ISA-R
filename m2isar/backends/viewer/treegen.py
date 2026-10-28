@@ -119,6 +119,7 @@ class TreeGenVisitor(ExprVisitor):
 	def break_(self, expr: behav.Break, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Break")
 
+
 	@generate.register
 	def continue_(self, expr: behav.Continue, context: "TreeGenContext"):
 		context.tree.insert(context.parent, tk.END, text="Continue")
@@ -154,10 +155,15 @@ class TreeGenVisitor(ExprVisitor):
 		context.pop()
 
 	@generate.register
-	def loop(self, expr: behav.Loop, context: "TreeGenContext"):
+	def loop(self, expr: behav.LoopBase, context: "TreeGenContext"):
 		context.push(context.tree.insert(context.parent, tk.END, text="Loop"))
 
 		context.tree.insert(context.parent, tk.END, text="Post Test", values=(expr.post_test,))
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Initializers"))
+		for stmt in expr.init:
+			self.generate(stmt, context)
+		context.pop()
 
 		context.push(context.tree.insert(context.parent, tk.END, text="Condition"))
 		self.generate(expr.cond, context)
@@ -166,6 +172,11 @@ class TreeGenVisitor(ExprVisitor):
 		context.push(context.tree.insert(context.parent, tk.END, text="Statements"))
 		for stmt in expr.stmts:
 			self.generate(stmt, context)
+		context.pop()
+
+		context.push(context.tree.insert(context.parent, tk.END, text="Updates"))
+		for update in expr.updates:
+			self.generate(update, context)
 		context.pop()
 
 		context.pop()

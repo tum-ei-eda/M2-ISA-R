@@ -16,7 +16,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from m2isar.metamodel import arch, behav, type_info
+from m2isar.metamodel import arch, behav, type_info, attribute_info
 from m2isar.metamodel.type_info import TypeKind, ArrayType, PointerType
 
 logger = logging.getLogger("coredsl2_writer")
@@ -77,6 +77,14 @@ class CoreDSL2Writer:
             if self.needsspace:
                 self.write(" ")
             self.write("{", nl=nl)
+        self.level += 1
+
+    def enter_attributed_block(self, attributes):
+        if self.needsspace:
+            self.write(" ")
+        self.write("{")
+        self.write_attributes(attributes)
+        self.write("", nl=True)
         self.level += 1
 
     def leave_block(self, br=True, nl=True):
@@ -153,10 +161,12 @@ class CoreDSL2Writer:
         # TODO: allow atrbitrary attrs in cdsl2llvm parser, not only for operands
         if self.allowed_attrs is not None:
             allowed_attrs = [attr.lower() for attr in self.allowed_attrs]
-            if self.reduced and attr.name.lower() not in allowed_attrs:
+            attr_name = attr if isinstance(attr, str) else attr.name
+            if self.reduced and attr_name.lower() not in allowed_attrs:
                 return
         self.write("[[")
-        self.write(attr.name.lower())
+        attr_name = attr if isinstance(attr, str) else attr.name
+        self.write(attr_name.lower())
         if val is not None:
             self.write("=")
 
@@ -167,6 +177,13 @@ class CoreDSL2Writer:
                     return "(" + ",".join([helper(x) for x in val]) + ")"
                 if isinstance(val, str):  # TODO: replace with string literal
                     return val  # TODO: operation
+                if isinstance(val, attribute_info.AccessAttribute):
+                    names = {
+                        attribute_info.AccessAttribute.NONE: "NONE",
+                        attribute_info.AccessAttribute.READ: "CONST",
+                        attribute_info.AccessAttribute.RW: "STATIC",
+                    }
+                    return names[val]
                 if isinstance(val, int):  # TODO: replace with int literal
                     return str(val)  # TODO: operation
                 if isinstance(val, behav.Literal):
@@ -181,6 +198,12 @@ class CoreDSL2Writer:
                     # print("val.reference", val.reference)
                     # print("dir(val)", dir(val))
                     # return helper(arch.get_const_or_val(val))
+                if isinstance(val, behav.UnaryOperation):
+                    return val.op.value + helper(val.right)
+                if isinstance(val, behav.BinaryOperation):
+                    return f"({helper(val.left)} {val.op.value} {helper(val.right)})"
+                if isinstance(val, behav.Group):
+                    return f"({helper(val.expr)})"
                 raise NotImplementedError(f"Unhandled case: {type(val)}")
 
             val = helper(val)
@@ -600,7 +623,5 @@ class CoreDSL2Writer:
         for block in blocks.values():
             self.write(block.name)
             self.write_attributes(block.attributes)
-            self.enter_block()
             self.visitor.generate(block.operation, self)
-            self.leave_block()
         self.leave_block()
