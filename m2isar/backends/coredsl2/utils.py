@@ -327,6 +327,11 @@ class CoreDSL2Writer:
     def write_instructions(self, instructions):
         # Legacy CoreDSL requires at least one instruction inside the block.
         # Aggregate sets can consist entirely of inherited instructions.
+        if not instructions and self.legacy:
+            self.write("instructions")
+            self.enter_block()
+            self.leave_block()
+            return
         if not instructions:
             return
         self.write("instructions")

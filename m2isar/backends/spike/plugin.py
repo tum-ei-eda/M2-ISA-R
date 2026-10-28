@@ -245,7 +245,7 @@ auto* ext = static_cast<{name}*>(p->get_extension("{name}"));
 {body}
 return normalize(pc + 4);
 }}''')
-            descriptors.append("{" + f"{code:#x}, {mask:#x}, " + ", ".join([callback, callback, "::illegal_instruction", "::illegal_instruction"] * 2) + "}")
+            descriptors.append("{" + f"{code:#x}, {mask:#x}, " + ", ".join([callback] * 4) + "}")
             accepted.append((code, mask))
             callback_names.add(callback)
         except Unsupported as exc:
@@ -265,10 +265,12 @@ static constexpr unsigned xlen = {xlen};
 static reg_t normalize(uint64_t value) {{
 return xlen == 32 ? reg_t(int64_t(int32_t(uint32_t(value)))) : reg_t(value);
 }}
-const char* name() const override {{ return "{name}"; }}
+const char* name() {{ return "{name}"; }}
+const char* name() const {{ return "{name}"; }}
 {chr(10).join(declarations)}
 {name}() {{ {''.join(resets)} }}
-void reset(processor_t&) override {{ {''.join(resets)} }}
+void reset() {{ {''.join(resets)} }}
+void reset(processor_t&) {{ reset(); }}
 static reg_t read_x(processor_t* p, uint64_t i) {{
 if (i >= 32) throw trap_illegal_instruction(0);
 return xlen == 32 ? uint32_t(p->get_state()->XPR[i]) : p->get_state()->XPR[i];
@@ -276,7 +278,9 @@ return xlen == 32 ? uint32_t(p->get_state()->XPR[i]) : p->get_state()->XPR[i];
 static void write_x(processor_t* p, uint64_t i, uint64_t v) {{
 if (i >= 32) throw trap_illegal_instruction(0);
 reg_t value = normalize(v);
+#ifdef RISCV_ENABLE_COMMITLOG
 if (p->get_log_commits_enabled()) p->get_state()->log_reg_write[i << 4] = {{value, 0}};
+#endif
 p->get_state()->XPR.write(i, value);
 }}
 template<typename T, size_t N>
@@ -285,8 +289,10 @@ if (i >= N) throw trap_illegal_instruction(insn.bits());
 return state[i];
 }}
 {chr(10).join(callbacks)}
-std::vector<insn_desc_t> get_instructions(const processor_t&) override {{ return {{{','.join(descriptors)}}}; }}
-std::vector<disasm_insn_t*> get_disasms(const processor_t* = nullptr) override {{ return {{}}; }}
+std::vector<insn_desc_t> get_instructions() {{ return {{{','.join(descriptors)}}}; }}
+std::vector<insn_desc_t> get_instructions(const processor_t&) {{ return get_instructions(); }}
+std::vector<disasm_insn_t*> get_disasms() {{ return {{}}; }}
+std::vector<disasm_insn_t*> get_disasms(const processor_t*) {{ return get_disasms(); }}
 }};
 REGISTER_EXTENSION({name}, []() {{ return new {name}; }})
 '''
