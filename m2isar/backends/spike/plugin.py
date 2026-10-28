@@ -2,6 +2,7 @@
 """Generate standalone Spike extensions for a deliberately bounded RV32/RV64 subset."""
 import logging
 import re
+import copy
 from ...metamodel import arch, behav
 from ...metamodel.type_info import ArrayType, TypeKind
 
@@ -40,6 +41,17 @@ class Translator:
         return False
 
     def expr(self, node):
+        if isinstance(node, behav.TypeConv):
+            ty = node.ty
+            if ty is None or ty.kind not in (TypeKind.UINT, TypeKind.INT) or not 1 <= ty.size <= 64:
+                raise Unsupported("cast requires an integer width of 1..64 bits")
+            value = f"(uint64_t({self.expr(node.expr)}) & UINT64_C({(1 << ty.size) - 1}))"
+            if ty.kind == TypeKind.INT:
+                if ty.size == 64:
+                    return f"int64_t({value})"
+                sign = 1 << (ty.size - 1)
+                return f"(int64_t({value} ^ UINT64_C({sign})) - INT64_C({sign}))"
+            return value
         if isinstance(node, behav.Literal) and isinstance(node.value, int):
             if node.ty.kind == TypeKind.INT:
                 value = int(node.value)
@@ -108,8 +120,57 @@ class Translator:
         raise Unsupported(f"statement {type(node).__name__}")
 
 
-def generate_plugin(set_def):
+def is_pc_increment(block):
+    """Recognize the base ISA's PC update, which Spike already performs."""
+    statements = block.operation.statements
+    if block.attributes or len(statements) != 1 or not isinstance(statements[0], behav.Assignment):
+        return False
+    assignment = statements[0]
+    target = assignment.target
+    if not isinstance(target, behav.NamedReference) or not getattr(target.reference, "is_pc", False):
+        return False
+    expr = assignment.expr
+    while isinstance(expr, (behav.TypeConv, behav.Group)):
+        expr = expr.expr
+    return (isinstance(expr, behav.BinaryOperation) and expr.op.value == "+"
+            and isinstance(expr.left, behav.NamedReference) and expr.left.reference is target.reference
+            and isinstance(expr.right, behav.NamedReference)
+            and isinstance(expr.right.reference, arch.Intrinsic)
+            and expr.right.reference.name == "__encoding_size")
+
+
+def generate_plugin(set_def, custom_only=False, strict=False):
     """Return C++ source; warn and omit each unsupported instruction."""
+    if custom_only:
+        set_def = copy.copy(set_def)
+        set_def.always_blocks = {name: block for name, block in set_def.always_blocks.items()
+                                 if not is_pc_increment(block)}
+        set_def.instructions = {
+            key: insn for key, insn in set_def.instructions.items()
+            if insn.code is not None and insn.code & 0x7f in {0x0b, 0x2b, 0x5b, 0x7b}
+        }
+        if not set_def.instructions:
+            raise Unsupported("model contains no encoded custom instructions")
+        # Spike implements the base ISA, including its FPU and CSRs. Only state
+        # referenced by the custom instructions belongs in the extension.
+        referenced = set()
+        def collect(node):
+            if isinstance(node, (behav.NamedReference, behav.IndexedReference)):
+                referenced.add(id(node.reference))
+            if isinstance(node, behav.BaseNode):
+                for value in vars(node).values():
+                    if isinstance(value, behav.BaseNode):
+                        collect(value)
+                    elif isinstance(value, (list, tuple)):
+                        for child in value:
+                            collect(child)
+        for instruction in set_def.instructions.values():
+            collect(instruction.operation)
+        for attribute in ("memories", "register_banks"):
+            setattr(set_def, attribute, {
+                key: mem for key, mem in getattr(set_def, attribute).items()
+                if id(mem) in referenced or (isinstance(mem, arch.RegisterBank) and mem.is_main_reg)
+            })
     if getattr(set_def, "always_blocks", {}):
         raise Unsupported("always blocks are unsupported by the Spike backend")
     name = identifier(set_def.name)
@@ -188,6 +249,8 @@ return normalize(pc + 4);
             accepted.append((code, mask))
             callback_names.add(callback)
         except Unsupported as exc:
+            if strict:
+                raise Unsupported(f"instruction {insn.name}: {exc}") from exc
             logger.warning("Spike: skipping instruction %s: %s", insn.name, exc)
     for insn in getattr(set_def, "unencoded_instructions", {}).values():
         logger.warning("Spike: skipping instruction %s: no encoding", insn.name)

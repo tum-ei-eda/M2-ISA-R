@@ -38,7 +38,7 @@ class SpikeIntegration(unittest.TestCase):
                             '-o', str(output / 'libextension.so')], check=True, timeout=60)
             shutil.copy(Path(__file__).parent / 'fixtures' / 'spike_state.cc', output)
             subprocess.run(['c++', '-std=c++17', *[f'-I{p}' for p in includes],
-                            str(output / 'spike_state.cc'), f'-L{build}',
+                            str(output / 'spike_state.cc'), f'-L{build}', f'-Wl,-rpath,{build}',
                             '-Wl,--start-group', '-lriscv', '-ldisasm', '-lfesvr',
                             '-lsoftfloat', '-lfdt', '-Wl,--end-group',
                             '-lpthread', '-ldl', '-lboost_system', '-lboost_regex',

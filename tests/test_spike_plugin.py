@@ -22,7 +22,7 @@ def example_set():
         enc = [a.BitVal(7, funct), a.BitField('rs2', a.RangeSpec(5), TypeKind.UINT),
                a.BitField('rs1', a.RangeSpec(5), TypeKind.UINT), a.BitVal(3, 0),
                a.BitField('rd', a.RangeSpec(5), TypeKind.UINT), a.BitVal(7, 0x0b)]
-        insn = a.Instruction(kind, {}, enc, None, None, None, None)
+        insn = a.Instruction(kind, {}, {}, enc, None, None, None)
         field = lambda key: b.NamedReference(insn.fields[key])
         reg = lambda key: b.IndexedReference(x, field(key))
         state = b.IndexedReference(acc, b.Literal(0))
@@ -37,7 +37,7 @@ def example_set():
             target, value = state, b.BinaryOperation(state, b.Operator('+'), reg('rs1'))
         insn.operation = b.Operation([b.Assignment(target, value)])
         insns[(insn.code, insn.mask)] = insn
-    return a.InstructionSet('Example', [], {}, {}, {}, {'X': x, 'ACC': acc}, {}, {}, insns)
+    return a.InstructionSet('Example', [], {}, {}, {}, {'X': x, 'ACC': acc}, {}, {}, insns, {})
 
 
 class PluginTests(unittest.TestCase):
@@ -180,9 +180,9 @@ class PluginTests(unittest.TestCase):
 
     def test_overlapping_encoding_warns(self):
         model = example_set()
-        broad = a.Instruction('broad', {},
+        broad = a.Instruction('broad', {}, {},
                               [a.BitField('payload', a.RangeSpec(25), TypeKind.UINT), a.BitVal(7, 0xb)],
-                              None, None, None, None)
+                              None, None, None)
         model.instructions[(broad.code, broad.mask)] = broad
         with self.assertLogs('m2isar.backends.spike.plugin', logging.WARNING) as logs:
             generate_plugin(model)
