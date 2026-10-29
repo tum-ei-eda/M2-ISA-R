@@ -65,6 +65,9 @@ class Translator:
             return f"({self.expr(node.expr)})"
         if isinstance(node, behav.NamedReference):
             ref = node.reference
+            if isinstance(ref, arch.Variable):
+                self.local_type(ref)
+                return "m2_local_" + identifier(ref.name)
             if isinstance(ref, arch.Parameter):
                 return str(ref.value)
             if isinstance(ref, arch.BitFieldDescr):
@@ -82,7 +85,12 @@ class Translator:
         if isinstance(node, behav.BinaryOperation):
             if node.op.value not in {"+", "-", "*", "&", "|", "^", "==", "!=", "<", ">", "<=", ">="}:
                 raise Unsupported(f"operator {node.op.value}")
-            if node.op.value in {"==", "!=", "<", ">", "<=", ">="} and self.has_signed_operand(node):
+            zero_equality = node.op.value in {"==", "!="} and any(
+                isinstance(value, behav.Literal) and value.value == 0
+                for value in (node.left, node.right)
+            )
+            if (node.op.value in {"==", "!=", "<", ">", "<=", ">="}
+                    and self.has_signed_operand(node) and not zero_equality):
                 raise Unsupported("comparisons involving signed operands are unsupported")
             return f"({self.expr(node.left)} {node.op.value} {self.expr(node.right)})"
         if isinstance(node, behav.UnaryOperation) and node.op.value in {"~", "!", "-", "+"}:
@@ -106,10 +114,40 @@ class Translator:
             return f"read_x(p, {index})"
         return f"ext->state_at(ext->{identifier(mem.name)}, {index}, insn)"
 
+    def local_type(self, variable):
+        ty = variable.ty
+        if ty.kind != TypeKind.UINT or not 1 <= ty.size <= 64:
+            raise Unsupported("local variables require unsigned integer widths of 1..64 bits")
+        return ty
+
+    def local_value(self, variable, expression):
+        ty = self.local_type(variable)
+        return f"(uint64_t({expression}) & UINT64_C({(1 << ty.size) - 1}))"
+
     def statement(self, node):
         if isinstance(node, behav.Operation):
             return "\n".join(self.statement(s) for s in node.statements)
+        if isinstance(node, behav.Conditional):
+            if not node.conds or len(node.stmts) not in (len(node.conds), len(node.conds) + 1):
+                raise Unsupported("malformed conditional")
+            branches = []
+            for index, condition in enumerate(node.conds):
+                keyword = "if" if index == 0 else "else if"
+                branches.append(f"{keyword} ({self.expr(condition)}) {{\n{self.statement(node.stmts[index])}\n}}")
+            if len(node.stmts) > len(node.conds):
+                branches.append(f"else {{\n{self.statement(node.stmts[-1])}\n}}")
+            return " ".join(branches)
+        if isinstance(node, behav.VarDefinition):
+            self.local_type(node.var)
+            return f"uint64_t m2_local_{identifier(node.var.name)};"
         if isinstance(node, behav.Assignment):
+            if isinstance(node.target, behav.VarDefinition):
+                variable = node.target.var
+                value = self.local_value(variable, self.expr(node.expr))
+                return f"uint64_t m2_local_{identifier(variable.name)} = {value};"
+            if isinstance(node.target, behav.NamedReference) and isinstance(node.target.reference, arch.Variable):
+                value = self.local_value(node.target.reference, self.expr(node.expr))
+                return f"{self.expr(node.target)} = {value};"
             target = self.expr(node.target)
             value = self.expr(node.expr)
             if target.startswith("read_x("):
