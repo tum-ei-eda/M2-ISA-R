@@ -4,6 +4,10 @@ Run from the repository root using the development environment (`pip install -e 
 The native suite uses Python's standard-library `unittest`; Java and the MINRES
 validator are optional.
 
+The ISAAC Toolkit integration tests also require an installed `isaac_toolkit`
+package or a sibling `isaac-toolkit` checkout. They skip explicitly when the
+Toolkit is absent; import errors within an available Toolkit still fail the suite.
+
 The `Regression tests` GitHub Actions workflow runs the native suite on pushes
 and pull requests using Python 3.10. New `test_*.py` files are discovered
 automatically; no CI registration is needed.

@@ -87,12 +87,31 @@ class PluginTests(unittest.TestCase):
                 insn = next(iter(model.instructions.values()))
                 insn.fields['rs1'].ty.kind = TypeKind.INT
                 comparison = b.BinaryOperation(b.NamedReference(insn.fields['rs1']), b.Operator(operator),
-                                               b.Literal(0, PrimitiveType(TypeKind.INT, 32)))
+                                               b.Literal(1, PrimitiveType(TypeKind.INT, 32)))
                 insn.operation.statements[0].expr = comparison
                 with self.assertLogs('m2isar.backends.spike.plugin', logging.WARNING) as logs:
                     source = generate_plugin(model)
                 self.assertIn('comparisons involving signed operands', logs.output[0])
                 self.assertNotIn('static reg_t m2_add(', source)
+
+    def test_signed_zero_equality_is_supported(self):
+        for operator in ('==', '!='):
+            for kind in (TypeKind.INT, TypeKind.UINT):
+                for zero_on_left in (False, True):
+                    with self.subTest(operator=operator, kind=kind, zero_on_left=zero_on_left):
+                        model = example_set()
+                        insn = next(iter(model.instructions.values()))
+                        insn.fields['rs1'].ty.kind = TypeKind.INT
+                        operands = [b.NamedReference(insn.fields['rs1']),
+                                    b.Literal(0, PrimitiveType(kind, 32))]
+                        if zero_on_left:
+                            operands.reverse()
+                        insn.operation.statements[0].expr = b.BinaryOperation(
+                            operands[0], b.Operator(operator), operands[1])
+                        with self.assertNoLogs('m2isar.backends.spike.plugin', logging.WARNING):
+                            source = generate_plugin(model)
+                        self.assertIn('static reg_t m2_add(', source)
+                        self.assertIn(f' {operator} ', source)
 
     def test_signed_literal_is_preserved(self):
         model = example_set()
