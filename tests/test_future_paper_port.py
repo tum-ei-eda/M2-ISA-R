@@ -70,9 +70,11 @@ class FuturePaperPortTests(unittest.TestCase):
         add = instruction_set.unencoded_instructions["ADD"]
         self.assertEqual(add.operands["rs1"].attributes, {A.IN: [], A.IS_REG: []})
         self.assertEqual(add.fields["rs1"].ty.size, 5)
+        self.assertEqual(add.assembly, "{rd}, {rs1}, {rs2}")
         li = instruction_set.unencoded_instructions["LI"]
         self.assertTrue(li.operands["imm"].signed)
         self.assertEqual(li.fields["imm"].ty.size, 12)
+        self.assertEqual(li.assembly, "{rd}, {imm}")
 
     def test_auto_encoding_roundtrip_and_model_allocation(self):
         model = self.model()
