@@ -38,6 +38,14 @@ def integer_value(text):
     return integer_literal(text)[0]
 
 
+def cast_integer(value, width, signed):
+    """Apply a fixed-width integer cast using two's-complement representation."""
+    value &= (1 << width) - 1
+    if signed and value & (1 << (width - 1)):
+        value -= 1 << width
+    return value
+
+
 BINARY = {
     '+': operator.add, '-': operator.sub, '*': operator.mul,
     '&': operator.and_, '|': operator.or_, '^': operator.xor,

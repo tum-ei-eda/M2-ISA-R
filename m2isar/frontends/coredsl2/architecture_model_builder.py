@@ -480,6 +480,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					signed = True if type_.kind == type_info.TypeKind.INT else False
 
 					c = arch.Parameter(name, init, [], type_.size, signed)
+					if init is not None:
+						c._initializer_expressions = [(type_, init)]
 
 					self._parameters[name] = c
 					ret_decls.append(c)
@@ -530,7 +532,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					
 					# attach init value to register bank object
 					if init is not None:
-						reg._initval[None] = exprInterpretVisitor.generate(init, None)
+						if isinstance(init, list):
+							if not isinstance(reg.ty, type_info.ArrayType):
+								raise M2TypeError("List initializer requires an array")
+							reg._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
+							reg._initializer_expressions = [(reg.ty, behav.Tensor(list(reg._initval.values()), reg.ty,
+							                                               initializer_elements=init))]
+						else:
+							reg._initval[None] = exprInterpretVisitor.generate(init, None)
+							reg._initializer_expressions = [(reg.ty, init)]
 
 					if isinstance(reg, arch.RegisterBank):
 						if reg.is_main_reg:
@@ -568,7 +578,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					# attach init value to memory object
 					if init is not None:
-						m._initval[None] = exprInterpretVisitor.generate(init, None)
+						if isinstance(init, list):
+							if not isinstance(m.ty, type_info.ArrayType):
+								raise M2TypeError("List initializer requires an array")
+							m._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
+							m._initializer_expressions = [(m.ty, behav.Tensor(list(m._initval.values()), m.ty,
+							                                             initializer_elements=init))]
+						else:
+							m._initval[None] = exprInterpretVisitor.generate(init, None)
+							m._initializer_expressions = [(m.ty, init)]
 
 
 					if m.is_csr_reg:
@@ -661,6 +679,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		expr = self.visit(ctx.right)
 		return behav.UnaryOperation(prefix, expr)
 
+	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
+		from .behavior_model_builder import BehaviorModelBuilder
+		return BehaviorModelBuilder.visitCast_expression(self, ctx)
+
+	def visitInitializerList(self, ctx: CoreDSL2Parser.InitializerListContext):
+		return [self.visit(init) for init in ctx.initializer()]
+
 	def visitDeref_expression(self, ctx):
 		raise M2TypeError("Composite member access is not supported by model lowering")
 
@@ -710,6 +735,19 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[exprInterpretVisitor.generate(left.index, None)] = exprInterpretVisitor.generate(right, None)
+		else:
+			return
+		ref = left.reference
+		if isinstance(ref, arch.Parameter):
+			kind = type_info.TypeKind.INT if ref.signed else type_info.TypeKind.UINT
+			target_type = type_info.PrimitiveType(kind, ref.size)
+		elif isinstance(left, behav.IndexedReference):
+			target_type = ref.ty.element_type
+		elif isinstance(ref, arch.Alias):
+			target_type = ref.ty.ty
+		else:
+			target_type = ref.ty
+		ref._initializer_expressions = getattr(ref, '_initializer_expressions', []) + [(target_type, right)]
 
 	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
 		"""Generate an attribute."""

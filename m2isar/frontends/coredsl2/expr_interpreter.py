@@ -10,8 +10,8 @@
 
 from ... import M2ValueError
 from ...diagnostics import M2ValidationError
-from .constant_expressions import BINARY
-from ...metamodel import arch, behav
+from .constant_expressions import BINARY, cast_integer
+from ...metamodel import arch, behav, type_info
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from functools import singledispatchmethod
 
@@ -30,6 +30,19 @@ class ExprInterpreterVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.Literal, context):
 		return int(expr.value)
+
+	@generate.register
+	def _(self, expr: behav.TypeConv, context):
+		value = self.generate(expr.expr, context)
+		width = arch.get_const_or_val(expr.size)
+		if width is None:
+			from ...transforms.infer_types.visitor import InferTypesMutator
+			from ...warnings import WarningsManager
+			InferTypesMutator().generate(expr.expr, WarningsManager(None))
+			width = arch.get_const_or_val(expr.expr.ty.size)
+		if not isinstance(width, int) or width <= 0:
+			raise M2ValueError("cast width must be a positive constant")
+		return cast_integer(value, width, expr.data_type == type_info.TypeKind.INT)
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):
