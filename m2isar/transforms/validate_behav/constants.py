@@ -11,22 +11,22 @@ BINARY = {'+': operator.add, '-': operator.sub, '*': operator.mul,
           '<=': operator.le, '>': operator.gt, '>=': operator.ge}
 
 
-def constant_value(node, active=frozenset(), on_error=None):
+def constant_value(node, active=frozenset(), on_error=None, *, allow_casts=False):
     if isinstance(node, arch.Parameter):
         if id(node) in active or node._value is None:
             return INDETERMINATE
         if isinstance(node._value, int):
             return node._value
-        return constant_value(node._value, active | {id(node)}, on_error)
+        return constant_value(node._value, active | {id(node)}, on_error, allow_casts=allow_casts)
     if isinstance(node, behav.Literal):
         if isinstance(node.ty, type_info.PrimitiveType) and node.ty.kind.is_int:
             return int(node.value)
     if isinstance(node, behav.NamedReference) and isinstance(node.reference, arch.Parameter):
-        return constant_value(node.reference, active, on_error)
+        return constant_value(node.reference, active, on_error, allow_casts=allow_casts)
     if isinstance(node, behav.Group):
-        return constant_value(node.expr, active, on_error)
-    if isinstance(node, behav.TypeConv):
-        value = constant_value(node.expr, active, on_error)
+        return constant_value(node.expr, active, on_error, allow_casts=allow_casts)
+    if allow_casts and isinstance(node, behav.TypeConv):
+        value = constant_value(node.expr, active, on_error, allow_casts=allow_casts)
         if value is None or value is INDETERMINATE:
             return value
         width = arch.get_const_or_val(node.size if node.size is not None else getattr(node.expr.ty, 'size', None))
@@ -37,11 +37,12 @@ def constant_value(node, active=frozenset(), on_error=None):
         except ValueError:
             return None
     if isinstance(node, behav.UnaryOperation) and node.op.value == '-':
-        value = constant_value(node.right, active, on_error)
+        value = constant_value(node.right, active, on_error, allow_casts=allow_casts)
         return value if value is None or value is INDETERMINATE else -value
     if isinstance(node, behav.BinaryOperation):
         op = node.op.value
-        left, right = constant_value(node.left, active, on_error), constant_value(node.right, active, on_error)
+        left = constant_value(node.left, active, on_error, allow_casts=allow_casts)
+        right = constant_value(node.right, active, on_error, allow_casts=allow_casts)
         if left is None or right is None:
             return None
         if left is INDETERMINATE or right is INDETERMINATE:

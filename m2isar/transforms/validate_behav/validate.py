@@ -59,6 +59,7 @@ def validate_behav(model_obj, warnings_info, *, source_validated=False):
         for definition in definitions.values():
             context = ValidatorContext(warnings_info, partial=definitions is model_obj.sets,
                                        source_validated=source_validated)
+            context.architectural_initializer = True
             visitor = ValidateBehavVisitor()
             for name in ('parameters', 'register_banks', 'memories', 'register_aliases', 'memory_aliases'):
                 for symbol in getattr(definition, name, {}).values():

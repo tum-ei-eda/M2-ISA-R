@@ -119,6 +119,8 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             if isinstance(node, P.Intrinsic_expressionContext):
                 return self.intrinsic_value(node, constant=True)
             if isinstance(node, P.Cast_expressionContext):
+                if not self.elaborating:
+                    return None
                 from .constant_expressions import cast_integer
                 try:
                     value = self.evaluate(node.right, required)
