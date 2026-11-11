@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 from m2isar.metamodel import load_model
+from m2isar.backends.etiss.architecture_writer import write_arch_cpp
 
 
 class ArchitecturalInitializerTest(unittest.TestCase):
@@ -74,6 +75,29 @@ class ArchitecturalInitializerTest(unittest.TestCase):
             result, _ = self.run_parser(directory, 'register unsigned<8> R=(unsigned<8>)(-1);',
                                         '--validate', set_parser=True)
             self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_initializer_width_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self.run_parser(directory, "register unsigned<16> R=8'd1;",
+                                        '--validate', '-Werror=implicit-extend')
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn('implicit-extend', result.stdout)
+            self.assertNotIn('Traceback', result.stdout)
+
+    def test_etiss_initializer_suffixes_follow_register_type(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, path = self.run_parser(directory, '''
+                register unsigned<8> X[2];
+                register unsigned<8> U=-1;
+                register signed<8> S=1;
+                register unsigned<8> A[2]={0, 1};
+            ''')
+            self.assertEqual(result.returncode, 0, result.stdout)
+            write_arch_cpp(load_model(path).cores['C'], '', Path(directory))
+            code = (Path(directory) / 'CArch.cpp').read_text()
+            self.assertIn('->U = -1ULL;', code)
+            self.assertIn('->S = 1LL;', code)
+            self.assertIn('->A[0] = 0ULL;', code)
 
 
 if __name__ == '__main__':

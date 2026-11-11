@@ -130,12 +130,12 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
 <% ref = "*" if isinstance(reg.ty, type_info.ArrayType) else "" %>\
     % if isinstance(reg.ty, type_info.ArrayType):
     % for idx, val in reg._initval.items():
-<% suffix = "ULL" if val > 0 else "LL" %>\
+<% suffix = "ULL" if reg.ty.element_type.kind == type_info.TypeKind.UINT else "LL" %>\
     ${ref}${core_name.lower()}cpu->${reg.name}[${idx}] = ${val}${suffix};
     % endfor
     % else:
 <% val = reg._initval[None] %>\
-<% suffix = "ULL" if val > 0 else "LL" %>\
+<% suffix = "ULL" if (reg.ty.ty if isinstance(reg.ty, type_info.PointerType) else reg.ty).kind == type_info.TypeKind.UINT else "LL" %>\
     ${ref}${core_name.lower()}cpu->${reg.name} = ${val}${suffix};
     % endif
     % endfor
