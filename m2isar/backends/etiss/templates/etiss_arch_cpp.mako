@@ -127,7 +127,7 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % endfor
 
     % for reg in initval_regs:
-<% ref = "*" if isinstance(reg.ty, type_info.ArrayType) else "" %>\
+<% ref = "*" if getattr(reg, "children", None) else "" %>\
     % if isinstance(reg.ty, type_info.ArrayType):
     % for idx, val in reg._initval.items():
 <% suffix = "ULL" if reg.ty.element_type.kind == type_info.TypeKind.UINT else "LL" %>\

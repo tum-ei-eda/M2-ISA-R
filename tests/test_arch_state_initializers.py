@@ -127,13 +127,16 @@ class ArchitecturalInitializerTest(unittest.TestCase):
                 register unsigned<8> U=-1;
                 register signed<8> S=1;
                 register unsigned<8> A[2]={0, 1};
+                register unsigned<8> P[2]={0, 1};
+                unsigned<8> &Q=P[0];
             ''')
             self.assertEqual(result.returncode, 0, result.stdout)
             write_arch_cpp(load_model(path).cores['C'], '', Path(directory))
             code = (Path(directory) / 'CArch.cpp').read_text()
             self.assertIn('->U = -1ULL;', code)
             self.assertIn('->S = 1LL;', code)
-            self.assertIn('->A[0] = 0ULL;', code)
+            self.assertIn('    ccpu->A[0] = 0ULL;', code)
+            self.assertIn('    *ccpu->P[0] = 0ULL;', code)
 
 
 if __name__ == '__main__':
