@@ -120,10 +120,17 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
                 return self.intrinsic_value(node, constant=True)
             if isinstance(node, P.Cast_expressionContext):
                 from .constant_expressions import cast_integer
-                value = self.evaluate(node.right, required)
+                try:
+                    value = self.evaluate(node.right, required)
+                except M2ValidationError:
+                    if required:
+                        raise
+                    return None
+                if value is None:
+                    return None
                 ty = (self.specified_type(node.type_) if node.type_ is not None
                       else self.expression_type(node.right))
-                if value is None or not ty.integer or ty.width <= 0:
+                if not ty.integer or ty.width <= 0:
                     return None
                 signed = ty.signed if node.type_ is not None else node.sign.getText() == 'signed'
                 return cast_integer(value, ty.width, signed)

@@ -415,7 +415,8 @@ class ValidateBehavVisitor(ExprVisitor):
         except M2ValidationError as error:
             errors.append(error)
         try:
-            self._validate_assignment_types(expr, context, emit_width_warnings=not errors)
+            self._validate_assignment_types(
+                expr, context, emit_width_warnings=not errors and not getattr(expr, '_suppress_width_warnings', False))
         except M2ValidationError as error:
             errors.append(error)
         operator = getattr(expr, 'compound_operator', None)

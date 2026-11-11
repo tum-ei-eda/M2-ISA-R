@@ -121,7 +121,8 @@ def _parse_model(args):
 	for set_name, set_def in sets.items():
 		logger.info(f"building architecture model for set %s", set_name)
 		try:
-			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate)
+			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate,
+			                                        parameter_values=defines)
 			s = arch_builder.visit(set_def)
 			if not isinstance(s, list):
 				s = [s]

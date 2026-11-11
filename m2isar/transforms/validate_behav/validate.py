@@ -66,6 +66,9 @@ def validate_behav(model_obj, warnings_info, *, source_validated=False):
                         assignment = behav.Assignment(behav.VarDefinition(arch.Variable(symbol.name, target_type)),
                                                       expression, expression.line_info)
                         assignment.target.ty = target_type
+                        assignment._suppress_width_warnings = (
+                            isinstance(expression, behav.NamedReference)
+                            and getattr(expression.reference, '_coredsl_enum_name', None) is not None)
                         validate_body(visitor, assignment, context)
 
     for _, core_def in model_obj.cores.items():

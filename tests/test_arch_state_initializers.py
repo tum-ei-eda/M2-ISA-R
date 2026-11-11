@@ -7,6 +7,7 @@ import unittest
 
 from m2isar.metamodel import load_model
 from m2isar.backends.etiss.architecture_writer import write_arch_cpp
+from m2isar.frontends.coredsl2.constant_expressions import cast_integer
 
 
 class ArchitecturalInitializerTest(unittest.TestCase):
@@ -82,6 +83,41 @@ class ArchitecturalInitializerTest(unittest.TestCase):
                                         '--validate', '-Werror=implicit-extend')
             self.assertEqual(result.returncode, 1, result.stdout)
             self.assertIn('implicit-extend', result.stdout)
+            self.assertNotIn('Traceback', result.stdout)
+
+    def test_constant_cast_conversion_exception(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, path = self.run_parser(directory, 'register unsigned<8> R=(signed<16>)1;',
+                                           '--validate', '-Wno-error=implicit-trunc')
+            self.assertEqual(result.returncode, 0, result.stdout)
+            result = subprocess.run([sys.executable, '-m', 'm2isar.transforms.validate_behav.validate',
+                                     str(path), '-Wno-error=implicit-trunc'],
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_scalar_extern_initializer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self.run_parser(directory, 'extern unsigned<8> M=1;', '--validate')
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_set_parameter_override_used_during_initialization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, path = self.run_parser(directory, 'int W; register unsigned<8> R=(unsigned<W>)1;',
+                                           '--validate', '-DW=8', set_parser=True)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertEqual(load_model(path).sets['C'].register_banks['R']._initval[None], 1)
+
+    def test_large_casts_do_not_allocate_unbounded_integers(self):
+        self.assertEqual(cast_integer(1, 2147483647, False), 1)
+        self.assertEqual(cast_integer(-1, 2147483647, True), -1)
+        with self.assertRaises(ValueError):
+            cast_integer(-1, 2147483647, False)
+
+    def test_nested_initializers_fail_cleanly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self.run_parser(directory, 'register unsigned<8> R[1]={{1}};')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Nested list initializers are unsupported', result.stdout)
             self.assertNotIn('Traceback', result.stdout)
 
     def test_etiss_initializer_suffixes_follow_register_type(self):

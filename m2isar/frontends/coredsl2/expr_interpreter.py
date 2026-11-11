@@ -42,7 +42,10 @@ class ExprInterpreterVisitor(ExprVisitor):
 			width = arch.get_const_or_val(expr.expr.ty.size)
 		if not isinstance(width, int) or width <= 0:
 			raise M2ValueError("cast width must be a positive constant")
-		return cast_integer(value, width, expr.data_type == type_info.TypeKind.INT)
+		try:
+			return cast_integer(value, width, expr.data_type == type_info.TypeKind.INT)
+		except ValueError as exc:
+			raise M2ValueError(str(exc)) from exc
 
 	@generate.register
 	def _(self, expr: behav.NamedReference, context):

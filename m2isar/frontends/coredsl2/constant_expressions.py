@@ -40,6 +40,12 @@ def integer_value(text):
 
 def cast_integer(value, width, signed):
     """Apply a fixed-width integer cast using two's-complement representation."""
+    if value >= 0 and value.bit_length() <= width - int(signed):
+        return value
+    if signed and value < 0 and (~value).bit_length() < width:
+        return value
+    if width > 1000000:
+        raise ValueError('Constant cast result is too large')
     value &= (1 << width) - 1
     if signed and value & (1 << (width - 1)):
         value -= 1 << width

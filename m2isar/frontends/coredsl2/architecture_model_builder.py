@@ -41,7 +41,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_vector_reg_file: Union[arch.RegisterBank, None]
 	_csr_reg_file: Union[arch.RegisterBank, None]
 
-	def __init__(self, merge: bool = False, attributes_validated: bool = False):
+	def __init__(self, merge: bool = False, attributes_validated: bool = False, parameter_values=None):
 		super().__init__()
 		self._parameters = {}
 		# self._instructions = {}
@@ -63,6 +63,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._csr_reg_file = None
 		self.merge = merge
 		self.attributes_validated = attributes_validated
+		self.parameter_values = parameter_values or {}
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -482,6 +483,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					c = arch.Parameter(name, init, [], type_.size, signed)
 					if init is not None:
 						c._initializer_expressions = [(type_, init)]
+					if name in self.parameter_values:
+						c.value = self.parameter_values[name]
 
 					self._parameters[name] = c
 					ret_decls.append(c)
@@ -586,7 +589,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 							                                             initializer_elements=init))]
 						else:
 							m._initval[None] = exprInterpretVisitor.generate(init, None)
-							m._initializer_expressions = [(m.ty, init)]
+							m._initializer_expressions = [(m.ty if decl.size else type_, init)]
 
 
 					if m.is_csr_reg:
@@ -684,7 +687,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		return BehaviorModelBuilder.visitCast_expression(self, ctx)
 
 	def visitInitializerList(self, ctx: CoreDSL2Parser.InitializerListContext):
-		return [self.visit(init) for init in ctx.initializer()]
+		values = [self.visit(init) for init in ctx.initializer()]
+		if any(isinstance(value, list) for value in values):
+			raise M2TypeError("Nested list initializers are unsupported")
+		return values
 
 	def visitDeref_expression(self, ctx):
 		raise M2TypeError("Composite member access is not supported by model lowering")
@@ -730,7 +736,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# if LHS is a reference, assign RHS as its default value
 		if isinstance(left, behav.NamedReference):
 			if isinstance(left.reference, arch.Parameter):
-				left.reference.value = exprInterpretVisitor.generate(right, None)
+				if left.reference.name not in self.parameter_values:
+					left.reference.value = exprInterpretVisitor.generate(right, None)
 			elif isinstance(left.reference, (arch.Register, arch.Alias)):
 				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
 		elif isinstance(left, behav.IndexedReference):
@@ -742,7 +749,11 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			kind = type_info.TypeKind.INT if ref.signed else type_info.TypeKind.UINT
 			target_type = type_info.PrimitiveType(kind, ref.size)
 		elif isinstance(left, behav.IndexedReference):
-			target_type = ref.ty.element_type
+			target_type = ref.ty.ty if isinstance(ref.ty, type_info.PointerType) else ref.ty
+			if isinstance(target_type, type_info.ArrayType):
+				target_type = target_type.element_type
+			else:
+				target_type = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
 		elif isinstance(ref, arch.Alias):
 			target_type = ref.ty.ty
 		else:

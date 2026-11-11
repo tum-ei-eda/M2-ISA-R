@@ -2,6 +2,7 @@
 import operator
 
 from ...metamodel import arch, behav, type_info
+from ...frontends.coredsl2.constant_expressions import cast_integer
 
 INDETERMINATE = object()
 BINARY = {'+': operator.add, '-': operator.sub, '*': operator.mul,
@@ -24,6 +25,17 @@ def constant_value(node, active=frozenset(), on_error=None):
         return constant_value(node.reference, active, on_error)
     if isinstance(node, behav.Group):
         return constant_value(node.expr, active, on_error)
+    if isinstance(node, behav.TypeConv):
+        value = constant_value(node.expr, active, on_error)
+        if value is None or value is INDETERMINATE:
+            return value
+        width = arch.get_const_or_val(node.size if node.size is not None else getattr(node.expr.ty, 'size', None))
+        if not isinstance(width, int) or width <= 0:
+            return None
+        try:
+            return cast_integer(value, width, node.data_type == type_info.TypeKind.INT)
+        except ValueError:
+            return None
     if isinstance(node, behav.UnaryOperation) and node.op.value == '-':
         value = constant_value(node.right, active, on_error)
         return value if value is None or value is INDETERMINATE else -value
@@ -84,4 +96,3 @@ def range_size(start, end, suppress_errors=True, on_error=None):
         return None
     first, last = evaluate(start), evaluate(end)
     return abs(last - first) + 1 if isinstance(first, int) and isinstance(last, int) else None
-
