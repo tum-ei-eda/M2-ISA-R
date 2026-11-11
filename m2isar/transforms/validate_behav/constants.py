@@ -72,16 +72,30 @@ def range_size(start, end, suppress_errors=True, on_error=None):
                 raise
             return None
 
-    if isinstance(start, behav.NamedReference) and isinstance(end, behav.NamedReference):
-        return 1 if start.reference is end.reference else None
-    if ((isinstance(start, behav.NamedReference) and isinstance(end, behav.BinaryOperation))
-            or (isinstance(end, behav.NamedReference) and isinstance(start, behav.BinaryOperation))):
-        reference, infix = (start, end) if isinstance(start, behav.NamedReference) else (end, start)
-        if (infix.op.value in ('+', '-') and isinstance(infix.left, behav.NamedReference)
-                and infix.left.reference is reference.reference):
-            difference = evaluate(infix.right)
-            return abs(difference) + 1 if isinstance(difference, int) else None
+    def relative_bound(node):
+        if isinstance(node, behav.NamedReference):
+            return node.reference, 0
+        if (isinstance(node, behav.BinaryOperation) and node.op.value in ('+', '-')
+                and isinstance(node.left, behav.NamedReference)):
+            return node.left.reference, (node.op.value, node.right)
+        return None
+
+    start_relative, end_relative = relative_bound(start), relative_bound(end)
+    if start_relative is not None and end_relative is not None:
+        if start_relative[0] is end_relative[0]:
+            def offset_value(relative):
+                offset = relative[1]
+                if isinstance(offset, int):
+                    return offset
+                value = evaluate(offset[1])
+                if not isinstance(value, int):
+                    return None
+                return value if offset[0] == '+' else -value
+
+            first_offset, last_offset = offset_value(start_relative), offset_value(end_relative)
+            if first_offset is None or last_offset is None:
+                return None
+            return abs(last_offset - first_offset) + 1
         return None
     first, last = evaluate(start), evaluate(end)
     return abs(last - first) + 1 if isinstance(first, int) and isinstance(last, int) else None
-
