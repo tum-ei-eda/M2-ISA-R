@@ -26,6 +26,16 @@ from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
 
+def initializer_literal(value, ty):
+	"""Format an integer reset value without exceeding C++ literal widths."""
+	unsigned = ty.kind == type_info.TypeKind.UINT
+	if -(1 << 63) < value <= ((1 << 64) - 1 if unsigned else (1 << 63) - 1):
+		return f'{value}{"ULL" if unsigned else "LL"}'
+	if not -(1 << 127) <= value < (1 << 128):
+		raise M2TypeError("Initializer value exceeds 128 bits")
+	bits = value & ((1 << 128) - 1)
+	return f'(((etiss_uint128){bits >> 64}ULL << 64) | {bits & ((1 << 64) - 1)}ULL)'
+
 def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register], regs: "list[str]"):
 	"""Recursively generate child declarations for Memories and Register(Banks)"""
 
@@ -197,6 +207,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		procno_memory=core.procno_memory,
 		type_info=type_info,
 		arch=arch,
+		initializer_literal=initializer_literal,
 	)
 
 	with open(output_path / f"{core.name}Arch.cpp", "w", encoding="utf-8") as f:

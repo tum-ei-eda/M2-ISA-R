@@ -129,6 +129,7 @@ class ArchitecturalInitializerTest(unittest.TestCase):
                 register unsigned<8> A[2]={0, 1};
                 register unsigned<8> P[2]={0, 1};
                 unsigned<8> &Q=P[0];
+                register unsigned<128> W[1]={(unsigned<128>)(-1)};
             ''')
             self.assertEqual(result.returncode, 0, result.stdout)
             write_arch_cpp(load_model(path).cores['C'], '', Path(directory))
@@ -137,6 +138,15 @@ class ArchitecturalInitializerTest(unittest.TestCase):
             self.assertIn('->S = 1LL;', code)
             self.assertIn('    ccpu->A[0] = 0ULL;', code)
             self.assertIn('    *ccpu->P[0] = 0ULL;', code)
+            self.assertIn('(((etiss_uint128)18446744073709551615ULL << 64) | 18446744073709551615ULL)', code)
+
+    def test_indexed_range_initializer_uses_range_width(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, path = self.run_parser(directory, 'register unsigned<8> R; R[7:0]=42;')
+            self.assertEqual(result.returncode, 0, result.stdout)
+            result = subprocess.run([sys.executable, '-m', 'm2isar.transforms.validate_behav.validate', str(path)],
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout)
 
 
 if __name__ == '__main__':

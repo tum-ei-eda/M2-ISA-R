@@ -750,10 +750,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			target_type = type_info.PrimitiveType(kind, ref.size)
 		elif isinstance(left, behav.IndexedReference):
 			target_type = ref.ty.ty if isinstance(ref.ty, type_info.PointerType) else ref.ty
+			count = (abs(exprInterpretVisitor.generate(left.index, None) -
+			             exprInterpretVisitor.generate(left.right, None)) + 1
+			         if left.right is not None else 1)
 			if isinstance(target_type, type_info.ArrayType):
-				target_type = target_type.element_type
+				target_type = (target_type.element_type if left.right is None else
+				               type_info.PrimitiveType(type_info.TypeKind.UINT,
+				                                       count * arch.get_const_or_val(target_type.element_type.size)))
 			else:
-				target_type = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
+				target_type = type_info.PrimitiveType(type_info.TypeKind.UINT, count)
 		elif isinstance(ref, arch.Alias):
 			target_type = ref.ty.ty
 		else:
