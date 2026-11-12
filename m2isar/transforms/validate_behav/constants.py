@@ -7,6 +7,7 @@ from ...frontends.coredsl2.constant_expressions import cast_integer
 INDETERMINATE = object()
 BINARY = {'+': operator.add, '-': operator.sub, '*': operator.mul,
           '&': operator.and_, '|': operator.or_, '^': operator.xor,
+          '%': operator.mod,
           '==': operator.eq, '!=': operator.ne, '<': operator.lt,
           '<=': operator.le, '>': operator.gt, '>=': operator.ge}
 
@@ -36,9 +37,15 @@ def constant_value(node, active=frozenset(), on_error=None, *, allow_casts=False
             return cast_integer(value, width, node.data_type == type_info.TypeKind.INT)
         except ValueError:
             return None
-    if isinstance(node, behav.UnaryOperation) and node.op.value == '-':
+    if isinstance(node, behav.UnaryOperation) and node.op.value in ('-', '~', '!'):
         value = constant_value(node.right, active, on_error, allow_casts=allow_casts)
-        return value if value is None or value is INDETERMINATE else -value
+        if value is None or value is INDETERMINATE:
+            return value
+        if node.op.value == '-':
+            return -value
+        if node.op.value == '~':
+            return ~value
+        return int(not bool(value))
     if isinstance(node, behav.BinaryOperation):
         op = node.op.value
         left = constant_value(node.left, active, on_error, allow_casts=allow_casts)
@@ -50,6 +57,12 @@ def constant_value(node, active=frozenset(), on_error=None, *, allow_casts=False
         if op not in BINARY and op not in ('/', '<<', '>>'):
             return None
         if op in BINARY:
+            if op == '%' and right == 0:
+                error = ZeroDivisionError('Modulo by zero')
+                if on_error is not None:
+                    on_error(node, error)
+                    return None
+                raise error
             return int(BINARY[op](left, right))
         if op == '/':
             if right == 0:

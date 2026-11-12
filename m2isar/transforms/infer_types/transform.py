@@ -19,6 +19,7 @@ from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from m2isar.metamodel.utils.control_flow import preserve_break_scope
 from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 from .visitor import InferTypesMutator
+from .fold_constants import ConstantFolder
 
 
 class ValidatorContext(WarningsManager):
@@ -45,10 +46,16 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             mutator = InferTypesMutator()
             for name in ('parameters', 'register_banks', 'memories', 'register_aliases', 'memory_aliases'):
                 for symbol in getattr(definition, name, {}).values():
-                    for target_type, expression in getattr(symbol, '_initializer_expressions', ()):
+                    initializer_expressions = getattr(symbol, '_initializer_expressions', ())
+                    for index, (target_type, expression) in enumerate(initializer_expressions):
                         assignment = behav.Assignment(behav.VarDefinition(arch.Variable(symbol.name, target_type)),
                                                       expression, expression.line_info)
                         mutator.generate(assignment, context)
+                        if not skip_simplify:
+                            expression = ConstantFolder().generate(expression)
+                            initializer_expressions[index] = (target_type, expression)
+                            assignment.expr = expression
+                            mutator.generate(assignment, context)
     for _, core_def in model_obj.cores.items():
         logger.debug("inferring types for core %s", core_def.name)
         context = ValidatorContext(warnings_info)
@@ -59,6 +66,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(always_block.operation)
+                mutator.generate(always_block.operation, context)
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
         for _, instr_def in core_def.instructions.items():
@@ -66,6 +75,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(instr_def.operation)
+                mutator.generate(instr_def.operation, context)
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
 
@@ -74,6 +85,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(func_def.operation)
+                mutator.generate(func_def.operation, context)
                 simplifier.generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)
 
@@ -87,6 +100,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(always_block.operation)
+                mutator.generate(always_block.operation, context)
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
         for _, instr_def in set_def.instructions.items():
@@ -94,6 +109,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(instr_def.operation, context)
+                mutator.generate(instr_def.operation, context)
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
         for _, func_def in set_def.functions.items():
@@ -101,6 +118,8 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
+                ConstantFolder().generate(func_def.operation, context)
+                mutator.generate(func_def.operation, context)
                 simplifier.generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)
     return model_obj

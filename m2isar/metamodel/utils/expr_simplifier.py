@@ -11,8 +11,6 @@ simplifications are done:
 
 * Resolvable :class:`m2isar.metamodel.arch.Parameter` s are replaced by
   `m2isar.metamodel.arch.Literal` s representing their value
-* Fully resolvable arithmetic operations are carried out and their results
-  represented as a matching :class:`m2isar.metamodel.arch.Literal`
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
@@ -83,16 +81,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 			# Keep Boolean normalization and evaluation of a nonconstant left
 			# operand, including when the right constant determines the result.
 			return expr
-
-		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
-			# pylint: disable=eval-used
-			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			if res < 0 or expr.left.ty.kind == type_info.TypeKind.INT or expr.right.ty.kind == type_info.TypeKind.INT:
-				kind = type_info.TypeKind.INT
-			else:
-				kind = type_info.TypeKind.UINT
-			return behav.Literal(res, type_info.PrimitiveType(kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length())))
-
 
 		return expr
 
@@ -207,19 +195,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if expr.op.value in ('++', '--'):
 			return expr  # Preserve target identity and side effects, including invalid constants.
 		expr.right = self.generate(expr.right, context)
-		if isinstance(expr.right, behav.Literal):
-			if expr.op.value == '!':
-				return behav.Literal(
-					int(not bool(expr.right.value)),
-					type_info.PrimitiveType(type_info.TypeKind.UINT, 1),
-				)
-			# pylint: disable=eval-used
-			res: int = eval(f"{expr.op.value}{expr.right.value}")
-			if res < 0:
-				kind = type_info.TypeKind.INT
-			else:
-				kind = expr.right.ty.kind
-			return behav.Literal(res, type_info.PrimitiveType(kind, max(expr.right.ty.size, res.bit_length())))
 
 		return expr
 
