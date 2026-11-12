@@ -15,10 +15,11 @@ from typing import TYPE_CHECKING, Union
 from ... import M2NameError, M2SyntaxError, M2TypeError, flatten
 from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
-                                    LineInfoFactory, LineInfoPlacement)
+                                    LineInfoPlacement)
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type, create_np_array_from_literal_array
 from .expr_interpreter import ExprInterpreterVisitor
+from .source_location import line_info
 
 # CoreDSL [[access=...]] block attribute keywords and their metamodel access.
 BLOCK_ACCESS = {
@@ -91,7 +92,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		# generate method arguments
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
-		return behav.ProcedureCall(ref, args, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.ProcedureCall(ref, args, line_info(ctx))
 
 	def visitDeref_expression(self, ctx):
 		# Never silently discard the base through the generated default visitor.
@@ -119,10 +120,10 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		value = validator.intrinsic_value(ctx)
 		if value is None:
 			if ctx.ref.text == '__encoding_size':
-				return behav.NamedReference(intrinsics.get('__encoding_size'), LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+				return behav.NamedReference(intrinsics.get('__encoding_size'), line_info(ctx))
 			raise M2TypeError(f"Cannot lower unresolved intrinsic {ctx.ref.text}")
 		return behav.Literal(value, type_info.PrimitiveType(type_info.TypeKind.UINT, max(1, value.bit_length())),
-			line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+			line_info=line_info(ctx))
 
 	def visitMethod_call(self, ctx: "CoreDSL2Parser.Method_callContext"):
 		"""Generate a function (method call with return value) call."""
@@ -141,7 +142,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		# generate method arguments
 		args = [self.visit(obj) for obj in ctx.args] if ctx.args else []
 
-		return behav.FunctionCall(ref, args, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.FunctionCall(ref, args, line_info(ctx))
 
 	def visitBlock(self, ctx: CoreDSL2Parser.BlockContext):
 		"""Generate an attributed block of statements."""
@@ -169,7 +170,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		items = list(flatten(items))
 		return behav.Block(
 			items,
-			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line),
+			line_info(ctx),
 			attributes,
 			explicit_attributes=set(attributes),
 		)
@@ -255,7 +256,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			# The initializer sees the previous binding, including an outer local.
 			self._vars[name] = s
 			self._all_vars[model_name] = s
-			a = behav.Assignment(sd, init, LineInfoFactory.make(decl.start.source[1].fileName, decl.start.start, decl.stop.stop, decl.start.line, decl.stop.line))
+			a = behav.Assignment(sd, init, line_info(decl))
 			ret_decls.append(a)
 
 		return ret_decls
@@ -269,16 +270,16 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 
 	def visitBreak_statement(self, ctx: CoreDSL2Parser.Break_statementContext):
-		return behav.Break(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+		return behav.Break(line_info(ctx, placement=LineInfoPlacement.BEFORE))
 
 	def visitContinue_statement(self, ctx: CoreDSL2Parser.Continue_statementContext):
-		return behav.Continue(LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+		return behav.Continue(line_info(ctx, placement=LineInfoPlacement.BEFORE))
 
 	def visitReturn_statement(self, ctx: CoreDSL2Parser.Return_statementContext):
 		"""Generate a return statement."""
 
 		expr = self.visit(ctx.expr) if ctx.expr else None
-		return behav.Return(expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line, placement=LineInfoPlacement.BEFORE))
+		return behav.Return(expr, line_info(ctx, placement=LineInfoPlacement.BEFORE))
 
 	def visitWhile_statement(self, ctx: CoreDSL2Parser.While_statementContext):
 		"""Generate a while loop."""
@@ -290,7 +291,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			statements = list(flatten(stmt)) if isinstance(stmt, list) else [stmt]
 			stmt = behav.Block(statements, getattr(stmt, "line_info", None))
 
-		return behav.WhileLoop(cond, stmt, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.WhileLoop(cond, stmt, line_info(ctx))
 
 	def visitDo_statement(self, ctx: CoreDSL2Parser.Do_statementContext):
 		"""Generate a do .. while loop."""
@@ -302,7 +303,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			statements = list(flatten(stmt)) if isinstance(stmt, list) else [stmt]
 			stmt = behav.Block(statements, getattr(stmt, "line_info", None))
 
-		return behav.DoWhileLoop(stmt, cond, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.DoWhileLoop(stmt, cond, line_info(ctx))
 
 	def visitFor_statement(self, ctx: CoreDSL2Parser.For_statementContext):
 		"""Keep initializer locals visible throughout the loop, then restore scope."""
@@ -332,7 +333,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		return behav.ForLoop(
 			init, end_expr, loop_exprs or [], stmt,
-			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line),
+			line_info(ctx),
 		)
 
 	def visitFor_condition(self, ctx: CoreDSL2Parser.For_conditionContext):
@@ -377,7 +378,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		then_expr = self.visit(ctx.then_expr)
 		else_expr = self.visit(ctx.else_expr)
 
-		return behav.Ternary(cond, then_expr, else_expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Ternary(cond, then_expr, else_expr, line_info(ctx))
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""
@@ -386,15 +387,15 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		op =  behav.Operator(ctx.bop.text)
 		right = self.visit(ctx.right)
 
-		return behav.BinaryOperation(left, op, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.BinaryOperation(left, op, right, line_info(ctx))
 
 	def visitPreinc_expression(self, ctx: CoreDSL2Parser.Preinc_expressionContext):
 		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.right),
-			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+			line_info(ctx))
 
 	def visitPostinc_expression(self, ctx: CoreDSL2Parser.Postinc_expressionContext):
 		return behav.UnaryOperation(behav.Operator(ctx.op.text), self.visit(ctx.left),
-			LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line), postfix=True)
+			line_info(ctx), postfix=True)
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
 		"""Generate an unary expression."""
@@ -402,13 +403,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		op = behav.Operator(ctx.prefix.text)
 		right = self.visit(ctx.right)
 
-		return behav.UnaryOperation(op, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.UnaryOperation(op, right, line_info(ctx))
 
 	def visitParens_expression(self, ctx: CoreDSL2Parser.Parens_expressionContext):
 		"""Generate a parenthesized expression."""
 
 		expr = self.visit(ctx.expr)
-		return behav.Group(expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Group(expr, line_info(ctx))
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		"""Generate a slice expression.
@@ -428,8 +429,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		base = expr
 		while isinstance(base, behav.Group):
 			base = base.expr
-		location = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start,
-									   ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		location = line_info(ctx)
 		if isinstance(base, behav.NamedReference) and isinstance(base.reference.ty, type_info.ArrayType):
 			return behav.IndexedReference(base.reference, left, right if ctx.right else None,
 									  location, grouped_base=base is not expr)
@@ -442,7 +442,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		right = self.visit(ctx.right)
 
 		return behav.ConcatOperation(left, right, \
-							   LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+							   line_info(ctx))
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. If a combined arithmetic-assignment is present,
@@ -459,7 +459,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			left_2.line_info = None
 			right = behav.BinaryOperation(left_2, op2, right)
 
-		assignment = behav.Assignment(left, right, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		assignment = behav.Assignment(left, right, line_info(ctx))
 		if op != "=":
 			assignment.compound_operator = op
 		return assignment
@@ -481,14 +481,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		if var is None:
 			raise M2NameError(f"Named reference \"{name}\" does not exist!")
 
-		return behav.NamedReference(var, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.NamedReference(var, line_info(ctx))
 
 	def visitInteger_constant(self, ctx: CoreDSL2Parser.Integer_constantContext):
 		"""Generate an integer literal."""
 
 		from .constant_expressions import integer_literal
 		from ...diagnostics import M2ValidationError
-		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		line_info = line_info(ctx)
 		try:
 			value, width, signed = integer_literal(ctx.value.text)
 		except ValueError as exc:
@@ -503,7 +503,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		value = min(ord(text.replace("'", "")), 255)
 
-		return behav.Literal(value, type_info.PrimitiveType(type_info.TypeKind.UINT, size=8), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(value, type_info.PrimitiveType(type_info.TypeKind.UINT, size=8), line_info=line_info(ctx))
 
 	def visitString_constant(self, ctx: CoreDSL2Parser.String_constantContext):
 		text: str = ctx.value.text
@@ -511,14 +511,14 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		assert text[0] == '"' and text[-1] == '"'
 		text = text[1:-1]
 
-		return behav.Literal(text, type_info.PrimitiveType(type_info.TypeKind.STR, len(text)), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(text, type_info.PrimitiveType(type_info.TypeKind.STR, len(text)), line_info=line_info(ctx))
 
 	def visitBool_constant(self, ctx: CoreDSL2Parser.Bool_constantContext):
 		"""Generate a boolean literal. Converts directly to uint1."""
 
 		text: str = ctx.value.text
 
-		return behav.Literal(BOOLCONST[text], type_info.PrimitiveType(type_info.TypeKind.UINT, 1), line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(BOOLCONST[text], type_info.PrimitiveType(type_info.TypeKind.UINT, 1), line_info=line_info(ctx))
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
 		"""Generate a type cast."""
@@ -534,7 +534,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			kind = type_info.TypeKind.INT if sign else type_info.TypeKind.UINT
 			size = None
 
-		return behav.TypeConv(kind, size, expr, LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.TypeConv(kind, size, expr, line_info(ctx))
 
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
 		"""Generate a generic type specifier."""
@@ -593,4 +593,4 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		"""Lookup a shorthand type specifier."""
 
-		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], line_info=LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line))
+		return behav.Literal(SHORTHANDS[ctx.children[0].symbol.text], line_info=line_info(ctx))

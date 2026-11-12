@@ -17,9 +17,11 @@ from ...metamodel.code_info import FunctionInfoFactory
 from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from ..coredsl2.utils import RADIX, SHORTHANDS, SIGNEDNESS
 from ..coredsl2.expr_interpreter import ExprInterpreterVisitor
+from ..coredsl2.source_location import line_info
 
 logger = logging.getLogger("arch_builder")
 exprInterpretVisitor = ExprInterpreterVisitor()
+
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
@@ -386,14 +388,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		from .constant_expressions import integer_literal
 		from ...diagnostics import M2ValidationError
-		from ...metamodel.code_info import LineInfoFactory
-		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		source_info = line_info(ctx)
 		try:
 			value, width, signed = integer_literal(ctx.value.text)
 		except ValueError as exc:
-			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', line_info) from exc
+			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', source_info) from exc
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
-		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=line_info)
+		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=source_info)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
@@ -540,7 +541,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 								raise M2TypeError("List initializer requires an array")
 							reg._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
 							reg._initializer_expressions = [(reg.ty, behav.Tensor(list(reg._initval.values()), reg.ty,
-							                                               initializer_elements=init))]
+							                                               initializer_elements=init, line_info=line_info(decl)))]
 						else:
 							reg._initval[None] = exprInterpretVisitor.generate(init, None)
 							reg._initializer_expressions = [(reg.ty, init)]
@@ -586,7 +587,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 								raise M2TypeError("List initializer requires an array")
 							m._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
 							m._initializer_expressions = [(m.ty, behav.Tensor(list(m._initval.values()), m.ty,
-							                                             initializer_elements=init))]
+							                                             initializer_elements=init, line_info=line_info(decl)))]
 						else:
 							m._initval[None] = exprInterpretVisitor.generate(init, None)
 							m._initializer_expressions = [(m.ty if decl.size else type_, init)]
@@ -660,27 +661,28 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""
+		source_info = line_info(ctx)
 
 		# visit LHS and RHS
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
-		op = behav.Operator(ctx.bop.text)
+		op = behav.Operator(ctx.bop.text, line_info=line_info(ctx))
 
 		# return M2-ISA-R object
-		return behav.BinaryOperation(left, op, right)
+		return behav.BinaryOperation(left, op, right, line_info=source_info)
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right is not None else None
 		expr = self.visit(ctx.expr).reference
 
-		op = behav.IndexedReference(expr, left, right)
+		op = behav.IndexedReference(expr, left, right, line_info=line_info(ctx))
 		return op
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
-		prefix = behav.Operator(ctx.prefix.text)
+		prefix = behav.Operator(ctx.prefix.text, line_info=line_info(ctx))
 		expr = self.visit(ctx.right)
-		return behav.UnaryOperation(prefix, expr)
+		return behav.UnaryOperation(prefix, expr, line_info=line_info(ctx))
 
 	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
 		from .behavior_model_builder import BehaviorModelBuilder
@@ -711,7 +713,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			  or self._register_banks.get(name) or self._register_aliases.get(name)
 		if ref is None:
 			raise M2NameError(f"reference \"{name}\" could not be resolved")
-		return behav.NamedReference(ref)
+		return behav.NamedReference(ref, line_info=line_info(ctx))
 
 	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):
 		return ctx.children[0].symbol.text
@@ -724,7 +726,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		value = SHORTHANDS[ctx.children[0].symbol.text]
-		return behav.Literal(value)
+		return behav.Literal(value, line_info=line_info(ctx))
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """
