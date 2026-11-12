@@ -55,6 +55,8 @@ class ExprInterpreterVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.IndexedReference, context):
+		if context:
+			raise M2ValueError("Array initializer must contain constant expressions")
 		idx = self.generate(expr.index, context)
 		return expr.reference._initval[idx]
 
@@ -79,9 +81,24 @@ class ExprInterpreterVisitor(ExprVisitor):
 			return left - quotient * right if op == '%' else quotient
 		if op in ('<<', '>>'):
 			shift = right if op == '<<' else -right
+			if context:
+				from ...transforms.infer_types.visitor import InferTypesMutator
+				from ...warnings import WarningsManager
+				InferTypesMutator().generate(expr.left, WarningsManager(None))
+				width = arch.get_const_or_val(expr.left.ty.size)
+				if not isinstance(width, int) or width <= 0:
+					raise M2ValueError("operand width must be a positive constant")
+				if shift >= width:
+					return 0
 			if shift > 100000:
 				raise M2ValueError("constant shift is too large")
-			return left << shift if shift >= 0 else left >> -shift
+			value = left << shift if shift >= 0 else left >> -shift
+			if context:
+				try:
+					return cast_integer(value, width, expr.left.ty.kind == type_info.TypeKind.INT)
+				except ValueError as exc:
+					raise M2ValueError(str(exc)) from exc
+			return value
 		raise M2ValidationError(f"Infix expression {op} is currently unsupported in constant expressions",
 			'UnsupportedLanguageFeature', expr.line_info)
 

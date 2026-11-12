@@ -44,7 +44,8 @@ def initializer_literal(value, ty):
 	if not -(1 << 127) <= value < (1 << 128):
 		raise M2TypeError("Initializer value exceeds 128 bits")
 	bits = value & ((1 << 128) - 1)
-	return f'(((etiss_uint128){bits >> 64}ULL << 64) | {bits & ((1 << 64) - 1)}ULL)'
+	expression = f'(((etiss_uint128){bits >> 64}ULL << 64) | {bits & ((1 << 64) - 1)}ULL)'
+	return expression if unsigned else f'((etiss_int128){expression})'
 
 
 def reg_type_info(reg) -> str:
