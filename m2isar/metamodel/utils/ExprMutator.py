@@ -86,6 +86,10 @@ class ExprMutator(ABC):
         return expr
 
     @default_visit.register
+    def visit_tensor(self, expr: behav.Tensor, context):
+        return expr
+
+    @default_visit.register
     def visit_assignment(self, expr: behav.Assignment, context):
         expr.target = self.generate(expr.target, context)
         expr.expr = self.generate(expr.expr, context)

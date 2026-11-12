@@ -16,7 +16,7 @@ from typing import Union
 from mako.template import Template
 
 
-from .instruction_utils import actual_size, reg_type_info
+from .instruction_utils import actual_size, reg_type_info, initializer_literal
 from ... import M2TypeError
 from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType
@@ -25,16 +25,6 @@ from .instruction_generator import (generate_fields,
 from .templates import template_dir
 
 logger = logging.getLogger("arch_writer")
-
-def initializer_literal(value, ty):
-	"""Format an integer reset value without exceeding C++ literal widths."""
-	unsigned = ty.kind == type_info.TypeKind.UINT
-	if -(1 << 63) < value <= ((1 << 64) - 1 if unsigned else (1 << 63) - 1):
-		return f'{value}{"ULL" if unsigned else "LL"}'
-	if not -(1 << 127) <= value < (1 << 128):
-		raise M2TypeError("Initializer value exceeds 128 bits")
-	bits = value & ((1 << 128) - 1)
-	return f'(((etiss_uint128){bits >> 64}ULL << 64) | {bits & ((1 << 64) - 1)}ULL)'
 
 def write_child_reg_def(reg: Union[arch.Memory, arch.RegisterBank, arch.Register], regs: "list[str]"):
 	"""Recursively generate child declarations for Memories and Register(Banks)"""

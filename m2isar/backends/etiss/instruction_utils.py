@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from itertools import chain
 from string import Template
 
-from ... import M2ValueError
+from ... import M2TypeError, M2ValueError
 from ...metamodel import arch, type_info, attribute_info
 from ...metamodel.code_info import LineInfo
 from . import replacements
@@ -35,6 +35,17 @@ def actual_size(size, min_=8, max_=128):
 		raise M2ValueError("value too big")
 
 	return s if s >= min_ else min_
+
+def initializer_literal(value, ty):
+	"""Format an integer reset value without exceeding C++ literal widths."""
+	unsigned = ty.kind == type_info.TypeKind.UINT
+	if -(1 << 63) < value <= ((1 << 64) - 1 if unsigned else (1 << 63) - 1):
+		return f'{value}{"ULL" if unsigned else "LL"}'
+	if not -(1 << 127) <= value < (1 << 128):
+		raise M2TypeError("Initializer value exceeds 128 bits")
+	bits = value & ((1 << 128) - 1)
+	expression = f'(((etiss_uint128){bits >> 64}ULL << 64) | {bits & ((1 << 64) - 1)}ULL)'
+	return expression if unsigned else f'((etiss_int128){expression})'
 
 
 def reg_type_info(reg) -> str:

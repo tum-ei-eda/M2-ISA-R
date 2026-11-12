@@ -17,7 +17,7 @@ from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoPlacement)
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type, create_np_array_from_literal_array
+from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type
 from .expr_interpreter import ExprInterpreterVisitor
 from .source_location import line_info
 
@@ -231,16 +231,16 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 			if decl.init:
 				init = self.visit(decl.init)
 				if isinstance(init, list):
+					if not isinstance(type_, type_info.ArrayType):
+						raise M2TypeError("List initializer requires an array")
 					initializer_elements = list(init)
-					for ele_nr in range(len(init)):
-						ele = init[ele_nr]
-						if isinstance(ele, behav.UnaryOperation):
-							res : int = int(eval(f"{ele.op.value}{ele.right.value}"))
-							ele = behav.Literal(res, type_.element_type, ele.line_info)
-							init[ele_nr] = ele
-						if not isinstance(ele, behav.Literal):
-							raise M2TypeError(f"Initializer list can only contain literals, but got {type(ele)}")
-					init = behav.Tensor(create_np_array_from_literal_array(init, type_), type_,
+					if any(isinstance(element, list) for element in init):
+						raise M2TypeError("Nested list initializers are unsupported")
+					try:
+						values = [exprInterpretVisitor.generate(element, True) for element in init]
+					except NotImplementedError as exc:
+						raise M2TypeError("Array initializer must contain constant expressions") from exc
+					init = behav.Tensor(np.array(values, dtype=object), type_,
 					                    initializer_elements=initializer_elements)
 			else:
 				if isinstance(type_, type_info.PrimitiveType):

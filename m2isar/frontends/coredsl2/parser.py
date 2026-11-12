@@ -224,7 +224,7 @@ def main(argv=None):
 					op = behav_builder.visit(fn_def.operation)
 				except M2Error as e:
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
-					sys.exit()
+					sys.exit(1)
 
 				fn_def.vars = behav_builder._all_vars
 
