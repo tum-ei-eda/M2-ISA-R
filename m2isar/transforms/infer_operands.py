@@ -61,6 +61,13 @@ class OperandAnalyzer(ExprVisitor):
         if expr.right is not None:
             self.generate(expr.right, {"write": False, "register_index": False})
 
+    @generate.register
+    def _(self, expr: behav.Tensor, context=None):
+        elements = getattr(expr, "initializer_elements", None)
+        if elements is not None:
+            for element in elements:
+                self.generate(element, context)
+
 
 def _is_register(reference):
     if isinstance(reference, (arch.Register, arch.RegisterBank)):
