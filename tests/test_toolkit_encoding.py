@@ -21,13 +21,19 @@ import sys
 sibling = path.parents[2].parent / "isaac-toolkit"
 if str(sibling) not in sys.path:
     sys.path.insert(0, str(sibling))
-spec.loader.exec_module(generator)
+try:
+    spec.loader.exec_module(generator)
+except ModuleNotFoundError as error:
+    if error.name != "isaac_toolkit":
+        raise
+    generator = None
 
 
 def immediate_instruction(name, width=17):
     return instruction(name, operand("rd", direction=A.OUT), operand("imm", width, A.IS_IMM))
 
 
+@unittest.skipIf(generator is None, "install ISAAC Toolkit or provide a sibling isaac-toolkit checkout")
 class ToolkitEncodingSmokeTests(unittest.TestCase):
     def assert_disjoint(self, result):
         instructions = [i for group in result.values() for i in group.values()]
