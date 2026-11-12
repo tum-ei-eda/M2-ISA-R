@@ -73,6 +73,8 @@ def range_size(start, end, suppress_errors=True, on_error=None):
             return None
 
     def relative_bound(node):
+        while isinstance(node, behav.Group):
+            node = node.expr
         if isinstance(node, behav.NamedReference):
             return node.reference, 0
         if (isinstance(node, behav.BinaryOperation) and node.op.value in ('+', '-')

@@ -44,6 +44,8 @@ class RangeConstantNativeTest(unittest.TestCase):
         index = arch.Variable("addr", type_info.PrimitiveType(type_info.TypeKind.UINT, 32))
         cases = (
             (self.offset(index, "+", 1), self.offset(index, "+", 2), 2),
+            (behav.Group(self.offset(index, "+", 1)),
+             behav.NamedReference(index), 2),
             (self.offset(index, "-", 3), self.offset(index, "-", 1), 3),
             (self.offset(index, "-", 1), self.offset(index, "+", 1), 3),
             (behav.NamedReference(index), self.offset(index, "+", 2), 3),
@@ -65,12 +67,56 @@ class RangeConstantNativeTest(unittest.TestCase):
         inferred = InferTypesMutator().generate(access_node, WarningsManager(None))
 
         self.assertEqual(inferred.ty.size, 16)
+        grouped = behav.IndexedReference(
+            array,
+            behav.Group(self.offset(index, "+", 1)),
+            behav.NamedReference(index),
+        )
+        self.assertEqual(InferTypesMutator().generate(grouped, WarningsManager(None)).ty.size, 16)
         sliced = behav.SliceOperation(
             access_node,
             behav.Literal(15, type_info.PrimitiveType(type_info.TypeKind.UINT, 32)),
             behav.Literal(4, type_info.PrimitiveType(type_info.TypeKind.UINT, 32)),
         )
         self.assertEqual(InferTypesMutator().generate(sliced, WarningsManager(None)).ty.size, 12)
+
+    def test_array_range_with_unknown_size_raises_diagnostic(self):
+        byte = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
+        array = arch.Variable("MEM", type_info.ArrayType(byte, 1024))
+        index = arch.Variable("a", type_info.PrimitiveType(type_info.TypeKind.UINT, 32))
+        multiplier = arch.Variable("i", type_info.PrimitiveType(type_info.TypeKind.UINT, 32))
+
+        def scaled_index():
+            return behav.BinaryOperation(
+                behav.NamedReference(index), behav.Operator("+"),
+                behav.BinaryOperation(
+                    behav.Literal(4, type_info.PrimitiveType(type_info.TypeKind.UINT, 32)),
+                    behav.Operator("*"), behav.NamedReference(multiplier)))
+
+        vector = arch.Variable(
+            "X", type_info.ArrayType(type_info.PrimitiveType(type_info.TypeKind.UINT, 32), 32))
+        vector_index = behav.NamedReference(multiplier)
+        cases = (
+            (behav.BinaryOperation(
+                behav.Literal(1, type_info.PrimitiveType(type_info.TypeKind.UINT, 32)),
+                behav.Operator("+"), behav.NamedReference(index)),
+             behav.NamedReference(index)),
+            (behav.BinaryOperation(
+                scaled_index(), behav.Operator("+"),
+                behav.Literal(1, type_info.PrimitiveType(type_info.TypeKind.UINT, 32))),
+             scaled_index()),
+            (behav.BinaryOperation(
+                behav.IndexedReference(vector, vector_index),
+                behav.Operator("+"),
+                behav.Literal(3, type_info.PrimitiveType(type_info.TypeKind.UINT, 32))),
+             behav.IndexedReference(vector, vector_index)),
+        )
+        for start, end in cases:
+            with self.subTest(start=start):
+                access_node = behav.IndexedReference(array, start, end)
+                with self.assertRaises(M2ValidationError) as caught:
+                    InferTypesMutator().generate(access_node, WarningsManager(None))
+                self.assertEqual(caught.exception.issue_code, "com.minres.coredsl.InvalidRangePattern")
 
     def test_independent_failures_inside_one_constant_bound(self):
         for array in (False, True):
