@@ -61,20 +61,37 @@ class ExprInterpreterVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context):
 		left = self.generate(expr.left, context)
-		right = self.generate(expr.right, context)
 		op = expr.op.value
+		if context and op == '&&' and not left:
+			return 0
+		if context and op == '||' and left:
+			return 1
+		right = self.generate(expr.right, context)
 		if op in BINARY:
 			return int(BINARY[op](left, right))
-		if op == '/':
+		if context and op in ('&&', '||'):
+			return int(bool(right))
+		if op == '/' or context and op == '%':
 			if right == 0:
 				raise M2ValidationError("Division by zero", 'DivisionByZero', expr.line_info)
 			value = abs(left) // abs(right)
-			return -value if (left < 0) != (right < 0) else value
+			quotient = -value if (left < 0) != (right < 0) else value
+			return left - quotient * right if op == '%' else quotient
 		if op in ('<<', '>>'):
 			shift = right if op == '<<' else -right
+			if shift > 100000:
+				raise M2ValueError("constant shift is too large")
 			return left << shift if shift >= 0 else left >> -shift
 		raise M2ValidationError(f"Infix expression {op} is currently unsupported in constant expressions",
 			'UnsupportedLanguageFeature', expr.line_info)
+
+	@generate.register
+	def _(self, expr: behav.Ternary, context):
+		if not context:
+			raise M2ValidationError("Ternary is not allowed in constant expression",
+				'InvalidConstantExpressionNode', expr.line_info)
+		branch = expr.then_expr if self.generate(expr.cond, context) else expr.else_expr
+		return self.generate(branch, context)
 
 
 	@generate.register
@@ -82,5 +99,20 @@ class ExprInterpreterVisitor(ExprVisitor):
 		right = self.generate(expr.right, context)
 		if expr.op.value == '-':
 			return -right
+		if context and expr.op.value in ('+', '~', '!'):
+			if expr.op.value == '+':
+				return right
+			if expr.op.value == '!':
+				return int(not right)
+			from ...transforms.infer_types.visitor import InferTypesMutator
+			from ...warnings import WarningsManager
+			InferTypesMutator().generate(expr.right, WarningsManager(None))
+			width = arch.get_const_or_val(expr.right.ty.size)
+			if not isinstance(width, int) or width <= 0:
+				raise M2ValueError("operand width must be a positive constant")
+			try:
+				return cast_integer(~right, width, expr.right.ty.kind == type_info.TypeKind.INT)
+			except ValueError as exc:
+				raise M2ValueError(str(exc)) from exc
 		raise M2ValidationError(f"prefix operator {expr.op.value} is not allowed in constant expression",
 			'InvalidConstantExpressionNode', expr.line_info)

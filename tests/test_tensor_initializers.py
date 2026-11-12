@@ -14,6 +14,8 @@ from m2isar.transforms.validate_behav.visitor import ValidateBehavVisitor
 from m2isar.transforms.validate_behav.validate import ValidatorContext
 from m2isar.transforms.validate_behav.validate import validate_behav
 from m2isar.diagnostics import M2ValidationError
+from m2isar.backends.etiss.instruction_transform import InstructionTransformVisitor
+from m2isar.backends.etiss.instruction_utils import TransformerContext
 
 
 CASES = [
@@ -55,6 +57,58 @@ def lower(test, directory, body):
 
 
 class TensorInitializerNativeTest(unittest.TestCase):
+    def test_constant_expressions_in_array_initializers(self):
+        body = ("unsigned<64> x[8]={(unsigned<64>)(signed<64>)(-1), "
+                "(unsigned<64>)(2+3), (unsigned<64>)W, (unsigned<64>)(~8'h0), (unsigned<64>)(!0), "
+                "(unsigned<64>)(7%4), (unsigned<64>)(0 && (1/0)), (unsigned<64>)(1 ? 2 : 3)};")
+        for frontend, kind in (('coredsl2', 'Core'), ('coredsl2_set', 'InstructionSet')):
+            for validate in (False, True):
+                with self.subTest(frontend=frontend, validate=validate), tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / 'tensor.core_desc'
+                    path.write_text(f'{kind} C {{ architectural_state {{ int W=8; }} functions {{ void f() {{ {body} }} }} }}')
+                    command = [sys.executable, '-m', f'm2isar.frontends.{frontend}.parser', str(path)]
+                    if validate:
+                        command.append('--validate')
+                    result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                    model_path = Path(directory) / 'gen_model' / 'tensor.m2isarmodel'
+                    model = load_model(model_path)
+                    definition = model.cores['C'] if frontend == 'coredsl2' else model.sets['C']
+                    tensor = definition.functions['f'].operation.statements[0].statements[0].expr
+                    self.assertEqual(tensor.value.tolist(), [(1 << 64) - 1, 5, 8, 255, 1, 3, 0, 2])
+                    self.assertEqual(len(tensor.initializer_elements), 8)
+                    checked = subprocess.run([sys.executable, '-m', 'm2isar.transforms.validate_behav.validate',
+                                              str(model_path)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    self.assertEqual(checked.returncode, 0, checked.stdout)
+                    context = TransformerContext({}, {}, {}, {}, {}, {}, [], {}, 32, 64,
+                                                 'C', False, {}, False)
+                    code = InstructionTransformVisitor().generate(tensor, context).code
+                    self.assertIn('18446744073709551615ULL', code)
+                    self.assertIn('255ULL', code)
+
+    def test_expression_initializer_diagnostics(self):
+        for body, error in (("unsigned<8> x[1]={(signed<8>)(-1)};", 'Cannot implicitly convert'),
+                            ("unsigned<8> x[1]={(unsigned<16>)1};", 'Cannot implicitly convert'),
+                            ("unsigned<8> x[1]={1+2, (unsigned<8>)3};", 'List initializer size does not match')):
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
+                path, _ = lower(self, directory, body)
+                result = subprocess.run([sys.executable, '-m', 'm2isar.transforms.validate_behav.validate',
+                                         str(path), '-Wno-error=implicit-trunc'],
+                                        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(error, result.stdout)
+                self.assertNotIn('Traceback', result.stdout)
+
+    def test_nested_or_nonconstant_initializer_fails_cleanly(self):
+        for body in ('int x[1]={{1}};', 'int a=1; int x[1]={a};'):
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'tensor.core_desc'
+                path.write_text(source(body))
+                result = subprocess.run([sys.executable, '-m', 'm2isar.frontends.coredsl2.parser', str(path)],
+                                        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('Traceback', result.stdout)
+
     def test_unknown_shape_does_not_hide_element_errors(self):
         ty = type_info.ArrayType(type_info.PrimitiveType(type_info.TypeKind.UINT, 8), None)
         element = behav.Literal(256, type_info.PrimitiveType(type_info.TypeKind.UINT, 9))

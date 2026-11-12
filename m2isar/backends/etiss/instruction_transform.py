@@ -22,7 +22,7 @@ from ...metamodel.utils.ExprVisitor import ExprVisitor
 from . import CodeInfoTracker, replacements
 from .instruction_utils import (FN_VAL_REPL, MEM_VAL_REPL, CodePartsContainer,
                                 CodeString, ExpressionEvaluation, FnID, MemID, TransformerContext,
-								data_type_map, actual_size)
+								data_type_map, actual_size, initializer_literal)
 
 # pylint: disable=unused-argument
 
@@ -1194,7 +1194,7 @@ class InstructionTransformVisitor(ExprVisitor):
 		size = expr.ty.element_type.size
 
 
-		c_init = "{" + ", ".join(map(str, expr.value)) + "}"
+		c_init = "{" + ", ".join(initializer_literal(int(value), expr.ty.element_type) for value in expr.value) + "}"
 		ret = CodeString(c_init, attribute_info.AccessAttribute.READ, size, sign, line_infos=expr.line_info)
 		ret.is_literal = True
 		return ret
