@@ -78,3 +78,4 @@ class OperandAttribute(Enum):
 	IS_IMM = auto()
 	REG_CLASS = auto()
 	REG_TYPE = auto()
+	IS_BRANCH_OFFS = auto()
