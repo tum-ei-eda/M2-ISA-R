@@ -128,6 +128,12 @@ class TensorInitializerNativeTest(unittest.TestCase):
             tensor = model.cores['C'].functions['f'].operation.statements[0].statements[0].expr
             self.assertEqual(tensor.value.tolist(), [0, 0])
 
+    def test_bitwise_initializer_obeys_result_signedness(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, model = lower(self, directory, "signed<8> x[1]={8'hff & 8'shff};")
+            tensor = model.cores['C'].functions['f'].operation.statements[0].statements[0].expr
+            self.assertEqual(tensor.value.tolist(), [-1])
+
     @unittest.skipUnless(shutil.which('c++'), 'C++ compiler required')
     def test_signed_wide_initializer_compiles_without_narrowing(self):
         with tempfile.TemporaryDirectory() as directory:

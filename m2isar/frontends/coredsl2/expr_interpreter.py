@@ -70,7 +70,19 @@ class ExprInterpreterVisitor(ExprVisitor):
 			return 1
 		right = self.generate(expr.right, context)
 		if op in BINARY:
-			return int(BINARY[op](left, right))
+			value = int(BINARY[op](left, right))
+			if context and op in ('&', '|', '^'):
+				from ...transforms.infer_types.visitor import InferTypesMutator
+				from ...warnings import WarningsManager
+				InferTypesMutator().generate(expr, WarningsManager(None))
+				width = arch.get_const_or_val(expr.ty.size)
+				if not isinstance(width, int) or width <= 0:
+					raise M2ValueError("result width must be a positive constant")
+				try:
+					return cast_integer(value, width, expr.ty.kind == type_info.TypeKind.INT)
+				except ValueError as exc:
+					raise M2ValueError(str(exc)) from exc
+			return value
 		if context and op in ('&&', '||'):
 			return int(bool(right))
 		if op == '/' or context and op == '%':
