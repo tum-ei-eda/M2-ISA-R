@@ -349,9 +349,41 @@ class ValidateBehavVisitor(ExprVisitor):
         children = [expr.expr, expr.left]
         if expr.right is not expr.left:
             children.append(expr.right)
-        self._validate_access(children, children[1:], context,
-                              getattr(expr.expr, "ty", None), expr.expr.line_info,
-                              (expr.left, expr.right) if expr.left is not expr.right else None)
+        errors = []
+        try:
+            self._validate_access(children, children[1:], context,
+                                  getattr(expr.expr, "ty", None), expr.expr.line_info,
+                                  (expr.left, expr.right) if expr.left is not expr.right else None)
+        except M2ValidationError as error:
+            errors.append(error)
+        bounds_error = None if errors else self._slice_bounds_error(expr)
+        if bounds_error is not None:
+            errors.append(bounds_error)
+        if errors:
+            errors[0].related_diagnostics.extend(errors[1:])
+            raise errors[0]
+
+    @staticmethod
+    def _slice_bounds_error(expr):
+        """Report statically known slice bounds beyond the operand width."""
+        ty = getattr(expr.expr, 'ty', None)
+        if not (isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int):
+            return None
+        width = arch.get_const_or_val(ty.size)
+        if not isinstance(width, int) or width <= 0:
+            return None
+        try:
+            left, right = constant_value(expr.left), constant_value(expr.right)
+        except ZeroDivisionError:
+            return None
+        if not all(isinstance(v, int) and not isinstance(v, bool) for v in (left, right)):
+            return None
+        if max(left, right) < width:
+            return None
+        text = f'[{left}]' if expr.left is expr.right else f'[{left}:{right}]'
+        return M2ValidationError(
+            f'Bit slice {text} exceeds operand width of {width} bits (valid range: [{width - 1}:0])',
+            'OutOfBoundsBitSlice', expr.line_info)
 
     @generate.register
     def _(self, expr: behav.ConcatOperation, context):
