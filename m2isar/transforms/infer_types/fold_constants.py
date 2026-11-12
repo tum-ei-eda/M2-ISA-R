@@ -21,7 +21,12 @@ class ConstantFolder(ExprMutator):
     def _fold(self, expr):
         if not isinstance(expr.ty, type_info.PrimitiveType) or not expr.ty.kind.is_int:
             return expr
-        value = constant_value(expr)
+        try:
+            value = constant_value(expr)
+        except ZeroDivisionError:
+            # Leave invalid constant expressions intact for the validator to
+            # report with the normal source diagnostic.
+            return expr
         if not isinstance(value, int) or value is INDETERMINATE:
             return expr
 
@@ -52,10 +57,4 @@ class ConstantFolder(ExprMutator):
         if expr.op.value in ('++', '--'):
             return expr
         return self._fold(expr)
-
-    @generate.register
-    def _(self, expr: behav.Tensor, context=None):
-        if getattr(expr, 'initializer_elements', None) is not None:
-            expr.initializer_elements = [self.generate(item, context) for item in expr.initializer_elements]
-        return expr
 

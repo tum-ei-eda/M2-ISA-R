@@ -488,13 +488,13 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 
 		from .constant_expressions import integer_literal
 		from ...diagnostics import M2ValidationError
-		line_info = line_info(ctx)
+		source_location = line_info(ctx)
 		try:
 			value, width, signed = integer_literal(ctx.value.text)
 		except ValueError as exc:
-			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', line_info) from exc
+			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', source_location) from exc
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
-		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=line_info)
+		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=source_location)
 
 	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
 		"""Generate a character literal. Converts directly to uint8."""
