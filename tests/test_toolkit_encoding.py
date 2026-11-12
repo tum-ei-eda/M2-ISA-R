@@ -2,6 +2,7 @@
 import importlib.util
 import itertools
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 import unittest
 
@@ -10,23 +11,16 @@ from m2isar.transforms.encode_instructions import EncodingError, EncodingPolicy,
 from m2isar.transforms.encode_instructions.planner import overlaps
 from test_encoding_planner import add, instruction, operand
 
-# Load the staged generator, not an extracted or reimplemented allocator.
-# No parser/writer/session dependencies are needed to use its encoding helpers.
+# Load the actual generator when the optional ISAAC Toolkit is available.
 path = Path(__file__).resolve().parents[1] / "integrations/isaac-toolkit/generate_etiss_core_planner.py"
-spec = importlib.util.spec_from_file_location("toolkit_generator_planner", path)
-generator = importlib.util.module_from_spec(spec)
-# The toolkit logger is an optional checkout dependency for these smoke tests.
-# Resolve it from the sibling checkout without replacing any modules with mocks.
-import sys
 sibling = path.parents[2].parent / "isaac-toolkit"
-if str(sibling) not in sys.path:
+if sibling.is_dir() and str(sibling) not in sys.path:
     sys.path.insert(0, str(sibling))
-try:
+generator = None
+if importlib.util.find_spec("isaac_toolkit") is not None:
+    spec = importlib.util.spec_from_file_location("toolkit_generator_planner", path)
+    generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)
-except ModuleNotFoundError as error:
-    if error.name != "isaac_toolkit":
-        raise
-    generator = None
 
 
 def immediate_instruction(name, width=17):

@@ -26,6 +26,7 @@ from functools import singledispatchmethod
 from copy import deepcopy
 
 from m2isar.metamodel import arch, behav, type_info
+from ...diagnostics import M2ValidationError
 from ...metamodel.utils.ExprMutator import ExprMutator
 from ..validate_behav.constants import range_size
 
@@ -376,9 +377,8 @@ class InferTypesMutator(ExprMutator):
         else:
             count = range_size(expr.index, expr.right)
             if count is None:
-                context.emit_warning("Can not infer type of non-static array range.",
-                                     "infer-non-static-slice", logger=logger, line_info=expr.line_info)
-                return expr
+                raise M2ValidationError("Cannot determine size of array range",
+                                        "InvalidRangePattern", expr.line_info)
             if not isinstance(element, type_info.PrimitiveType) or not element.kind.is_int:
                 context.emit_warning("Can not infer type of array range elements.",
                                      "infer-type", logger=logger, line_info=expr.line_info)
