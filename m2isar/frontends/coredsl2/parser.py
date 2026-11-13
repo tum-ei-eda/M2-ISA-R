@@ -15,10 +15,10 @@ import sys
 
 from ... import M2Error, M2SyntaxError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, attribute_info
-from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
+from .expr_interpreter import ExprInterpreterVisitor
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
@@ -32,12 +32,11 @@ from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 
 def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
-	simplifier = ExprSimplifierVisitor()
-	# TODO: switch to ExprInterpreterVisitor?
-	op = simplifier.generate(operation, None)
-	if not isinstance(op, behav.Literal):
+	try:
+		value = ExprInterpreterVisitor().generate(operation, context=True)
+	except (M2Error, NotImplementedError, ZeroDivisionError):
 		return None
-	return op.value != 0
+	return value != 0
 
 
 def main(argv=None):
