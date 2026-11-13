@@ -242,7 +242,35 @@ class CDSLWriterVisitor(ExprVisitor):
         # if isinstance(expr.reference, arch.Memory):
         #     # writer.track(expr.reference.name)
         #     pass
-        self.generate(expr.index, writer)
+        def ungroup(node):
+            while isinstance(node, behav.Group):
+                node = node.expr
+            return node
+
+        index = ungroup(expr.index)
+        lower = ungroup(expr.right)
+        base = ungroup(index.left) if isinstance(index, behav.BinaryOperation) else None
+        width_offset = ungroup(index.right) if isinstance(index, behav.BinaryOperation) else None
+        affine_memory_range = (
+            isinstance(expr.reference, arch.Memory)
+            and isinstance(index, behav.BinaryOperation)
+            and index.op.value == "+"
+            and isinstance(base, behav.NamedReference)
+            and isinstance(width_offset, behav.Literal)
+            and isinstance(lower, behav.NamedReference)
+            and base.reference is lower.reference
+        )
+        if affine_memory_range:
+            # Treenail's affine width inference requires the common base to be
+            # syntactically bare: MEM[base+3:base], not MEM[(base)+(3):base].
+            self.generate(base, writer)
+            writer.write("+")
+            self.generate(width_offset, writer)
+        else:
+            self.generate(expr.index, writer)
+        if expr.right is not None:
+            writer.write(":")
+            self.generate(lower if affine_memory_range else expr.right, writer)
         writer.write("]")
 
     @generate.register

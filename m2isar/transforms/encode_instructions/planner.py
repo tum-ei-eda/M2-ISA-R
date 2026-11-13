@@ -20,14 +20,27 @@ class EncodingPolicy:
     opcodes: Tuple[int, ...] = (0x0B, 0x2B, 0x5B, 0x7B)
     # Additional occupied (code, mask) patterns, e.g. extension reservations.
     reservations: Tuple[Tuple[int, int], ...] = ()
+    # Per qualified instruction name: required discriminator (code, mask).
+    fixed_bits: Tuple[Tuple[str, int, int], ...] = ()
+    decode_mask: int = 0xFFFFFFFF
 
     def __post_init__(self):
+        if not isinstance(self.decode_mask, int) or not 0 <= self.decode_mask <= 0xFFFFFFFF or self.decode_mask & 0x7F != 0x7F:
+            raise EncodingError("decode mask must retain the complete 7-bit major opcode")
         if not self.opcodes or len(set(self.opcodes)) != len(self.opcodes):
             raise EncodingError("opcodes must be nonempty and unique")
         if any(x not in (0x0B, 0x2B, 0x5B, 0x7B) for x in self.opcodes):
             raise EncodingError("riscv-custom32 supports only custom-0 through custom-3")
         for code, mask in self.reservations:
             validate_pattern(code, mask)
+        names = set()
+        for name, code, mask in self.fixed_bits:
+            if name in names:
+                raise EncodingError("duplicate fixed-bit constraint: " + name)
+            names.add(name)
+            validate_pattern(code, mask)
+            if mask & ~self.decode_mask:
+                raise EncodingError("fixed-bit constraint is outside the target decode mask: " + name)
 
 
 def validate_pattern(code, mask):
@@ -45,6 +58,7 @@ class Field:
     offset: int
     width: int
     signed: bool
+    source_lower: int = 0
 
 
 @dataclass(frozen=True)
@@ -64,7 +78,7 @@ class Assignment:
             field = by_offset.get(bit)
             if field:
                 kind = type_info.TypeKind.INT if field.signed else type_info.TypeKind.UINT
-                result.append(arch.BitField(field.name, arch.RangeSpec(field.width - 1, 0), kind))
+                result.append(arch.BitField(field.name, arch.RangeSpec(field.source_lower + field.width - 1, field.source_lower), kind))
                 bit += field.width
             else:
                 result.append(arch.BitVal(1, (self.code >> bit) & 1))
@@ -73,7 +87,8 @@ class Assignment:
 
     def to_dict(self):
         return dict(name=self.name, layout=self.layout, code=self.code, mask=self.mask,
-                    fields=[dict(name=f.name, offset=f.offset, width=f.width, signed=f.signed) for f in self.fields])
+                    fields=[dict(name=f.name, offset=f.offset, width=f.width, signed=f.signed,
+                                 **({"source_lower": f.source_lower} if f.source_lower else {})) for f in self.fields])
 
 
 @dataclass(frozen=True)
@@ -127,6 +142,29 @@ def operand_requirements(instruction):
 
 def candidates(instruction):
     sources, destinations, immediates = operand_requirements(instruction)
+    offsets = [(name, op) for name, op in instruction.operands.items() if Attr.IS_BRANCH_OFFS in op.attributes]
+    if offsets:
+        from ...metamodel.attribute_info import InstrAttribute
+        if len(offsets) != 1 or destinations or InstrAttribute.COND not in instruction.attributes:
+            raise EncodingError("B format requires one conditional branch offset and no register outputs")
+        offset_name, operand = offsets[0]
+        if not operand.signed or operand.size != 13 or len(sources) > 2:
+            raise EncodingError("B format requires a signed 13-bit byte offset and at most two source registers")
+        other_imms = [imm for imm in immediates if imm[0] != offset_name]
+        fields = [Field(name, slot, width, signed) for (name, width, signed), slot in zip(sources, (15, 20))]
+        free = [(slot, 5) for slot in (15, 20)[len(sources):]]
+        for name, width, signed in other_imms:
+            for index, (slot, capacity) in enumerate(free):
+                if width <= capacity:
+                    fields.append(Field(name, slot, width, signed))
+                    free[index] = (slot + width, capacity - width)
+                    break
+            else:
+                raise EncodingError("B format has no space for additional immediate operands")
+        fields.extend((Field(offset_name, 31, 1, True, 12), Field(offset_name, 25, 6, True, 5),
+                       Field(offset_name, 8, 4, True, 1), Field(offset_name, 7, 1, True, 11)))
+        yield "B", tuple(fields)
+        return
     # Standard-position layouts. Unused capacity becomes discriminator bits.
     layouts = (
         ("R", (15, 20), (7,), ((20, 5),)),
@@ -157,9 +195,10 @@ def candidates(instruction):
             yield layout, tuple(fields)
 
 
-def available_codes(mask, opcodes, occupied):
+def available_codes(mask, opcodes, occupied, required=(0, 0)):
     """Search discriminator bits, pruning subtrees covered by a reservation."""
-    bits = [bit for bit in range(7, 32) if mask & (1 << bit)]
+    required_code, required_mask = required
+    bits = [bit for bit in range(7, 32) if mask & (1 << bit) and not required_mask & (1 << bit)]
 
     def search(code, fixed, index):
         if any((other_mask & mask & fixed) == (other_mask & mask) and
@@ -175,7 +214,8 @@ def available_codes(mask, opcodes, occupied):
         yield from search(code | bit, fixed | bit, index + 1)
 
     for opcode in opcodes:
-        yield from search(opcode, 0x7F, 0)
+        if ((opcode ^ required_code) & required_mask & 0x7F) == 0:
+            yield from search(opcode | required_code, 0x7F | required_mask, 0)
 
 
 def plan_encodings(instructions, policy=None, existing=(), assignments=None):
@@ -185,9 +225,16 @@ def plan_encodings(instructions, policy=None, existing=(), assignments=None):
     Errors are collected and prevent application of the entire plan.
     """
     policy = policy or EncodingPolicy()
-    occupied = list(existing) + list(policy.reservations)
-    for pattern in occupied:
+    existing_full = list(existing)
+    occupied_full = existing_full + list(policy.reservations)
+    for pattern in occupied_full:
         validate_pattern(*pattern)
+    occupied = [(code & policy.decode_mask, mask & policy.decode_mask)
+                for code, mask in occupied_full]
+    if policy.decode_mask != 0xFFFFFFFF:
+        for index, pattern in enumerate(occupied[:len(existing_full)]):
+            if any(overlaps(pattern, previous) for previous in occupied[:index]):
+                raise EncodingError("existing encodings overlap under the target decode mask")
     manifest = assignments or {"version": 1, "assignments": []}
     if manifest.get("version") != 1 or manifest.get("errors"):
         raise EncodingError("expected a successful version 1 assignment manifest")
@@ -197,10 +244,14 @@ def plan_encodings(instructions, policy=None, existing=(), assignments=None):
             raise EncodingError("duplicate manifest assignment: " + item["name"])
         pins[item["name"]] = item
     requests, errors = {}, []
+    constraints = {name: (code, mask) for name, code, mask in policy.fixed_bits}
     for instruction in instructions:
         if instruction.name in requests:
             errors.append(f"{instruction.name}: duplicate instruction name")
         requests[instruction.name] = instruction
+    unknown = set(constraints) - set(requests)
+    if unknown:
+        raise EncodingError("fixed-bit constraints name unknown instructions: " + ", ".join(sorted(unknown)))
     prepared = []
     for name, instruction in sorted(requests.items()):
         try:
@@ -208,34 +259,40 @@ def plan_encodings(instructions, policy=None, existing=(), assignments=None):
                 raise EncodingError("instruction already has an encoding")
             options = list(candidates(instruction))
             if not options:
-                raise EncodingError("no layout fits operand counts and widths (available: R, I, R4, R4I, 2D, IMM17)")
+                raise EncodingError("no layout fits operand counts and widths (available: B, R, I, R4, R4I, 2D, IMM17)")
             prepared.append((name, options))
         except EncodingError as exc:
             errors.append(f"{name}: {exc}")
     result = []
     # Pins first so newly allocated instructions cannot steal their space.
-    prepared.sort(key=lambda item: (item[0] not in pins, len(item[1]), item[0]))
+    prepared.sort(key=lambda item: (item[0] not in pins, item[0] not in constraints, len(item[1]), item[0]))
     for name, options in prepared:
         found = None
         pin = pins.get(name)
+        required_code, required_mask = constraints.get(name, (0, 0))
         for layout, fields in options:
             variable = sum(((1 << f.width) - 1) << f.offset for f in fields)
             mask = 0xFFFFFFFF ^ variable
+            if required_mask & ~mask:
+                continue  # A fixed discriminator may never overlap an operand.
             if pin:
                 validate_pattern(pin["code"], pin["mask"])
                 proposed = Assignment(name, layout, pin["code"], mask, fields)
-                choices = [pin["code"]] if proposed.to_dict() == pin and pin["code"] & 0x7F in policy.opcodes else []
+                choices = [pin["code"]] if (proposed.to_dict() == pin
+                    and pin["code"] & 0x7F in policy.opcodes
+                    and pin["code"] & required_mask == required_code) else []
             else:
-                choices = available_codes(mask, policy.opcodes, occupied)
+                choices = available_codes(mask & policy.decode_mask, policy.opcodes, occupied,
+                                          (required_code, required_mask))
             for code in choices:
-                if all(not overlaps((code, mask), other) for other in occupied):
+                if all(not overlaps((code & policy.decode_mask, mask & policy.decode_mask), other) for other in occupied):
                     found = Assignment(name, layout, code, mask, fields)
                     break
             if found:
                 break
         if found:
             result.append(found)
-            occupied.append((found.code, found.mask))
+            occupied.append((found.code & policy.decode_mask, found.mask & policy.decode_mask))
         else:
             errors.append(f"{name}: {'pinned assignment incompatible or occupied' if pin else 'no collision-free encoding remains'}")
     return EncodingPlan(tuple(sorted(result, key=lambda a: a.name)), tuple(errors))

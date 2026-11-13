@@ -258,6 +258,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		attributes = dict([self.visit(obj) for obj in ctx.attributes])
 		assembly = ctx.assembly.text.replace("\"", "") if ctx.assembly is not None else None
 		mnemonic = ctx.mnemonic.text.replace("\"", "") if ctx.mnemonic is not None else None
+		if assembly is None:
+			assembly = ", ".join("{" + operand_name + "}" for operand_name in operands)
 		name = ctx.name.text
 
 		# Encoding syntax has no signedness marker; explicit operand types
