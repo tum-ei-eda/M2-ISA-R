@@ -118,6 +118,24 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
         def unsupported(node):
             if isinstance(node, P.Intrinsic_expressionContext):
                 return self.intrinsic_value(node, constant=True)
+            if isinstance(node, P.Cast_expressionContext):
+                if not self.elaborating:
+                    return None
+                from .constant_expressions import cast_integer
+                try:
+                    value = self.evaluate(node.right, required)
+                except M2ValidationError:
+                    if required:
+                        raise
+                    return None
+                if value is None:
+                    return None
+                ty = (self.specified_type(node.type_) if node.type_ is not None
+                      else self.expression_type(node.right))
+                if not ty.integer or ty.width <= 0:
+                    return None
+                signed = ty.signed if node.type_ is not None else node.sign.getText() == 'signed'
+                return cast_integer(value, ty.width, signed)
             if not required:
                 return None
             if isinstance(node, P.Binary_expressionContext):

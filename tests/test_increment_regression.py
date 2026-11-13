@@ -88,6 +88,36 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
 
 
 class IncrementNativeTest(unittest.TestCase):
+    def test_logical_identities_are_removed_in_condition_context(self):
+        from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
+        value = arch.Variable('value', type_info.PrimitiveType(type_info.TypeKind.UINT, 32))
+        reference = behav.NamedReference(value)
+        reference.ty = value.ty
+        true = behav.Literal(1, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
+        false = behav.Literal(0, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
+
+        def logical(left, operator, right):
+            return behav.BinaryOperation(left, behav.Operator(operator), right)
+
+        cases = [
+            logical(logical(true, '&&', reference), '||', false),
+            behav.Group(logical(logical(false, '||', reference), '&&', true)),
+        ]
+        for condition in cases:
+            with self.subTest(condition=condition):
+                conditional = behav.Conditional([condition], [behav.Block([])])
+                ExprSimplifierVisitor().generate(conditional, None)
+                self.assertIs(conditional.conds[0], reference)
+
+        # These cannot be reduced to a constant: evaluating the left expression
+        # may have side effects, and logical operators must preserve short circuiting.
+        for operator, literal in (('&&', false), ('||', true)):
+            with self.subTest(operator=operator):
+                condition = logical(reference, operator, literal)
+                conditional = behav.Conditional([condition], [behav.Block([])])
+                ExprSimplifierVisitor().generate(conditional, None)
+                self.assertIs(conditional.conds[0], condition)
+
     def test_constant_logical_results_are_unsigned_one_bit_booleans(self):
         from m2isar.metamodel.utils.expr_simplifier import ExprSimplifierVisitor
         ty = type_info.PrimitiveType(type_info.TypeKind.INT, 8)

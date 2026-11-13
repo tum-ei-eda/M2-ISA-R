@@ -2,34 +2,54 @@
 import operator
 
 from ...metamodel import arch, behav, type_info
+from ...frontends.coredsl2.constant_expressions import cast_integer
 
 INDETERMINATE = object()
 BINARY = {'+': operator.add, '-': operator.sub, '*': operator.mul,
           '&': operator.and_, '|': operator.or_, '^': operator.xor,
+          '%': operator.mod,
           '==': operator.eq, '!=': operator.ne, '<': operator.lt,
           '<=': operator.le, '>': operator.gt, '>=': operator.ge}
 
 
-def constant_value(node, active=frozenset(), on_error=None):
+def constant_value(node, active=frozenset(), on_error=None, *, allow_casts=False):
     if isinstance(node, arch.Parameter):
         if id(node) in active or node._value is None:
             return INDETERMINATE
         if isinstance(node._value, int):
             return node._value
-        return constant_value(node._value, active | {id(node)}, on_error)
+        return constant_value(node._value, active | {id(node)}, on_error, allow_casts=allow_casts)
     if isinstance(node, behav.Literal):
         if isinstance(node.ty, type_info.PrimitiveType) and node.ty.kind.is_int:
             return int(node.value)
     if isinstance(node, behav.NamedReference) and isinstance(node.reference, arch.Parameter):
-        return constant_value(node.reference, active, on_error)
+        return constant_value(node.reference, active, on_error, allow_casts=allow_casts)
     if isinstance(node, behav.Group):
-        return constant_value(node.expr, active, on_error)
-    if isinstance(node, behav.UnaryOperation) and node.op.value == '-':
-        value = constant_value(node.right, active, on_error)
-        return value if value is None or value is INDETERMINATE else -value
+        return constant_value(node.expr, active, on_error, allow_casts=allow_casts)
+    if allow_casts and isinstance(node, behav.TypeConv):
+        value = constant_value(node.expr, active, on_error, allow_casts=allow_casts)
+        if value is None or value is INDETERMINATE:
+            return value
+        width = arch.get_const_or_val(node.size if node.size is not None else getattr(node.expr.ty, 'size', None))
+        if not isinstance(width, int) or width <= 0:
+            return None
+        try:
+            return cast_integer(value, width, node.data_type == type_info.TypeKind.INT)
+        except ValueError:
+            return None
+    if isinstance(node, behav.UnaryOperation) and node.op.value in ('-', '~', '!'):
+        value = constant_value(node.right, active, on_error, allow_casts=allow_casts)
+        if value is None or value is INDETERMINATE:
+            return value
+        if node.op.value == '-':
+            return -value
+        if node.op.value == '~':
+            return ~value
+        return int(not bool(value))
     if isinstance(node, behav.BinaryOperation):
         op = node.op.value
-        left, right = constant_value(node.left, active, on_error), constant_value(node.right, active, on_error)
+        left = constant_value(node.left, active, on_error, allow_casts=allow_casts)
+        right = constant_value(node.right, active, on_error, allow_casts=allow_casts)
         if left is None or right is None:
             return None
         if left is INDETERMINATE or right is INDETERMINATE:
@@ -37,6 +57,12 @@ def constant_value(node, active=frozenset(), on_error=None):
         if op not in BINARY and op not in ('/', '<<', '>>'):
             return None
         if op in BINARY:
+            if op == '%' and right == 0:
+                error = ZeroDivisionError('Modulo by zero')
+                if on_error is not None:
+                    on_error(node, error)
+                    return None
+                raise error
             return int(BINARY[op](left, right))
         if op == '/':
             if right == 0:

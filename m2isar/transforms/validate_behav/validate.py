@@ -15,7 +15,7 @@ import pathlib
 
 from ... import M2Error
 from ...diagnostics import M2ValidationError
-from ...metamodel import load_model, dump_model
+from ...metamodel import load_model, dump_model, arch, behav
 from ...warnings import WarningsManager, WarningsInfo, add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 from .visitor import ValidateBehavVisitor
 
@@ -54,6 +54,23 @@ def validate_behav(model_obj, warnings_info, *, source_validated=False):
             if not function.ty.kind.is_void and not terminated:
                 errors.append(M2ValidationError('Not all execution paths return a value', 'MissingReturnStatement',
                                                 operation.line_info))
+
+    for definitions in (model_obj.cores, model_obj.sets):
+        for definition in definitions.values():
+            context = ValidatorContext(warnings_info, partial=definitions is model_obj.sets,
+                                       source_validated=source_validated)
+            context.architectural_initializer = True
+            visitor = ValidateBehavVisitor()
+            for name in ('parameters', 'register_banks', 'memories', 'register_aliases', 'memory_aliases'):
+                for symbol in getattr(definition, name, {}).values():
+                    for target_type, expression in getattr(symbol, '_initializer_expressions', ()):
+                        assignment = behav.Assignment(behav.VarDefinition(arch.Variable(symbol.name, target_type)),
+                                                      expression, expression.line_info)
+                        assignment.target.ty = target_type
+                        assignment._suppress_width_warnings = (
+                            isinstance(expression, behav.NamedReference)
+                            and getattr(expression.reference, '_coredsl_enum_name', None) is not None)
+                        validate_body(visitor, assignment, context)
 
     for _, core_def in model_obj.cores.items():
         logger.debug("validating behavior for core %s", core_def.name)

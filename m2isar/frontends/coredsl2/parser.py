@@ -15,10 +15,10 @@ import sys
 
 from ... import M2Error, M2SyntaxError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, attribute_info
-from ...metamodel.utils.expr_simplifier import ExprSimplifierVisitor
 from ...metamodel.code_info import CodeInfoBase
 from .architecture_model_builder import ArchitectureModelBuilder
 from .behavior_model_builder import BehaviorModelBuilder
+from .expr_interpreter import ExprInterpreterVisitor
 from .importer import recursive_import
 from .load_order import LoadOrder
 from .utils import make_parser
@@ -32,12 +32,11 @@ from ...warnings import add_warnings_flags, KNOWN_WARNINGS, DEFAULT_WARNINGS
 
 def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: "dict[str, arch.Memory]", memory_aliases: "dict[str, arch.Memory]",
 	fields: "dict[str, arch.BitFieldDescr]", functions: "dict[str, arch.Function]", warned_fns: "set[str]"):
-	simplifier = ExprSimplifierVisitor()
-	# TODO: switch to ExprInterpreterVisitor?
-	op = simplifier.generate(operation, None)
-	if not isinstance(op, behav.Literal):
+	try:
+		value = ExprInterpreterVisitor().generate(operation, context=True)
+	except (M2Error, NotImplementedError, ZeroDivisionError):
 		return None
-	return op.value != 0
+	return value != 0
 
 
 def main(argv=None):
@@ -224,7 +223,7 @@ def main(argv=None):
 					op = behav_builder.visit(fn_def.operation)
 				except M2Error as e:
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
-					sys.exit()
+					sys.exit(1)
 
 				fn_def.vars = behav_builder._all_vars
 
@@ -354,7 +353,8 @@ def main(argv=None):
 	try:
 		if args.infer_types or args.validate:
 			logger.info("Running type inference")
-			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+			model_obj = infer_types(model_obj, warnings_info=warnings_info,
+			                        warn_shift_overflow=not args.validate)
 		if args.validate:
 			logger.info("Running validator")
 			validate_behav(model_obj, warnings_info, source_validated=True)

@@ -127,16 +127,14 @@ void ${core_name}Arch::resetCPU(ETISS_CPU *cpu, etiss::uint64 *startpointer)
     % endfor
 
     % for reg in initval_regs:
-<% ref = "*" if isinstance(reg.ty, type_info.ArrayType) else "" %>\
+<% ref = "*" if getattr(reg, "children", None) else "" %>\
     % if isinstance(reg.ty, type_info.ArrayType):
     % for idx, val in reg._initval.items():
-<% suffix = "ULL" if val > 0 else "LL" %>\
-    ${ref}${core_name.lower()}cpu->${reg.name}[${idx}] = ${val}${suffix};
+    ${ref}${core_name.lower()}cpu->${reg.name}[${idx}] = ${initializer_literal(val, reg.ty.element_type)};
     % endfor
     % else:
 <% val = reg._initval[None] %>\
-<% suffix = "ULL" if val > 0 else "LL" %>\
-    ${ref}${core_name.lower()}cpu->${reg.name} = ${val}${suffix};
+    ${ref}${core_name.lower()}cpu->${reg.name} = ${initializer_literal(val, reg.ty.ty if isinstance(reg.ty, type_info.PointerType) else reg.ty)};
     % endif
     % endfor
     % if procno_memory is not None:

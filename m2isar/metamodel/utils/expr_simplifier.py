@@ -11,8 +11,6 @@ simplifications are done:
 
 * Resolvable :class:`m2isar.metamodel.arch.Parameter` s are replaced by
   `m2isar.metamodel.arch.Literal` s representing their value
-* Fully resolvable arithmetic operations are carried out and their results
-  represented as a matching :class:`m2isar.metamodel.arch.Literal`
 * Conditions and loops with fully resolvable conditions are either discarded entirely
   or transformed into code blocks without any conditions
 * Ternaries with fully resolvable conditions are transformed into only the matching part
@@ -28,6 +26,37 @@ from functools import singledispatchmethod
 
 class ExprSimplifierVisitor(ExprVisitor):
 	"""Visitor that simplifies behavior expression trees."""
+
+	def _simplify_condition(self, expr):
+		"""Drop logical identities when only an expression's truth value matters."""
+		if isinstance(expr, behav.Group):
+			return self._simplify_condition(expr.expr)
+		if not isinstance(expr, behav.BinaryOperation) or expr.op.value not in ('&&', '||'):
+			return expr
+
+		left = self._simplify_condition(expr.left)
+		right = self._simplify_condition(expr.right)
+		expr.left = left
+		expr.right = right
+		is_and = expr.op.value == '&&'
+
+		if isinstance(left, behav.Literal):
+			left_truth = bool(left.value)
+			if (is_and and not left_truth) or (not is_and and left_truth):
+				return behav.Literal(int(left_truth), type_info.PrimitiveType(type_info.TypeKind.UINT, 1),
+					line_info=expr.line_info)
+			# The left literal is the identity value; the right operand is still
+			# evaluated in the same order and only its truth value is observed.
+			return right
+
+		if isinstance(right, behav.Literal):
+			right_truth = bool(right.value)
+			if (is_and and right_truth) or (not is_and and not right_truth):
+				# The left operand must still be evaluated, but the logical result
+				# is used only as a condition, so its truth value is sufficient.
+				return left
+
+		return expr
 
 	@singledispatchmethod
 	def generate(self, expr : behav.BaseNode, context=None):
@@ -84,16 +113,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 			# operand, including when the right constant determines the result.
 			return expr
 
-		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, behav.Literal):
-			# pylint: disable=eval-used
-			res: int = int(eval(f"{expr.left.value}{expr.op.value}{expr.right.value}"))
-			if res < 0 or expr.left.ty.kind == type_info.TypeKind.INT or expr.right.ty.kind == type_info.TypeKind.INT:
-				kind = type_info.TypeKind.INT
-			else:
-				kind = type_info.TypeKind.UINT
-			return behav.Literal(res, type_info.PrimitiveType(kind, max(arch.get_const_or_val(expr.left.ty.size), arch.get_const_or_val(expr.right.ty.size), res.bit_length())))
-
-
 		return expr
 
 	@generate.register
@@ -144,7 +163,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Conditional, context):
-		expr.conds = [self.generate(x, context) for x in expr.conds]
+		expr.conds = [self._simplify_condition(self.generate(x, context)) for x in expr.conds]
 		expr.stmts = [self.generate(x, context) for x in expr.stmts]
 
 		eval_false = True
@@ -175,7 +194,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 	@generate.register
 	def _(self, expr: behav.LoopBase, context):
 		expr.init = [self.generate(x, context) for x in expr.init]
-		expr.cond = self.generate(expr.cond, context)
+		expr.cond = self._simplify_condition(self.generate(expr.cond, context))
 		expr.stmts = [self.generate(x, context) for x in expr.stmts]
 		expr.updates = [self.generate(x, context) for x in expr.updates]
 
@@ -183,7 +202,7 @@ class ExprSimplifierVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Ternary, context):
-		expr.cond = self.generate(expr.cond, context)
+		expr.cond = self._simplify_condition(self.generate(expr.cond, context))
 		expr.then_expr = self.generate(expr.then_expr, context)
 		expr.else_expr = self.generate(expr.else_expr, context)
 
@@ -207,19 +226,6 @@ class ExprSimplifierVisitor(ExprVisitor):
 		if expr.op.value in ('++', '--'):
 			return expr  # Preserve target identity and side effects, including invalid constants.
 		expr.right = self.generate(expr.right, context)
-		if isinstance(expr.right, behav.Literal):
-			if expr.op.value == '!':
-				return behav.Literal(
-					int(not bool(expr.right.value)),
-					type_info.PrimitiveType(type_info.TypeKind.UINT, 1),
-				)
-			# pylint: disable=eval-used
-			res: int = eval(f"{expr.op.value}{expr.right.value}")
-			if res < 0:
-				kind = type_info.TypeKind.INT
-			else:
-				kind = expr.right.ty.kind
-			return behav.Literal(res, type_info.PrimitiveType(kind, max(expr.right.ty.size, res.bit_length())))
 
 		return expr
 

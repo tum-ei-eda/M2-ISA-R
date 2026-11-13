@@ -16,7 +16,7 @@ from typing import Union
 from mako.template import Template
 
 
-from .instruction_utils import actual_size, reg_type_info
+from .instruction_utils import actual_size, reg_type_info, initializer_literal
 from ... import M2TypeError
 from ...metamodel import arch, behav, type_info, attribute_info
 from . import BlockEndType
@@ -197,6 +197,7 @@ def write_arch_cpp(core: arch.CoreDef, start_time: str, output_path: pathlib.Pat
 		procno_memory=core.procno_memory,
 		type_info=type_info,
 		arch=arch,
+		initializer_literal=initializer_literal,
 	)
 
 	with open(output_path / f"{core.name}Arch.cpp", "w", encoding="utf-8") as f:

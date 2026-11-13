@@ -283,7 +283,7 @@ class ValidateBehavVisitor(ExprVisitor):
             target_integer = isinstance(target_type, type_info.PrimitiveType) and target_type.kind.is_int
             if not compatible:
                 try:
-                    value = constant_value(value_node)
+                    value = constant_value(value_node, allow_casts=getattr(context, 'architectural_initializer', False))
                 except ZeroDivisionError:
                     raise M2ValidationError('Division by zero', 'DivisionByZero', value_node.line_info)
                 allowed = (target_integer and value is not None and value is not INDETERMINATE
@@ -447,7 +447,8 @@ class ValidateBehavVisitor(ExprVisitor):
         except M2ValidationError as error:
             errors.append(error)
         try:
-            self._validate_assignment_types(expr, context, emit_width_warnings=not errors)
+            self._validate_assignment_types(
+                expr, context, emit_width_warnings=not errors and not getattr(expr, '_suppress_width_warnings', False))
         except M2ValidationError as error:
             errors.append(error)
         operator = getattr(expr, 'compound_operator', None)

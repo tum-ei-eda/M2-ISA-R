@@ -17,9 +17,11 @@ from ...metamodel.code_info import FunctionInfoFactory
 from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
 from ..coredsl2.utils import RADIX, SHORTHANDS, SIGNEDNESS
 from ..coredsl2.expr_interpreter import ExprInterpreterVisitor
+from ..coredsl2.source_location import line_info
 
 logger = logging.getLogger("arch_builder")
 exprInterpretVisitor = ExprInterpreterVisitor()
+
 
 class ArchitectureModelBuilder(CoreDSL2Visitor):
 	"""ANTLR visitor to build an M2-ISA-R architecture model of a CoreDSL 2 specification."""
@@ -41,7 +43,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 	_vector_reg_file: Union[arch.RegisterBank, None]
 	_csr_reg_file: Union[arch.RegisterBank, None]
 
-	def __init__(self, merge: bool = False, attributes_validated: bool = False):
+	def __init__(self, merge: bool = False, attributes_validated: bool = False, parameter_values=None):
 		super().__init__()
 		self._parameters = {}
 		# self._instructions = {}
@@ -63,6 +65,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		self._csr_reg_file = None
 		self.merge = merge
 		self.attributes_validated = attributes_validated
+		self.parameter_values = parameter_values or {}
 
 	def visitBit_field(self, ctx: CoreDSL2Parser.Bit_fieldContext):
 		"""Generate a bit field (instruction parameter in encoding)."""
@@ -387,14 +390,13 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		from .constant_expressions import integer_literal
 		from ...diagnostics import M2ValidationError
-		from ...metamodel.code_info import LineInfoFactory
-		line_info = LineInfoFactory.make(ctx.start.source[1].fileName, ctx.start.start, ctx.stop.stop, ctx.start.line, ctx.stop.line)
+		source_info = line_info(ctx)
 		try:
 			value, width, signed = integer_literal(ctx.value.text)
 		except ValueError as exc:
-			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', line_info) from exc
+			raise M2ValidationError(str(exc), 'org.eclipse.xtext.diagnostics.Diagnostic.Syntax', source_info) from exc
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
-		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=line_info)
+		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=source_info)
 
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
@@ -482,6 +484,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					signed = True if type_.kind == type_info.TypeKind.INT else False
 
 					c = arch.Parameter(name, init, [], type_.size, signed)
+					if init is not None:
+						c._initializer_expressions = [(type_, init)]
+					if name in self.parameter_values:
+						c.value = self.parameter_values[name]
 
 					self._parameters[name] = c
 					ret_decls.append(c)
@@ -532,7 +538,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					
 					# attach init value to register bank object
 					if init is not None:
-						reg._initval[None] = exprInterpretVisitor.generate(init, None)
+						if isinstance(init, list):
+							if not isinstance(reg.ty, type_info.ArrayType):
+								raise M2TypeError("List initializer requires an array")
+							reg._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
+							reg._initializer_expressions = [(reg.ty, behav.Tensor(list(reg._initval.values()), reg.ty,
+							                                               initializer_elements=init, line_info=line_info(decl)))]
+						else:
+							reg._initval[None] = exprInterpretVisitor.generate(init, None)
+							reg._initializer_expressions = [(reg.ty, init)]
 
 					if isinstance(reg, arch.RegisterBank):
 						if reg.is_main_reg:
@@ -570,7 +584,15 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 					# attach init value to memory object
 					if init is not None:
-						m._initval[None] = exprInterpretVisitor.generate(init, None)
+						if isinstance(init, list):
+							if not isinstance(m.ty, type_info.ArrayType):
+								raise M2TypeError("List initializer requires an array")
+							m._initval.update({i: exprInterpretVisitor.generate(value, None) for i, value in enumerate(init)})
+							m._initializer_expressions = [(m.ty, behav.Tensor(list(m._initval.values()), m.ty,
+							                                             initializer_elements=init, line_info=line_info(decl)))]
+						else:
+							m._initval[None] = exprInterpretVisitor.generate(init, None)
+							m._initializer_expressions = [(m.ty if decl.size else type_, init)]
 
 
 					if m.is_csr_reg:
@@ -641,27 +663,38 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitBinary_expression(self, ctx: CoreDSL2Parser.Binary_expressionContext):
 		"""Generate a binary expression."""
+		source_info = line_info(ctx)
 
 		# visit LHS and RHS
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right)
-		op = behav.Operator(ctx.bop.text)
+		op = behav.Operator(ctx.bop.text, line_info=line_info(ctx))
 
 		# return M2-ISA-R object
-		return behav.BinaryOperation(left, op, right)
+		return behav.BinaryOperation(left, op, right, line_info=source_info)
 
 	def visitSlice_expression(self, ctx: CoreDSL2Parser.Slice_expressionContext):
 		left = self.visit(ctx.left)
 		right = self.visit(ctx.right) if ctx.right is not None else None
 		expr = self.visit(ctx.expr).reference
 
-		op = behav.IndexedReference(expr, left, right)
+		op = behav.IndexedReference(expr, left, right, line_info=line_info(ctx))
 		return op
 
 	def visitPrefix_expression(self, ctx: CoreDSL2Parser.Prefix_expressionContext):
-		prefix = behav.Operator(ctx.prefix.text)
+		prefix = behav.Operator(ctx.prefix.text, line_info=line_info(ctx))
 		expr = self.visit(ctx.right)
-		return behav.UnaryOperation(prefix, expr)
+		return behav.UnaryOperation(prefix, expr, line_info=line_info(ctx))
+
+	def visitCast_expression(self, ctx: CoreDSL2Parser.Cast_expressionContext):
+		from .behavior_model_builder import BehaviorModelBuilder
+		return BehaviorModelBuilder.visitCast_expression(self, ctx)
+
+	def visitInitializerList(self, ctx: CoreDSL2Parser.InitializerListContext):
+		values = [self.visit(init) for init in ctx.initializer()]
+		if any(isinstance(value, list) for value in values):
+			raise M2TypeError("Nested list initializers are unsupported")
+		return values
 
 	def visitDeref_expression(self, ctx):
 		raise M2TypeError("Composite member access is not supported by model lowering")
@@ -682,7 +715,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 			  or self._register_banks.get(name) or self._register_aliases.get(name)
 		if ref is None:
 			raise M2NameError(f"reference \"{name}\" could not be resolved")
-		return behav.NamedReference(ref)
+		return behav.NamedReference(ref, line_info=line_info(ctx))
 
 	def visitStorage_class_specifier(self, ctx: CoreDSL2Parser.Storage_class_specifierContext):
 		return ctx.children[0].symbol.text
@@ -695,7 +728,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 	def visitInteger_shorthand(self, ctx: CoreDSL2Parser.Integer_shorthandContext):
 		value = SHORTHANDS[ctx.children[0].symbol.text]
-		return behav.Literal(value)
+		return behav.Literal(value, line_info=line_info(ctx))
 
 	def visitAssignment_expression(self, ctx: CoreDSL2Parser.Assignment_expressionContext):
 		"""Generate an assignment. """
@@ -707,11 +740,34 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		# if LHS is a reference, assign RHS as its default value
 		if isinstance(left, behav.NamedReference):
 			if isinstance(left.reference, arch.Parameter):
-				left.reference.value = exprInterpretVisitor.generate(right, None)
+				if left.reference.name not in self.parameter_values:
+					left.reference.value = exprInterpretVisitor.generate(right, None)
 			elif isinstance(left.reference, (arch.Register, arch.Alias)):
 				left.reference._initval[None] = exprInterpretVisitor.generate(right, None)
 		elif isinstance(left, behav.IndexedReference):
 			left.reference._initval[exprInterpretVisitor.generate(left.index, None)] = exprInterpretVisitor.generate(right, None)
+		else:
+			return
+		ref = left.reference
+		if isinstance(ref, arch.Parameter):
+			kind = type_info.TypeKind.INT if ref.signed else type_info.TypeKind.UINT
+			target_type = type_info.PrimitiveType(kind, ref.size)
+		elif isinstance(left, behav.IndexedReference):
+			target_type = ref.ty.ty if isinstance(ref.ty, type_info.PointerType) else ref.ty
+			count = (abs(exprInterpretVisitor.generate(left.index, None) -
+			             exprInterpretVisitor.generate(left.right, None)) + 1
+			         if left.right is not None else 1)
+			if isinstance(target_type, type_info.ArrayType):
+				target_type = (target_type.element_type if left.right is None else
+				               type_info.PrimitiveType(type_info.TypeKind.UINT,
+				                                       count * arch.get_const_or_val(target_type.element_type.size)))
+			else:
+				target_type = type_info.PrimitiveType(type_info.TypeKind.UINT, count)
+		elif isinstance(ref, arch.Alias):
+			target_type = ref.ty.ty
+		else:
+			target_type = ref.ty
+		ref._initializer_expressions = getattr(ref, '_initializer_expressions', []) + [(target_type, right)]
 
 	def visitAttribute(self, ctx: CoreDSL2Parser.AttributeContext):
 		"""Generate an attribute."""

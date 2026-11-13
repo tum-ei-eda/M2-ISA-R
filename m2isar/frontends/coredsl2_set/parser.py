@@ -121,7 +121,8 @@ def _parse_model(args):
 	for set_name, set_def in sets.items():
 		logger.info(f"building architecture model for set %s", set_name)
 		try:
-			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate)
+			arch_builder = ArchitectureModelBuilder(merge=True, attributes_validated=args.validate,
+			                                        parameter_values=defines)
 			s = arch_builder.visit(set_def)
 			if not isinstance(s, list):
 				s = [s]
@@ -292,7 +293,7 @@ def _parse_model(args):
 					op = behav_builder.visit(fn_def.operation)
 				except M2Error as e:
 					logger.critical("Error building behavior for function %s: %s", fn_name, e)
-					sys.exit()
+					sys.exit(1)
 
 				fn_def.vars = behav_builder._all_vars
 
