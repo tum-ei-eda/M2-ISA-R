@@ -354,7 +354,8 @@ def main(argv=None):
 	try:
 		if args.infer_types or args.validate:
 			logger.info("Running type inference")
-			model_obj = infer_types(model_obj, warnings_info=warnings_info)
+			model_obj = infer_types(model_obj, warnings_info=warnings_info,
+			                        warn_shift_overflow=not args.validate)
 		if args.validate:
 			logger.info("Running validator")
 			validate_behav(model_obj, warnings_info, source_validated=True)

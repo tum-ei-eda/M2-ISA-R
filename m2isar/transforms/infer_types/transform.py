@@ -38,7 +38,8 @@ def get_parser():
     return parser
 
 
-def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
+def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False,
+                warn_shift_overflow: bool = True):
     logger = logging.getLogger("infer_types")
     for definitions in (model_obj.cores, model_obj.sets):
         for definition in definitions.values():
@@ -52,7 +53,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
                                                       expression, expression.line_info)
                         mutator.generate(assignment, context)
                         if not skip_simplify:
-                            expression = ConstantFolder().generate(expression)
+                            expression = ConstantFolder(warn_shift_overflow).generate(expression, context)
                             initializer_expressions[index] = (target_type, expression)
                             assignment.expr = expression
                             mutator.generate(assignment, context)
@@ -66,7 +67,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(always_block.operation)
+                ConstantFolder(warn_shift_overflow).generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
@@ -75,7 +76,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(instr_def.operation)
+                ConstantFolder(warn_shift_overflow).generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
@@ -85,7 +86,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(func_def.operation)
+                ConstantFolder(warn_shift_overflow).generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)
                 simplifier.generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)
@@ -100,7 +101,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(always_block.operation)
             mutator.generate(always_block.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(always_block.operation)
+                ConstantFolder(warn_shift_overflow).generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
                 simplifier.generate(always_block.operation, context)
                 mutator.generate(always_block.operation, context)
@@ -109,7 +110,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(instr_def.operation)
             mutator.generate(instr_def.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(instr_def.operation, context)
+                ConstantFolder(warn_shift_overflow).generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
                 simplifier.generate(instr_def.operation, context)
                 mutator.generate(instr_def.operation, context)
@@ -118,7 +119,7 @@ def infer_types(model_obj, warnings_info=None, skip_simplify: bool = False):
             preserve_break_scope(func_def.operation)
             mutator.generate(func_def.operation, context)
             if not skip_simplify:
-                ConstantFolder().generate(func_def.operation, context)
+                ConstantFolder(warn_shift_overflow).generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)
                 simplifier.generate(func_def.operation, context)
                 mutator.generate(func_def.operation, context)

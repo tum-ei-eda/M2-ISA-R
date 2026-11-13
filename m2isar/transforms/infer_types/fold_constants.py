@@ -1,6 +1,7 @@
 """Fold typed constant expressions and shrink their inferred result widths."""
 
 from functools import singledispatchmethod
+import logging
 
 from m2isar.metamodel import arch, behav, type_info
 from m2isar.metamodel.utils.ExprMutator import ExprMutator
@@ -13,6 +14,9 @@ class ConstantFolder(ExprMutator):
     Literal widths and explicit conversions are preserved. Only operation results
     are eligible for shrinking, so source type declarations remain meaningful.
     """
+
+    def __init__(self, warn_shift_overflow=True):
+        self.warn_shift_overflow = warn_shift_overflow
 
     @singledispatchmethod
     def generate(self, expr: behav.BaseNode, context=None):
@@ -30,8 +34,8 @@ class ConstantFolder(ExprMutator):
         if not isinstance(value, int) or value is INDETERMINATE:
             return expr
 
-        # Respect the inferred operation width before shrinking. This preserves
-        # finite-width behavior for bitwise and shift operations.
+        # CDSL arithmetic is evaluated at the inferred operation width. Keep
+        # the resulting bit pattern, then shrink only its representation.
         width = arch.get_const_or_val(expr.ty.size)
         if not isinstance(width, int) or width <= 0:
             return expr
@@ -49,6 +53,14 @@ class ConstantFolder(ExprMutator):
     @generate.register
     def _(self, expr: behav.BinaryOperation, context=None):
         expr = self.default_visit(expr, context)
+        if (self.warn_shift_overflow and expr.op.value in ('<<', '>>')
+                and isinstance(expr.right, behav.Literal)
+                and isinstance(expr.left.ty, type_info.PrimitiveType)):
+            width = arch.get_const_or_val(expr.left.ty.size)
+            if context is not None and isinstance(width, int) and width <= expr.right.value:
+                context.emit_warning(
+                    f"Shift count overflow for {expr.op.value} operation ({expr.left.ty.size} vs. {expr.right.value})",
+                    'shift-overflow', logger=logging.getLogger('infer_types'), line_info=expr.line_info)
         return self._fold(expr)
 
     @generate.register
