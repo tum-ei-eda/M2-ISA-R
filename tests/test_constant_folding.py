@@ -16,6 +16,7 @@ class ConstantFoldingTest(unittest.TestCase):
                 void f() {
                     unsigned<32> rv32 = 1 << 31;
                     unsigned<32> explicit_width = 32'b1 << 31;
+                    unsigned<32> cast_width = (unsigned<32>)1 << 31;
                 }
             }
         }'''
@@ -32,13 +33,16 @@ class ConstantFoldingTest(unittest.TestCase):
 
             model = load_model(Path(directory) / 'gen_model' / 'shift.m2isarmodel')
             statements = model.cores['C'].functions['f'].operation.statements[0].statements
-            rv32, explicit_width = (statement.expr for statement in statements)
+            rv32, explicit_width, cast_width = (statement.expr for statement in statements)
             self.assertIsInstance(rv32, behav.Literal)
             self.assertIsInstance(explicit_width, behav.Literal)
+            self.assertIsInstance(cast_width, behav.Literal)
             self.assertEqual(rv32.value, 0)
             self.assertEqual(explicit_width.value, 1 << 31)
+            self.assertEqual(cast_width.value, 1 << 31)
             self.assertEqual(rv32.ty.size, 1)
             self.assertEqual(explicit_width.ty.size, 32)
+            self.assertEqual(cast_width.ty.size, 32)
 
 
 if __name__ == '__main__':

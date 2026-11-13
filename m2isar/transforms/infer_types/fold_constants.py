@@ -26,7 +26,11 @@ class ConstantFolder(ExprMutator):
         if not isinstance(expr.ty, type_info.PrimitiveType) or not expr.ty.kind.is_int:
             return expr
         try:
-            value = constant_value(expr)
+            # Explicit casts define the operand width of expressions such as
+            # ``(unsigned<32>)1 << 31``. Evaluate them while folding their
+            # enclosing operation, but leave standalone TypeConv nodes intact
+            # so the source conversion itself is preserved.
+            value = constant_value(expr, allow_casts=True)
         except ZeroDivisionError:
             # Leave invalid constant expressions intact for the validator to
             # report with the normal source diagnostic.
