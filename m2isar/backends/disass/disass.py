@@ -21,7 +21,7 @@ from elftools.elf.sections import SymbolTableSection
 from elftools.elf.enums import ENUM_ST_INFO_TYPE
 from elftools.elf.constants import SH_FLAGS
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from ...metamodel import M2Model, arch, check_model_version
 from .asm_formatter import AsmFormatter
 
 logger = logging.getLogger("viewer")
@@ -251,8 +251,7 @@ def main():
 	with open(model_fname, 'rb') as f:
 		model_obj: "M2Model" = pickle.load(f)
 
-	if model_obj.model_version != M2_METAMODEL_VERSION:
-		logger.warning("Loaded model version mismatch")
+	check_model_version(model_obj, "disassembler")
 
 	cores = model_obj.cores
 

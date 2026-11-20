@@ -16,7 +16,7 @@ from functools import partial
 
 from tqdm.contrib.concurrent import process_map
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...metamodel import M2Model, check_model_version
 from ...metamodel.code_info import (BranchInfo, CodeInfoBase, FunctionInfo,
                                     LineInfo)
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
@@ -124,8 +124,7 @@ def main():
 	with open(model_fname, 'rb') as f:
 		model_obj: "M2Model" = pickle.load(f)
 
-	if model_obj.model_version != M2_METAMODEL_VERSION:
-		logger.warning("Loaded model version mismatch")
+	check_model_version(model_obj, "LCOV coverage backend")
 
 	if args.target_arch is not None:
 		cores_to_use = {arch_name: model_obj.cores[arch_name] for arch_name in args.target_arch}

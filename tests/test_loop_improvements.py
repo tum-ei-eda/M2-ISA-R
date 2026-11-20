@@ -8,6 +8,7 @@ from m2isar.backends.coredsl2.writer import write_cdsl_default
 from m2isar.metamodel import behav, attribute_info as ai, arch, type_info
 from m2isar.metamodel.utils.scalar_staticness import VarAccessVisitor
 from m2isar.transforms.lower_loops import lower_loops
+from m2isar.transforms.desugar_loops import desugar_loops
 
 
 class LoopImprovementsTest(unittest.TestCase):
@@ -52,3 +53,41 @@ class LoopImprovementsTest(unittest.TestCase):
         self.assertEqual(access, ai.AccessAttribute.NONE)
         self.assertEqual(iterator.attributes['static'], ai.AccessAttribute.NONE)
         self.assertEqual(loop.body.attributes[ai.BlockAttribute.ACCESS], ai.AccessAttribute.NONE)
+
+    def test_desugar_for_preserves_init_update_continue_and_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model, _ = parse_model(source(
+                'for(int i=0;i<3;i++){if(i==1)continue;}'), directory, validated=True)
+            desugar_loops(model)
+            outer = model.cores['C'].functions['f'].operation.statements[0].statements[0]
+            self.assertIsInstance(outer, behav.Block)
+            self.assertIsInstance(outer.statements[0], behav.Assignment)
+            loop = outer.statements[1]
+            self.assertIs(type(loop), behav.Loop)
+            self.assertEqual(loop.init, [])
+            self.assertEqual(loop.updates, [])
+            body = loop.body
+            continue_blocks = []
+
+            def find_continue_blocks(node):
+                if isinstance(node, behav.Block):
+                    if node.statements and isinstance(node.statements[-1], behav.Continue):
+                        continue_blocks.append(node)
+                    for child in node.statements:
+                        find_continue_blocks(child)
+                elif isinstance(node, behav.Conditional):
+                    for child in node.stmts:
+                        find_continue_blocks(child)
+
+            find_continue_blocks(body)
+            self.assertEqual(len(continue_blocks), 1)
+            self.assertEqual(len(continue_blocks[0].statements), 2)
+            self.assertEqual(len(body.statements), 2)  # update also runs at latch
+
+    def test_desugar_while_and_do_while_keep_test_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model, _ = parse_model(source('while(0){}do{}while(0);'), directory, validated=True)
+            desugar_loops(model)
+            loops = model.cores['C'].functions['f'].operation.statements[0].statements
+            self.assertEqual([type(loop) for loop in loops], [behav.Loop, behav.Loop])
+            self.assertEqual([loop.post_test for loop in loops], [False, True])

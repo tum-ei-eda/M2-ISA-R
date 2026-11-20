@@ -14,7 +14,7 @@ from collections import defaultdict
 
 from tqdm import tqdm
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch
+from ...metamodel import M2Model, arch, check_model_version
 from ...metamodel.code_info import FunctionInfo, LineInfo
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
@@ -57,8 +57,7 @@ def main():
 	with open(model_fname, 'rb') as f:
 		model_obj: "M2Model" = pickle.load(f)
 
-	if model_obj.model_version != M2_METAMODEL_VERSION:
-		logger.warning("Loaded model version mismatch")
+	check_model_version(model_obj, "coverage debugger")
 
 	for core_name, core_obj in model_obj.cores.items():
 		process_functions(core_obj)

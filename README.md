@@ -61,7 +61,9 @@ The ETISS writer accepts `--fill-mode empty|auto` to choose whether architecture
 ### Available frontends, transforms, and backends
 
 - **Frontends:** `coredsl2` parses CoreDSL 2 core descriptions; `coredsl2_set` parses CoreDSL 2 instruction-set descriptions.
-- **Transforms:** type inference (`infer_types`), operand inference (`infer_operands`), behavior validation (`validate_behav`), instruction encoding planning/application (`encode_instructions`), loop lowering (`lower_loops`), and merging always blocks (`merge_always_blocks`).
+- **Transforms:** type inference (`infer_types`), operand inference (`infer_operands`), behavior validation (`validate_behav`), instruction encoding planning/application (`encode_instructions`), loop canonicalization (`lower_loops`), loop desugaring (`desugar_loops`), and merging always blocks (`merge_always_blocks`).
+
+See the [metamodel compatibility notes](doc/source/metamodel-compatibility.rst) for version changes and loop transform behavior.
 - **Backends and tools:** ETISS architecture generation (`etiss`), experimental Spike extension generation (`spike`), CoreDSL 2 and instruction-set export (`coredsl2`, `coredsl2_set`), model browsing (`viewer`), disassembly (`disass`), trace-model generation (`trace_gen`), ISA manual generation (`isa_manual`), and coverage processing (`coverage`).
 
 Installed command-line entry points include `coredsl2_parser`, `etiss_writer`, `spike_writer`, `m2isar_encode`, `m2isar_viewer`, `m2isar2lcov`, and `trace_gen`. Some frontends, transforms, and backends are library modules without a dedicated installed command.
