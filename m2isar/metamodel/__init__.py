@@ -107,6 +107,16 @@ class M2Model:
 				self.function_infos[idx] = c
 
 
+def check_model_version(model_obj: M2Model, consumer: str = "consumer") -> None:
+	"""Reject models whose serialized metamodel version is unsupported."""
+	if model_obj.model_version != M2_METAMODEL_VERSION:
+		raise RuntimeError(
+			f"{consumer} supports metamodel version {M2_METAMODEL_VERSION}, "
+			f"but the loaded model uses version {model_obj.model_version}. "
+			"Regenerate the model with this M2-ISA-R version."
+		)
+
+
 def load_model(
     model_path: Union[str, Path], allow_missmatch: bool = False
 ) -> M2Model:
@@ -115,10 +125,16 @@ def load_model(
     with open(model_path, "rb") as f:
         model_obj: M2Model = pickle.load(f)
     assert isinstance(model_obj, M2Model), "Expected M2Model"
-    required_version = M2_METAMODEL_VERSION
-    if model_obj.model_version != required_version:
-        err_handler = logger.warning if allow_missmatch else RuntimeError
-        err_handler("Loaded model version mismatch")
+    if model_obj.model_version != M2_METAMODEL_VERSION:
+        message = (
+            f"Loaded model uses metamodel version {model_obj.model_version}; "
+            f"this M2-ISA-R release supports version {M2_METAMODEL_VERSION}. "
+            "Regenerate the model with this release."
+        )
+        if allow_missmatch:
+            logger.warning("%s Proceeding without migration.", message)
+        else:
+            raise RuntimeError(message)
     return model_obj
 
 

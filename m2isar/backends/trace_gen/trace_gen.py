@@ -24,7 +24,7 @@ from .frontend.Parser import Parser
 from .backend.CodeGenerator import CodeGenerator
 from .common import common as cf # type: ignore
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...metamodel import M2Model, check_model_version
 
 # Class to keep folder-structure related information
 class FileDict:
@@ -86,8 +86,7 @@ def setup():
     with open(M2model_fname, 'rb') as f:
         M2model_obj: M2Model = pickle.load(f)
 
-    if M2model_obj.model_version != M2_METAMODEL_VERSION:
-        raise TypeError("Loaded model version mismatch")
+    check_model_version(M2model_obj, "trace generator")
 
     return args.description_file, M2model_obj, args.output_dir
 
