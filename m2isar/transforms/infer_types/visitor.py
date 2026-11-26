@@ -39,6 +39,28 @@ def infer_slice_sice_helper(expr):
     return range_size(expr.left, expr.right)
 
 
+def _location(*nodes):
+    """Return the first available source location of the given nodes."""
+    for node in nodes:
+        line_info = getattr(node, 'line_info', None)
+        if line_info is not None:
+            return line_info
+    return None
+
+
+def _require_primitive_operands(expr, message, *operands):
+    """Raise a located diagnostic if an inferred operand type is not a primitive.
+
+    Aggregates (arrays, composites, ...) used as operands of scalar operators
+    would otherwise fail deep inside type inference without any source location.
+    Operands whose type is still unknown (``None``) are left to the callers.
+    """
+    for operand in operands:
+        if operand.ty is not None and not isinstance(operand.ty, type_info.PrimitiveType):
+            raise M2ValidationError(message, "InvalidOperationType",
+                                    _location(expr, operand))
+
+
 class InferTypesMutator(ExprMutator):
     """Mutator to annote inferred types to a metamodel."""
 
@@ -72,12 +94,7 @@ class InferTypesMutator(ExprMutator):
                 logger.warning("Binary Operation needs inferred type.")
                 expr.ty = None
                 return expr
-            elif expr.right.ty is None:
-                logger.warning("Binary Operation needs inferred type.")
-                expr.ty = None
-                return expr
-            assert isinstance(expr.left.ty, type_info.PrimitiveType)
-            assert isinstance(expr.right.ty, type_info.PrimitiveType)
+            _require_primitive_operands(expr, "Operation is only valid on integer types", expr.left, expr.right)
             w1 = arch.get_const_or_val(expr.left.ty.size)
             w2 = arch.get_const_or_val(expr.right.ty.size)
             s1 = True if expr.left.ty.kind == type_info.TypeKind.INT else False
@@ -134,6 +151,8 @@ class InferTypesMutator(ExprMutator):
             kind = type_info.TypeKind.INT if sr else type_info.TypeKind.UINT
             expr.ty = type_info.PrimitiveType(kind, wr)
         else:
+            # Logical and comparison results are unsigned<1> whatever the operands
+            # are, so their legality is left to the validators.
             if expr.op.value in ["||", "&&"]:
                 expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)  # unsigned<1> / bool
             elif expr.op.value in ["<", ">", "==", "!=", ">=", "<="]:
@@ -191,6 +210,7 @@ class InferTypesMutator(ExprMutator):
         if expr.right.ty is None:
             logger.warning("Concat Operation needs inferred type.")
             return expr
+        _require_primitive_operands(expr, "Concatenation is only valid on integer types", expr.left, expr.right)
         width = arch.get_const_or_val(expr.left.ty.size) + arch.get_const_or_val(expr.right.ty.size)
         size = arch.get_const_or_val(width)
         ty = type_info.PrimitiveType(type_info.TypeKind.UINT, size)
@@ -303,6 +323,8 @@ class InferTypesMutator(ExprMutator):
             expr.ty = expr.right.ty
             return expr
         if expr.right.ty:
+            _require_primitive_operands(expr, "Logical not is only valid on scalar types" if expr.op.value == "!"
+                                        else "Unary operators are only valid on integer types", expr.right)
             w1 = expr.right.ty.size
             if expr.op.value == "-":
                 ty = type_info.PrimitiveType(type_info.TypeKind.INT, w1 + 1)
