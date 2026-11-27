@@ -205,6 +205,23 @@ class ValidateBehavVisitor(ExprVisitor):
         return None
 
     @staticmethod
+    def _aggregate_operand_error(expr):
+        """Diagnose a binary operation with at least one non-primitive operand."""
+        left, right = expr.left.ty, expr.right.ty
+        if expr.op.value in ('&&', '||'):
+            message = 'Logical operators are only valid on scalar types'
+        elif (expr.op.value in ('==', '!=') and left is not None and right is not None
+              and not isinstance(left, type_info.PrimitiveType) and not isinstance(right, type_info.PrimitiveType)):
+            left_name = ValidateBehavVisitor._known_type_name(left)
+            right_name = ValidateBehavVisitor._known_type_name(right)
+            if left_name is None or right_name is None or left_name == right_name:
+                return None
+            message = 'Operation is only valid on integer types'
+        else:
+            message = 'Operation is only valid on integer types'
+        return M2ValidationError(message, 'InvalidOperationType', expr.line_info)
+
+    @staticmethod
     def _incompatible_option_names(expr):
         then_type, else_type = expr.then_expr.ty, expr.else_expr.ty
         then_name = ValidateBehavVisitor._known_type_name(then_type)
@@ -317,7 +334,13 @@ class ValidateBehavVisitor(ExprVisitor):
                 errors.append(error)
         op = expr.op
 
-        if not self._has_invalid_type(expr):
+        if any(operand.ty is not None and not isinstance(operand.ty, type_info.PrimitiveType)
+               for operand in (expr.left, expr.right)):
+            # The checks below assume scalar operands; aggregates only support (in)equality.
+            operand_error = self._aggregate_operand_error(expr)
+            if operand_error is not None:
+                errors.append(operand_error)
+        elif not self._has_invalid_type(expr):
             if expr.left.ty is None:
                 context.emit_warning("Missing infered LHS binop type.", "incomplete-type-info", logger=logger, line_info=expr.left.line_info)
             if expr.right.ty is None:
