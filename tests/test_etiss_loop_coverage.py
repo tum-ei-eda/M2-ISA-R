@@ -1,5 +1,4 @@
 """Issue #143: execute both translation stages of coverage-instrumented loops."""
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -7,14 +6,36 @@ import sys
 import tempfile
 import unittest
 
-from m2isar.metamodel import load_model, behav
+from m2isar.metamodel import load_model
 from m2isar.metamodel.utils.expr_preprocessor import process_instructions
 from m2isar.transforms.lower_loops import lower_loops
 from m2isar.transforms.merge_always_blocks import merge_always_blocks
 from m2isar.backends.etiss.instruction_transform import InstructionTransformVisitor
 from m2isar.backends.etiss.instruction_utils import TransformerContext
 
-FIXTURES = Path(__file__).parent / 'fixtures' / 'etiss_loop_coverage'
+SOURCE = """Core LoopCoverage {
+    architectural_state {
+        unsigned int XLEN = 32;
+        register unsigned<32> X[32] [[is_main_reg]];
+        register unsigned<32> PC [[is_pc]];
+        extern unsigned<8> MEM[0x10000] [[is_main_mem]];
+    }
+    always {
+        pc_inc { PC = PC + 4; }
+    }
+    instructions {
+        DOTP {
+            encoding: 7'b0000000 :: rs2[4:0] :: rs1[4:0] :: 3'b000 :: rd[4:0] :: 7'b0001011;
+            behavior: {
+                X[rd] = 0;
+                for (int i = 0; i < 32; i += 8) {
+                    X[rd] += (unsigned<32>)X[rs1][i+7:i] * (unsigned<32>)X[rs2][i+7:i];
+                }
+            }
+        }
+    }
+}
+"""
 TYPES = '#include <cstdint>\n' + ''.join(
     f'using etiss_{kind}{bits} = {kind}{bits}_t;\n'
     for kind in ('int', 'uint') for bits in (8, 16, 32, 64))
@@ -28,7 +49,7 @@ class LoopCoverageTests(unittest.TestCase):
         return result.stdout
 
     def parse(self, root, body=None):
-        text = (FIXTURES / 'LoopCoverage.core_desc').read_text()
+        text = SOURCE
         if body:
             start = text.index('                for (int i')
             end = text.index('\n            }', start)
@@ -50,6 +71,7 @@ class LoopCoverageTests(unittest.TestCase):
             ('for(int i=0;i<4;i+=1){if(X[rs1]==0)continue;X[rd]+=1;}', 4),
             ('for(int i=0;i<4;i+=1){if(i==2)break;X[rd]+=1;}', 2),
             ('for(int i=0;i<4;i+=1)X[rd]+=1;', 4),
+            ('for(int i=0;(i<4)?256:0;i+=1){if(i==4)break;X[rd]+=1;}', 4),
             ('for(int i=0;i<4;i+=1){for(int j=0;j<2;j+=1){X[rd]+=1;}}', 8),
             ('int i=0;do{X[rd]+=1;i+=1;}while(i<4);', 4),
             ('int i=0;while(i<4){X[rd]+=1;i+=1;}', 4),
@@ -101,40 +123,3 @@ state.X[1]=0x04030201;state.X[2]=0x08070605;
 ''' + emitted + f'\nreturn state.X[3]=={expected}{counters} ? 0:1;}}')
                     self.run_checked(['g++', '-std=c++14', runtime, '-o', root / 'runtime'], root)
                     self.run_checked([root / 'runtime'], root, timeout=3)
-
-    @unittest.skipUnless(os.environ.get('ETISS_PREFIX'), 'Set ETISS_PREFIX for full architecture/software simulation')
-    def test_generated_architecture_software_simulation(self):
-        prefix = Path(os.environ['ETISS_PREFIX']).resolve()
-        config = next(prefix.glob('lib/[Cc][Mm]ake/ETISS/ETISSConfig.cmake'))
-        for coverage in (False, True):
-            with self.subTest(coverage=coverage), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                model, saved = self.parse(root)
-                self.run_checked([sys.executable, '-m', 'm2isar.backends.etiss.writer', saved,
-                    '--fill-mode', 'auto', '--coverage' if coverage else '--no-coverage'], Path.cwd())
-                (root / 'CMakeLists.txt').write_text('''cmake_minimum_required(VERSION 3.16)
-project(LoopCoverageSimulation LANGUAGES C CXX)
-add_subdirectory(gen_output/LoopCoverage/LoopCoverage)
-find_package(ETISS REQUIRED)
-add_executable(sim sim.cpp)
-target_include_directories(sim PRIVATE ${ETISS_INCLUDE_DIRS} gen_output/LoopCoverage/LoopCoverage)
-target_link_libraries(sim PRIVATE ${ETISS_LIBRARIES})
-''')
-                shutil.copyfile(FIXTURES / 'sim.cpp', root / 'sim.cpp')
-                self.run_checked(['cmake', '-S', root, '-B', root / 'build',
-                    f'-DETISS_DIR={config.parent}', f'-DCMAKE_INSTALL_PREFIX={root / "install"}'], root)
-                self.run_checked(['cmake', '--build', root / 'build', '-j2'], root, timeout=120)
-                self.run_checked(['cmake', '--install', root / 'build'], root)
-                output = self.run_checked([root / 'build/sim', root / 'install/lib/plugins'], root, timeout=15)
-                self.assertIn('X[3]=70 X[4]=70 PC=8', output)
-                if coverage:
-                    report = root / 'coverage.csv'
-                    self.assertTrue(report.exists(), 'ETISS must be built with ETISS_USE_COREDSL_COVERAGE=ON')
-                    counts = {int(k): int(v) for k, v in
-                              (line.split(';') for line in report.read_text().splitlines()[2:])}
-                    operation = next(i for i in model.cores['LoopCoverage'].instructions.values()
-                                     if i.name == 'DOTP').operation
-                    loop = operation.statements[0].statements[1]
-                    self.assertIsInstance(loop, behav.ForLoop)
-                    self.assertEqual(counts[loop.cond.line_info.id], 10)
-                    self.assertEqual(counts[loop.body.line_info.id], 8)

@@ -779,12 +779,13 @@ class InstructionTransformVisitor(ExprVisitor):
 			# Emit each inside the loop, including the final false condition test.
 			name = f'loop_value_{context.temp_var_count}'
 			context.temp_var_count += 1
-			cond.code = f'const auto {name} = {cond.code};'
+			# GCCJIT compiles runtime loops as C, including without static scalars.
+			cond.code = f'const etiss_uint8 {name} = !!({cond.code});'
 			test = [cond, CodeString(f'if (!{name}) break;', static, None, None)]
 			body = [CodeString('{ // loop body', static, None, None),
 				*flat_stmts, CodeString('} // loop body', static, None, None)]
 			outputs = [CodeString('{ // loop scope', static, None, None), *flatten(init),
-				CodeString('while (true) { // loop', static, None, None)]
+				CodeString('while (1) { // loop', static, None, None)]
 			if not expr.post_test:
 				outputs.extend(test)
 			outputs.extend(body)
@@ -1094,30 +1095,34 @@ class InstructionTransformVisitor(ExprVisitor):
 		# slice with fixed integers if slice bounds are integers
 		try:
 			new_size = int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1
-			mask = (1 << (int(left.code.replace("U", "").replace("L", "")) - int(right.code.replace("U", "").replace("L", "")) + 1)) - 1
+		except ValueError:
+			# The offset can depend on a loop iterator while the width is known:
+			# e.g. [i+7:i] is UINT<8>, not the width of its source register.
+			new_size = arch.get_const_or_val(expr.ty.size) if isinstance(expr.ty, type_info.PrimitiveType) else None
+
+		if new_size is not None:
+			mask = (1 << new_size) - 1
 			mask_bits = log2(mask)
 			if mask_bits > 64:
 				mask64 = (1 << 64) - 1
 				low = mask & mask64
 				high = mask >> 64
-				mask_code = f"((((etiss_int128)){hex(high)}ULL << 64) | {hex(low)}ULL)"
+				mask_code = f"((((etiss_uint128){hex(high)}ULL) << 64) | {hex(low)}ULL)"
 			else:
 				mask_code = f"{hex(mask)}ULL"
 			mask = f"{mask_code}"
-			simple_mask = True
 
-		# slice with actual lower and upper bound code if not possible to slice with integers
-		except ValueError:
+		# Preserve the fallback for genuinely unknown slice widths.
+		else:
 			new_size = expr_str.size
 			mask = f"((1 << (({left.code}) - ({right.code}) + 1)) - 1)"
-			simple_mask = False
 
-		if simple_mask and (int(right.code.replace("U", "").replace("L", "")) == 0):
+		if right.is_literal and (int(right.code.replace("U", "").replace("L", "")) == 0):
 			# no need to shift zeros steps
 			code = f"(({expr_str.code}) & {mask})"
 		else:
 			code = f"((({expr_str.code}) >> ({right.code})) & {mask})"
-		c = CodeString(code, static, new_size, expr_str.signed,
+		c = CodeString(code, static, new_size, False,
 			set.union(expr_str.regs_affected, left.regs_affected, right.regs_affected), [expr.line_info] + expr_str.line_infos + left.line_infos + right.line_infos)
 		c.mem_ids = expr_str.mem_ids + left.mem_ids + right.mem_ids
 		return c
