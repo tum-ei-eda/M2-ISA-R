@@ -117,6 +117,8 @@ type_specifier
 value_type_specifier
 	: signed=integer_signedness (shorthand=integer_shorthand | '<' size=primary '>') # integer_type
 	| shorthand=integer_shorthand # integer_type
+	| 'fixed' '<' size=primary ',' negative='-'? int_bits=primary
+	  (',' sign=primary (',' q_mode=IDENTIFIER (',' o_mode=IDENTIFIER)?)?)? '>' # fixed_type
 	| shorthand=float_shorthand # float_type
 	| type_='bool' # bool_type
 	| type_='void' # void_type

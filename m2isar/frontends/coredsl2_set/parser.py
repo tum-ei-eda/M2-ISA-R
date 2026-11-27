@@ -16,7 +16,7 @@ import sys
 from ... import M2Error, M2SyntaxError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, behav, type_info, attribute_info
 from ...metamodel.code_info import CodeInfoBase
-from ..coredsl2.parser import try_eval_bool
+from ..coredsl2.parser import resolve_type_sizes, try_eval_bool
 from ..coredsl2.importer import recursive_import
 from ..coredsl2.source_validator import validate_source
 from ..coredsl2.utils import make_parser
@@ -221,18 +221,7 @@ def _parse_model(args):
 				mem_def.attributes[attr_name] = ops
 
 		for reg_def in itertools.chain(set_def.register_banks.values(), set_def.register_aliases.values()):
-			if isinstance(reg_def.ty, type_info.ArrayType):
-				reg_def.ty.element_type.size = arch.get_const_or_val(reg_def.ty.element_type.size)
-				reg_def.ty.length = arch.get_const_or_val(reg_def.ty.length)
-			elif isinstance(reg_def.ty, type_info.PrimitiveType):
-				reg_def.ty.size = arch.get_const_or_val(reg_def.ty.size)
-			else:
-				assert(isinstance(reg_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
-				pass
-				# if isinstance(reg_def.ty.ty, type_info.ArrayType):
-				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_type.size)
-				# else:
-				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
+			resolve_type_sizes(reg_def.ty)
 
 			for attr_name, attr_ops in reg_def.attributes.items():
 				ops = []
@@ -253,6 +242,8 @@ def _parse_model(args):
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
 			fn_def.ty.size = arch.get_const_or_val(fn_def.ty.size)
+			if fn_def.ty.fixed_type is not None:
+				resolve_type_sizes(fn_def.ty.fixed_type)
 
 		logger.debug("generating function behavior")
 

@@ -14,6 +14,7 @@ from copy import copy
 from functools import singledispatchmethod
 
 from m2isar.metamodel import arch, behav, type_info
+from m2isar.metamodel.utils import fixed_point
 from ...diagnostics import M2ValidationError, M2WarningError
 from ...metamodel.utils.ExprVisitor import ExprVisitor
 from .constants import constant_value, holds_value, INDETERMINATE, range_size
@@ -21,6 +22,21 @@ from .constants import constant_value, holds_value, INDETERMINATE, range_size
 logger = logging.getLogger("validate_behav")
 
 # pylint: disable=unused-argument
+
+def _scalar(ty):
+    """Whether ``ty`` is an integer or fixed-point scalar type."""
+    return (isinstance(ty, type_info.FixedType)
+            or isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int)
+
+
+def _compound_combinable(op, source_type, target_type):
+    """Whether ``target op= source`` combines the two types."""
+    if all(isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int for ty in (source_type, target_type)):
+        return True
+    if not (isinstance(target_type, type_info.FixedType) and _scalar(source_type)):
+        return False
+    return op in ('+', '-', '*', '/') or op in ('<<', '>>') and not isinstance(source_type, type_info.FixedType)
+
 
 class ValidateBehavVisitor(ExprVisitor):
     """Visitor to validate a metamodel."""
@@ -85,7 +101,7 @@ class ValidateBehavVisitor(ExprVisitor):
         count = ValidateBehavVisitor._range_size(*bounds)
         if count is None:
             return False
-        if isinstance(target_type, type_info.PrimitiveType) and target_type.kind.is_int:
+        if _scalar(target_type):
             element_bits = 1
         elif isinstance(target_type, type_info.ArrayType):
             element = target_type.element_type
@@ -178,7 +194,7 @@ class ValidateBehavVisitor(ExprVisitor):
             if isinstance(count, int) and count < 0:
                 raise M2ValidationError('Negative array size is invalid', 'InvalidArraySize', line_info)
             ty = ty.element_type
-        if isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int:
+        if _scalar(ty):
             width = ValidateBehavVisitor._declared_size(ty.size, line_info)
             if isinstance(width, int):
                 if width <= 0:
@@ -190,6 +206,9 @@ class ValidateBehavVisitor(ExprVisitor):
 
     @staticmethod
     def _known_type_name(ty):
+        if isinstance(ty, type_info.FixedType):
+            fmt = fixed_point.fixed_format(ty)
+            return ty.source_name() if fmt is not None and fmt.width > 0 else None
         if isinstance(ty, type_info.PrimitiveType):
             if ty.kind == type_info.TypeKind.VOID:
                 return 'void'
@@ -226,8 +245,7 @@ class ValidateBehavVisitor(ExprVisitor):
         then_type, else_type = expr.then_expr.ty, expr.else_expr.ty
         then_name = ValidateBehavVisitor._known_type_name(then_type)
         else_name = ValidateBehavVisitor._known_type_name(else_type)
-        integers = all(isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int
-                       for ty in (then_type, else_type))
+        integers = all(_scalar(ty) for ty in (then_type, else_type))
         if (then_name is not None and else_name is not None
                 and then_name != else_name and not integers):
             return then_name, else_name
@@ -280,6 +298,9 @@ class ValidateBehavVisitor(ExprVisitor):
         source, target = self._known_type_name(source_type), self._known_type_name(target_type)
         if source is None or target is None:
             return None
+        if _scalar(source_type) and _scalar(target_type) and (
+                isinstance(source_type, type_info.FixedType) or isinstance(target_type, type_info.FixedType)):
+            return fixed_point.fixed_convertible(fixed_point.fixed_format(source_type), fixed_point.fixed_format(target_type))
         if (isinstance(source_type, type_info.PrimitiveType) and source_type.kind.is_int
                 and isinstance(target_type, type_info.PrimitiveType) and target_type.kind.is_int):
             source_width = arch.get_const_or_val(source_type.size)
@@ -303,8 +324,10 @@ class ValidateBehavVisitor(ExprVisitor):
                     value = constant_value(value_node, allow_casts=getattr(context, 'architectural_initializer', False))
                 except ZeroDivisionError:
                     raise M2ValidationError('Division by zero', 'DivisionByZero', value_node.line_info)
-                allowed = (target_integer and value is not None and value is not INDETERMINATE
-                           and holds_value(target_type, value))
+                known = value is not None and value is not INDETERMINATE
+                allowed = known and (target_integer and holds_value(target_type, value)
+                                     or isinstance(target_type, type_info.FixedType)
+                                     and fixed_point.fixed_holds_value(fixed_point.fixed_format(target_type), value))
                 if allowed or value is INDETERMINATE and getattr(context, 'partial', False):
                     logger.info('Assignment is allowed despite type incompatibility, because the right hand side is a constant '
                                 '[com.minres.coredsl.ValidConstantAssignment]')
@@ -334,7 +357,7 @@ class ValidateBehavVisitor(ExprVisitor):
                 errors.append(error)
         op = expr.op
 
-        if any(operand.ty is not None and not isinstance(operand.ty, type_info.PrimitiveType)
+        if any(operand.ty is not None and not isinstance(operand.ty, (type_info.PrimitiveType, type_info.FixedType))
                for operand in (expr.left, expr.right)):
             # The checks below assume scalar operands; aggregates only support (in)equality.
             operand_error = self._aggregate_operand_error(expr)
@@ -351,8 +374,7 @@ class ValidateBehavVisitor(ExprVisitor):
                 context.emit_warning("Bitwise operations with differently size operands are discouraged.", "bit-op-missmatch", logger=logger, line_info=expr.line_info)
             if op.value in ["<<", ">>", ">>>"] and expr.right.ty.kind == type_info.TypeKind.INT:
                 context.emit_warning("Shift by signed amount", "shift-signed", logger=logger, line_info=expr.line_info)
-            if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.kind != expr.right.ty.kind:
-                assert(expr.left.ty.kind.is_int and expr.right.ty.kind.is_int)
+            if op.value in ["<", "<=", ">", ">=", "==", "!="] and expr.left.ty.kind.is_signed != expr.right.ty.kind.is_signed:
                 if isinstance(expr.left, behav.Literal) and expr.left.value == 0:
                     pass
                 elif isinstance(expr.right, behav.Literal) and expr.right.value == 0:
@@ -390,7 +412,7 @@ class ValidateBehavVisitor(ExprVisitor):
     def _slice_bounds_error(expr):
         """Report statically known slice bounds beyond the operand width."""
         ty = getattr(expr.expr, 'ty', None)
-        if not (isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int):
+        if not _scalar(ty):
             return None
         width = arch.get_const_or_val(ty.size)
         if not isinstance(width, int) or width <= 0:
@@ -479,9 +501,7 @@ class ValidateBehavVisitor(ExprVisitor):
         target_name = self._known_type_name(expr.target.ty)
         value_name = self._known_type_name(value.ty)
         if operator and not getattr(context, 'partial', False) and target_name is not None and value_name is not None:
-            integer_types = all(isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int
-                                for ty in (expr.target.ty, value.ty))
-            if not integer_types:
+            if not _compound_combinable(operator[:-1], value.ty, expr.target.ty):
                 errors.append(M2ValidationError(
                     f'Cannot combine {value_name} and {target_name} with the {operator[0]} operator',
                     'InvalidOperationType', expr.line_info))
@@ -506,10 +526,12 @@ class ValidateBehavVisitor(ExprVisitor):
                 raise M2ValidationError(f'Cannot implicitly convert {source} to {target}',
                                         'InvalidAssignmentType', expr.line_info)
             return
-        assert isinstance(expr.target.ty, type_info.PrimitiveType)
+        assert isinstance(expr.target.ty, (type_info.PrimitiveType, type_info.FixedType))
         self._validate_scalar_conversion(expr.target.ty, value, context, expr.line_info)
         if not emit_width_warnings:
             return  # Preserve collected semantic errors ahead of fatal warnings.
+        if isinstance(expr.target.ty, type_info.FixedType) or isinstance(value.ty, type_info.FixedType):
+            return  # A fixed-point width says nothing about its range; conversion was checked above.
         if arch.get_const_or_val(expr.target.ty.size) < arch.get_const_or_val(value.ty.size):
             context.emit_warning(f"Implicit truncation {value.ty.size} -> {expr.target.ty.size} found", "implicit-trunc", logger=logger, line_info=expr.line_info)
         if arch.get_const_or_val(expr.target.ty.size) > arch.get_const_or_val(value.ty.size):
@@ -597,7 +619,7 @@ class ValidateBehavVisitor(ExprVisitor):
             if function is None:
                 raise M2ValidationError('Return statement is only valid in a function',
                                         'ReturnStatementOutsideFunction', expr.line_info)
-            target_type = type_info.PrimitiveType(function.ty.kind, function.ty.size)
+            target_type = function.ty.return_type or type_info.PrimitiveType(type_info.TypeKind.VOID, 0)
             if target_type.kind.is_void and expr.expr is not None:
                 raise M2ValidationError('Void functions may not return a value',
                                         'ReturnWithValueInVoidFunction', expr.line_info)
@@ -687,12 +709,12 @@ class ValidateBehavVisitor(ExprVisitor):
                     raise M2ValidationError('Cannot apply signedness cast to non-integer value',
                                             'InvalidCast', expr.line_info)
             else:
-                target_type = type_info.PrimitiveType(expr.data_type, expr.size)
+                target_type = expr.target_type
                 self._validate_declared_sizes(target_type, expr.line_info)
                 target_name = self._known_type_name(target_type)
                 if (not self._has_invalid_type(expr.expr)
                         and source_name is not None and target_name is not None
-                        and not (source_integer and expr.data_type.is_int)):
+                        and not (_scalar(source_type) and _scalar(target_type))):
                     raise M2ValidationError(f'Cannot cast from {source_name} to {target_name}',
                                             'InvalidCast', expr.line_info)
         except M2ValidationError as error:

@@ -8,6 +8,7 @@ unsupported node. It is never proof that an expression is an invalid constant.
 """
 import operator
 import re
+from fractions import Fraction
 
 from .parser_gen import CoreDSL2Parser as P
 
@@ -36,6 +37,22 @@ def integer_literal(text):
 
 def integer_value(text):
     return integer_literal(text)[0]
+
+
+def fixed_literal(text):
+    """Return the exact value, width and integer bits of a decimal literal such as ``0.75``.
+
+    Decimal literals denote fixed-point constants: the type is the narrowest
+    ``unsigned fixed<W, I>`` holding the value exactly. A value without a finite
+    binary expansion (``0.1``) or a floating-point suffix raises ValueError.
+    """
+    if text[-1] in 'fFlL':
+        raise ValueError(f'Literal {text} has a floating-point suffix; decimal literals are fixed-point constants')
+    value = Fraction(text)
+    if value.denominator & (value.denominator - 1):
+        raise ValueError(f'Literal {text} has no exact binary fixed-point representation')
+    width = max(1, value.numerator.bit_length())
+    return value, width, width - (value.denominator.bit_length() - 1)
 
 
 def cast_integer(value, width, signed):

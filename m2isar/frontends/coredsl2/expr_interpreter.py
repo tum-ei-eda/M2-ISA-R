@@ -6,7 +6,13 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
-"""Very crude expression evaluation functions for use during model generation."""
+"""Very crude expression evaluation functions for use during model generation.
+
+A fixed-point literal evaluates to its exact value as a Fraction, so it can
+initialize state; arithmetic on fixed-point constants is not evaluated here.
+"""
+
+from fractions import Fraction
 
 from ... import M2ValueError
 from ...diagnostics import M2ValidationError
@@ -29,11 +35,13 @@ class ExprInterpreterVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.Literal, context):
+		if isinstance(expr.ty, type_info.FixedType):
+			return Fraction(expr.value)
 		return int(expr.value)
 
 	@generate.register
 	def _(self, expr: behav.TypeConv, context):
-		value = self.generate(expr.expr, context)
+		value = _integer(self.generate(expr.expr, context))
 		width = arch.get_const_or_val(expr.size)
 		if width is None:
 			from ...transforms.infer_types.visitor import InferTypesMutator
@@ -62,13 +70,13 @@ class ExprInterpreterVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.BinaryOperation, context):
-		left = self.generate(expr.left, context)
+		left = _integer(self.generate(expr.left, context))
 		op = expr.op.value
 		if context and op == '&&' and not left:
 			return 0
 		if context and op == '||' and left:
 			return 1
-		right = self.generate(expr.right, context)
+		right = _integer(self.generate(expr.right, context))
 		if op in BINARY:
 			value = int(BINARY[op](left, right))
 			if context and op in ('&', '|', '^'):
@@ -128,6 +136,7 @@ class ExprInterpreterVisitor(ExprVisitor):
 		right = self.generate(expr.right, context)
 		if expr.op.value == '-':
 			return -right
+		right = _integer(right)
 		if context and expr.op.value in ('+', '~', '!'):
 			if expr.op.value == '+':
 				return right
@@ -145,3 +154,10 @@ class ExprInterpreterVisitor(ExprVisitor):
 				raise M2ValueError(str(exc)) from exc
 		raise M2ValidationError(f"prefix operator {expr.op.value} is not allowed in constant expression",
 			'InvalidConstantExpressionNode', expr.line_info)
+
+
+def _integer(value):
+	"""``value`` if it is an integer; fixed-point constants only evaluate as (negated) literals."""
+	if isinstance(value, Fraction):
+		raise M2ValueError("fixed-point constants cannot be combined in constant expressions")
+	return value

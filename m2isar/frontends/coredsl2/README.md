@@ -89,7 +89,7 @@ The frontend works with two views of the same declarations and types:
 | Concept | Validator view | Metamodel view |
 |---|---|---|
 | Declared name | `DslSymbol` | `arch.Symbol` (`Register`, `Memory`, `Variable`, ...) or `arch.Parameter` |
-| Type | `DslType` | `type_info.PrimitiveType`, `ArrayType`, `PointerType`, `StructType`, `UnionType` |
+| Type | `DslType` | `type_info.PrimitiveType`, `FixedType`, `ArrayType`, `PointerType`, `StructType`, `UnionType` |
 
 The validator classes use a `Dsl` prefix so they don't clash with the metamodel names.
 
@@ -106,3 +106,20 @@ The validator classes use a `Dsl` prefix so they don't clash with the metamodel 
 - Extern address spaces (`kind == 'address'`). In the metamodel, these are represented as a pointer to their array (`PointerType(ArrayType(...))`).
 
 Structs and unions exist in both views. In the metamodel, `StructType` and `UnionType` store each field's type, bit size and bit offset. Lowering of composite member access is not implemented yet.
+
+### Fixed-point types
+Beyond CoreDSL 2, the frontend accepts binary fixed-point types spelled like Catapult's `ac_fixed<W, I, S, Q, O>`, with the same defaults:
+
+```
+fixed<16, 4> x;                          // 16 bits, 4 of them in front of the binary point; signed, AC_TRN, AC_WRAP
+fixed<8, -2, false> y;                   // unsigned; the integer bit count may be negative or exceed the width
+fixed<12, 4, true, AC_RND_CONV, AC_SAT> z;
+```
+
+`S` is `true` or `false` (or `1`/`0`); `Q` is one of `AC_TRN`, `AC_RND`, `AC_TRN_ZERO`, `AC_RND_ZERO`, `AC_RND_INF`, `AC_RND_MIN_INF`, `AC_RND_CONV`, `AC_RND_CONV_ODD`; `O` one of `AC_WRAP`, `AC_SAT`, `AC_SAT_ZERO`, `AC_SAT_SYM`. In the metamodel such a type is a `type_info.FixedType` (`kind` `FIXED` or `UFIXED`, `size`, `int_bits`, `q_mode`, `o_mode`). The arithmetic rules live in `metamodel/utils/fixed_point.py` and work on resolved `FixedFormat` values (`width`, `int_bits`, `signed`); `fixed_point.fixed_format` makes one from a `FixedType` or reads an integer as `I = W`, so the rules below cover mixed operands too.
+
+- **Literals.** A decimal literal such as `0.75` or `1.5e3` is an exact fixed-point constant: a `Literal` with a `Fraction` value and the narrowest `fixed<W, I, false>` holding it. A value without a finite binary expansion (`0.1`) or a floating-point suffix (`0.5f`) is an error (`InvalidFixedPointLiteral`).
+- **Arithmetic.** `+ - * /` and unary `-` widen exactly as `ac_fixed` does (`fixed_point.fixed_result`, `fixed_negate`), and their results use the default modes; comparisons give `bool`; `<<` and `>>` keep the operand type, modes included, and take an integer shift amount. `& | ^ % ~ ++ --` are integer-only.
+- **Conversions.** `Q` and `O` apply whenever a value is converted into the type: assignment, initialization and casts. Implicit conversion is allowed only without loss of integer or fraction bits (`fixed_point.fixed_convertible`), or for a constant the target represents exactly, so the modes only matter for explicit casts and compound assignments. A cast such as `(fixed<16, 4, true, AC_RND, AC_SAT>)x` converts the value; `TypeConv.fixed_type` carries the full target type. A cast to an integer type (`(signed<8>)x`) truncates and wraps.
+- **Raw bits.** A bit slice of a fixed-point value reads (`x[15:0]`) or writes (`x[15:0] = bits`) its stored bits as an unsigned integer, without rounding or saturation.
+- **Where they may appear.** Local variables, registers (with decimal-literal initializers), function parameters and return types. ISA parameters and `extern` address spaces stay integer-only. The ETISS backend rejects models that use fixed-point types (`metamodel.utils.fixed_point.fixed_point_uses`).

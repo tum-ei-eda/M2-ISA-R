@@ -21,6 +21,8 @@ on which translation module is loaded using :func:`patch_model`.
 """
 
 from typing import TYPE_CHECKING, Union, Optional
+import copy
+
 from .type_info import PrimitiveType, TypeKind, ArrayType
 import numpy as np
 
@@ -291,12 +293,29 @@ class IndexedReference(BaseNode):
 		self.grouped_base = grouped_base
 
 class TypeConv(BaseNode):
-	"""A type conversion. Size can be None, in this case only the signedness is affected."""
-	def __init__(self, data_type, size, expr: BaseNode, line_info=None):
+	"""A type conversion. Size can be None, in this case only the signedness is affected.
+
+	A conversion to a fixed-point ``data_type`` also carries the full target type in
+	``fixed_type`` (see :class:`~m2isar.metamodel.type_info.FixedType`); it converts the
+	value, not the bits, by the target's quantization and overflow modes.
+	"""
+	fixed_type = None
+
+	def __init__(self, data_type, size, expr: BaseNode, line_info=None, fixed_type=None):
 		super().__init__(line_info)
 		self.data_type = data_type
 		self._size = size
 		self.expr = expr
+		self.fixed_type = fixed_type
+
+	@property
+	def target_type(self):
+		"""The declared result type of an explicit conversion, None for a signedness-only one."""
+		if self.size is None:
+			return None
+		if self.fixed_type is not None:
+			return copy.deepcopy(self.fixed_type)
+		return PrimitiveType(self.data_type, self.size)
 
 	@property
 	def size(self) -> int:

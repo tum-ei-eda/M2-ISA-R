@@ -60,7 +60,8 @@ class Operand:
         Return Value gets wrapped in a TypeConv if its smaller than XLEN or signed,
         This can be turned off by passing "cast=False"
         """
-        registers = arch.Memory("X", arch.RangeSpec(32), 32, {attribute_info.MemoryAttribute.IS_MAIN_MEM: []})
+        registers = arch.Memory("X", type_info.PrimitiveType(type_info.TypeKind.UINT, 32), 32,
+                                {attribute_info.MemoryAttribute.IS_MAIN_MEM: []})
         sign = type_info.TypeKind.INT if self.sign == "s" else type_info.TypeKind.UINT
 
         if self.immediate:

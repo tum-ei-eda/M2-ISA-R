@@ -73,7 +73,7 @@ class MetamodelCastNativeTest(unittest.TestCase):
                     ValidateBehavVisitor().generate(cast(condition(source_type), width), ValidatorContext(None))
 
     def test_child_errors_and_explicit_target_recovery(self):
-        function = arch.Function('g', {}, 0, type_info.TypeKind.VOID, [], None, extern=True)
+        function = arch.Function('g', {}, type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
         for width in (None, 33):
             with self.subTest(width=width):
                 child = behav.ProcedureCall(function, [behav.Literal(1)])

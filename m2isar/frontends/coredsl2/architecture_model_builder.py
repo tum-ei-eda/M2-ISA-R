@@ -6,6 +6,7 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+import copy
 import itertools
 import logging
 from typing import Union
@@ -15,7 +16,7 @@ from ... import (M2DuplicateError, M2NameError, M2TypeError, M2ValueError,
 from ...metamodel import arch, behav, type_info, attribute_info, intrinsics
 from ...metamodel.code_info import FunctionInfoFactory
 from ..coredsl2.parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from ..coredsl2.utils import RADIX, SHORTHANDS, SIGNEDNESS
+from ..coredsl2.utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, fixed_point_type
 from ..coredsl2.expr_interpreter import ExprInterpreterVisitor
 from ..coredsl2.source_location import line_info
 
@@ -343,14 +344,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if not isinstance(params, list):
 			params = [params]
 
-		return_size = None
-		data_type = type_info.TypeKind.VOID
+		if not isinstance(type_, (type_info.PrimitiveType, type_info.FixedType)):
+			type_ = type_info.PrimitiveType(type_info.TypeKind.VOID, None)
 
-		if isinstance(type_, type_info.PrimitiveType):
-			return_size = type_.size
-			data_type = type_.kind
-
-		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
+		f = arch.Function(name, attributes, type_, params, ctx.behavior, ctx.extern is not None)
 		if not f.extern:
 			from .source_validator import return_terminated
 			f._coredsl_return_terminated = return_terminated(ctx.behavior)
@@ -398,6 +395,19 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=source_info)
 
+	def visitFloating_constant(self, ctx: CoreDSL2Parser.Floating_constantContext):
+		"""Generate a fixed-point literal holding the exact value of a decimal constant."""
+
+		from .constant_expressions import fixed_literal
+		from ...diagnostics import M2ValidationError
+		source_info = line_info(ctx)
+		try:
+			value, width, int_bits = fixed_literal(ctx.value.text)
+		except ValueError as exc:
+			raise M2ValidationError(str(exc), 'InvalidFixedPointLiteral', source_info) from exc
+		return behav.Literal(value, type_info.FixedType(type_info.TypeKind.UFIXED, width, int_bits),
+			line_info=source_info)
+
 	def visitDeclaration(self, ctx: CoreDSL2Parser.DeclarationContext):
 		"""Generate a declaration."""
 
@@ -408,7 +418,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 
 		# extract data type
 		type_ = self.visit(ctx.type_)
-		assert isinstance(type_, (type_info.PrimitiveType, type_info.PointerType))
+		assert isinstance(type_, (type_info.PrimitiveType, type_info.FixedType, type_info.PointerType))
 
 		# extract list of contained declarations for the given type
 		decls: "list[CoreDSL2Parser.DeclaratorContext]" = ctx.declarations
@@ -481,6 +491,8 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.init is not None:
 						init = self.visit(decl.init)
 
+					if not type_.kind.is_int:
+						raise M2TypeError(f"ISA parameter {name} must have an integer type")
 					signed = True if type_.kind == type_info.TypeKind.INT else False
 
 					c = arch.Parameter(name, init, [], type_.size, signed)
@@ -516,20 +528,20 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					reg = None
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
 					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
-						reg = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
+						reg = arch.RegisterBank(name, size[0], copy.copy(type_), attributes)
 						reg.coredsl_const = 'const' in qualifiers
 					elif isinstance(size[0], behav.Literal):
 						if size[0].value >= 1:
-							reg = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
+							reg = arch.RegisterBank(name, size[0].value, copy.copy(type_), attributes)
 							reg.coredsl_const = 'const' in qualifiers
 						elif size[0].value == 1:
-							reg = arch.Register(name, type_.kind, type_.size, attributes)
+							reg = arch.Register(name, copy.copy(type_), attributes)
 							reg.coredsl_const = 'const' in qualifiers
 						else:
 							M2ValueError("Size is negative for Registerbank")
 					elif isinstance(size[0], int):
 						# Unset Case: =1
-						reg = arch.Register(name, type_.kind, type_.size, attributes)
+						reg = arch.Register(name, copy.copy(type_), attributes)
 						reg.coredsl_const = 'const' in qualifiers
 					else:
 						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
@@ -579,7 +591,9 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-					m = arch.Memory(name, type_.kind, type_.size, size[0], attributes)
+					if type_.kind.is_fixed:
+						raise M2TypeError(f"extern address space {name} must have an integer type")
+					m = arch.Memory(name, copy.copy(type_), size[0], attributes)
 					m.coredsl_const = 'const' in qualifiers
 
 					# attach init value to memory object
@@ -645,6 +659,34 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 
 		return type_info.PrimitiveType(kind, width)
+
+	def visitFixed_type(self, ctx: CoreDSL2Parser.Fixed_typeContext):
+		"""Generate a fixed-point type specification."""
+
+		def resolved(node):
+			value = self.visit(node)
+			if isinstance(value, behav.Literal):
+				return value.value
+			if isinstance(value, behav.NamedReference):
+				return value.reference
+			raise M2TypeError("fixed-point type parameter has wrong type")
+
+		width = resolved(ctx.size)
+		int_bits = resolved(ctx.int_bits)
+		if ctx.negative is not None:
+			if not isinstance(int_bits, int):
+				raise M2TypeError("a negative fixed-point integer bit count must be a literal")
+			int_bits = -int_bits
+		sign = None
+		if ctx.sign is not None:
+			sign = BOOLCONST[ctx.sign.getText()] if ctx.sign.getText() in BOOLCONST else resolved(ctx.sign)
+		if sign is not None and not isinstance(sign, int):
+			raise M2TypeError("the signedness of a fixed-point state type must be a literal")
+		try:
+			return fixed_point_type(width, int_bits, sign, *(None if mode is None else mode.text
+			                                                 for mode in (ctx.q_mode, ctx.o_mode)))
+		except ValueError as exc:
+			raise M2TypeError(str(exc)) from exc
 
 	def visitEnum_reference(self, ctx):
 		for parameter in self._parameters.values():

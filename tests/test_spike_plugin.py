@@ -15,8 +15,8 @@ from m2isar.backends.spike.plugin import Unsupported, generate_plugin
 
 
 def example_set():
-    x = a.RegisterBank('X', 32, TypeKind.UINT, 32, {RegisterAttribute.IS_MAIN_REG: []})
-    acc = a.RegisterBank('ACC', 4, TypeKind.UINT, 32, {})
+    x = a.RegisterBank('X', 32, PrimitiveType(TypeKind.UINT, 32), {RegisterAttribute.IS_MAIN_REG: []})
+    acc = a.RegisterBank('ACC', 4, PrimitiveType(TypeKind.UINT, 32), {})
     insns = {}
     for funct, kind in enumerate(['add', 'sub', 'xor', 'and', 'or', 'set', 'get', 'accumulate']):
         enc = [a.BitVal(7, funct), a.BitField('rs2', a.RangeSpec(5), TypeKind.UINT),

@@ -1,7 +1,8 @@
 """Source semantic validation before simplification and model lowering.
 
 Keeps ISA parameter values separate for each root ISA and preserves block
-scope. Currently models integers, arrays, address spaces and function signatures;
+scope. Currently models integers, fixed-point numbers, arrays, address spaces and
+function signatures;
 unknown composite/pointer/intrinsic types are explicitly deferred.
 """
 import logging
@@ -9,9 +10,13 @@ from dataclasses import dataclass
 
 from ...warnings import WarningsManager
 from ...diagnostics import M2ValidationError
-from .constant_expressions import constant_value, integer_literal
+from .constant_expressions import constant_value, fixed_literal, integer_literal
+from .utils import fixed_point_type
 from .parser_gen import CoreDSL2Parser as P, CoreDSL2Visitor
-from .source_types import UNKNOWN, VOID, BOOL, DslType, integer, array, address, enum, composite, common_integer, convertible, holds_value
+from .source_types import (UNKNOWN, VOID, BOOL, DslType, integer, fixed, from_format, array, address, enum, composite,
+                           common_integer, convertible, holds_value)
+from ...metamodel import type_info
+from ...metamodel.utils import fixed_point
 from .source_validator import (Diagnostics, ScopeStack, SourceValidator, contributors, dependencies, in_progress,
                                is_alias, is_const, location, provided, return_terminated, statement_expression,
                                unresolved)
@@ -39,6 +44,25 @@ class DslSymbol:
     enum_offset: int = 0
     enum_definition: object = None
     model: object = None
+
+
+def fixed_constant(ctx):
+    """The exact value of a (negated, parenthesized) decimal literal, None for any other expression."""
+    if isinstance(ctx, P.Primary_expressionContext):
+        return fixed_constant(ctx.primary())
+    if isinstance(ctx, P.Parens_expressionContext):
+        return fixed_constant(ctx.expr)
+    if isinstance(ctx, P.Constant_expressionContext):
+        return fixed_constant(ctx.const_expr.getChild(0))
+    if isinstance(ctx, P.Prefix_expressionContext) and ctx.prefix.text == '-':
+        value = fixed_constant(ctx.right)
+        return None if value is None else -value
+    if isinstance(ctx, P.Floating_constantContext):
+        try:
+            return fixed_literal(ctx.value.text)[0]
+        except ValueError:
+            return None
+    return None
 
 
 def reference(ctx):
@@ -166,6 +190,24 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             if width is not None and width > 2147483647:
                 self.error(ctx, 'InvalidIntegerTypeSize', 'Integer type size must not exceed Integer.MAX_VALUE')
             return integer(width, signed)
+        if isinstance(value_type, P.Fixed_typeContext):
+            width = self.evaluate(value_type.size, True)
+            int_bits = self.evaluate(value_type.int_bits, True)
+            sign = None if value_type.sign is None else self.evaluate(value_type.sign, True)
+            if width is not None and width <= 0:
+                self.error(ctx, 'InvalidIntegerTypeSize', 'Fixed-point type size must be greater than 0')
+            if width is not None and width > 2147483647:
+                self.error(ctx, 'InvalidIntegerTypeSize', 'Fixed-point type size must not exceed Integer.MAX_VALUE')
+            if int_bits is not None and value_type.negative is not None:
+                int_bits = -int_bits
+            if width is None or int_bits is None or value_type.sign is not None and sign is None:
+                return UNKNOWN
+            try:
+                meta = fixed_point_type(width, int_bits, sign, *(None if mode is None else mode.text
+                                                                 for mode in (value_type.q_mode, value_type.o_mode)))
+            except ValueError as exc:
+                self.error(ctx, 'InvalidFixedPointType', str(exc))
+            return DslType('fixed', meta)
         if isinstance(value_type, P.Bool_typeContext):
             return BOOL
         if isinstance(value_type, P.Void_typeContext):
@@ -563,7 +605,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             source = self.recover_expression_type(expression, errors)
             with errors.collect():
                 self.check_conversion(expression, source, target, 'InvalidAssignmentType')
-            if isa:
+            if isa and not (target.fixed and fixed_constant(expression) is not None):
                 with errors.collect():
                     self.evaluate(expression, True)
             errors.raise_if_any()
@@ -627,7 +669,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             with errors.collect():
                 self.alias_source(alias, expression.expr)
             base = self.expression_type(expression.expr)
-            count = base.width if base.integer else base.count
+            count = base.width if base.numeric else base.count
             for index in (expression.left, expression.right):
                 if index is None:
                     continue
@@ -658,6 +700,8 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
         if convertible(source, target):
             return
         value = self.evaluate(ctx)
+        if value is None and target.fixed:
+            value = fixed_constant(ctx)
         if value is not None and holds_value(target, value):
             logger.info('Assignment is allowed despite type incompatibility, because the right hand side is a constant [com.minres.coredsl.ValidConstantAssignment]')
             return
@@ -941,7 +985,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
 
     @staticmethod
     def bit_size(ty):
-        if ty.kind in ('struct', 'union', 'enum') or ty.integer:
+        if ty.kind in ('struct', 'union', 'enum') or ty.numeric:
             return ty.width
         if ty == VOID:
             return 0
@@ -1046,7 +1090,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
                 result = self.specified_type(ctx.type_)
             target_size = self.bit_size(result)
             target_error = target_size is None or target_size < 0
-            if not source_error and not target_error and not (source.integer and result.integer):
+            if not source_error and not target_error and not (source.numeric and result.numeric):
                 errors.add(ctx, 'InvalidCast', f'Cannot cast from {source} to {result}')
         elif source_error:
             # Release signedness casts propagate the operand's error type.
@@ -1110,6 +1154,12 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
         if isinstance(ctx, P.Integer_constantContext):
             _, width, signed = integer_literal(ctx.value.text)
             return integer(width, signed)
+        if isinstance(ctx, P.Floating_constantContext):
+            try:
+                _, width, int_bits = fixed_literal(ctx.value.text)
+            except ValueError as exc:
+                self.error(ctx, 'InvalidFixedPointLiteral', str(exc))
+            return fixed(width, int_bits)
         if isinstance(ctx, P.Bool_constantContext):
             return BOOL
         if isinstance(ctx, P.Reference_expressionContext):
@@ -1143,7 +1193,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
                 self.assignment_target(ctx.left)
             with errors.collect():
                 self.check_conversion(ctx.right, source, target, 'InvalidAssignmentType')
-            if ctx.bop.text != '=' and not self.partial and not (source.integer and target.integer):
+            if ctx.bop.text != '=' and not self.partial and not self.compound_combinable(ctx.bop.text[:-1], source, target):
                 errors.add(ctx, 'InvalidOperationType',
                            f'Cannot combine {source} and {target} with the {ctx.bop.text[0]} operator')
             ctx._diagnostic_result_type = target
@@ -1189,17 +1239,19 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
         if modifying:
             with errors.collect():
                 self.assignment_target(operand)
-        valid = ty.scalar if op == '!' else ty.integer
+        valid = ty.scalar if op == '!' else ty.integer or (ty.fixed and op in ('+', '-') and not modifying)
         if known and not valid:
             message = ('Logical not is only valid on scalar types' if op == '!' else
                        'Increment and decrement operators are only valid on integer types'
-                       if modifying else 'Unary operators are only valid on integer types')
+                       if modifying else 'Operator ~ is only valid on integer types'
+                       if ty.fixed else 'Unary operators are only valid on integer types')
             errors.add(ctx, 'InvalidOperationType', message)
             result = BOOL if op == '!' else UNKNOWN
         elif op == '!':
             result = UNKNOWN if self.partial and ty == UNKNOWN and not errors else BOOL
         elif op == '-':
-            result = integer(ty.width + 1, True) if ty.integer else UNKNOWN
+            result = (integer(ty.width + 1, True) if ty.integer else
+                      from_format(fixed_point.fixed_negate(ty.format)) if ty.fixed else UNKNOWN)
         else:
             result = ty
         ctx._diagnostic_result_type = result
@@ -1222,6 +1274,8 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             result = left
         elif left.integer and right.integer:
             result = common_integer(left, right)
+        elif left.numeric and right.numeric:
+            result = from_format(fixed_point.fixed_common(left.format, right.format))
         else:
             errors.add(ctx, 'IncompatibleOptionTypes', f'Incompatible option types: {left} and {right}')
             result = UNKNOWN
@@ -1265,6 +1319,8 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             return BOOL
         if op in ('==', '!=') and left == right and left.kind != 'address':
             return BOOL
+        if (left.fixed or right.fixed) and left.numeric and right.numeric:
+            return self.fixed_binary_type(ctx, op, left, right)
         if not (left.integer and right.integer):
             self.error(ctx, 'InvalidOperationType', 'Operation is only valid on integer types')
         if op in ('==', '!=', '<', '<=', '>', '>='):
@@ -1291,6 +1347,27 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
             return integer(width, left.signed)
         return UNKNOWN
 
+    def fixed_binary_type(self, ctx, op, left, right):
+        """Result type of a binary operation with a fixed-point operand, by ac_fixed's rules."""
+        if op in ('==', '!=', '<', '<=', '>', '>='):
+            return BOOL
+        if op in ('<<', '>>'):
+            if not right.integer:
+                self.error(ctx, 'InvalidOperationType', 'The shift amount must have an integer type')
+            return left
+        if op in ('+', '-', '*', '/'):
+            return from_format(fixed_point.fixed_result(op, left.format, right.format))
+        self.error(ctx, 'InvalidOperationType', f'Operator {op} is not valid on fixed-point types')
+
+    @staticmethod
+    def compound_combinable(op, source, target):
+        """Whether ``target op= source`` combines the two types."""
+        if source.integer and target.integer:
+            return True
+        if not (target.fixed and source.numeric):
+            return False
+        return op in ('+', '-', '*', '/') or op in ('<<', '>>') and source.integer
+
     def index_type(self, ctx):
         ctx._diagnostic_result_type = UNKNOWN
         errors = Diagnostics()
@@ -1310,7 +1387,7 @@ class SemanticValidator(CoreDSL2Visitor, WarningsManager, ScopeStack):
         index = child_type(ctx.left)
         if base == UNKNOWN:
             element, count = UNKNOWN, None
-        elif base.integer:
+        elif base.numeric:
             element, count = BOOL, base.width
         elif base.kind in ('array', 'address'):
             element, count = base.element, base.count

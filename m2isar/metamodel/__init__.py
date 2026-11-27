@@ -41,7 +41,7 @@ from m2isar.metamodel import type_info
 
 from . import arch, behav, code_info
 
-M2_METAMODEL_VERSION = 5
+M2_METAMODEL_VERSION = 6
 
 
 def patch_model(module):
