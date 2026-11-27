@@ -745,7 +745,7 @@ class InstructionTransformVisitor(ExprVisitor):
 
 	@generate.register
 	def _(self, expr: behav.LoopBase, context: TransformerContext):
-		"""Keep loop initialization, tests, body and latch in one execution domain."""
+		"""Keep loop control in its inferred domain, with an explicitly braced body."""
 		init = [self._generate_statement(x, context) for x in expr.init]
 		cond: CodeString = self.generate(expr.cond, context)
 		updates = [self._generate_statement(x, context) for x in expr.updates]
@@ -766,7 +766,11 @@ class InstructionTransformVisitor(ExprVisitor):
 
 		flat_stmts = list(flatten(stmts))
 		semantic_stmts = [x for x in flat_stmts if "// block" not in x.code]
-		static = all(x.static for x in [*flatten(init), cond, *flatten(updates), *semantic_stmts])
+		# A static iterator may emit runtime statements (e.g. DOTP slices).
+		# Demoting it after generating those statements leaves make_static()
+		# references to a translator variable whose declaration was demoted.
+		body_static = getattr(expr, 'static_access', all(x.static for x in semantic_stmts))
+		static = body_static and all(x.static for x in [*flatten(init), cond, *flatten(updates)])
 		if not static:
 			context.dependent_regs.update(cond.regs_affected)
 

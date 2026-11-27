@@ -16,6 +16,7 @@ from typing import Any, cast
 
 from ...metamodel import arch, behav, attribute_info
 from .ExprVisitor import ExprVisitor
+from .control_flow import stray_control_flow_locations
 
 # pylint: disable=unused-argument
 
@@ -128,10 +129,14 @@ class VarAccessVisitor(ExprVisitor):
 	def _(self, expr: behav.LoopBase, context: attribute_info.AccessContext):
 		init = [self.generate(x, context) for x in expr.init]
 		cond = self.generate(expr.cond, context)
-		stmt_context = dataclasses.replace(context, access_is_static=cond)
+		# Translation-time break/continue could skip emitted runtime closing
+		# braces. Keep loops with these exits wholly in the runtime domain.
+		exits = any(stray_control_flow_locations(stmt) for stmt in expr.stmts)
+		access = attribute_info.AccessAttribute.NONE if exits else cond
+		stmt_context = dataclasses.replace(context, access_is_static=access)
 		stmts = [self.generate(x, stmt_context) for x in expr.stmts]
 		updates = [self.generate(x, stmt_context) for x in expr.updates]
-		valid = [x for x in init + [cond] + stmts + updates if x is not None]
+		valid = [x for x in init + [cond, access] + stmts + updates if x is not None]
 		loop_access = min(valid) if valid else cond
 
 		# A for-loop iterator belongs to the same execution domain as its loop.
@@ -142,6 +147,10 @@ class VarAccessVisitor(ExprVisitor):
 				if isinstance(init_stmt, behav.Assignment) and isinstance(init_stmt.target, behav.VarDefinition):
 					init_stmt.target.var.attributes["static"] = loop_access
 
+		# Retain the control-flow domain for code generators. Runtime assignments
+		# in the body can be emitted by a static loop without making its iterator
+		# dynamic; runtime-dependent control flow cannot.
+		expr.static_access = loop_access
 		return loop_access
 
 	@generate.register
