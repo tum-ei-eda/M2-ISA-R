@@ -24,6 +24,18 @@ from functools import singledispatchmethod
 
 # pylint: disable=unused-argument
 
+def _widenable_literal(literal_type, other_type):
+	"""Whether a literal of ``literal_type`` may be widened to an ``other_type`` operand.
+
+	A fixed-point literal's width fixes its binary point, and widening an integer
+	towards a fixed-point operand would change its integer bits, so only integers
+	(or arrays of integers) take part.
+	"""
+	while isinstance(other_type, type_info.ArrayType):
+		other_type = other_type.element_type
+	return all(isinstance(ty, type_info.PrimitiveType) and ty.kind.is_int for ty in (literal_type, other_type))
+
+
 class ExprSimplifierVisitor(ExprVisitor):
 	"""Visitor that simplifies behavior expression trees."""
 
@@ -89,11 +101,13 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.left = self.generate(expr.left, context)
 		expr.right = self.generate(expr.right, context)
 
-		if isinstance(expr.left, behav.Literal) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference)):
+		if (isinstance(expr.left, behav.Literal) and isinstance(expr.right, (behav.NamedReference, behav.IndexedReference))
+				and _widenable_literal(expr.left.ty, expr.right.reference.ty)):
 			if expr.left.ty.size < arch.get_const_or_val(expr.right.reference.ty.size):
 				expr.left.ty.size = arch.get_const_or_val(expr.right.reference.ty.size)
 
-		if isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference)):
+		if (isinstance(expr.right, behav.Literal) and isinstance(expr.left, (behav.NamedReference, behav.IndexedReference))
+				and _widenable_literal(expr.right.ty, expr.left.ty)):
 			if isinstance(expr.left.ty, type_info.ArrayType):
 				if expr.right.ty.size < arch.get_const_or_val(expr.left.reference.ty.element_type.size):
 					expr.right.ty.size = arch.get_const_or_val(expr.left.reference.ty.element_type.size)
@@ -155,7 +169,8 @@ class ExprSimplifierVisitor(ExprVisitor):
 		expr.target = self.generate(expr.target, context)
 		expr.expr = self.generate(expr.expr, context)
 
-		if isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference)):
+		if (isinstance(expr.expr, behav.Literal) and isinstance(expr.target, (behav.NamedReference, behav.IndexedReference))
+				and _widenable_literal(expr.expr.ty, expr.target.ty)):
 			if expr.expr.ty.size < arch.get_const_or_val(expr.target.ty.size):
 				expr.expr.ty.size = arch.get_const_or_val(expr.target.ty.size)
 

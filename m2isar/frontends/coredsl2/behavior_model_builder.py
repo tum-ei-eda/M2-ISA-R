@@ -17,7 +17,7 @@ from ...metamodel import arch, behav, type_info, intrinsics, attribute_info
 from ...metamodel.code_info import (BranchEntryInfoFactory, BranchInfo,
                                     LineInfoPlacement)
 from .parser_gen import CoreDSL2Parser, CoreDSL2Visitor
-from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, infer_shape_from_type
+from .utils import BOOLCONST, RADIX, SHORTHANDS, SIGNEDNESS, fixed_point_type, infer_shape_from_type
 from .expr_interpreter import ExprInterpreterVisitor
 from .source_location import line_info
 
@@ -243,7 +243,7 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 					init = behav.Tensor(np.array(values, dtype=object), type_,
 					                    initializer_elements=initializer_elements)
 			else:
-				if isinstance(type_, type_info.PrimitiveType):
+				if isinstance(type_, (type_info.PrimitiveType, type_info.FixedType)):
 					init = behav.Literal(0, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
 				elif isinstance(type_, type_info.ArrayType):
 					shape = []
@@ -496,6 +496,19 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 		return behav.Literal(value, type_info.PrimitiveType(kind, width), line_info=source_location)
 
+	def visitFloating_constant(self, ctx: CoreDSL2Parser.Floating_constantContext):
+		"""Generate a fixed-point literal holding the exact value of a decimal constant."""
+
+		from .constant_expressions import fixed_literal
+		from ...diagnostics import M2ValidationError
+		source_location = line_info(ctx)
+		try:
+			value, width, int_bits = fixed_literal(ctx.value.text)
+		except ValueError as exc:
+			raise M2ValidationError(str(exc), 'InvalidFixedPointLiteral', source_location) from exc
+		return behav.Literal(value, type_info.FixedType(type_info.TypeKind.UFIXED, width, int_bits),
+			line_info=source_location)
+
 	def visitCharacter_constant(self, ctx: CoreDSL2Parser.Character_constantContext):
 		"""Generate a character literal. Converts directly to uint8."""
 
@@ -524,17 +537,20 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		"""Generate a type cast."""
 
 		expr = self.visit(ctx.right)
+		fixed_type = None
 		if ctx.type_:
 			type_ = self.visit(ctx.type_)
 			kind = type_.kind
 			size = type_.size
+			if isinstance(type_, type_info.FixedType):
+				fixed_type = type_
 
 		if ctx.sign:
 			sign = self.visit(ctx.sign)
 			kind = type_info.TypeKind.INT if sign else type_info.TypeKind.UINT
 			size = None
 
-		return behav.TypeConv(kind, size, expr, line_info(ctx))
+		return behav.TypeConv(kind, size, expr, line_info(ctx), fixed_type=fixed_type)
 
 	def visitType_specifier(self, ctx: CoreDSL2Parser.Type_specifierContext):
 		"""Generate a generic type specifier."""
@@ -567,6 +583,20 @@ class BehaviorModelBuilder(CoreDSL2Visitor):
 		kind = type_info.TypeKind.INT if signed else type_info.TypeKind.UINT
 
 		return type_info.PrimitiveType(kind, width)
+
+	def visitFixed_type(self, ctx: CoreDSL2Parser.Fixed_typeContext):
+		"""Generate a fixed-point type specifier."""
+
+		width = exprInterpretVisitor.generate(self.visit(ctx.size), None)
+		int_bits = exprInterpretVisitor.generate(self.visit(ctx.int_bits), None)
+		if ctx.negative is not None:
+			int_bits = -int_bits
+		sign = None if ctx.sign is None else exprInterpretVisitor.generate(self.visit(ctx.sign), None)
+		try:
+			return fixed_point_type(width, int_bits, sign, *(None if mode is None else mode.text
+			                                                 for mode in (ctx.q_mode, ctx.o_mode)))
+		except ValueError as exc:
+			raise M2TypeError(str(exc)) from exc
 
 	def visitVoid_type(self, ctx: CoreDSL2Parser.Void_typeContext):
 		"""Generate a void type specifier."""

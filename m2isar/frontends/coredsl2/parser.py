@@ -39,6 +39,24 @@ def try_eval_bool(operation, parameters: "dict[str, arch.Parameter]", memories: 
 	return value != 0
 
 
+def resolve_type_sizes(ty):
+	"""Replace the parameter-dependent sizes of a register (bank), register alias or return type by their values."""
+	if isinstance(ty, type_info.ArrayType):
+		ty.length = arch.get_const_or_val(ty.length)
+		ty = ty.element_type
+	if isinstance(ty, (type_info.PrimitiveType, type_info.FixedType)):
+		ty.size = arch.get_const_or_val(ty.size)
+		if isinstance(ty, type_info.FixedType):
+			ty.int_bits = arch.get_const_or_val(ty.int_bits)
+	else:
+		assert(isinstance(ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
+		pass
+		# if isinstance(ty.ty, type_info.ArrayType):
+		# 	ty.size = arch.get_const_or_val(ty.ty.element_type.size)
+		# else:
+		# 	ty.size = arch.get_const_or_val(ty.ty.size)
+
+
 def main(argv=None):
 	parser = argparse.ArgumentParser()
 	parser.add_argument("top_level", help="The top-level CoreDSL file.")
@@ -161,18 +179,7 @@ def main(argv=None):
 				mem_def.attributes[attr_name] = ops
 
 		for reg_def in itertools.chain(core_def.register_banks.values(), core_def.register_aliases.values()):
-			if isinstance(reg_def.ty, type_info.ArrayType):
-				reg_def.ty.element_type.size = arch.get_const_or_val(reg_def.ty.element_type.size)
-				reg_def.ty.length = arch.get_const_or_val(reg_def.ty.length)
-			elif isinstance(reg_def.ty, type_info.PrimitiveType):
-				reg_def.ty.size = arch.get_const_or_val(reg_def.ty.size)
-			else:
-				assert(isinstance(reg_def.ty, type_info.PointerType)) # TODO: PointerType handlind looks like cancer!!!!
-				pass
-				# if isinstance(reg_def.ty.ty, type_info.ArrayType):
-				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.element_type.size)
-				# else:
-				# 	reg_def.ty.size = arch.get_const_or_val(reg_def.ty.ty.size)
+			resolve_type_sizes(reg_def.ty)
 
 			for attr_name, attr_ops in reg_def.attributes.items():
 				ops = []
@@ -194,6 +201,8 @@ def main(argv=None):
 				raise M2SyntaxError(f"non-extern function {fn_def.name} has no body")
 
 			fn_def.ty.size = arch.get_const_or_val(fn_def.ty.size)
+			if fn_def.ty.fixed_type is not None:
+				resolve_type_sizes(fn_def.ty.fixed_type)
 
 		logger.debug("generating function behavior")
 

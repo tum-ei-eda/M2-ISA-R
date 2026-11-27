@@ -26,6 +26,7 @@ from functools import singledispatchmethod
 from copy import deepcopy
 
 from m2isar.metamodel import arch, behav, type_info
+from m2isar.metamodel.utils import fixed_point
 from ...diagnostics import M2ValidationError
 from ...metamodel.utils.ExprMutator import ExprMutator
 from ..validate_behav.constants import range_size
@@ -61,6 +62,36 @@ def _require_primitive_operands(expr, message, *operands):
                                     _location(expr, operand))
 
 
+def _scalar(ty):
+    """Whether ``ty`` is a scalar integer or fixed-point type."""
+    return isinstance(ty, (type_info.PrimitiveType, type_info.FixedType))
+
+
+def _fixed_operation_type(expr):
+    """The result type of a binary operation with a fixed-point operand, by ac_fixed's rules."""
+    op = expr.op.value
+    left, right = fixed_point.fixed_format(expr.left.ty), fixed_point.fixed_format(expr.right.ty)
+    if left is None or right is None:
+        raise M2ValidationError("Fixed-point operations need resolved integer or fixed-point operands",
+                                "InvalidOperationType", _location(expr))
+    if op in ("<<", ">>"):
+        if not (isinstance(expr.right.ty, type_info.PrimitiveType) and expr.right.ty.kind.is_int):
+            raise M2ValidationError("The shift amount must have an integer type", "InvalidOperationType",
+                                    _location(expr, expr.right))
+        return deepcopy(expr.left.ty)
+    if op in ("+", "-", "*", "/"):
+        return fixed_point.fixed_result(op, left, right).to_type()
+    raise M2ValidationError(f"Operator {op} is not valid on fixed-point types", "InvalidOperationType",
+                            _location(expr))
+
+
+def _require_scalar_operands(expr, message, *operands):
+    """Like _require_primitive_operands, accepting fixed-point operands too."""
+    for operand in operands:
+        if operand.ty is not None and not _scalar(operand.ty):
+            raise M2ValidationError(message, "InvalidOperationType", _location(expr, operand))
+
+
 class InferTypesMutator(ExprMutator):
     """Mutator to annote inferred types to a metamodel."""
 
@@ -93,6 +124,11 @@ class InferTypesMutator(ExprMutator):
             if expr.left.ty is None or expr.right.ty is None:
                 logger.warning("Binary Operation needs inferred type.")
                 expr.ty = None
+                return expr
+            if isinstance(expr.left.ty, type_info.FixedType) or isinstance(expr.right.ty, type_info.FixedType):
+                _require_scalar_operands(expr, "Operation is only valid on integer and fixed-point types",
+                                         expr.left, expr.right)
+                expr.ty = _fixed_operation_type(expr)
                 return expr
             _require_primitive_operands(expr, "Operation is only valid on integer types", expr.left, expr.right)
             w1 = arch.get_const_or_val(expr.left.ty.size)
@@ -176,8 +212,11 @@ class InferTypesMutator(ExprMutator):
                 line_info=expr.expr.line_info,
             )
             return expr
-        assert isinstance(expr.expr.ty, (type_info.PrimitiveType))
+        assert isinstance(expr.expr.ty, (type_info.PrimitiveType, type_info.FixedType))
         ty = expr.expr.ty
+        if isinstance(ty, type_info.FixedType):
+            # Bit slices read the stored bits of a fixed-point value as an unsigned integer.
+            ty = type_info.PrimitiveType(type_info.TypeKind.UINT, ty.size)
         width = range_size(expr.left, expr.right)
         if width is None:
             context.emit_warning(
@@ -223,9 +262,9 @@ class InferTypesMutator(ExprMutator):
     def _(self, expr: behav.Literal, context):
         # type inference
         assert expr.ty.size is not None
-        assert expr.ty.kind.is_int
+        assert expr.ty.kind.is_int or expr.ty.kind.is_fixed
 
-        expr.ty = type_info.PrimitiveType(expr.ty.kind, expr.ty.size)
+        expr.ty = deepcopy(expr.ty)
         return expr
 
     # behav.IntLiteral
@@ -235,7 +274,7 @@ class InferTypesMutator(ExprMutator):
             expr.initializer_elements = [self.generate(element, context) for element in expr.initializer_elements]
         # type inference
         assert expr.ty.length is not None
-        assert expr.ty.element_type.kind.is_int
+        assert expr.ty.element_type.kind.is_int or expr.ty.element_type.kind.is_fixed
 
         expr.ty = type_info.ArrayType(expr.ty.element_type, expr.ty.length)
         return expr
@@ -243,13 +282,13 @@ class InferTypesMutator(ExprMutator):
     @generate.register
     def _(self, expr: behav.VarDefinition, context):
         # type inference
-        assert isinstance(expr.var.ty, (type_info.PrimitiveType, type_info.ArrayType))
+        assert isinstance(expr.var.ty, (type_info.PrimitiveType, type_info.FixedType, type_info.ArrayType))
         if isinstance(expr.var.ty, type_info.ArrayType):
             assert expr.var.ty.element_type.size is not None
-            assert expr.var.ty.element_type.kind.is_int
-        elif isinstance(expr.var.ty, type_info.PrimitiveType):
+            assert expr.var.ty.element_type.kind.is_int or expr.var.ty.element_type.kind.is_fixed
+        else:
             assert expr.var.ty.size is not None
-            assert expr.var.ty.kind.is_int
+            assert expr.var.ty.kind.is_int or expr.var.ty.kind.is_fixed
         expr.ty = expr.var.ty
         return expr
 
@@ -300,7 +339,12 @@ class InferTypesMutator(ExprMutator):
         # TODO
         then_ty = expr.then_expr.ty
         else_ty = expr.else_expr.ty
-        if then_ty and else_ty:
+        if isinstance(then_ty, type_info.FixedType) or isinstance(else_ty, type_info.FixedType):
+            then_format, else_format = fixed_point.fixed_format(then_ty), fixed_point.fixed_format(else_ty)
+            if then_format is not None and else_format is not None:
+                expr.ty = fixed_point.fixed_common(then_format, else_format).to_type()
+            # Otherwise the validator reports the incompatible option types.
+        elif then_ty and else_ty:
             # assert then_ty.signed == else_ty.signed
             wt = arch.get_const_or_val(then_ty.size)
             we = arch.get_const_or_val(else_ty.size)
@@ -322,7 +366,17 @@ class InferTypesMutator(ExprMutator):
         if expr.op.value in ('++', '--'):
             expr.ty = expr.right.ty
             return expr
-        if expr.right.ty:
+        if isinstance(expr.right.ty, type_info.FixedType):
+            if expr.op.value == "-":
+                expr.ty = fixed_point.fixed_negate(fixed_point.fixed_format(expr.right.ty)).to_type()
+            elif expr.op.value == "+":
+                expr.ty = deepcopy(expr.right.ty)
+            elif expr.op.value == "!":
+                expr.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 1)
+            else:
+                raise M2ValidationError(f"Operator {expr.op.value} is only valid on integer types",
+                                        "InvalidOperationType", _location(expr))
+        elif expr.right.ty:
             _require_primitive_operands(expr, "Logical not is only valid on scalar types" if expr.op.value == "!"
                                         else "Unary operators are only valid on integer types", expr.right)
             w1 = expr.right.ty.size
@@ -348,9 +402,9 @@ class InferTypesMutator(ExprMutator):
             assert reference.ty.kind.is_int
             expr.ty = reference.ty
         elif isinstance(reference, (arch.Variable, arch.Memory, arch.RegisterBank, arch.Register)):
-            assert isinstance(reference.ty, (type_info.PrimitiveType, type_info.ArrayType))
+            assert isinstance(reference.ty, (type_info.PrimitiveType, type_info.FixedType, type_info.ArrayType))
             # Constant-time calculation of sizes
-            if isinstance(reference.ty, type_info.PrimitiveType):
+            if isinstance(reference.ty, (type_info.PrimitiveType, type_info.FixedType)):
                 reference.ty.size = arch.get_const_or_val(reference.ty.size)
             elif isinstance(reference.ty, type_info.ArrayType):
                 reference.ty.length = arch.get_const_or_val(reference.ty.length)
@@ -401,7 +455,8 @@ class InferTypesMutator(ExprMutator):
             if count is None:
                 raise M2ValidationError("Cannot determine size of array range",
                                         "InvalidRangePattern", expr.line_info)
-            if not isinstance(element, type_info.PrimitiveType) or not element.kind.is_int:
+            if not isinstance(element, (type_info.PrimitiveType, type_info.FixedType)) or not (
+                    element.kind.is_int or element.kind.is_fixed):
                 context.emit_warning("Can not infer type of array range elements.",
                                      "infer-type", logger=logger, line_info=expr.line_info)
                 return expr
@@ -424,7 +479,7 @@ class InferTypesMutator(ExprMutator):
         if expr.size is not None:
             # An explicit cast retains its declared result type even when the
             # operand is invalid or incomplete. Validation diagnoses legality.
-            expr.ty = type_info.PrimitiveType(expr.data_type, expr.size)
+            expr.ty = expr.target_type
         elif isinstance(operand_type, type_info.PrimitiveType) and operand_type.kind.is_int:
             expr.ty = type_info.PrimitiveType(expr.data_type, operand_type.size)
         else:
@@ -441,9 +496,9 @@ class InferTypesMutator(ExprMutator):
             if expr.ref_or_name.ty.kind == type_info.TypeKind.VOID:
                 expr.ty = type_info.PrimitiveType(type_info.TypeKind.VOID, 0)
             else:
-                assert expr.ref_or_name.ty.kind.is_int
-                width = arch.get_const_or_val(expr.ref_or_name.ty.size)
-                expr.ty = type_info.PrimitiveType(expr.ref_or_name.ty.kind, arch.get_const_or_val(width))
+                assert expr.ref_or_name.ty.kind.is_int or expr.ref_or_name.ty.kind.is_fixed
+                expr.ty = expr.ref_or_name.ty.return_type
+                expr.ty.size = arch.get_const_or_val(expr.ref_or_name.ty.size)
         expr.args = [self.generate(stmt, context) for stmt in expr.args]
 
         return expr

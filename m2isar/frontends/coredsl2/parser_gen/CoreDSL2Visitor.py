@@ -194,6 +194,11 @@ class CoreDSL2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CoreDSL2Parser#fixed_type.
+    def visitFixed_type(self, ctx:CoreDSL2Parser.Fixed_typeContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CoreDSL2Parser#float_type.
     def visitFloat_type(self, ctx:CoreDSL2Parser.Float_typeContext):
         return self.visitChildren(ctx)

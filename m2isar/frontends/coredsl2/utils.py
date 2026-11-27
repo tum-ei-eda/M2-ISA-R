@@ -49,6 +49,26 @@ class MyErrorListener(antlr4.error.ErrorListener.ErrorListener):
 		raise M2ParseError(msg, self.filename, line, column)
 
 
+def fixed_point_type(width, int_bits, sign=None, q_mode=None, o_mode=None) -> type_info.FixedType:
+	"""The type ``fixed<width, int_bits, sign, q_mode, o_mode>``, with ac_fixed's defaults
+	(signed, AC_TRN, AC_WRAP) for the arguments that are None.
+
+	``sign`` is the evaluated signedness argument (0 or 1); the modes are their names.
+	Raises ValueError for any other signedness or an unknown mode name.
+	"""
+	if sign not in (None, 0, 1):
+		raise ValueError(f"the signedness of a fixed-point type must be true or false, not {sign}")
+	modes = {}
+	for name, enum in (("q_mode", type_info.QuantizationMode), ("o_mode", type_info.OverflowMode)):
+		value = {"q_mode": q_mode, "o_mode": o_mode}[name]
+		if value is not None:
+			if value not in enum.__members__:
+				raise ValueError(f"unknown {enum.__name__} {value}, expected one of {', '.join(enum.__members__)}")
+			modes[name] = enum[value]
+	kind = type_info.TypeKind.UFIXED if sign == 0 else type_info.TypeKind.FIXED
+	return type_info.FixedType(kind, width, int_bits, **modes)
+
+
 def make_parser(filename):
 	input_stream = antlr4.FileStream(filename)
 	lexer = CoreDSL2Lexer(input_stream)

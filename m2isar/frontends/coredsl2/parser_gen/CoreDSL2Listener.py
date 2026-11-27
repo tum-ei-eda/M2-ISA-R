@@ -341,6 +341,15 @@ class CoreDSL2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CoreDSL2Parser#fixed_type.
+    def enterFixed_type(self, ctx:CoreDSL2Parser.Fixed_typeContext):
+        pass
+
+    # Exit a parse tree produced by CoreDSL2Parser#fixed_type.
+    def exitFixed_type(self, ctx:CoreDSL2Parser.Fixed_typeContext):
+        pass
+
+
     # Enter a parse tree produced by CoreDSL2Parser#float_type.
     def enterFloat_type(self, ctx:CoreDSL2Parser.Float_typeContext):
         pass

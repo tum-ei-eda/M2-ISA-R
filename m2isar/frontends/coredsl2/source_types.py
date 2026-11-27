@@ -1,4 +1,5 @@
-"""Integer/array type rules from the MINRES 2.0.21 source analyzer.
+"""Integer/array type rules from the MINRES 2.0.21 source analyzer, extended by
+binary fixed-point types (``fixed<W, I, S, Q, O>``) with ac_fixed's arithmetic rules.
 
 Unknown types are deferred, not treated as evidence of successful validation.
 Composite types and intrinsic size evaluation still need their own providers.
@@ -7,8 +8,10 @@ from dataclasses import dataclass
 from typing import Union
 
 from ...metamodel import type_info
+from ...metamodel.utils import fixed_point
 
-MetaType = Union[type_info.PrimitiveType, type_info.ArrayType, type_info.PointerType, type_info.CompositeType]
+MetaType = Union[type_info.PrimitiveType, type_info.FixedType, type_info.ArrayType, type_info.PointerType,
+                 type_info.CompositeType]
 
 
 @dataclass(frozen=True, eq=False)
@@ -31,14 +34,18 @@ class DslType:
 
     @property
     def width(self):
-        if self.kind in ('integer', 'enum', 'struct', 'union'):
+        if self.kind in ('integer', 'fixed', 'enum', 'struct', 'union'):
             # An enum over an unresolved base has no metamodel type.
             return None if self.meta is None else self.meta.size
         return None
 
     @property
     def signed(self):
-        return self.kind == 'integer' and self.meta.kind == type_info.TypeKind.INT
+        return self.kind in ('integer', 'fixed') and self.meta.kind.is_signed
+
+    @property
+    def int_bits(self):
+        return self.meta.int_bits if self.kind == 'fixed' else None
 
     @property
     def count(self):
@@ -48,6 +55,10 @@ class DslType:
             return self.meta.ty.length
         return None
 
+    @property
+    def modes(self):
+        return (self.meta.q_mode, self.meta.o_mode) if self.kind == 'fixed' else None
+
     def equality_key(self):
         # MINRES EnumType inherits CoreDslType's generated equality, which
         # compares only runtime class and bit size, not declaration/base type.
@@ -55,7 +66,7 @@ class DslType:
             return self.kind, self.width
         if self.kind in ('struct', 'union'):
             return self.kind, self.identity
-        return self.kind, self.width, self.signed, self.element, self.count, self.identity
+        return self.kind, self.width, self.int_bits, self.modes, self.signed, self.element, self.count, self.identity
 
     def __eq__(self, other):
         if not isinstance(other, DslType):
@@ -70,8 +81,21 @@ class DslType:
         return self.kind == 'integer' and self.width is not None
 
     @property
+    def fixed(self):
+        return self.kind == 'fixed'
+
+    @property
+    def numeric(self):
+        """An integer or fixed-point value, i.e. one with a fixed-point format."""
+        return self.integer or self.fixed
+
+    @property
+    def format(self):
+        return fixed_point.fixed_format(self.meta) if self.numeric else None
+
+    @property
     def scalar(self):
-        return self.integer
+        return self.numeric
 
     def __str__(self):
         if self.kind == 'enum':
@@ -80,6 +104,8 @@ class DslType:
             return f'{self.kind} {self.name}'
         if self.integer:
             return f'{"signed" if self.signed else "unsigned"}<{self.width}>'
+        if self.fixed:
+            return self.meta.source_name()
         if self.kind in ('array', 'address'):
             return f'{self.element}[{self.count}]'
         return self.kind
@@ -96,6 +122,19 @@ def integer(width, signed=False):
 
 
 BOOL = integer(1)
+
+
+def fixed(width, int_bits, signed=False, q_mode=type_info.QuantizationMode.AC_TRN,
+          o_mode=type_info.OverflowMode.AC_WRAP):
+    if width is None or int_bits is None:
+        return UNKNOWN
+    kind = type_info.TypeKind.FIXED if signed else type_info.TypeKind.UFIXED
+    return DslType('fixed', type_info.FixedType(kind, width, int_bits, q_mode, o_mode))
+
+
+def from_format(fmt):
+    """The DslType of a resolved fixed-point format."""
+    return fixed(fmt.width, fmt.int_bits, fmt.signed)
 
 
 def array(element, count):
@@ -131,6 +170,8 @@ def from_meta(ty, resolve=lambda value: value):
         if width is None:
             return UNKNOWN
         return DslType('integer', ty if isinstance(ty.size, int) else type_info.PrimitiveType(ty.kind, width))
+    if isinstance(ty, type_info.FixedType):
+        return fixed(resolve(ty.size), resolve(ty.int_bits), ty.signed, ty.q_mode, ty.o_mode)
     if isinstance(ty, type_info.ArrayType):
         return array(from_meta(ty.element_type, resolve), resolve(ty.length))
     return UNKNOWN
@@ -154,12 +195,16 @@ def convertible(source, target):
         return (source.width <= target.width
                 and not (source.signed and not target.signed)
                 and not (not source.signed and target.signed and source.width == target.width))
+    if source.numeric and target.numeric:
+        return fixed_point.fixed_convertible(source.format, target.format)
     return False
 
 
 def holds_value(ty, value):
     if ty.kind == 'enum':
         return holds_value(ty.element, value)
+    if ty.fixed:
+        return fixed_point.fixed_holds_value(ty.format, value)
     if not ty.integer:
         return False
     # bit_length avoids constructing a gigantic 2**width for large DSL widths.

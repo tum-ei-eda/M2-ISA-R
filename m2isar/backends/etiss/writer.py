@@ -15,7 +15,9 @@ import pickle
 import shutil
 import time
 
+from ... import M2TypeError
 from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...metamodel.utils.fixed_point import fixed_point_uses
 from ...transforms.merge_always_blocks import merge_always_blocks
 from ...transforms.lower_loops import lower_loops
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
@@ -125,6 +127,12 @@ def setup():
 
 	if model_obj.model_version != M2_METAMODEL_VERSION:
 		logger.warning("Loaded model version mismatch")
+
+	for core in model_obj.cores.values():
+		uses = fixed_point_uses(core)
+		if uses:
+			raise M2TypeError(f"the ETISS backend does not support fixed-point types, used in core {core.name} by "
+				+ ", ".join(uses))
 
 	# ETISS expects the legacy representation in which always behavior is
 	# prepended to every instruction.
