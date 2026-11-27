@@ -57,7 +57,7 @@ class MetamodelIdentityCastNativeTest(unittest.TestCase):
             with self.assertRaises(M2WarningError) as caught:
                 ValidateBehavVisitor().generate(cast(condition(INT), None), ValidatorContext(policy))
         self.assertEqual(caught.exception.issue_code, 'com.minres.coredsl.IdentityCast')
-        function = arch.Function('g', {}, 32, type_info.TypeKind.INT, [], None, extern=True)
+        function = arch.Function('g', {}, type_info.PrimitiveType(type_info.TypeKind.INT, 32), [], None, extern=True)
         for promoted in (False, True):
             with self.subTest(promoted=promoted):
                 child = behav.FunctionCall(function, [behav.Literal(1)])

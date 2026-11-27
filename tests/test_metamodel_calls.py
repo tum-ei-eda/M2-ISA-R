@@ -37,7 +37,7 @@ CASES = [
 
 
 def call(arguments):
-    function = arch.Function('g', {}, 0, type_info.TypeKind.VOID,
+    function = arch.Function('g', {}, type_info.PrimitiveType(type_info.TypeKind.VOID, 0),
                              [arch.FnParam('a', unsigned(8))], None, extern=True)
     return behav.ProcedureCall(function, arguments)
 

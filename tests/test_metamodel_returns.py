@@ -71,7 +71,7 @@ class MetamodelReturnNativeTest(unittest.TestCase):
         with self.assertRaises(M2ValidationError) as caught:
             ValidateBehavVisitor().generate(behav.Return(None), ValidatorContext())
         self.assertEqual(caught.exception.issue_code, 'com.minres.coredsl.ReturnStatementOutsideFunction')
-        function = arch.Function('f', {}, None, type_info.TypeKind.UINT, [], None)
+        function = arch.Function('f', {}, type_info.PrimitiveType(type_info.TypeKind.UINT, None), [], None)
         value = behav.Literal(1, type_info.PrimitiveType(type_info.TypeKind.UINT, 1))
         ValidateBehavVisitor().generate(behav.Return(value), ValidatorContext(function=function))
 

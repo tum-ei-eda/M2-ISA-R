@@ -6,6 +6,7 @@
 # Chair of Electrical Design Automation
 # Technical University of Munich
 
+import copy
 import itertools
 import logging
 from typing import Union
@@ -343,14 +344,10 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 		if not isinstance(params, list):
 			params = [params]
 
-		return_size = None
-		data_type = type_info.TypeKind.VOID
+		if not isinstance(type_, type_info.PrimitiveType):
+			type_ = type_info.PrimitiveType(type_info.TypeKind.VOID, None)
 
-		if isinstance(type_, type_info.PrimitiveType):
-			return_size = type_.size
-			data_type = type_.kind
-
-		f = arch.Function(name, attributes, return_size, data_type, params, ctx.behavior, ctx.extern is not None)
+		f = arch.Function(name, attributes, type_, params, ctx.behavior, ctx.extern is not None)
 		if not f.extern:
 			from .source_validator import return_terminated
 			f._coredsl_return_terminated = return_terminated(ctx.behavior)
@@ -516,20 +513,20 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					reg = None
 					# TODO: Constant might be 1 as well and makes a RegisterBank to Register ... [1] should be illegal anyways?
 					if isinstance(size[0], (arch.Parameter, behav.NamedReference)):
-						reg = arch.RegisterBank(name, size[0], type_.kind, type_.size, attributes)
+						reg = arch.RegisterBank(name, size[0], copy.copy(type_), attributes)
 						reg.coredsl_const = 'const' in qualifiers
 					elif isinstance(size[0], behav.Literal):
 						if size[0].value >= 1:
-							reg = arch.RegisterBank(name, size[0].value, type_.kind, type_.size, attributes)
+							reg = arch.RegisterBank(name, size[0].value, copy.copy(type_), attributes)
 							reg.coredsl_const = 'const' in qualifiers
 						elif size[0].value == 1:
-							reg = arch.Register(name, type_.kind, type_.size, attributes)
+							reg = arch.Register(name, copy.copy(type_), attributes)
 							reg.coredsl_const = 'const' in qualifiers
 						else:
 							M2ValueError("Size is negative for Registerbank")
 					elif isinstance(size[0], int):
 						# Unset Case: =1
-						reg = arch.Register(name, type_.kind, type_.size, attributes)
+						reg = arch.Register(name, copy.copy(type_), attributes)
 						reg.coredsl_const = 'const' in qualifiers
 					else:
 						raise NotImplementedError("Only constant Parameter and Int allowed as dimension for register size")
@@ -579,7 +576,7 @@ class ArchitectureModelBuilder(CoreDSL2Visitor):
 					if decl.attributes:
 						attributes = dict([self.visit(obj) for obj in decl.attributes])
 
-					m = arch.Memory(name, type_.kind, type_.size, size[0], attributes)
+					m = arch.Memory(name, copy.copy(type_), size[0], attributes)
 					m.coredsl_const = 'const' in qualifiers
 
 					# attach init value to memory object

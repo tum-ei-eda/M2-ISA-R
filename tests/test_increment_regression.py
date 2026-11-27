@@ -174,7 +174,7 @@ class IncrementExecutionTest(unittest.TestCase):
         for operator in ('++', '--'):
             for postfix in (False, True):
                 with self.subTest(operator=operator, postfix=postfix), tempfile.TemporaryDirectory() as directory:
-                    memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                    memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                     ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                     base = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                     base.ty = ty
@@ -185,7 +185,7 @@ class IncrementExecutionTest(unittest.TestCase):
                     update = behav.UnaryOperation(behav.Operator(operator), outer, postfix=postfix)
                     update.ty = outer.ty
                     trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                         0, type_info.TypeKind.VOID, [], None, extern=True)
+                                         type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                     generated = InstructionTransformVisitor().generate(behav.Operation([behav.Return(update)]),
                                                                       context({'M': memory}, {'trap': trap}))
                     initial, old, new, stored = (255, 3, 0, 159) if operator == '++' else (159, 0, 3, 255)
@@ -204,7 +204,7 @@ class IncrementExecutionTest(unittest.TestCase):
         for inner_operator, inner_postfix in inner_forms:
             for outer_form in ('read', 'assign', 'slice_assign', 'prefix', 'postfix'):
                 with self.subTest(outer_kind=outer_kind, inner_operator=inner_operator, inner_postfix=inner_postfix, outer_form=outer_form), tempfile.TemporaryDirectory() as directory:
-                    memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                    memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                     ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                     inner = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                     inner.ty = ty
@@ -216,7 +216,7 @@ class IncrementExecutionTest(unittest.TestCase):
                     elif outer_kind == 'array':
                         outer_reference = arch.Variable('bank', type_info.ArrayType(ty, 256))
                     else:
-                        outer_reference = arch.RegisterBank('bank', 256, type_info.TypeKind.UINT, 8, {})
+                        outer_reference = arch.RegisterBank('bank', 256, type_info.PrimitiveType(type_info.TypeKind.UINT, 8), {})
                     outer = behav.IndexedReference(outer_reference, inner)
                     outer.ty = ty
                     if outer_form == 'slice_assign':
@@ -232,7 +232,7 @@ class IncrementExecutionTest(unittest.TestCase):
                             value.ty = ty
                         statements = [behav.Return(value)]
                     trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                         0, type_info.TypeKind.VOID, [], None, extern=True)
+                                         type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                     generated = InstructionTransformVisitor().generate(behav.Operation(statements),
                                                                       context({'M': memory}, {'trap': trap}))
                     inner_stored = 5 if not inner_operator else 6 if inner_operator == '++' else 4
@@ -268,7 +268,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
                     for postfix in (False, True):
                         for nested in (False, True):
                             with self.subTest(operator=operator, left=left, initial=initial, postfix=postfix, nested=nested), tempfile.TemporaryDirectory() as directory:
-                                memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                                memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                                 target = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                                 target.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                                 update = behav.UnaryOperation(behav.Operator('--'), target, postfix=postfix)
@@ -278,7 +278,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
                                     right = behav.Ternary(behav.Literal(1, target.ty), update, behav.Literal(42, target.ty))
                                 expression = behav.BinaryOperation(behav.Literal(int(left), target.ty), behav.Operator(operator), right)
                                 trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                                     0, type_info.TypeKind.VOID, [], None, extern=True)
+                                                     type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                                 generated = InstructionTransformVisitor().generate(behav.Operation([behav.Return(expression)]),
                                                                                   context({'M': memory}, {'trap': trap}))
                                 selected = left if operator == '&&' else not left
@@ -295,7 +295,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
                 for postfix in (False, True):
                     for nested in (False, True):
                         with self.subTest(memory_then=memory_then, condition=condition, postfix=postfix, nested=nested), tempfile.TemporaryDirectory() as directory:
-                            memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                            memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                             target = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                             target.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                             update = behav.UnaryOperation(behav.Operator('--'), target, postfix=postfix)
@@ -306,7 +306,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
                             if nested:
                                 expression = behav.Ternary(behav.Literal(1, target.ty), expression, constant)
                             trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                                 0, type_info.TypeKind.VOID, [], None, extern=True)
+                                                 type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                             generated = InstructionTransformVisitor().generate(behav.Operation([behav.Return(expression)]),
                                                                               context({'M': memory}, {'trap': trap}))
                             selected = condition == memory_then
@@ -326,7 +326,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
         ]
         for leading, initial, postfix, selected, stored, accesses in cases:
             with self.subTest(leading=leading, initial=initial, postfix=postfix), tempfile.TemporaryDirectory() as directory:
-                memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                 target = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                 target.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                 condition = behav.UnaryOperation(behav.Operator('--'), target, postfix=postfix)
@@ -335,7 +335,7 @@ int f(){CPU c;CPU* cpu=&c;System s;System* system=&s;
                 branches = [[behav.CodeLiteral('selected=1;')], [behav.CodeLiteral('selected=2;')],
                             [behav.CodeLiteral('selected=3;')]]
                 trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                     0, type_info.TypeKind.VOID, [], None, extern=True)
+                                     type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                 generated = InstructionTransformVisitor().generate(behav.Operation([behav.Conditional(conditions, branches)]),
                                                                   context({'M': memory}, {'trap': trap}))
                 program = '''
@@ -359,7 +359,7 @@ int main(){int selected=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
             for postfix in (False, True):
                 for nested_loop in (False, True):
                     with self.subTest(post_test=post_test, postfix=postfix, nested_loop=nested_loop), tempfile.TemporaryDirectory() as directory:
-                        memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                        memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                         target = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                         target.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                         condition = behav.UnaryOperation(behav.Operator('--'), target, postfix=postfix)
@@ -370,7 +370,7 @@ int main(){int selected=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
                                      behav.Loop(behav.CodeLiteral('inner++<1'), [behav.Continue()], False)]
                         body.append(behav.Continue())
                         trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                             0, type_info.TypeKind.VOID, [], None, extern=True)
+                                             type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                         loop = (behav.ForLoop([behav.CodeLiteral('int iterator=0;')], condition,
                                              [behav.CodeLiteral('++iterator; ++latches;')], behav.Block(body))
                                 if loop_kind == 'for' else behav.Loop(condition, body, post_test))
@@ -421,7 +421,7 @@ int main(){int count=0,latches=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
                                                              ('--', False, 0, 255), ('--', True, 0, 255)]:
                     with self.subTest(return_expression=return_expression, read_failure=read_failure,
                                       operator=operator, postfix=postfix), tempfile.TemporaryDirectory() as directory:
-                        memory = arch.Memory('M', type_info.TypeKind.UINT, 8, 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
+                        memory = arch.Memory('M', type_info.PrimitiveType(type_info.TypeKind.UINT, 8), 256, {ai.MemoryAttribute.IS_MAIN_MEM: []})
                         target = behav.IndexedReference(memory, behav.CodeLiteral('next_address()'))
                         target.ty = type_info.PrimitiveType(type_info.TypeKind.UINT, 8)
                         node = behav.UnaryOperation(behav.Operator(operator), target, postfix=postfix)
@@ -430,7 +430,7 @@ int main(){int count=0,latches=0;CPU c;CPU* cpu=&c;System s;System* system=&s;
                         result.ty = target.ty
                         statement = behav.Return(node) if return_expression else behav.Assignment(result, node)
                         trap = arch.Function('trap', {ai.FunctionAttribute.ETISS_TRAP_TRANSLATE_FN: []},
-                                             0, type_info.TypeKind.VOID, [], None, extern=True)
+                                             type_info.PrimitiveType(type_info.TypeKind.VOID, 0), [], None, extern=True)
                         generated = InstructionTransformVisitor().generate(behav.Operation([statement]),
                                                                           context({'M': memory}, {'trap': trap}))
                         program = '''

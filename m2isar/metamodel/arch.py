@@ -265,10 +265,10 @@ class RegisterBank(Symbol):
 	children: "list[Memory]"
 	_initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
-	def __init__(self, name, nr_ele: Union[int, Parameter], kind: type_info.TypeKind, size, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+	def __init__(self, name, nr_ele: Union[int, Parameter], element_type: type_info.PrimitiveType, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.children = []
 		self._initval = {}
-		ty = type_info.ArrayType(type_info.PrimitiveType(kind, size), nr_ele)
+		ty = type_info.ArrayType(element_type, nr_ele)
 
 		super().__init__(name, ty, attributes)
 
@@ -314,10 +314,9 @@ class Register(Symbol):
 	children: "list[Memory]"
 	_initval: "dict[Union[int, Parameter, BaseNode]]"
 
-	def __init__(self, name, kind: type_info.TypeKind, size, attributes: "dict[attribute_info.RegisterAttribute, list[BaseNode]]"):
+	def __init__(self, name, ty: type_info.PrimitiveType, attributes: "dict[attribute_info.RegisterAttribute, list[BaseNode]]"):
 		self.children = []
 		self._initval = {}
-		ty = type_info.PrimitiveType(kind, size)
 
 		super().__init__(name, ty, attributes)
 
@@ -358,12 +357,12 @@ class Memory(Symbol):
 	parent: "Union['Memory', None]"
 	_initval: "dict[int, Union[int, Parameter, BaseNode]]"
 
-	def __init__(self, name, kind : type_info.TypeKind, size, length, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
+	def __init__(self, name, element_type: type_info.PrimitiveType, length, attributes: "dict[attribute_info.MemoryAttribute, list[BaseNode]]"):
 		self.children = []
 		self._initval = {}
 		self.parent = None # Just Legacy
-		assert kind.is_numeric
-		super().__init__(name, type_info.ArrayType(type_info.PrimitiveType(kind, size), length), attributes)
+		assert element_type.kind.is_numeric
+		super().__init__(name, type_info.ArrayType(element_type, length), attributes)
 
 
 	def initval(self, idx=None):
@@ -620,12 +619,12 @@ class Function(Named):
 	throws: bool
 	static: attribute_info.AccessAttribute
 
-	def __init__(self, name, attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]", return_len, kind: type_info.TypeKind, args: "list[FnParam]",
+	def __init__(self, name, attributes: "dict[attribute_info.FunctionAttribute, list[BaseNode]]", return_type: type_info.PrimitiveType, args: "list[FnParam]",
 			operation: "Operation", extern: bool=False, function_info: "FunctionInfo"=None):
 
 		self.ext_name = ""
 		self.attributes = attributes if attributes else {}
-		self.ty = type_info.FunctionType(return_len, kind)
+		self.ty = type_info.FunctionType(return_type.size, return_type.kind)
 		self.vars = {}
 		self.throws = False
 		if args is None:
