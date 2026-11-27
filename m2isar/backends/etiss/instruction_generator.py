@@ -31,7 +31,7 @@ def generate_arg_str(arg: arch.FnParam):
 		if arg.ty.ty.kind == type_info.TypeKind.VOID:
 			full_type = "void*"
 		else:
-			arg_type = f"{instruction_utils.data_type_map[arg.ty.ty.kind]}* "
+			arg_type = instruction_utils.data_type_map[arg.ty.ty.kind]
 			arg_size = actual_size(arg.ty.ty.size)
 			full_type = f"{arg_type}{arg_size}*"
 
