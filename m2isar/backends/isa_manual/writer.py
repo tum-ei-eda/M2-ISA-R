@@ -21,7 +21,7 @@ from m2isar.metamodel import type_info
 from .utils import generate_encoding
 from ..coredsl2.writer import CDSLWriterVisitor, CoreDSL2Writer
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model, arch, attribute_info
+from ...metamodel import M2Model, arch, attribute_info, check_model_version
 from ...metamodel.utils.expr_preprocessor import (process_attributes,
                                                   process_functions,
                                                   process_instructions)
@@ -141,8 +141,7 @@ def main():
     with open(model_fname, 'rb') as f:
         model_obj: "M2Model" = pickle.load(f)
 
-    if model_obj.model_version != M2_METAMODEL_VERSION:
-        logger.warning("Loaded model version mismatch")
+    check_model_version(model_obj, "ISA manual backend")
 
     models = model_obj.cores
 

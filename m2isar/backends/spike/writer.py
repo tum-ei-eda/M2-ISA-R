@@ -15,7 +15,7 @@ import pickle
 import shutil
 import time
 
-from ...metamodel import M2_METAMODEL_VERSION, M2Model
+from ...metamodel import M2Model, check_model_version
 from .instruction_writer import write_instructions
 
 
@@ -59,8 +59,7 @@ def setup():
     with open(model_fname, "rb") as f:
         model_obj: M2Model = pickle.load(f)
 
-    if model_obj.model_version != M2_METAMODEL_VERSION:
-        logger.warning("Loaded model version mismatch")
+    check_model_version(model_obj, "Spike writer")
 
     start_time = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime())
 

@@ -12,6 +12,7 @@ Welcome to M2-ISA-R's documentation!
 
    Home <self>
    Usage <usage>
+   Metamodel versions and compatibility <metamodel-compatibility>
    CoreDSL 2 coverage analysis <coverage>
    Spike backend <spike>
    autoapi/index
